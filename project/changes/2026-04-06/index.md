@@ -22,7 +22,7 @@ A complete BFD implementation shipped end to end:
 
 ## 🧩 Config editor and API
 
-A REST and gRPC API landed on top of a shared transport engine, with TLS, a Swagger UI, and a working config editor with per-user auth.
+A new REST and gRPC API uses a shared transport engine, with TLS, a Swagger UI, and a config editor with per-user authentication.
 
 ## 🔌 Interfaces
 

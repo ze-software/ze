@@ -1,6 +1,6 @@
 # RFC 8050 - Multi-Threaded Routing Toolkit (MRT) Routing Information Export Format with BGP Additional Path Extensions
 
-MRT ADD-PATH. Every requirement this repository extracted from RFC 8050, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+MRT ADD-PATH. Every requirement listed for RFC 8050, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,24 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 4 | of 6 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 1 | of 6 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 6 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| No test at all | 0 | of 6 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 32 | 32 of 36 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-
-### Neutral
-
-measures that are neither good news nor bad
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Gated MUSTs | 6 | of 6 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 6 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 6 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 6 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 6 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 6 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Tested both ways | 4 | of 6 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 1 | of 6 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 6 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Declared gap or no test | 0 | of 6 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Tests shown to detect a fault | 32 | 32 of 36 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -35,55 +22,75 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Partial proof; remaining gap | 1 | of 6 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Audit verdicts | 6 | of 6 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+| Partial proof; remaining gap | 1 | of 6 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Audit verdicts | 6 | of 6 mandatory requirements reviewed | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
-The 9 counts marked as a part above are the whole of the 6 gated MUSTs: they add up to 6. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Neutral
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+measures that are neither good news nor bad
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Out of scope | 0 | of 6 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 6 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 6 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 6 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 6 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+
+### Totals
+
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 6 | of 6 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 6 mandatory requirements: they add up to 6. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | bad | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | ok | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | MRT ADD-PATH |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 6 |
-| Gated MUST-level | 6 |
+| Mandatory requirements (MUST level) | 6 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 36 |
-| Tagged units | 36 |
+| Tests linked to requirements | 36 |
 | Recorded audit verdicts | 6 |
-| Discrimination records | 32 |
+| Fault test records | 32 |
 | Summary | `rfc/short/rfc8050.md` |
-| Requirement shard | `rfc/requirements/rfc8050.md` |
+| Requirement table | `rfc/requirements/rfc8050.md` |
 | RFC text | `rfc/full/rfc8050.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: MRT Routing Information Export Format with BGP Additional Path Extensions: six MUST-level requirements. Tagged tests cover RIB entry layout (4.1-1), raw RIB_GENERIC NLRI (4.2-1), big-endian Path Identifiers (x-2), unchanged complete BGP4MP messages (x-3), subtype and actual directional OPEN context (x-4), and negotiated directional subtype selection (x-1). The x-2 numeric encoding row is {single-polarity: positive}; other rows carry positive and negative claims.
+Included in automatic checks: MRT Routing Information Export Format with BGP Additional Path Extensions: six MUST-level requirements. Tagged tests cover RIB entry layout (4.1-1), raw RIB_GENERIC NLRI (4.2-1), big-endian Path Identifiers (x-2), unchanged complete BGP4MP messages (x-3), subtype and actual directional OPEN context (x-4), and negotiated directional subtype selection (x-1). The x-2 numeric encoding row is {single-polarity: positive}; other rows carry positive and negative claims.
 
-## What the public ledger says
+## Published support status
 
 **Area:** MRT ADD-PATH
 
@@ -98,14 +105,14 @@ Enrolled: MRT Routing Information Export Format with BGP Additional Path Extensi
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 4 | one part of the gated population |
-| Annotated (including scoped evidence) | 2 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 1 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **6** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 4 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 2 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 1 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **6** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (4):** [`RFC8050-x-1`](#rfc8050-x-1), [`RFC8050-4.2-1`](#rfc8050-4.2-1), [`RFC8050-x-3`](#rfc8050-x-3), [`RFC8050-x-4`](#rfc8050-x-4)
 
@@ -115,20 +122,23 @@ Enrolled: MRT Routing Information Export Format with BGP Additional Path Extensi
 
 ## Figures
 
-- **MUST bar**: Ze proven 5, Ze correctness gap 1
-- **Overview bar**: Ze MUST proven 5, Ze correctness gap 1
+- **MUST bar**: Ze proven 5, Not built 1
+- **Overview bar**: Ze MUST proven 5, Not built 1
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 6 |
 | MUST rows kept (the MUST bar) | 6 |
 | Ze proven | 5 |
 | OS verified | 0 |
+| Proof pending | 0 |
 | OS testing gap | 0 |
-| Ze correctness gap | 1 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 1 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -141,11 +151,12 @@ Enrolled: MRT Routing Information Export Format with BGP Additional Path Extensi
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 0 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 0 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc8050.json](../../../data/rfc/rfc8050.json).
 
@@ -154,7 +165,7 @@ Source: [data/rfc/rfc8050.json](../../../data/rfc/rfc8050.json).
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
 | `RFC8050-x-1` | The Advertisement of Multiple Paths [RFC7911] extension for BGP alters the encoding of the BGP Network Layer Reachability Information (NLRI) format for withdraws and announcements. Therefore, new BGP4MP/BGP4MP_ET subtypes as defined in [RFC6396] are required to signal to an MRT parser how to parse the NLRI. (§2) | MUST | 2 | **positive:** `unit/verify` [`TestMRTWinningCollisionPreservesOPEN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_collision_epoch_test.go#L31). **positive:** `unit/verify` [`TestRFC8050MessageCallbackPreservesEncodingAndFraming`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_mrt_observer_test.go#L23). **negative:** `unit/verify` [`TestMRTWinningCollisionPreservesOPEN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_collision_epoch_test.go#L32). **negative:** `unit/verify` [`TestRFC8050MessageCallbackPreservesEncodingAndFraming`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_mrt_observer_test.go#L24) |
-| `RFC8050-4.1-1` | the existing RIB Entries field is redefined for use within the new AFI/SAFI-specific RIB subtypes defined by this document as follows: 0 1 2 3 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ \| Peer Index \| +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ \| Originated Time \| +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ \| Path Identifier \| +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ \| Attribute Length \| +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ \| BGP Attributes... (variable) +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ Figure 1: RIB Entries for AFI/SAFI-Specific RIB Subtypes with Support for Additional Paths This adds a field to the RIB Entries record to store the Path Identifier when used with the RIB_IPV4_UNICAST_ADDPATH, RIB_IPV4_MULTICAST_ADDPATH, RIB_IPV6_UNICAST_ADDPATH, and RIB_IPV6_MULTICAST_ADDPATH subtypes. (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC8050AddPathRIBEntryFollowsFigure1`](https://github.com/ze-software/ze/blob/main/internal/mrt/rfc8050_layout_test.go#L167). **positive:** `unit/verify` [`TestRIBRecordAddPathRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L264). **negative:** `unit/verify` [`TestRIBRecordRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L216). **{partial}:** tested "the existing RIB Entries field is redefined for use within the new AFI/SAFI-specific RIB subtypes defined by this document as follows"; gap "This adds a field to the RIB Entries record to store the Path Identifier"; the record layout is met on both sides, proven by the tags: the reader parses the Path Identifier field and WriteRIBEntries places it. The TABLE_DUMP_V2 snapshot does not store the route's Path Identifier in it: internal/plugins/mrt/dump.go::writeTableDumpV2 writes an ADDPATH subtype when the operator toggle is set, but builds each RIBEntry with no PathID, because the RIB dump callback carries none, so every entry's field holds 0 and two paths of one prefix from one peer cannot be told apart. **Scoped evidence:** Tests and tag-claim records apply only to Tested; zero whole-requirement credit. partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. Rejudged 2026-10-30 (independent auditor) after the row gained a {partial} scope. RFC 8050 Section 4.1: "This adds a field to the RIB Entries record to store the Path Identifier when used with the RIB_IPV4_UNICAST_ADDPATH, RIB_IPV4_MULTICAST_ADDPATH, RIB_IPV6_UNICAST_ADDPATH, and RIB_IPV6_MULTICAST_ADDPATH subtypes." Tested: the existing RIB Entries field is redefined for use within the new AFI/SAFI-specific RIB subtypes defined by this document as follows. TestRFC8050AddPathRIBEntryFollowsFigure1 compares WriteRIBEntries output with the literal Figure 1 octets and decodes them under subtypes 8-11; TestRIBRecordAddPathRoundTrip round-trips PathID 1 and 2 under subtype 8; TestRIBRecordRoundTrip (negative) reads no Path Identifier under base subtype 2. Gap: This adds a field to the RIB Entries record to store the Path Identifier. Producer internal/plugins/mrt/dump.go::writeTableDumpV2 builds each mrtfmt.RIBEntry from PeerIndex, OrigTime and Attributes only, because registry.RIBDumpVisitor.OnRoute carries no path id, so under the add-path toggle every entry's field is written as 0 and the route's Path Identifier is not stored. Revert records cover all three tagged units. |
+| `RFC8050-4.1-1` | the existing RIB Entries field is redefined for use within the new AFI/SAFI-specific RIB subtypes defined by this document as follows: 0 1 2 3 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ \| Peer Index \| +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ \| Originated Time \| +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ \| Path Identifier \| +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ \| Attribute Length \| +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ \| BGP Attributes... (variable) +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ Figure 1: RIB Entries for AFI/SAFI-Specific RIB Subtypes with Support for Additional Paths This adds a field to the RIB Entries record to store the Path Identifier when used with the RIB_IPV4_UNICAST_ADDPATH, RIB_IPV4_MULTICAST_ADDPATH, RIB_IPV6_UNICAST_ADDPATH, and RIB_IPV6_MULTICAST_ADDPATH subtypes. (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC8050AddPathRIBEntryFollowsFigure1`](https://github.com/ze-software/ze/blob/main/internal/mrt/rfc8050_layout_test.go#L167). **positive:** `unit/verify` [`TestRIBRecordAddPathRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L264). **negative:** `unit/verify` [`TestRIBRecordRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L216). **{partial}:** tested "the existing RIB Entries field is redefined for use within the new AFI/SAFI-specific RIB subtypes defined by this document as follows"; gap "This adds a field to the RIB Entries record to store the Path Identifier"; the record layout is met on both sides, proven by the tags: the reader parses the Path Identifier field and WriteRIBEntries places it. The TABLE_DUMP_V2 snapshot does not store the route's Path Identifier in it: internal/plugins/mrt/dump.go::writeTableDumpV2 writes an ADDPATH subtype when the operator toggle is set, but builds each RIBEntry with no PathID, because the RIB dump callback carries none, so every entry's field holds 0 and two paths of one prefix from one peer cannot be told apart. **Partial test coverage:** Tests and fault test records cover only the part marked Tested; they do not prove the whole requirement. partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. Rejudged 2026-10-30 (independent auditor) after the row gained a {partial} scope. RFC 8050 Section 4.1: "This adds a field to the RIB Entries record to store the Path Identifier when used with the RIB_IPV4_UNICAST_ADDPATH, RIB_IPV4_MULTICAST_ADDPATH, RIB_IPV6_UNICAST_ADDPATH, and RIB_IPV6_MULTICAST_ADDPATH subtypes." Tested: the existing RIB Entries field is redefined for use within the new AFI/SAFI-specific RIB subtypes defined by this document as follows. TestRFC8050AddPathRIBEntryFollowsFigure1 compares WriteRIBEntries output with the literal Figure 1 octets and decodes them under subtypes 8-11; TestRIBRecordAddPathRoundTrip round-trips PathID 1 and 2 under subtype 8; TestRIBRecordRoundTrip (negative) reads no Path Identifier under base subtype 2. Gap: This adds a field to the RIB Entries record to store the Path Identifier. Producer internal/plugins/mrt/dump.go::writeTableDumpV2 builds each mrtfmt.RIBEntry from PeerIndex, OrigTime and Attributes only, because registry.RIBDumpVisitor.OnRoute carries no path id, so under the add-path toggle every entry's field is written as 0 and the route's Path Identifier is not stored. Revert records cover all three tagged units. |
 | `RFC8050-4.2-1` | These fields continue to encapsulate the raw and additional-path- enabled AFI/SAFI/NLRI in the record, and the raw attributes in the RIB Entries. For clarity, the RIB Entries in this subtype are not redefined. (§4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestRIBGenericAddPathRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L515). **negative:** `unit/verify` [`TestRIBGenericRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L312) |
 | `RFC8050-x-2` | 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ \| Peer Index \| +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ \| Originated Time \| +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ \| Path Identifier \| (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC8050AddPathRIBEntryFollowsFigure1`](https://github.com/ze-software/ze/blob/main/internal/mrt/rfc8050_layout_test.go#L173). **positive:** `unit/verify` [`TestRIBRecordAddPathRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L268). **negative:** no negative test. **{single-polarity}:** the Path ID is written and read big-endian (internal/mrt/encode.go:107, decode.go:295); there is no alternate-endianness path |
 | `RFC8050-x-3` | The fields of these message types are identical to the equivalent non-additional-path versions specified in Section 4.4 of [RFC6396]. These enhancements continue to encapsulate the entire BGP message in the BGP message field. (§3) | MUST | 3 | **positive:** `unit/verify` [`TestBGP4MPMessageRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L367). **positive:** `unit/verify` [`TestRFC8050AddPathBGP4MPRecordsKeepTheBaseFields`](https://github.com/ze-software/ze/blob/main/internal/mrt/rfc8050_layout_test.go#L99). **negative:** `unit/verify` [`TestBGP4MPStateChangeRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L427). **negative:** `unit/verify` [`TestRFC8050AddPathRecordAddsNoFieldToTheBaseLayout`](https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc8050_addpath_record_test.go#L31) |
@@ -168,7 +179,7 @@ Source: [data/rfc/rfc8050.json](../../../data/rfc/rfc8050.json).
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC8050-x-1`](#rfc8050-x-1)
 
@@ -187,7 +198,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 
 the existing RIB Entries field is redefined for use within the new AFI/SAFI-specific RIB subtypes defined by this document as follows: 0 1 2 3 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | Peer Index | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | Originated Time | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | Path Identifier | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | Attribute Length | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | BGP Attributes... (variable) +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ Figure 1: RIB Entries for AFI/SAFI-Specific RIB Subtypes with Support for Additional Paths This adds a field to the RIB Entries record to store the Path Identifier when used with the RIB_IPV4_UNICAST_ADDPATH, RIB_IPV4_MULTICAST_ADDPATH, RIB_IPV6_UNICAST_ADDPATH, and RIB_IPV6_MULTICAST_ADDPATH subtypes. (§4.1)
 
-Scoped tag-claim records only: tested "the existing RIB Entries field is redefined for use within the new AFI/SAFI-specific RIB subtypes defined by this document as follows"; gap "This adds a field to the RIB Entries record to store the Path Identifier"; the record layout is met on both sides, proven by the tags: the reader parses the Path Identifier field and WriteRIBEntries places it. The TABLE_DUMP_V2 snapshot does not store the route's Path Identifier in it: internal/plugins/mrt/dump.go::writeTableDumpV2 writes an ADDPATH subtype when the operator toggle is set, but builds each RIBEntry with no PathID, because the RIB dump callback carries none, so every entry's field holds 0 and two paths of one prefix from one peer cannot be told apart; zero whole-requirement credit.
+Records cover only part of this requirement: tested "the existing RIB Entries field is redefined for use within the new AFI/SAFI-specific RIB subtypes defined by this document as follows"; gap "This adds a field to the RIB Entries record to store the Path Identifier"; the record layout is met on both sides, proven by the tags: the reader parses the Path Identifier field and WriteRIBEntries places it. The TABLE_DUMP_V2 snapshot does not store the route's Path Identifier in it: internal/plugins/mrt/dump.go::writeTableDumpV2 writes an ADDPATH subtype when the operator toggle is set, but builds each RIBEntry with no PathID, because the RIB dump callback carries none, so every entry's field holds 0 and two paths of one prefix from one peer cannot be told apart; they do not prove the whole requirement.
 
 Audit verdict: partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. Rejudged 2026-10-30 (independent auditor) after the row gained a {partial} scope. RFC 8050 Section 4.1: "This adds a field to the RIB Entries record to store the Path Identifier when used with the RIB_IPV4_UNICAST_ADDPATH, RIB_IPV4_MULTICAST_ADDPATH, RIB_IPV6_UNICAST_ADDPATH, and RIB_IPV6_MULTICAST_ADDPATH subtypes." Tested: the existing RIB Entries field is redefined for use within the new AFI/SAFI-specific RIB subtypes defined by this document as follows. TestRFC8050AddPathRIBEntryFollowsFigure1 compares WriteRIBEntries output with the literal Figure 1 octets and decodes them under subtypes 8-11; TestRIBRecordAddPathRoundTrip round-trips PathID 1 and 2 under subtype 8; TestRIBRecordRoundTrip (negative) reads no Path Identifier under base subtype 2. Gap: This adds a field to the RIB Entries record to store the Path Identifier. Producer internal/plugins/mrt/dump.go::writeTableDumpV2 builds each mrtfmt.RIBEntry from PeerIndex, OrigTime and Attributes only, because registry.RIBDumpVisitor.OnRoute carries no path id, so under the add-path toggle every entry's field is written as 0 and the route's Path Identifier is not stored. Revert records cover all three tagged units.
 
@@ -262,7 +273,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | positive | [`TestMRTContextCapabilityASNBoundaries`](https://github.com/ze-software/ze/blob/main/internal/mrt/rfc8050_session_context_boundaries_test.go#L19) | unit/verify | revert, verified |
 | positive | [`TestRFC8050SessionContextDecodesMixedDirections`](https://github.com/ze-software/ze/blob/main/internal/mrt/rfc8050_session_context_test.go#L72) | unit/verify | revert, verified |
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -281,18 +292,18 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
-| `front` | not stated | 1 | walked | not stated |
-| `1` | not stated | 0 | walked | not stated |
-| `2` | not stated | 2 | walked | not stated |
-| `3` | not stated | 0 | walked | not stated |
-| `4` | not stated | 0 | walked | not stated |
-| `4.1` | not stated | 0 | walked | not stated |
-| `4.2` | not stated | 0 | walked | not stated |
-| `5` | not stated | 0 | walked | not stated |
-| `5.1` | not stated | 0 | walked | not stated |
-| `5.2` | not stated | 0 | walked | not stated |
-| `6` | not stated | 0 | walked | not stated |
-| `7` | not stated | 0 | walked | not stated |
+| `front` | not stated | 1 | reviewed | not stated |
+| `1` | not stated | 0 | reviewed | not stated |
+| `2` | not stated | 2 | reviewed | not stated |
+| `3` | not stated | 0 | reviewed | not stated |
+| `4` | not stated | 0 | reviewed | not stated |
+| `4.1` | not stated | 0 | reviewed | not stated |
+| `4.2` | not stated | 0 | reviewed | not stated |
+| `5` | not stated | 0 | reviewed | not stated |
+| `5.1` | not stated | 0 | reviewed | not stated |
+| `5.2` | not stated | 0 | reviewed | not stated |
+| `6` | not stated | 0 | reviewed | not stated |
+| `7` | not stated | 0 | reviewed | not stated |
 
 ### Excluded sentences
 

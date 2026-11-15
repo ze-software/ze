@@ -103,8 +103,18 @@ or answered with ICMP (Linux limitation <code>LL-MPLS-FORWARD-NO-PMTU</code>,
 start. Details: <code>docs/architecture/mpls/mpls-kernel.md</code>, "On a kernel without
 the patch".</p>
 <p>A VPP or P4 FIB backend is never judged on the kernel's AF_MPLS table. The
-<code>fib { kernel { } }</code> block is what activates the plugin that programs kernel
-labels, and it is that plugin that carries the requirement.</p>
+requirement belongs to fib-kernel, the plugin that programs kernel labels.
+LDP and RSVP-TE load it under <code>interface { backend netlink; }</code> with no
+<code>fib { }</code> block, and a <code>fib { kernel { } }</code> block loads it too.</p>
+<p>On <code>interface { backend vpp; }</code>, fib-vpp programs the same LDP and RSVP-TE
+swap and pop entries into VPP's MPLS table 0, and <code>mpls { enable true; }</code>
+enables MPLS input on the VPP interface instead of only writing the sysctl.
+<code>show mpls fib</code> in <code>vppctl</code> lists each label twice, as <code>eos</code> and <code>neos</code>. VPP
+has no per-route MTU, so labeled frames are bounded by the interface MTU, and
+an RSVP-TE facility-backup push into a private table is refused. The details
+are in <a href="../vpp/">VPP</a>, row vpp-3.</p>
+<!-- source: internal/plugins/fib/vpp/mplsentry.go -- handleMPLSEntry -->
+<!-- source: internal/plugins/iface/vpp/mplsinput.go -- ReplaceMPLSInput -->
 <h2 id="inspecting-the-forwarding-table">Inspecting the forwarding table</h2>
 <pre><code>ze show mpls forwarding              # all installed MPLS entries
 ze show mpls forwarding limit 500    # cap the response size
@@ -166,11 +176,22 @@ Rejected/No Hello.</p>
 <!-- source: internal/plugins/ldp/session.go -- NewSession, SendInit -->
 <!-- source: internal/plugins/ldp/session.go -- processMessages, rejectInit -->
 <!-- source: internal/plugins/ldp/register.go -- sessionConfigForAdj -->
+<p>With the LDP log at info (<code>environment { log { ldp info } }</code>), ze logs
+<code>ldp: session operational</code> with the peer address when a session reaches
+OPERATIONAL, and <code>ldp: session ended</code> with the peer and the cause when a session
+ends on an error, so the log shows when each session came up and went down.</p>
+<!-- source: internal/plugins/ldp/session.go -- processMessages -->
+<!-- source: internal/plugins/ldp/register.go -- runSession -->
 <p>Inspect LDP state with <code>show ldp neighbor</code> (session state, transport address)
 and <code>show ldp binding</code> (FEC-to-label bindings). A label binding learned from a
-neighbor programs an ingress push entry in the kernel MPLS FIB toward that
-neighbor.</p>
-<!-- source: internal/plugins/fib/kernel/mpls.go -- label validation -->
+neighbor programs an ingress push entry toward that neighbor, in the kernel MPLS
+FIB under <code>interface { backend netlink; }</code> and in VPP under <code>backend vpp</code>.
+<code>show mpls forwarding</code> reads the data plane the backend selects: under
+<code>backend vpp</code> it lists the labels in VPP MPLS table 0 and VPP's labeled IP
+routes, in the same row format as the kernel table. When VPP does not answer,
+the command fails and names <code>ze doctor</code>. It does not answer an empty table.</p>
+<!-- source: internal/plugins/fib/vpp/mplsforwarding.go -- readMPLSForwarding -->
+<!-- source: internal/core/mplsfib/label.go -- label validation -->
 <!-- source: internal/plugins/fib/kernel/nexthop_linux.go -- buildMPLSEncap (push) -->
 <!-- source: internal/component/iface/config_sysctl.go -- net.mpls.conf.<iface>.input -->
 <!-- source: internal/component/mpls/show_forwarding.go -- show mpls forwarding -->
@@ -189,6 +210,10 @@ neighbor.</p>
                     <a class="page-sidebar-link" href="../../guides/quickstart/">
                         <span class="page-sidebar-link-label">Quickstart</span>
                         <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ai-agent/">
+                        <span class="page-sidebar-link-label">Use Ze with an AI agent</span>
+                        <small>Let Claude Code or Codex drive Ze for you.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
@@ -219,7 +244,7 @@ neighbor.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 02:34 UTC</span>
                 </div>
             </div>
         </footer>

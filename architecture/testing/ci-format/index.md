@@ -275,7 +275,7 @@ text was never executed.
 
 **Single-line text:**
 ```
-stdin=cmd:text=update text nhop set 10.0.0.1 nlri add 10.0.0.0/24
+stdin=cmd:text=update text next-hop 10.0.0.1 nlri add 10.0.0.0/24
 ```
 
 ### Where the block goes
@@ -342,7 +342,7 @@ such as `"le" test 'peer'` and quoted mode values retain their peer role.
 
 | Line | Read by |
 |------|---------|
-| `expect=bgp`, `reject=bgp`, `action=*`, and the peer's own `option=` (`asn`, `bind`, `tcp_connections`, `conn_map`, `open`, `update`, `linger`, `silent`, `await_eor`, `established-file`, `await-file`) | le test peer |
+| `expect=bgp`, `reject=bgp`, `action=*`, and the peer's own `option=` (`asn`, `bind`, `tcp_connections`, `conn_map`, `open`, `update`, `linger`, `remote_close`, `silent`, `stop-reading`, `await_eor`, `established-file`, `await-file`) | le test peer |
 | `expect=json`, `expect=stderr`, `expect=syslog`, `reject=stderr`, `reject=stdout`, `reject=syslog` | the test runner, where the line stands |
 | `cmd=api` | nobody. It documents the command that produced the expected bytes |
 | `option=timeout` | the test runner parses it, and **adopts it only when the file declares none.** Its scope is the whole test, not this peer, so a file-level value always wins. 450 tracked peer blocks carry one. Write the one that governs outside the block |
@@ -509,18 +509,20 @@ option=<type>:key=value[:key=value...]
 | `tcp_connections` | `value=<N>` | The number of TCP connections the peer serves. It is a BOUND, never a witness: the count says how many connections happened and not who caused them. A peer that closes when its expectations are met makes ze dial again on its retry timer, so `value=2` is reached by a daemon that did nothing. To assert that the DAEMON dropped and restarted a session, add `option=linger`, which makes the peer incapable of causing the second connection. |
 | `linger` | `value=true` | Peer-block only: the check peer never closes a connection itself. After ALL expectations complete it prints its success token and holds the session open (answering KEEPALIVEs) until test teardown. BETWEEN connections, where one connection's expectations are met and a later connection is still owed, it holds that connection until the REMOTE closes it, and fails the test if teardown comes first. Without it a completed peer closes, which ze correctly treats as session-down; that withdraws the peer's routes and races any forwarding still in flight toward other peers, and it also makes the daemon's OWN close unobservable, because ze dials again on its retry timer whoever closed (`test/reload/config-apply-ordering-address-swap.ci` asserts a stop and a restart, and needs the peer to be incapable of causing one). A `conn_map` peer is excluded from the between-connections hold: it serves every connection of one batch in turn and then waits for the daemon to close them all, so holding the first would starve the batch. A `reject=bgp` that fires during either hold RETRACTS the success token already printed, so the peer still fails the test. |
 | `silent` | `value=true` | Peer-block only, check mode only: the peer stops sending the automatic KEEPALIVE reply it otherwise writes for every message it receives. It holds the TCP connection open and keeps reading and matching expectations. Needed to reach ze's receive hold timer: ze sends its own KEEPALIVE every hold/3 seconds, each automatic reply resets ze's hold timer, and "the peer went quiet" is otherwise unexpressible. A closed connection is a different event on a different code path, so `action=close` does not substitute. **Explicit writes still happen**: `action=send`, `action=notification`, the OPEN handshake itself, and `option=linger`'s post-completion KEEPALIVE loop are unaffected, so `silent` with `linger` is not silent. Sink and echo modes ignore it. See `test/plugin/deadpeer-holddown.ci`. |
+| `stop-reading` | `value=true[:conn=<N>]` | Peer-block only, check mode only: the mirror of `silent`. On connection `<N>` (counted from 1 like the `conn=` of an `expect=bgp` line, default 1) the peer reads the daemon's first UPDATE, judges it like any other frame, and then reads NOTHING more from that connection. It keeps the TCP connection open and writes a KEEPALIVE every second, so ze's receive hold timer never fires, while everything ze writes piles up unread until ze's own write blocks. Needed to reach a session whose peer stopped accepting data: a closed connection and a quiet peer are both different events. **The fill does not depend on the host's default buffer sizes on the peer's side**: the peer shrinks its receive buffer on that connection before the handshake, which also switches the kernel's receive autotuning off. The daemon's send buffer is still the kernel's, so the test must give ze more to send than a send buffer can autotune to (4 MiB with Linux and macOS defaults). **The peer never closes that connection itself.** It reads nothing, so it sees the daemon's close only on the write side: a KEEPALIVE written to a closed connection is answered with a reset and the write after it fails, within two seconds. It then accepts the next connection, which therefore exists only because the DAEMON dropped the session. If teardown comes first, the peer fails with `the daemon never closed the connection the peer stopped reading`. Every other connection is read normally. The first UPDATE MUST meet the last expectation connection `<N>` holds, because no later frame is read: an expectation left behind fails the peer by name. `value=false` leaves the option off; any other value, a `conn=` below 1 or above `tcp_connections`, and a combination with `conn_map`, `silent` or `remote_close` are refused. See `test/plugin/session-peer-stops-reading.ci`. |
 | `established-file` | `path=<name>` | Peer-block only: ze-peer creates an empty marker file on each session's first UPDATE: `<name>` for the first session of the run, `<name>-2` for the second, `<name>-N` for the Nth, so a fixture waits for the session a reload restarted (`await-file established-2`) the way it waits for the first. A relative name resolves in the test's work directory, where ze-peer and every compiled fixture run. The UPDATE, not ze's KEEPALIVE, is the event: RFC 4271 Section 9 permits an UPDATE only in Established, so the file proves the DAEMON is Established, while its KEEPALIVE arrives when it can still be in OpenConfirm. It lets a fixture wait on that state instead of a fixed delay: the reload trigger's `awaitEstablished` (`internal/test/fixture/misc_fixture_shellports.go`) holds the SIGHUP until the file named `established` exists. A session that sends no UPDATE never writes the file. See `test/reload/reload-dynamic-peer-survives.ci`. |
-| `await-file` | `path=<name>` | Peer-block only: ze-peer sends nothing after the OPEN handshake, not an `action=send`, not an `option=update` route, until the file `<name>` exists. It resolves like `established-file`, so one peer block can hold its first UPDATE until another block's `established-file` proves the daemon has that session Established. A relay test needs it when its sender would otherwise race the receiver: ze forwards nothing to a peer it does not yet hold Established, and a route that arrives first reaches the receiver later through a peer-up replay, whose order is not the send order. The wait is bounded at 15 s and fails naming the file. See `test/plugin/forward-overflow-two-tier.ci`. |
+| `await-file` | `path=<name>[:timeout=<duration>]` | Peer-block only: ze-peer sends nothing after the OPEN handshake, not an `action=send`, not an `option=update` route, until the file `<name>` exists. It resolves like `established-file`, so one peer block can hold its first UPDATE until another block's `established-file` proves the daemon has that session Established. A relay test needs it when its sender would otherwise race the receiver: ze forwards nothing to a peer it does not yet hold Established, and a route that arrives first reaches the receiver later through a peer-up replay, whose order is not the send order. The wait is bounded at 15 s, or at the `timeout=` the option declares (a positive Go duration such as `240s`; anything else is refused), and fails naming the file and the bound. While it waits, ze-peer keeps the session alive: it answers and consumes each KEEPALIVE the daemon sends, so a wait longer than the hold time does not expire the daemon's hold timer, and a script never sees a KEEPALIVE that arrived before the file existed. Every other frame that arrives during the wait (an End-of-RIB, an UPDATE) is held in order, up to 1 MiB, and replayed to the script after the wait, which answers and judges it as it always did. See `test/plugin/forward-overflow-two-tier.ci`, and `test/interop/scenarios/bgp-local-pref-strip-gobgp/inject.msg`, whose file the interop checker writes. |
 | `open` | `value=<behavior>` | OPEN message behavior |
 | `update` | `value=<behavior>` | UPDATE message behavior |
 | `env` | `var=<KEY>:value=<V>` | Set environment variable |
 | `skip-os` | `value=<os>[,<os>]` | Skip test on listed GOOS values (e.g., `darwin`, `linux`) |
 | `needs-arch` | `value=<goarch>[,<goarch>]` | Run only on a host whose CPU arch (`GOARCH`) is in the list. On any other host the test is SKIPPED, and the SKIP line names both arches: `SKIP ... -- needs-arch=arm64, host GOARCH=amd64: ...`. A test that builds or boots for a target arch carries it (owner decision 2026-10-13: a target arch is tested only on a CPU of that arch), because Ze builds every kernel on a host of its own arch, with no CPU emulation. Each token must be an arch the kernel builder supports (`kernelbuilder.SupportedArches`, today `amd64` and `arm64`): an empty token, a typo such as `amd46`, a kernel spelling such as `x86_64` or `aarch64`, a missing `value=` or any other key is a parse error on every host. A fixture whose arch is incidental to what it asserts asks for the host's arch instead (`hostKernelArch`, `internal/test/fixture/install_fixture.go`), so it runs everywhere. The `test/parse` suite has its own parser and does not take `needs-arch`. |
-| `needs-linux` | `[caps=<tok>[,<tok>]]` | Linux-only test. It skips on non-Linux hosts and runs in the QEMU guest through `./le test qemu all`. `caps=` declares required capabilities such as `net-admin`, `net-raw`, `bpf`, and `sys-time`; an unavailable capability produces a visible skip. An unknown token, an unknown key or an empty `caps=` is refused on every host. |
+| `needs-linux` | `[caps=<tok>[,<tok>]]` | Linux-only test. It skips on non-Linux hosts and runs in the QEMU guest through `./le test qemu all`; the skip reason ends with the host command that runs that one test there, `./le test qemu ci test <path>`. `caps=` declares required capabilities such as `net-admin`, `net-raw`, `bpf`, and `sys-time`; an unavailable capability produces a visible skip. An unknown token, an unknown key or an empty `caps=` is refused on every host. |
 | `needs-path` | `value=<repo-rel-path>[:hint=<cmd>]` | Declares an optional heavyweight artifact. The runner resolves the path against the repository root and prints the native `hint` when the artifact is absent. A malformed or escaping path is a parse error. |
 | `netns-link` | `name=<if>[:address=<cidr>]` | Provisions a dummy interface inside the per-test namespace. The test skips outside the `./le test qemu netns` path because the named link must never be created on the host. |
 | `exclusive` | `group=<name>` | Never run concurrently with another test carrying the same group name. Tests outside the group are unaffected and keep running alongside, so this costs far less wall-clock than dropping a whole suite to `-p 1`. Use it when tests contend for a kernel-global observation surface that unique names or addresses cannot partition: the ddos tests (`group=ddos-flood`) all flood the same loopback interface, and each daemon's detector picks its victim by top-destination-bytes over that interface's counters, so a sibling's concurrent flood is indistinguishable from the test's own. Applies on every platform and in every runner mode, because the contention is a property of the tests rather than of the host. |
 <!-- source: internal/test/runner/record_parse.go -- parseAndAdd, option parsing -->
+<!-- source: internal/test/peer/await_file.go -- awaitFile, awaitFileBound, replayHeld -->
 <!-- source: internal/test/runner/caps.go -- capsRequired, the caps= token table -->
 <!-- source: internal/test/runner/needs_path.go -- repoRootFrom, the needs-path lookup -->
 <!-- source: internal/test/runner/needs_arch.go -- needsArchSkipReason, checkNeedsArchToken -->
@@ -597,7 +599,20 @@ When a raw injection races the independent initial-sync marker, put their
 exact wire expectations in the same `seq` group: both are required, but neither
 is required to arrive first. The observer MUST retain its EOR counter barrier
 before requesting shutdown.
+
+Who stops the daemon decides which side may still be talking to it. For a
+compiled fixture that does not declare `StopsDaemon`, the runner waits for its
+check peers to exit and then signals the daemon, so a non-lingering peer's
+completion ends ze at once: an engine call the fixture still has in flight,
+even a `request quiesce`, then fails on the closed connection. Such a fixture
+MUST make no engine call after the point at which its peer can complete. When
+the fixture has work after that point, the peer lingers and the fixture ends
+the test itself through `fixture.Observe`, declaring `StopsDaemon`
+(`initial-sync-marker-beside-process-route.ci`, `api-eor-during-initial-sync.ci`,
+`ipv4-announce-withdraw.ci`).
 <!-- source: internal/test/peer/reject.go -- Peer.completed -->
+<!-- source: internal/test/runner/runner_exec.go -- runOrchestrated, the default arm waits peers, then selfStop or terminateGracefully -->
+<!-- source: internal/test/fixture/register_initial_sync_marker_beside_process_route.go -- markerBesideProcessRoute -->
 <!-- source: internal/test/peer/checker.go -- Checker.consumeMatches -->
 <!-- source: internal/test/fixture/register_initial_sync_barrier.go -- initialSyncBarrierRaw -->
 
@@ -802,7 +817,7 @@ expectations.
 |-------|------|-------------|
 | `send-default-route` | none | Send one UPDATE for `0.0.0.0/32` via `192.0.2.1`, an address no test host holds, so the route passes the RFC 4271 Section 6.3 next-hop check |
 | `send-route` | `prefix`, `origin-as`, `next-hop`, and optionally `as-path`, `as-set`, `originator-id`, `cluster-list`, `label` | Send one UPDATE for one prefix. Repeat the line for more |
-| `send-bulk` | `prefix`, `count`, `next-hop`, `origin-as`, and optionally `max-msg`, `eor` | Generate `count` sequential prefixes from `prefix` and send them as whole BGP messages |
+| `send-bulk` | `prefix`, `count`, `next-hop`, and optionally `max-msg`, `eor` | Generate `count` sequential prefixes from `prefix` and send them as whole BGP messages |
 <!-- source: internal/test/peer/expect_keys.go -- peerValueArms "update"; internal/test/peer/expect.go -- parseBulkSpec -->
 
 `send-default-route` and `send-route` build the AS_PATH that a real speaker
@@ -817,6 +832,12 @@ peer's AS.
 <!-- source: internal/test/peer/message.go -- asPathAttr; defaultRoute -->
 <!-- source: internal/test/peer/open.go -- ebgpSenderAS -->
 
+`send-bulk` writes the AS_PATH of a route ze-peer originates (RFC 4271 Section
+5.1.2): on eBGP one AS_SEQUENCE holding ze-peer's own OPEN AS, on iBGP an empty
+AS_PATH, whose length field is zero. It takes no `origin-as` key, and refuses
+one as it refuses any key it does not read.
+<!-- source: internal/test/peer/inject.go -- buildUpdates; writeASPath -->
+
 These two generated-route behaviors include `LOCAL_PREF=100` on iBGP and omit
 LOCAL_PREF on eBGP, including labeled `send-route` UPDATEs. The session kind
 comes from the OPEN exchange, not an option in the fixture. RFC 4271 Section
@@ -828,7 +849,7 @@ unchanged, so a test can still send deliberately malformed attributes.
 **Generating one oversize UPDATE (`max-msg`):**
 
 ```
-option=update:value=send-bulk:prefix=10.0.0.0/24:count=16373:next-hop=10.0.0.1:origin-as=65001:max-msg=65535
+option=update:value=send-bulk:prefix=10.0.0.0/24:count=16373:next-hop=10.0.0.1:max-msg=65535
 ```
 
 `max-msg` caps one generated message, header included. It defaults to the RFC
@@ -871,7 +892,7 @@ cmd=api:conn=<N>:seq=<N>:text=<command>
 ### Example
 
 ```
-cmd=api:conn=1:seq=1:text=update text origin set igp nhop set 10.0.1.1 nlri add 10.0.0.0/24
+cmd=api:conn=1:seq=1:text=update text origin igp next-hop 10.0.1.1 nlri add 10.0.0.0/24
 ```
 
 ### Process Commands (Foreground/Background)
@@ -1002,6 +1023,17 @@ every child, so the launcher runs the newest shared build of HEAD in
 `bin/builds/`: a suite started with `./le --name <build>` would then test a
 binary built without its working-tree edits. The
 appliance steps that exec `le test qemu ...` rely on this.
+
+**A non-harness `le` step runs at the repository root, so a `tmpfs=` file's bare
+name does not resolve on it.** `go`, `./le` and every `le` head other than a
+harness command (`le test <name>`) or a stand-in server (`le mock <name>`) run in
+the checkout, because their arguments name packages and paths there. Every other
+step runs in the test's own directory, where the runner writes the `tmpfs=`
+files. A non-harness `le` step that passes `peer.conf` by that name therefore
+looks for it at the root and fails. Put the `le` call in a `tmpfs=` script and run
+the script: it runs in the test's directory, and its `le` is the one the shim
+directory holds.
+<!-- source: internal/test/runner/runner.go -- repositoryAnchoredBinary, childWorkingDirectory -->
 <!-- source: internal/test/runner/runner_exec.go -- binNameLE head resolution -->
 <!-- source: internal/test/runner/harness_exec.go -- ownExecutable, droppedFromChild -->
 
@@ -1208,6 +1240,17 @@ from its start to the end of the run, so the daemon teardown that follows is
 still forbidden. A command the run never reached has an EMPTY span, never the
 whole buffer.
 
+A `le test peer` command's output is in no span. The runner captures a test
+peer's stdout and stderr in that peer's own buffers, which feed its verdict
+and the PEER OUTPUT section of a failure report, and never in the run's two
+accumulators. An `expect=stdout:` or `expect=stderr:` line under a peer's
+`cmd=` line therefore reads none of what the peer printed, and fails with
+"output does not contain" while the text is on screen under PEER OUTPUT. What
+a peer received is asserted by its `expect=bgp` lines. What the daemon did
+about the peer is asserted on the daemon's log, under the daemon's `cmd=` line
+(`test/plugin/session-peer-stops-reading.ci`).
+<!-- source: internal/test/runner/runner_exec.go -- runOrchestrated, the isPeerExec arm of the output capture -->
+
 Output snapshots taken between commands do not finish an open span. The runner
 closes it only after the output writers have joined, including deferred child
 cleanup on an early error. Until 2026-11-03, saving a foreground helper's output
@@ -1317,10 +1360,15 @@ the usage error.
 **Daemon readiness (`ze` only):** a `ze` daemon launched **either** foreground or
 background is told (via `ZE_READY_FILE`) to write `daemon.ready` once startup
 completes, and the runner publishes its PID to `daemon.pid` in the tmpfs directory.
+The PID file appears atomically after its complete numeric contents and any
+dropped-user ownership are installed, so a fixture that sees it can read the
+identity immediately. A publication failure fails the command and reaps its
+owned child.
 Tests poll both files directly or through a compiled driver in
 `internal/test/fixture` before signaling the daemon or asserting on it. The
 readiness handshake is armed only for Ze daemons.
 <!-- source: internal/test/runner/runner_exec.go -- process orchestration -->
+<!-- source: internal/test/runner/runner_exec_util.go -- publishDaemonPID -->
 
 ### Example (Decode Test)
 
@@ -1461,6 +1509,16 @@ bucket merge): per-message framing is not a property ze owes, but delivery
 order is. A message whose content matches only a non-front needle consumes
 nothing and is reported as a mismatch.
 <!-- source: internal/test/peer/checker.go -- parseExpectRule, consumeMatches, consumeOrdered -->
+
+A received message that meets no expectation fails the test with `message
+mismatch`, reported against the first expectation still owed. A `hex=`
+expectation is a whole message, so both messages are decoded and their
+attributes compared. Every other form holds part of a message, so the report
+names the line's key and its needle, decodes the message that arrived, and ends
+with `Missing: the received message does not match contains=<hex>, so the
+expected message has not arrived`. A needle is never decoded as a message.
+<!-- source: internal/test/peer/checker.go -- mismatchDiff -->
+<!-- source: internal/test/decode/decode.go -- Diff, DiffPart -->
 
 `announced=` matches byte-aligned bytes only in the legacy NLRI or an
 MP_REACH_NLRI's NLRI field. `withdrawn=` matches only in Withdrawn Routes or an
@@ -2289,6 +2347,16 @@ re-dispatches the most recent `command=` until its predicate holds or the
 timeout expires; `expect=stream` matches delivered `stream=` events;
 `expect=event` matches a delivered event by its `(namespace, name)` identity.
 
+A `command=` line carrying a pipe chain (`show doctor config <file> | json`) is
+split the way the SSH exec channel splits one: the executor dispatches the
+command alone and renders the daemon's answer through the chain, so the step
+reads what `ze cli -c` prints for the same line. The daemon's dispatcher gives
+`|` no meaning, so a chain sent whole would reach the handler as arguments. A
+line with no pipe gets the raw JSON answer, with no default format added, which
+is what `json=` predicates walk. A chain the pipe layer refuses fails the step
+before anything is dispatched, and `expect=command-error` can read it.
+<!-- source: internal/test/cli/cmd_engine_steps.go -- pipedEngineDispatch -->
+
 ### expect=event
 
 The executor declares ONE startup event subscription, derived from the
@@ -2423,7 +2491,7 @@ option=file:path=test.conf
 option=asn:value=65000
 
 # Expected API command and wire output
-cmd=api:conn=1:seq=1:text=update text origin set igp nhop set 10.0.1.254 nlri add 10.0.0.0/24
+cmd=api:conn=1:seq=1:text=update text origin igp next-hop 10.0.1.254 nlri add 10.0.0.0/24
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FFFD4003040A0001FE180A0000
 
 # EOR
@@ -2587,6 +2655,23 @@ Named keys `input=key:name=<key>` accepts: `tab`, `enter`, `esc`, `escape`,
 `pgdn`, `pgdown`, `space`. `shift+tab` is handled separately as a modifier.
 <!-- source: internal/component/cli/testing/input.go -- keyNameToCode, toKeyMessages -->
 
+
+### API candidate fixtures
+
+`fixture=api-set:path=<full setting path>:value=<value>` writes a candidate
+through the same `Editor.SetValue` API that config sessions use. The path is
+absolute and uses the editor's quoted word syntax; the value is the complete
+text after `:value=`, including colons or an empty string. The fixture runs
+in step order on the selected editor, including a named session. Unknown
+fixtures and declarations missing a path or value are parse errors.
+
+Use it to test commit-time validation of a candidate another surface could
+leave. A typed `set` still runs the normal immediate validation and cannot
+seed a refused value. The next `commit`, `commit verify` or `show | errors`
+validates the candidate through the product code; the fixture supplies no
+validation result and writes nothing to the active configuration.
+<!-- source: internal/component/cli/testing/fixture.go -- parseFixture, applyFixture -->
+<!-- test: internal/component/cli/testing/api_set_fixture_test.go -- TestAPISetFixtureReachesCommit, TestAPISetFixtureRefusesBadDeclarations -->
 
 ### Expectations
 

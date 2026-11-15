@@ -2,7 +2,7 @@ Demo lab
 
 # Looking Glass Graph Demo
 
-A realistic UK topology with real external ASNs populates the Looking Glass topology graph. The native plugin suite runs it as an executable browser proof.
+A realistic UK topology with real external ASNs populates the Looking Glass topology graph. The native plugin test suite checks it in a browser.
 
 `Daemon`
 
@@ -22,6 +22,6 @@ $ ./le functional plugin-test
 
 `Good first lab`
 
-No Docker, no QEMU, no root. If you want to see what Ze's operator surfaces actually look like before running anything else, start here.
+No Docker, no QEMU, no root. If you want to see what Ze's management interfaces look like before running anything else, start here.
 
 - [Looking Glass docs peer and route viewer](https://github.com/ze-software/ze/blob/main/docs/features/looking-glass.md)

@@ -255,6 +255,8 @@ cannot drift apart. <code>config</code>, <code>admin</code>, <code>portal</code>
 editor words <code>edit</code>, <code>add</code>, <code>form</code>, <code>add-form</code>, <code>changes</code>, <code>rename</code>, <code>discard</code>
 and <code>compare</code> are this router's own and the verb registry holds none of them.</p>
 <!-- source: internal/component/web/handler.go -- ParseURL, knownPrefixes, configVerbs -->
+<!-- source: cmd/ze/hub/service_web.go -- buildWebService, canonical show routing -->
+<!-- source: internal/component/web/handler_workbench.go -- HandleWorkbench, per-user editable fields -->
 <!-- source: internal/component/command/verbs.go -- VerbShow, VerbMonitor, VerbSet, VerbDelete, VerbCommit -->
 <!-- source: internal/component/web/handler_config_form.go -- HandleConfigDeleteWithAuthorizer -->
 <table>
@@ -271,7 +273,7 @@ and <code>compare</code> are this router's own and the verb registry holds none 
 <td>View</td>
 <td><code>/show/&lt;yang-path&gt;</code></td>
 <td>GET</td>
-<td>Read-only config tree view</td>
+<td>Config tree view</td>
 </tr>
 <tr>
 <td>View</td>
@@ -281,9 +283,9 @@ and <code>compare</code> are this router's own and the verb registry holds none 
 </tr>
 <tr>
 <td>Config</td>
-<td><code>/config/edit/&lt;path&gt;</code></td>
+<td><code>/show/&lt;path&gt;</code></td>
 <td>GET</td>
-<td>Editable config tree view</td>
+<td>Editable config tree view using the authenticated user's pending changes</td>
 </tr>
 <tr>
 <td>Config</td>
@@ -427,6 +429,44 @@ and <code>compare</code> are this router's own and the verb registry holds none 
 <h3 id="validation">Validation</h3>
 <p>Field values are validated server-side against YANG types before being accepted:</p>
 <!-- source: internal/component/config/schema.go -- ValidateValue -->
+<p>Every value set from the web (a form field, the add form, the CLI bar and the
+terminal <code>set</code>) is then judged with the checks a config file gets: the
+enumeration, range, length and pattern the YANG declares, a union's members,
+and each member of a leaf-list. A value outside them is refused when it is set,
+not at commit. The refusal names the setting path and the value, lists the
+accepted values (each with its one-line help) or the accepted bounds or format,
+and ends with the command that fixes it:</p>
+<pre><code class="language-text">bgp peer peer1 session capability route-refresh: "requre" is not an accepted value (did you mean require?)
+route-refresh accepts only these values:
+  enable   Advertise the capability; no enforcement
+  disable  Do not advertise the capability; no enforcement
+  require  Advertise the capability; refuse the session when the peer does not offer it
+  refuse   Do not advertise the capability; refuse the session when the peer offers it
+fix: set bgp peer peer1 session capability route-refresh require
+</code></pre>
+<p>The same refusal reads the same on every surface; the range, length, pattern
+and union forms are in
+<a href="https://github.com/ze-software/ze/blob/main/docs/architecture/config/yang-config-design.md#value-refusals" target="_blank" rel="noopener">Value refusals</a>.</p>
+<p>A form or the commit modal holds no editor position, so its fix is the <code>set</code>
+from the root. The terminal and the CLI bar frame the fix for the position the
+line was typed at: the <code>set</code> as typed, corrected, for a refused <code>set</code>, and
+<code>top set &lt;full path&gt; ...</code> for a commit refusal inside a context. A new list key
+is judged where its entry is created, and the add form judges every field
+before it creates the entry, so a refused field never leaves a partial entry.
+A key refused by the terminal's <code>rename</code>, <code>copy</code>, <code>insert</code>, <code>activate</code> or
+<code>deactivate</code> gets that same command as its fix, with the key corrected and
+framed for the position, and the Rename button's refusal ends with
+<code>fix: rename &lt;full path&gt; to &lt;corrected key&gt;</code>.</p>
+<!-- source: internal/component/web/editor.go -- EditorManager.SetValue, judgeValue -->
+<!-- source: internal/component/web/cli_terminal.go -- execListEntryOp -->
+<!-- source: internal/component/web/handler_config_entry.go -- HandleConfigRenameWithAuthorizer -->
+<!-- source: internal/component/web/cli.go -- applyWebSet, framedWebSetRefusal -->
+<!-- source: internal/component/web/handler_config_entry.go -- addFieldSetPath -->
+<p>Fix commands quote list keys and values that contain spaces or quotes. Type
+the whole printed command, including its quotes. A refused key can precede a
+secret assignment: its correction keeps the assignment and masks the secret.</p>
+<!-- source: internal/component/web/cli.go -- framedWebSetRefusal -->
+<!-- source: internal/component/cli/fix_frame.go -- FrameFix -->
 <table>
 <thead>
 <tr>
@@ -511,8 +551,8 @@ and <code>compare</code> are this router's own and the verb registry holds none 
 <td>Set a value under the current context path. The last token is the value and the one before it the leaf, as in the SSH CLI; quote a value that holds spaces</td>
 </tr>
 <tr>
-<td><code>delete &lt;leaf&gt;</code></td>
-<td>Delete a value at the current context path</td>
+<td><code>delete &lt;path&gt; [member]</code></td>
+<td>Delete the schema node at the path relative to the current view, or only the named leaf-list member. The rest of the leaf-list and its containing section stay in place</td>
 </tr>
 <tr>
 <td><code>show [path]</code></td>
@@ -521,6 +561,10 @@ and <code>compare</code> are this router's own and the verb registry holds none 
 <tr>
 <td><code>top</code></td>
 <td>Navigate to root</td>
+</tr>
+<tr>
+<td><code>top &lt;command&gt;</code></td>
+<td>Run one command as if at the root context, whatever the command is (<code>top set ospf router-id 192.0.2.9</code>, <code>top show</code>). The position stays where it was unless the command moves it (<code>top edit ospf</code>). The terminal reads <code>top</code> before it splits a pipe, so <code>top show | format config</code> shows the root</td>
 </tr>
 <tr>
 <td><code>up</code></td>
@@ -580,7 +624,7 @@ data: &lt;html-fragment&gt;
 <!-- source: internal/component/web/component_command_form.templ -- commandForm -->
 <p>Admin command results are displayed as titled cards showing the command name, output text, and success/error styling.</p>
 <h2 id="resilience">Resilience</h2>
-<p><strong>Corrupt change files:</strong> If a per-user change file in the live store does not parse, every edit and every commit for that user fails with an error naming the file, and the file is left as it was. Its pending changes are never dropped in silence: the operator inspects the file, then discards the changes (<code>discard</code>) to start again.</p>
+<p><strong>Corrupt change files:</strong> If a per-user change file in the live store has an unknown path, malformed command or invalid structural syntax, every edit and every commit for that user fails with an error naming the file, and the file is left as it was. Its pending changes are never dropped in silence: the operator inspects the file, then discards the changes (<code>discard</code>) to start again. An invalid leaf value or leaf-list member in an API candidate remains editable: commit refuses the value, and the operator can apply its proposed correction without discarding other changes.</p>
 <!-- source: internal/component/cli/editor_draft.go -- readChangeFile -->
 <p><strong>Asset caching:</strong> Static assets (<code>/assets/</code>) are served with <code>Cache-Control: no-cache, must-revalidate</code> so browsers always pick up changes after binary updates without requiring a hard refresh.</p>
 <!-- source: internal/component/web/render.go -- AssetHandler -->
@@ -599,6 +643,10 @@ data: &lt;html-fragment&gt;
                     <a class="page-sidebar-link" href="../../guides/quickstart/">
                         <span class="page-sidebar-link-label">Quickstart</span>
                         <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ai-agent/">
+                        <span class="page-sidebar-link-label">Use Ze with an AI agent</span>
+                        <small>Let Claude Code or Codex drive Ze for you.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
@@ -629,7 +677,7 @@ data: &lt;html-fragment&gt;
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 02:34 UTC</span>
                 </div>
             </div>
         </footer>

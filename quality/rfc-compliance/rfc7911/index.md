@@ -1,6 +1,6 @@
 # RFC 7911 - Advertisement of Multiple Paths in BGP
 
-ADD-PATH. Every requirement this repository extracted from RFC 7911, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+ADD-PATH. Every requirement listed for RFC 7911, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,12 +10,13 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 9 | of 9 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0 | of 9 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 9 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 9 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| No test at all | 0 | of 9 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 38 | 38 of 61 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 9 | of 9 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0 | of 9 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 9 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 9 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Declared gap or no test | 0 | of 9 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Tests shown to detect a fault | 38 | 38 of 61 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Audit verdicts | 9 | of 9 mandatory requirements reviewed | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
 
@@ -23,59 +24,66 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 9 | of 13 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 9 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 9 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 9 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 9 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 9 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Out of scope | 0 | of 9 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 9 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 9 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 9 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 9 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
 
-The 9 counts marked as a part above are the whole of the 9 gated MUSTs: they add up to 9. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Totals
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 9 | of 13 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 9 mandatory requirements: they add up to 9. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | ok | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | ok | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | ADD-PATH |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 13 |
-| Gated MUST-level | 9 |
+| Mandatory requirements (MUST level) | 9 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 61 |
-| Tagged units | 61 |
+| Tests linked to requirements | 61 |
 | Recorded audit verdicts | 9 |
-| Discrimination records | 38 |
+| Fault test records | 38 |
 | Summary | `rfc/short/rfc7911.md` |
-| Requirement shard | `rfc/requirements/rfc7911.md` |
+| Requirement table | `rfc/requirements/rfc7911.md` |
 | RFC text | `rfc/full/rfc7911.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: Advertisement of Multiple Paths in BGP (ADD-PATH): nine MUST-level requirements. Eight are met: 3-1 (a 4-octet Path Identifier is prepended to NLRI when ADD-PATH is negotiated), 4-1 (a single ADD-PATH capability instance lists all AFI/SAFIs), 5-1 and 5-2 (a path is sent only if the local speaker advertised Send/Both and the remote advertised Receive/Both), 5-3 (Path IDs are not added when ADD-PATH is not negotiated for the family), 5-4 (the RIB is keyed by prefix and Path ID and the egress encodes the Path ID), and 5-5 (a negotiated family's received NLRI is parsed with its 4-octet Path ID) carry positive+negative tags. 2-1 (the same prefix with different Path IDs is treated as different paths) is {single-polarity: positive}: the per-peer RIB key is (prefix, Path ID) by construction. 2-2 (a speaker re-advertising a path generates its own Path Identifier) carries positive+negative tags since 2026-08-14: ze mints its own value per ingress path in `internal/component/bgp/reactor/forward_path_id.go` and both forward rails read it, so no requirement of this RFC is a gap.
+Included in automatic checks: Advertisement of Multiple Paths in BGP (ADD-PATH): nine MUST-level requirements. Eight are met: 3-1 (a 4-octet Path Identifier is prepended to NLRI when ADD-PATH is negotiated), 4-1 (a single ADD-PATH capability instance lists all AFI/SAFIs), 5-1 and 5-2 (a path is sent only if the local speaker advertised Send/Both and the remote advertised Receive/Both), 5-3 (Path IDs are not added when ADD-PATH is not negotiated for the family), 5-4 (the RIB is keyed by prefix and Path ID and the egress encodes the Path ID), and 5-5 (a negotiated family's received NLRI is parsed with its 4-octet Path ID) carry positive+negative tags. 2-1 (the same prefix with different Path IDs is treated as different paths) is {single-polarity: positive}: the per-peer RIB key is (prefix, Path ID) by construction. 2-2 (a speaker re-advertising a path generates its own Path Identifier) carries positive+negative tags since 2026-08-14: ze mints its own value per ingress path in `internal/component/bgp/reactor/forward_path_id.go` and both forward rails read it, so no requirement of this RFC is a gap.
 
-## What the public ledger says
+## Published support status
 
 **Area:** ADD-PATH
 
@@ -90,33 +98,36 @@ Enrolled: Advertisement of Multiple Paths in BGP (ADD-PATH): nine MUST-level req
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 9 | one part of the gated population |
-| Annotated (including scoped evidence) | 0 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **9** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 9 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 0 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **9** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (9):** [`RFC7911-2-1`](#rfc7911-2-1), [`RFC7911-2-2`](#rfc7911-2-2), [`RFC7911-3-1`](#rfc7911-3-1), [`RFC7911-4-1`](#rfc7911-4-1), [`RFC7911-5-1`](#rfc7911-5-1), [`RFC7911-5-2`](#rfc7911-5-2), [`RFC7911-5-3`](#rfc7911-5-3), [`RFC7911-5-4`](#rfc7911-5-4), [`RFC7911-5-5`](#rfc7911-5-5)
 
 ## Figures
 
 - **MUST bar**: Ze proven 9
-- **Overview bar**: Ze MUST proven 9, SHOULD not decided 4
+- **Overview bar**: Ze MUST proven 9, Not assessed 4
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | complete |
 | MUST rows | 9 |
 | MUST rows kept (the MUST bar) | 9 |
 | Ze proven | 9 |
 | OS verified | 0 |
+| Proof pending | 0 |
 | OS testing gap | 0 |
-| Ze correctness gap | 0 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 0 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -129,11 +140,12 @@ Enrolled: Advertisement of Multiple Paths in BGP (ADD-PATH): nine MUST-level req
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 4 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 4 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc7911.json](../../../data/rfc/rfc7911.json).
 
@@ -157,17 +169,17 @@ Source: [data/rfc/rfc7911.json](../../../data/rfc/rfc7911.json).
 
 ## Gaps and untested MUSTs
 
-RFC 7911 declares no gap, and every gated MUST it carries has a test bound to it.
+RFC 7911 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC7911-2-1`](#rfc7911-2-1)
 
 However, the Path Identifier MUST be assigned in such a way that the BGP speaker is able to use the (Prefix, Path Identifier) to uniquely identify a path advertised to a neighbor. (Section 2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-06 by an independent auditor who authored none of the changes named. RFC 7911 Section 2: "However, the Path Identifier MUST be assigned in such a way that the BGP speaker is able to use the (Prefix, Path Identifier) to uniquely identify a path advertised to a neighbor." 1e65b6d4bb changed two cited producers. adjOutWrite.allow gains a branch for sentForward.ownRouteWithdrawal, which only sendOwnRouteWithdrawal sets, for a stale-rail withdrawal with no sent receipt: it spares an absent key or another source's entry, and does not change how a key is built or an identifier assigned. writeUpdateBody now takes the receipt in a local and calls noteExportWrite, which can only raise the export watermark and writes nothing. Neither reaches the generator, and neither fires on the relay these units drive. Both tagged units are byte-identical and were re-read: TestForwardPathIDsDifferForCollidingSources reads the identifier field from two destination frames of colliding sources and requires them unequal; TestForwardPathIDStableAcrossUpdates requires a repeat of one path to keep its identifier and a colliding source to differ. Caveat on scope: both units drive buildFwdBody, so they judge identifiers on re-advertised paths and do not exercise identifiers on originated routes. No test or record ran for this rejudgment. Verdict unchanged: enforced.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-14 at 5d862bbab9 by an independent auditor who authored none of the changes named. RFC 7911 Section 2: "However, the Path Identifier MUST be assigned in such a way that the BGP speaker is able to use the (Prefix, Path Identifier) to uniquely identify a path advertised to a neighbor." One cited producer moved: 178cffd97d changed Session.retireWrite, which now calls recordWriteFailure where it called setCloseReason. recordWriteFailure (session_write_budget.go) still records the close reason, and when the failed write waited out the session write budget it wraps the error in ErrWriteBudgetExpired, logs and raises doctor-bgp-peer-not-reading once, and calls onWriteBudgetExpired, which stores two atomics (Peer.recordWriteBudgetClose). It takes no lock, returns on every path, and touches no identifier state. The part of retireWrite this row cites it for is unchanged and still runs after it: under adjOut.mu, adjOut.clearRoutes for the session that owns the Adj-RIB-Out, which is where a failed write gives up the identifiers that session advertised. No key is built and no identifier assigned, retained or released differently. Both tagged units are byte-identical to the recorded ones and were re-read: TestForwardPathIDsDifferForCollidingSources reads the identifier field from two destination frames of colliding sources and requires them unequal; TestForwardPathIDStableAcrossUpdates requires a repeat of one path to keep its identifier and a colliding source to differ. Neither drives a failed write, so retireWrite is a cited producer no tagged unit exercises, as before. Caveat on scope, unchanged: both units drive buildFwdBody, so they judge identifiers on re-advertised paths and not on originated routes. No test or record ran for this rejudgment. Verdict unchanged: enforced.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -178,7 +190,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 A BGP speaker that re-advertises a route MUST generate its own Path Identifier to be associated with the re-advertised route. (Section 2)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/le/interoplab/bgp/check_rfc.go::checkAddPathReadvertiseCollision moved. Re-judged 2026-11-06 by an independent auditor who authored none of the changes named. RFC 7911 Section 2: "A BGP speaker that re-advertises a route MUST generate its own Path Identifier to be associated with the re-advertised route." 1e65b6d4bb changed two cited producers. adjOutWrite.allow gains a branch for sentForward.ownRouteWithdrawal, which only sendOwnRouteWithdrawal sets, for a stale-rail withdrawal with no sent receipt; the relayed withdrawals in the churn units do not set it, so they take the old path. writeUpdateBody now takes the receipt in a local and calls noteExportWrite, which can only raise the export watermark. Neither generates, rewrites or releases an identifier. All tagged units are byte-identical and were re-read, with the functional file's expectations and the interop checker. Colliding sources must leave under different identifiers on classic and MP rails, same-context, cross-context and unframed sources alike; replacement, attribute change and withdrawal must carry the identifier announced, read from recipient bytes; a sibling's withdrawal must not renumber a survivor; wrap must not hand a third source an occupied identifier; the checker compares FRR's identifiers across a real session reset. Inequality is asserted only between colliding paths, and the obligation is local assignment, not difference from the received number. Caveat on proof: the .ci positive tag reads identifier 0 against a received 1, which pins this build's assignment, and no test or record ran for this rejudgment. Verdict unchanged: enforced.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-14 at 5d862bbab9 by an independent auditor who authored none of the changes named. RFC 7911 Section 2: "A BGP speaker that re-advertises a route MUST generate its own Path Identifier to be associated with the re-advertised route." One cited producer moved: 178cffd97d changed Session.retireWrite, which now calls recordWriteFailure where it called setCloseReason. recordWriteFailure (session_write_budget.go) still records the close reason, and for a write that waited out the session write budget it wraps the error in ErrWriteBudgetExpired, reports doctor-bgp-peer-not-reading once and stores the peer's close cause in two atomics. It generates, rewrites and releases no identifier, takes no lock and returns on every path. What this row cites retireWrite for is unchanged and still follows: adjOut.clearRoutes under adjOut.mu for the owning session, which ends the generated identifiers of a session whose write failed. The check names no other moved unit, and the recorded judgement of the tagged units stands as written on 2026-11-06; of them I re-read the two in rfc7911_forward_path_id_test.go (colliding sources leave under unequal identifiers read from destination frames, a repeated path keeps its identifier) and did not re-read the rest, the functional file or the interop checker. None of the tagged units drives a failed write, so retireWrite is a cited producer no tagged unit exercises, as before. Caveat on proof, unchanged: the .ci positive tag reads identifier 0 against a received 1, which pins this build's assignment. No test or record ran for this rejudgment. Verdict unchanged: enforced.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -308,7 +320,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 
 | positive | [`TestEnforceRFC7606_MPAddPathLargePathIDAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_session_addpath_test.go#L73) | unit/verify | unproven |
 | positive | [`TestRFC7606Section54ReadsTypedNLRIUnderAddPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go#L88) | unit/verify | revert, verified |
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -327,16 +339,16 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 
 
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
-| `front` | not stated | 1 | walked | Title block, Abstract, Status of This Memo, Copyright Notice and Table of Contents. Walked rather than skipped because the site scan attributes one site here. That site is the IETF Trust Legal Provisions boilerplate and is excluded below. Nothing before section 1 binds a BGP speaker. |
-| `1` | Introduction | 0 | walked | Introduction. States that RFC 4271 makes no provision for advertising several paths for one prefix, and that this document defines the Path Identifier that lifts the limit. It reports what the extension does and directs nobody. |
-| `1.1` | not stated | 0 | walked | Specification of Requirements: the RFC 2119 key-words paragraph. It tells a reader how to read the other sections and binds no speaker. It is also what puts the lower-case 'must' of the copyright notice outside the normative set. |
-| `2` | How to Identify a Path | 2 | walked | How to Identify a Path. Two capitalised MUSTs, both mapped below: the Path Identifier is assigned so that (Prefix, Path Identifier) identifies a path uniquely toward one neighbor, and a re-advertising speaker generates its own identifier. The section's third normative sentence, 'A BGP speaker that receives a route should not assume that the identifier carries any particular semantics', writes 'should not' in lower case, so section 1.1 puts it outside the RFC 2119 set. It states no gated obligation and the summary records it under Encoding Rules rather than as a checklist row. |
-| `3` | Extended NLRI Encodings | 1 | walked | Extended NLRI Encodings. One MUST, mapped below, plus the four-octet Path Identifier diagram. The diagram assigns a field width and states no separate obligation. |
-| `4` | ADD-PATH Capability | 1 | walked | ADD-PATH Capability. Defines capability code 69 and the AFI/SAFI/Send-Receive tuple, and states one MUST, mapped below. The field descriptions assign values 1, 2 and 3 to receive, send and both; a value assignment is not a directive. The section's one SHOULD, on treating any other Send/Receive value as not understood, is advisory, so the site scan does not see it and it is listed unsourced here. |
-| `5` | Operation | 3 | walked | Operation. The only section carrying more obligations than sites. Three sites are mapped below, and each of the first two fuses two MUSTs into one sentence, so RFC7911-5-2 (receive the peer's capability with Send/Receive 1 or 3) and RFC7911-5-4 (generate the update on (prefix, Path Identifier) and use the extended encodings) are listed unsourced: 'mapped-to' names one id per site. The section's three SHOULDs are advisory and are listed here for the same reason. Its opening paragraph, that the RFC 4271 advertisement rules are otherwise unchanged and that a new advertisement for the same (prefix, Path Identifier) replaces the previous one, is indicative and states no separate obligation. |
-| `6` | Deployment Considerations | 0 | walked | Deployment Considerations. States that care is needed in deployment, that the capability exchange is the only explicit indication the extended encoding is in use, and that a packet analyzer without that state cannot decode the UPDATEs. Written in the indicative and in 'could', it directs no speaker. |
+| `front` | not stated | 1 | reviewed | Title block, Abstract, Status of This Memo, Copyright Notice and Table of Contents. Walked rather than skipped because the site scan attributes one site here. That site is the IETF Trust Legal Provisions boilerplate and is excluded below. Nothing before section 1 binds a BGP speaker. |
+| `1` | Introduction | 0 | reviewed | Introduction. States that RFC 4271 makes no provision for advertising several paths for one prefix, and that this document defines the Path Identifier that lifts the limit. It reports what the extension does and directs nobody. |
+| `1.1` | not stated | 0 | reviewed | Specification of Requirements: the RFC 2119 key-words paragraph. It tells a reader how to read the other sections and binds no speaker. It is also what puts the lower-case 'must' of the copyright notice outside the normative set. |
+| `2` | How to Identify a Path | 2 | reviewed | How to Identify a Path. Two capitalised MUSTs, both mapped below: the Path Identifier is assigned so that (Prefix, Path Identifier) identifies a path uniquely toward one neighbor, and a re-advertising speaker generates its own identifier. The section's third normative sentence, 'A BGP speaker that receives a route should not assume that the identifier carries any particular semantics', writes 'should not' in lower case, so section 1.1 puts it outside the RFC 2119 set. It states no gated obligation and the summary records it under Encoding Rules rather than as a checklist row. |
+| `3` | Extended NLRI Encodings | 1 | reviewed | Extended NLRI Encodings. One MUST, mapped below, plus the four-octet Path Identifier diagram. The diagram assigns a field width and states no separate obligation. |
+| `4` | ADD-PATH Capability | 1 | reviewed | ADD-PATH Capability. Defines capability code 69 and the AFI/SAFI/Send-Receive tuple, and states one MUST, mapped below. The field descriptions assign values 1, 2 and 3 to receive, send and both; a value assignment is not a directive. The section's one SHOULD, on treating any other Send/Receive value as not understood, is advisory, so the site scan does not see it and it is listed unsourced here. |
+| `5` | Operation | 3 | reviewed | Operation. The only section carrying more obligations than sites. Three sites are mapped below, and each of the first two fuses two MUSTs into one sentence, so RFC7911-5-2 (receive the peer's capability with Send/Receive 1 or 3) and RFC7911-5-4 (generate the update on (prefix, Path Identifier) and use the extended encodings) are listed unsourced: 'mapped-to' names one id per site. The section's three SHOULDs are advisory and are listed here for the same reason. Its opening paragraph, that the RFC 4271 advertisement rules are otherwise unchanged and that a new advertisement for the same (prefix, Path Identifier) replaces the previous one, is indicative and states no separate obligation. |
+| `6` | Deployment Considerations | 0 | reviewed | Deployment Considerations. States that care is needed in deployment, that the capability exchange is the only explicit indication the extended encoding is in use, and that a packet analyzer without that state cannot decode the UPDATEs. Written in the indicative and in 'could', it directs no speaker. |
 | `7` | IANA Considerations | 0 | skipped (iana) | IANA Considerations. Records that IANA has assigned value 69 for the ADD-PATH Capability in the Capability Codes registry. It binds IANA, and the assignment is already an action taken. |
-| `8` | Security Considerations | 0 | walked | Security Considerations. Names the memory-exhaustion exposure of holding several paths per prefix, states it is not a new vulnerability, and encourages a reader to study [ADDPATH]. No countermeasure is directed at a speaker. |
+| `8` | Security Considerations | 0 | reviewed | Security Considerations. Names the memory-exhaustion exposure of holding several paths per prefix, states it is not a new vulnerability, and encourages a reader to study [ADDPATH]. No countermeasure is directed at a speaker. |
 | `9` | References heading | 0 | skipped (references) | References heading. |
 | `9.1` | Normative References: RFC 2119, RFC 4271, RFC 4760, RFC 5492 | 0 | skipped (references) | Normative References: RFC 2119, RFC 4271, RFC 4760, RFC 5492. |
 | `9.2` | not stated | 0 | skipped (references) | Informative References: [ADDPATH], [FAST], RFC 3345, RFC 4272, RFC 4724, [STOP-OSC]. |

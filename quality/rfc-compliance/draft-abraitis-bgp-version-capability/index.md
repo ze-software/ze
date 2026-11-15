@@ -1,6 +1,6 @@
 # DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY - Software Version Capability for BGP
 
-BGP Software Version capability code 75. Every requirement this repository extracted from DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+BGP Software Version capability code 75. Every requirement listed for DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,13 +10,13 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 11 | of 11 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0 | of 11 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 11 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 11 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| No test at all | 0 | of 11 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 21 | 21 of 22 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-| Audit verdicts | 11 | of 11 gated MUSTs judged | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+| Tested both ways | 11 | of 11 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0 | of 11 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 11 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 11 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Declared gap or no test | 0 | of 11 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Tests shown to detect a fault | 21 | 21 of 22 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Audit verdicts | 11 | of 11 mandatory requirements reviewed | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
 
@@ -24,59 +24,66 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 11 | of 15 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 11 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 11 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 11 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 11 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 11 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Out of scope | 0 | of 11 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 11 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 11 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 11 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 11 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
 
-The 9 counts marked as a part above are the whole of the 11 gated MUSTs: they add up to 11. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Totals
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 11 | of 15 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 11 mandatory requirements: they add up to 11. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | ok | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | ok | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | ok | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | BGP Software Version capability code 75 |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 15 |
-| Gated MUST-level | 11 |
+| Mandatory requirements (MUST level) | 11 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 22 |
-| Tagged units | 22 |
+| Tests linked to requirements | 22 |
 | Recorded audit verdicts | 11 |
-| Discrimination records | 21 |
+| Fault test records | 21 |
 | Summary | `rfc/short/draft-abraitis-bgp-version-capability.md` |
-| Requirement shard | `rfc/requirements/draft-abraitis-bgp-version-capability.md` |
+| Requirement table | `rfc/requirements/draft-abraitis-bgp-version-capability.md` |
 | RFC text | `rfc/drafts/draft-abraitis-bgp-version-capability.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: Software Version capability for BGP (code 75): eleven MUST-level requirements. Send side is implemented and gated by config -- encodeValue writes the constant ZeVersion as the whole Capability Value under the default encoding draft (encoding legacy prefixes a length octet, an owner-approved deviation, see Notes), and extractSoftverCapabilities declares code 75 only for a peer or group whose config carries a software-version key that is not disable or refuse (internal/component/bgp/plugins/softver/softver.go), which is 3-1, 3-2, 3-3, 3-6, 3-8 and 4-2. Receive side: parseCapability (internal/core/bgp/capability/capability.go) has no case for code 75, so a received capability becomes an Unknown nothing reads, which is how 3-4, 3-5, 3-7 and 4-1 are met. 3.1-1 requires RFC 9072, which is enrolled separately and Partial. No requirement carries a tagged test yet; the coverage rollup names them.
+Included in automatic checks: Software Version capability for BGP (code 75): eleven MUST-level requirements. Send side is implemented and gated by config -- encodeValue writes the constant ZeVersion as the whole Capability Value under the default encoding draft (encoding legacy prefixes a length octet, an owner-approved deviation, see Notes), and extractSoftverCapabilities declares code 75 only for a peer or group whose config carries a software-version key that is not disable or refuse (internal/component/bgp/plugins/softver/softver.go), which is 3-1, 3-2, 3-3, 3-6, 3-8 and 4-2. Receive side: parseCapability (internal/core/bgp/capability/capability.go) has no case for code 75, so a received capability becomes an Unknown nothing reads, which is how 3-4, 3-5, 3-7 and 4-1 are met. 3.1-1 requires RFC 9072, which is enrolled separately and Partial. No requirement carries a tagged test yet; the coverage rollup names them.
 
-## What the public ledger says
+## Published support status
 
 **Area:** BGP Software Version capability code 75
 
@@ -91,33 +98,36 @@ Enrolled: Software Version capability for BGP (code 75): eleven MUST-level requi
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 11 | one part of the gated population |
-| Annotated (including scoped evidence) | 0 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **11** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 11 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 0 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **11** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (11):** [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-1`](#draft-abraitis-bgp-version-capability-3-1), [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-2`](#draft-abraitis-bgp-version-capability-3-2), [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-3`](#draft-abraitis-bgp-version-capability-3-3), [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-4`](#draft-abraitis-bgp-version-capability-3-4), [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-5`](#draft-abraitis-bgp-version-capability-3-5), [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-6`](#draft-abraitis-bgp-version-capability-3-6), [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-7`](#draft-abraitis-bgp-version-capability-3-7), [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-8`](#draft-abraitis-bgp-version-capability-3-8), [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3.1-1`](#draft-abraitis-bgp-version-capability-3.1-1), [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1`](#draft-abraitis-bgp-version-capability-4-1), [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-2`](#draft-abraitis-bgp-version-capability-4-2)
 
 ## Figures
 
 - **MUST bar**: Ze proven 11
-- **Overview bar**: Ze MUST proven 11, SHOULD not decided 4
+- **Overview bar**: Ze MUST proven 11, Not assessed 4
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | complete |
 | MUST rows | 11 |
 | MUST rows kept (the MUST bar) | 11 |
 | Ze proven | 11 |
 | OS verified | 0 |
+| Proof pending | 0 |
 | OS testing gap | 0 |
-| Ze correctness gap | 0 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 0 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -130,11 +140,12 @@ Enrolled: Software Version capability for BGP (code 75): eleven MUST-level requi
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 4 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 4 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/draft-abraitis-bgp-version-capability.json](../../../data/rfc/draft-abraitis-bgp-version-capability.json).
 
@@ -160,11 +171,11 @@ Source: [data/rfc/draft-abraitis-bgp-version-capability.json](../../../data/rfc/
 
 ## Gaps and untested MUSTs
 
-DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY declares no gap, and every gated MUST it carries has a test bound to it.
+DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-1`](#draft-abraitis-bgp-version-capability-3-1)
 
@@ -287,7 +298,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 | negative | [`TestSoftverNotAdvertisedWithoutExplicitConfiguration`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go#L252) | unit/verify | revert, verified |
 | positive | [`TestSoftverAdvertisedOnlyAfterExplicitConfiguration`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go#L241) | unit/verify | revert, verified |
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -307,13 +318,13 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
 | `front` | not stated | 2 | skipped (front-matter) | Title block, Abstract, Status of This Memo and Copyright Notice. The Abstract carries the sentence that makes the whole mechanism optional and one boilerplate site; both are excluded below. |
-| `1` | Introduction | 1 | walked | Introduction. Says data-center routers run different routing-software versions, that knowing them helps root-cause a fault, and that LLDP and CDP are awkward in containerized environments. Its one site restates the Abstract's optionality and is excluded below. No obligation. |
-| `2` | Specification of Requirements | 0 | walked | Specification of Requirements. The BCP 14 key-words paragraph. It tells a reader how to read the rest and binds nobody, which is why the derivation raises no site here. |
-| `3` | Software Version Capability | 7 | walked | Software Version Capability. The document's main normative section: seven sites, five mapped to DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-1, 3-3, 3-4, 3-6, 3-7 and 3-8, and two excluded. It also assigns Capability Code 75 and defines the Capability Length and Capability Value fields, which are value definitions carried by the Wire Format section of rfc/short/draft-abraitis-bgp-version-capability.md. Six ids are declared unsourced here. Two are the second obligation of a sentence already mapped: 3-2, the MUST to default to disabled, shares site 3:1 with 3-1, and 3-5, the MUST to ignore a zero-length capability, shares site 3:4 with 3-4. The other four are advisory levels the capitalised MUST-level scan does not raise: 3-9 (the SHOULD that Capability Length be no greater than 64), 3-10 (the SHOULD to limit the product identifier, the first clause of site 3:7), 3-11 (the SHOULD NOT to put non-version information in product-version) and 3-12 (the NOT RECOMMENDED against use outside one Autonomous System). The opening sentence, that the document is not Standards Track but uses BCP 14 terminology, and the OPTIONAL sentence 'The inclusion of the Software Version Capability is OPTIONAL' state no obligation on a speaker. |
-| `3.1` | Capabilities Length Overflow | 2 | walked | Capabilities Length Overflow. Two sites: 3.1:1 is mapped to DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3.1-1 and 3.1:2 is excluded below. The rest recounts that RFC 5492 caps the BGP Capabilities Optional Parameter at 255 bytes and that exceeding it leaves no room for more important capabilities. |
-| `4` | Operation | 2 | walked | Operation. Two sites, both mapped, to DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1 and DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-2. The remaining paragraph is the worked example of an operator correlating a bug with a routing-daemon version across upstream nodes. |
+| `1` | Introduction | 1 | reviewed | Introduction. Says data-center routers run different routing-software versions, that knowing them helps root-cause a fault, and that LLDP and CDP are awkward in containerized environments. Its one site restates the Abstract's optionality and is excluded below. No obligation. |
+| `2` | Specification of Requirements | 0 | reviewed | Specification of Requirements. The BCP 14 key-words paragraph. It tells a reader how to read the rest and binds nobody, which is why the derivation raises no site here. |
+| `3` | Software Version Capability | 7 | reviewed | Software Version Capability. The document's main normative section: seven sites, five mapped to DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-1, 3-3, 3-4, 3-6, 3-7 and 3-8, and two excluded. It also assigns Capability Code 75 and defines the Capability Length and Capability Value fields, which are value definitions carried by the Wire Format section of rfc/short/draft-abraitis-bgp-version-capability.md. Six ids are declared unsourced here. Two are the second obligation of a sentence already mapped: 3-2, the MUST to default to disabled, shares site 3:1 with 3-1, and 3-5, the MUST to ignore a zero-length capability, shares site 3:4 with 3-4. The other four are advisory levels the capitalised MUST-level scan does not raise: 3-9 (the SHOULD that Capability Length be no greater than 64), 3-10 (the SHOULD to limit the product identifier, the first clause of site 3:7), 3-11 (the SHOULD NOT to put non-version information in product-version) and 3-12 (the NOT RECOMMENDED against use outside one Autonomous System). The opening sentence, that the document is not Standards Track but uses BCP 14 terminology, and the OPTIONAL sentence 'The inclusion of the Software Version Capability is OPTIONAL' state no obligation on a speaker. |
+| `3.1` | Capabilities Length Overflow | 2 | reviewed | Capabilities Length Overflow. Two sites: 3.1:1 is mapped to DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3.1-1 and 3.1:2 is excluded below. The rest recounts that RFC 5492 caps the BGP Capabilities Optional Parameter at 255 bytes and that exceeding it leaves no room for more important capabilities. |
+| `4` | Operation | 2 | reviewed | Operation. Two sites, both mapped, to DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1 and DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-2. The remaining paragraph is the worked example of an operator correlating a bug with a routing-daemon version across upstream nodes. |
 | `5` | IANA Considerations | 0 | skipped (iana) | IANA Considerations. Records that IANA has assigned capability number 75 in the BGP Capability Codes registry, with the one-row table naming it. Binds IANA, not a speaker. |
-| `6` | Security Considerations | 0 | walked | Security Considerations. States that the version should be treated as sensitive, that an attacker who learns it has an easier time, that a forged or snooped value is possible without an integrity- or confidentiality-providing transport, and that GTSM or a firewall on TCP 179 limits the exposure. Every sentence uses a lowercase 'should' the document's own Section 2 gives no normative level, and the derivation raises no site. No obligation on a speaker. |
+| `6` | Security Considerations | 0 | reviewed | Security Considerations. States that the version should be treated as sensitive, that an attacker who learns it has an easier time, that a forged or snooped value is possible without an integrity- or confidentiality-providing transport, and that GTSM or a firewall on TCP 179 limits the exposure. Every sentence uses a lowercase 'should' the document's own Section 2 gives no normative level, and the derivation raises no site. No obligation on a speaker. |
 | `A` | Appendix A | 0 | skipped (appendix-non-normative) | Appendix A. Implementation Report. The RFC 7942 running-code list -- FRRouting, GoBGP, freeRouter and ExaBGP commits -- plus three figures of sample CLI output. No obligation. |
 
 ### Excluded sentences

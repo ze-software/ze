@@ -93,8 +93,14 @@ feature (subsystem, <code>CONFIG_</code> symbol, state, reason) and exits 0 only
 row is <code>present</code>. It is how a host is checked before it runs Ze's Docker labs.</p>
 <!-- source: internal/component/doctor/kernel_capabilities.go -- writeKernelCapabilities -->
 <p>Each check produces a diagnostic with a code (e.g., <code>doctor-config-reference</code>),
-severity (<code>error</code> or <code>warning</code>), and message. Use <code>ze show diagnostic &lt;code&gt;</code> for
-remediation guidance.</p>
+severity (<code>error</code> or <code>warning</code>), and message. When a command clears the
+problem, the finding also names it as its fix, drawn on a line of its own under
+the message (JSON carries it under <code>fix</code>):</p>
+<pre><code>ERROR [doctor-fixture-down] fixture is down
+      fix: ze start
+</code></pre>
+<p>Use <code>ze show diagnostic &lt;code&gt;</code> for remediation guidance.</p>
+<!-- source: internal/component/doctor/doctor.go -- outputText -->
 <h3 id="checks">Checks</h3>
 <table>
 <thead>
@@ -131,6 +137,78 @@ remediation guidance.</p>
 <tr>
 <td><code>doctor-plugin-shell-missing</code></td>
 <td>The shell an external plugin is started with. Ze runs the <code>run</code> string as <code>/bin/sh -c &lt;run&gt;</code>, so a host with no shell, such as a gokrazy appliance image, starts none of them <!-- source: internal/component/plugin/doctor/check_shell.go -- diagnosePluginShell --></td>
+</tr>
+<tr>
+<td><code>doctor-plugin-setup-failed</code></td>
+<td>A plugin's setup step recorded a failure: an error when the failure stops ze starting, a warning when the plugin runs degraded. The fix is the remedy the failure names, else <code>ze show plugin list</code> <!-- source: internal/component/plugin/doctor/check_setup.go -- checkPluginSetup --></td>
+</tr>
+<tr>
+<td><code>doctor-plugin-fatal-stop</code></td>
+<td>The last stop of ze was a plugin whose failure policy is <code>fatal</code>, or a boot ze refused: the plugin, what happened and when, read from the record the stop left <!-- source: internal/component/plugin/doctor/check_lifecycle_local.go -- checkPluginFatalStop --></td>
+</tr>
+<tr>
+<td><code>doctor-plugin-stop-cleanup-late</code></td>
+<td>A warning: the last stop went on before a plugin finished its cleanup, so state that plugin installs may remain. The fix searches the log up to that stop <!-- source: internal/component/plugin/doctor/check_lifecycle_local.go -- cleanupLateRow --></td>
+</tr>
+<tr>
+<td><code>doctor-plugin-autoload-unresolved</code></td>
+<td>A plugin the config loads needs a plugin this build does not carry, so ze would refuse to start; the row carries the refusal ze would give <!-- source: internal/component/plugin/doctor/check_lifecycle_local.go -- checkPluginAutoload --></td>
+</tr>
+<tr>
+<td><code>doctor-plugin-no-dataplane-writer</code></td>
+<td>The config loads a plugin whose routes need a data-plane writer (static, bgp-epe) and no plugin programs the data plane the config selects, or this build was compiled without it, so ze would refuse to start or reload; an explicit <code>fib { ... }</code> block is never reported <!-- source: internal/component/plugin/doctor/check_dataplane_writer.go -- dataPlaneWriterRows --></td>
+</tr>
+<tr>
+<td><code>doctor-plugin-removal-unrecovered</code></td>
+<td>A plugin a refused reload removed could not be restored and stays removed; <code>ze request reload</code> retries it <!-- source: internal/component/plugin/doctor/check_reload_records.go -- removalUnrecoveredRows --></td>
+</tr>
+<tr>
+<td><code>doctor-plugin-capabilities-not-restored</code></td>
+<td>A refused reload could not restore the plugins' capability declarations, so a BGP OPEN may carry what it declared; kept until a reload commits <!-- source: internal/component/plugin/doctor/check_reload_records.go -- capabilitiesNotRestoredRows --></td>
+</tr>
+<tr>
+<td><code>doctor-audit-record-failed</code></td>
+<td>The audit log's last write failed (file, error, time, count); the records stay in memory until a write lands <!-- source: internal/component/doctor/checks_audit.go -- auditRecordFailedRow --></td>
+</tr>
+<tr>
+<td><code>doctor-plugin-stopped</code></td>
+<td>Inside the daemon only (<code>show doctor</code>): each configured plugin that is not running, with why (its failure policy after an exit, the respawn limit, a failed restart, a failed startup handshake), the exit status and since when. An error, fixed by <code>ze request plugin restart &lt;name&gt;</code> <!-- source: internal/component/plugin/doctor/checks_runtime.go -- checkPluginStopped, pluginStoppedRow --></td>
+</tr>
+<tr>
+<td><code>doctor-plugin-command-not-registered</code></td>
+<td>Inside the daemon only: a command or deprecated alias a running plugin declared was refused because another plugin, or a builtin, owns the name. A warning naming both, fixed by removing or renaming one of them <!-- source: internal/component/plugin/doctor/checks_delivery.go -- commandRefusalRows --></td>
+</tr>
+<tr>
+<td><code>doctor-plugin-subscription-dropped</code></td>
+<td>Inside the daemon only: a plugin's event subscriptions were dropped (unknown namespace, no default namespace, ready parameters that did not parse), so it receives none of those events. An error <!-- source: internal/component/plugin/doctor/checks_delivery.go -- subscriptionDropRows --></td>
+</tr>
+<tr>
+<td><code>doctor-plugin-delivery-disagreement</code></td>
+<td>Inside the daemon only: a peer's <code>attach process</code> block and the events a plugin declared do not meet, so the event is never delivered. A warning per finding, fixed by the <code>attach process</code> change it names <!-- source: internal/component/plugin/doctor/checks_delivery.go -- deliveryDisagreementRows --></td>
+</tr>
+<tr>
+<td><code>doctor-plugin-claim-unbacked</code></td>
+<td>Inside the daemon only: an exclusive role is claimed and no claimant runs, so nobody performs it. An error naming the role and the claimants <!-- source: internal/component/plugin/doctor/checks_delivery.go -- unbackedClaimRows --></td>
+</tr>
+<tr>
+<td><code>doctor-plugin-poststartup-undelivered</code></td>
+<td>Inside the daemon only: a running plugin's post-startup callback failed, so the work it starts after startup never ran. An error, fixed by <code>ze request plugin restart &lt;name&gt;</code> <!-- source: internal/component/plugin/doctor/checks_delivery.go -- postStartupRows --></td>
+</tr>
+<tr>
+<td><code>doctor-plugin-panic</code></td>
+<td>Inside the daemon only: a plugin failed to apply an event, or an engine event handler panicked and was recovered. An error naming the plugin, or the handler's namespace and event type, and the first error <!-- source: internal/component/plugin/doctor/checks_delivery.go -- panicRows --></td>
+</tr>
+<tr>
+<td><code>doctor-plugin-delivery-failed</code></td>
+<td>Inside the daemon only: in the last five minutes, event batches failed with no caller waiting, or took over 500 ms. A warning naming the counts, the slowest batch and the last error <!-- source: internal/component/plugin/doctor/checks_delivery.go -- deliveryFailedRows --></td>
+</tr>
+<tr>
+<td><code>doctor-plugin-enricher-unavailable</code></td>
+<td>Inside the daemon only: a plugin's <code>show</code> enricher failed to register or its last call failed, so the command answers without its field. A warning naming plugin, command and key, and one counting the failing enrichers past the 16 listed <!-- source: internal/component/plugin/doctor/checks_delivery.go -- enricherRows --></td>
+</tr>
+<tr>
+<td><code>doctor-plugin-config-unapplied</code></td>
+<td>Inside the daemon only: a running plugin was not told its last transaction committed, so it keeps that transaction's undo set. A warning naming the transaction and the daemon's last one, fixed by <code>ze request plugin restart &lt;name&gt;</code>: a reload of an unchanged config tells no plugin anything <!-- source: internal/component/plugin/doctor/checks_delivery.go -- configUnappliedRows --></td>
 </tr>
 <tr>
 <td><code>doctor-hub-managed-collision</code></td>
@@ -382,6 +460,30 @@ show warnings source bgp
 <td>Routes pending &gt;30s</td>
 </tr>
 <tr>
+<td><code>doctor-fib-backup-not-programmed</code></td>
+<td>fib</td>
+<td>warning</td>
+<td>Installed routes hold a fast-reroute backup the kernel does not carry; the detail counts them. Cleared when none is left</td>
+</tr>
+<tr>
+<td><code>doctor-fib-flush-incomplete</code></td>
+<td>fib</td>
+<td>error</td>
+<td><code>flush-on-stop</code> left Ze's routes in the kernel when fib-kernel stopped: a delete failed, the kernel still listed a flushed route, or the listing failed. The detail counts them and names the first; the fix is <code>ip route flush proto 250 table all; ip -6 route flush proto 250 table all</code>. Not in the <code>fib</code> health row</td>
+</tr>
+<tr>
+<td><code>doctor-fib-sweep-incomplete</code></td>
+<td>fib</td>
+<td>error</td>
+<td>The startup sweep found routes a previous run of Ze left in the kernel that no protocol announced again, and the kernel refused to delete one or more, or the kernel's routes could not be listed at startup, so nothing was swept. Each route left keeps forwarding towards a next hop nothing maintains. The detail counts the prefixes whose delete failed and names the first with the kernel's error, or carries the listing's error (operation <code>list</code>); the fix is <code>ip route show proto 250 table all; ip -6 route show proto 250 table all; ip route del &lt;prefix&gt; proto 250 table &lt;table&gt;</code>. Not in the <code>fib</code> health row</td>
+</tr>
+<tr>
+<td><code>doctor-iface-address-unattributed</code></td>
+<td>iface</td>
+<td>error</td>
+<td>The netlink monitor received an address for an interface it had not seen yet, and the kernel lookup of that interface failed, so Ze did not announce the address: its connected route is missing until the address changes. The subject is the address and the interface index, the detail carries the kernel's error; the fix is <code>ip -o addr show to &lt;address&gt;; ip addr del &lt;address&gt; dev &lt;device&gt;; ip addr add &lt;address&gt; dev &lt;device&gt;</code>. Raised once per lost address and never cleared, so not in the <code>iface</code> health row <!-- source: internal/plugins/iface/netlink/monitor_report_linux.go -- reportAddressUnattributed --></td>
+</tr>
+<tr>
 <td><code>firewall-stale-table</code></td>
 <td>firewall</td>
 <td>warning</td>
@@ -394,16 +496,34 @@ show warnings source bgp
 <td>Chain count mismatch vs config, or a ze_* table the kernel no longer has</td>
 </tr>
 <tr>
-<td><code>plugin-crash</code></td>
+<td><code>doctor-plugin-crashed</code></td>
 <td>plugin</td>
 <td>error</td>
-<td>Plugin process exited unexpectedly</td>
+<td>Plugin process exited unexpectedly; carries the exit status and the failure policy ze applies, and clears every warning the plugin raised itself</td>
 </tr>
 <tr>
-<td><code>plugin-down</code></td>
+<td><code>doctor-plugin-stopped</code></td>
 <td>plugin</td>
 <td>warning</td>
-<td>Plugin disabled (respawn limit)</td>
+<td>A configured plugin is down on any path (failure policy, respawn limit, failed restart, failed startup handshake); the fix is <code>ze request plugin restart &lt;name&gt;</code>, and the <code>plugins</code> health row reads down. Cleared when the plugin runs again or leaves the configuration</td>
+</tr>
+<tr>
+<td><code>doctor-plugin-stderr-relay-stopped</code></td>
+<td>plugin</td>
+<td>error</td>
+<td>The relay copying a plugin's stderr into ze's log stopped while the plugin runs (a read error, a line over the scanner's limit); the fix is <code>ze request plugin restart &lt;name&gt;</code></td>
+</tr>
+<tr>
+<td><code>doctor-plugin-restart-overlap</code></td>
+<td>plugin</td>
+<td>error</td>
+<td>A plugin was restarted before ze finished stopping its previous process (2s after the stop for a forked plugin, 1s for one in the daemon). The message says what was left: an engine that had not returned or a process that had not exited, which may hold the same resources as the replacement, or only the event delivery or stderr relay of one that had ended. ze takes no further step to end it, and a second restart does not help, because it replaces the new process. The fix shows what is left: <code>ze show system goroutines full</code> for a plugin in the daemon, <code>ze show log recent component plugin.relay</code> for a forked plugin</td>
+</tr>
+<tr>
+<td><code>doctor-config-reload-refused</code></td>
+<td>plugin-server</td>
+<td>error</td>
+<td>A configuration reload was refused: its transaction did not commit (a plugin refused the change or did not answer), or the plugins the new configuration needs could not be resolved or did not start. ze keeps the configuration it was running; an event raised while ze restored that configuration says the restore did not complete. The fix is the refusal's own command when it names one (a plugin dependency this build does not carry), else <code>ze show errors</code></td>
 </tr>
 <tr>
 <td><code>iface-errors</code></td>
@@ -413,6 +533,13 @@ show warnings source bgp
 </tr>
 </tbody>
 </table>
+<p>The bus holds at most <code>ze.report.warnings.max</code> active warnings (default 1024)
+and <code>ze.report.errors.max</code> error events (default 256), both clamped to 10000.
+Past the warning cap the oldest warning is dropped, and past the error cap the
+oldest event is overwritten. <code>ze doctor</code> then reports <code>doctor-report-bus-full</code>
+with the cap, how many entries were lost and the export that raises the cap. A
+health row whose code may have been dropped reads degraded "report bus full"
+rather than healthy, until the owner clears or raises that warning again.</p>
 <h2 id="adding-doctor-checks">Adding Doctor Checks</h2>
 <p>Plugins and components extend <code>ze doctor</code> by registering their own checks.
 There are two registration paths depending on whether the owner is a plugin.</p>
@@ -474,6 +601,7 @@ registration, then handle the <code>doctor-check</code> callback at runtime.</p>
                 Code:     "doctor-my-cache-unreachable",
                 Severity: "error",
                 Message:  "cache server not reachable: " + err.Error(),
+                Fix:      "show my-cache status",
             }}, nil
         }
     }
@@ -481,8 +609,17 @@ registration, then handle the <code>doctor-check</code> callback at runtime.</p>
 })
 </code></pre>
 <p>The engine invokes plugin checks only at runtime (<code>show doctor</code>), not
-during offline <code>ze doctor</code>. See <code>docs/architecture/api/process-protocol.md</code>
-for the full protocol.</p>
+during offline <code>ze doctor</code>. Set <code>Fix</code> to the command that clears the finding,
+alone, with no <code>fix:</code> label. A check that reads live state the daemon holds
+(not the config file) declares <code>Phase: rpc.DoctorPhaseRuntime</code>; the same phase
+is open to an in-tree check registered with <code>diagnostic.RegisterDoctorCheck</code>,
+and only <code>show doctor</code> runs it. A plugin's runtime check is declared here and
+answered by <code>OnDoctorCheck</code>, never as a <code>registry.DoctorCheckDef</code>: the plugin
+registry refuses that form in the <code>runtime</code> phase, because its function would
+run in the daemon's process rather than the plugin's. Each check has one
+declaration: Stage 1 refuses a name the plugin's registry row already declares.
+See
+<code>docs/architecture/api/process-protocol.md</code> for the full protocol.</p>
 <h3 id="requirements">Requirements</h3>
 <p>Every new doctor check must:</p>
 <ol>
@@ -517,6 +654,10 @@ is present and emits the registered code.</li>
                         <span class="page-sidebar-link-label">Quickstart</span>
                         <small>Start from a minimal working setup.</small>
                     </a>
+                    <a class="page-sidebar-link" href="../../guides/ai-agent/">
+                        <span class="page-sidebar-link-label">Use Ze with an AI agent</span>
+                        <small>Let Claude Code or Codex drive Ze for you.</small>
+                    </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
                         <small>Install Ze, create the store, and start SSH.</small>
@@ -546,7 +687,7 @@ is present and emits the registered code.</li>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 11:10 UTC</span>
                 </div>
             </div>
         </footer>

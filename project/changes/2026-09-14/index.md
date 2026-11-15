@@ -56,4 +56,4 @@ A green run proves everything on the list. It does not yet prove the list is com
 
 ## 🔭 Coming up
 
-The configuration store becomes ordinary files on disk, and the single-file form stays for backups and seeding. ExaBGP's own handling of the only-to-customer attribute (RFC 9234) goes into the compatibility bridge. Bug fixes and standards closure work carry on.
+The configuration store becomes ordinary files on disk, and the single-file form stays for backups and initial setup. ExaBGP's own handling of the only-to-customer attribute (RFC 9234) goes into the compatibility bridge. Bug fixes and work on standards compliance continue.

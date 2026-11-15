@@ -10,8 +10,8 @@ Commands are declared in the `Registration` struct passed to `Run`. The engine l
 ```go
 err := p.Run(ctx, &sdk.Registration{
     Commands: []sdk.CommandDecl{
-        {Name: "my-plugin status", ShortHelp: "Show current status"},
-        {Name: "my-plugin check", ShortHelp: "Trigger immediate check", Args: []string{"target"}},
+        {Name: "show my-plugin status", ShortHelp: "Show current status"},
+        {Name: "request my-plugin check", ShortHelp: "Trigger immediate check", Args: []string{"target"}},
     },
 })
 ```
@@ -26,15 +26,15 @@ Register a handler with `OnExecuteCommand` before calling `Run`. The handler rec
 ```go
 p.OnExecuteCommand(func(serial, command string, args []string, peer string) (status string, data any, err error) {
     switch command {
-    case "my-plugin status":
+    case "show my-plugin status":
         return "done", map[string]any{
             "status": "running",
             "uptime": 3600,
         }, nil
-    case "my-plugin check":
+    case "request my-plugin check":
         if len(args) < 1 {
             return "error", map[string]string{
-                "error": "usage: my-plugin check <target>",
+                "error": "usage: request my-plugin check <target>",
             }, nil
         }
         result := performCheck(args[0])
@@ -56,7 +56,7 @@ Commands are delivered to the plugin as `execute-command` RPCs over the MuxConn 
 ### Request (engine to plugin)
 
 ```
-#17 ze-plugin-callback:execute-command {"serial":"abc123","command":"my-plugin status","args":[],"peer":""}
+#17 ze-plugin-callback:execute-command {"serial":"abc123","command":"show my-plugin status","args":[],"peer":""}
 ```
 
 ### Success Response (plugin to engine)
@@ -236,7 +236,7 @@ The engine sends these fields in the `execute-command` RPC:
 | Field | Type | Purpose |
 |-------|------|---------|
 | `serial` | string | Correlation ID for the request |
-| `command` | string | Command name (e.g., `"my-plugin status"`) |
+| `command` | string | Command name (e.g., `"show my-plugin status"`) |
 | `args` | []string | Additional arguments (may be empty) |
 | `peer` | string | Peer selector (may be empty) |
 
@@ -260,10 +260,10 @@ Arguments arrive in the `args` parameter of the handler:
 
 ```go
 p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
-    if command == "my-plugin get" {
+    if command == "show my-plugin get" {
         if len(args) < 1 {
             return "error", map[string]string{
-                "error": "usage: my-plugin get <key>",
+                "error": "usage: show my-plugin get <key>",
             }, nil
         }
         key := args[0]
@@ -277,7 +277,7 @@ p.OnExecuteCommand(func(serial, command string, args []string, peer string) (str
 
 Invocation:
 ```
-ze bgp run "my-plugin get config.timeout"
+ze cli -c "show my-plugin get config.timeout"
 ```
 
 ## CommandDecl Fields
@@ -287,8 +287,8 @@ Commands are declared with these fields:
 
 | Field | Type | Required | Purpose |
 |-------|------|----------|---------|
-| `Name` | string | Yes | Command name (for example, `"my-plugin status"`) |
-| `Description` | string | No | The one-line SUMMARY, shown wherever the command appears on one line. One line, at most 256 bytes |
+| `Name` | string | Yes | Command name (for example, `"show my-plugin status"`). The first word MUST be one of the canonical verbs (`show`, `request`, `clear`, ...): the engine refuses any other name at registration |
+| `ShortHelp` | string | No | The one-line SUMMARY, shown wherever the command appears on one line. One line, at most 256 bytes |
 | `Description` | string | No | The LONG explanation this command's own help page prints, under the summary. At most 4096 bytes, newlines kept |
 | `Args` | []string | No | Expected argument names (for help/completion) |
 | `Completable` | bool | No | Whether the command supports tab completion |
@@ -322,7 +322,7 @@ CLI waits for the answer, then refuses from what it has in hand.
 ```go
 err := p.Run(ctx, &sdk.Registration{
     Commands: []sdk.CommandDecl{{
-        Name:          "my-plugin peers",
+        Name:          "show my-plugin peers",
         ShortHelp:     "Show the sessions",
         Shape:         "tab",
         Columns:       []string{"address", "state", "up"},
@@ -363,10 +363,10 @@ for an operator chain they would otherwise type in full. Declare one in the
 ```go
 err := p.Run(ctx, &sdk.Registration{
     Commands: []sdk.CommandDecl{
-        {Name: "my-plugin status", ShortHelp: "Show current status"},
+        {Name: "show my-plugin status", ShortHelp: "Show current status"},
     },
     Pipes: []sdk.PipeDecl{{
-        Command:     "my-plugin status",
+        Command:     "show my-plugin status",
         Name:        "totals",
         Description: "The counters, without the per-session rows",
         Expansion:   "display sessions-total sessions-established",
@@ -395,7 +395,7 @@ Three rules decide whether your command CAN have an alias.
   to built-in operators alone.
 
 The engine stops the alias reaching a command below the one it sits on. Declare
-`my-plugin status detail` in the same message and it inherits nothing.
+`show my-plugin status detail` in the same message and it inherits nothing.
 
 `ze cli` with no command argument expands the chain in the client process, where
 your alias is not registered, so it answers
@@ -457,15 +457,15 @@ Provide usage information via a dedicated command:
 
 ```go
 // In Registration:
-sdk.CommandDecl{Name: "my-plugin help", ShortHelp: "Show available commands"},
+sdk.CommandDecl{Name: "show my-plugin help", ShortHelp: "Show available commands"},
 
 // In handler:
-if command == "my-plugin help" {
+if command == "show my-plugin help" {
     return "done", map[string]any{
         "commands": []string{
-            "my-plugin status - Show current status",
-            "my-plugin check <target> - Trigger immediate check",
-            "my-plugin metrics - Show performance metrics",
+            "show my-plugin status - Show current status",
+            "request my-plugin check <target> - Trigger immediate check",
+            "show my-plugin metrics - Show performance metrics",
         },
     }, nil
 }

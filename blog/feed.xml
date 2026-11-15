@@ -12,7 +12,7 @@
             <guid isPermaLink="true">https://ze-software.net/blog/reference-from-the-system/</guid>
             <pubDate>Sat, 22 Aug 2026 00:00:00 +0000</pubDate>
             <dc:creator>Thomas Mangin</dc:creator>
-            <description>Ze generates command, configuration and support reference data from the code and its records, so the website does not depend on a second list being updated by hand.</description>
+            <description>Ze generates public reference from its code and records, with links to the decisions behind them. Operators and future AI sessions can use the same maintained account of the system.</description>
         </item>
         <item>
             <title>AI coding has not had its Rails moment</title>
@@ -20,7 +20,7 @@
             <guid isPermaLink="true">https://ze-software.net/blog/ai-coding-has-not-had-its-rails-moment/</guid>
             <pubDate>Mon, 10 Aug 2026 00:00:00 +0000</pubDate>
             <dc:creator>Thomas Mangin</dc:creator>
-            <description>AI coding needs conventions that connect documentation and design decisions to the code they govern. Each project still has to build that structure for itself.</description>
+            <description>AI coding needs shared conventions for connecting requirements and design decisions to their implementation, and for keeping those relationships current.</description>
         </item>
         <item>
             <title>The repository is half the AI harness</title>
@@ -28,7 +28,7 @@
             <guid isPermaLink="true">https://ze-software.net/blog/the-repository-is-the-ai-harness/</guid>
             <pubDate>Sun, 09 Aug 2026 00:00:00 +0000</pubDate>
             <dc:creator>Thomas Mangin</dc:creator>
-            <description>Ze's rules give AI agents explicit objectives and ways to check their work against the project's requirements, so they can recognise incomplete or incorrect implementations.</description>
+            <description>Ze's development rules define what an AI agent must achieve and how to check the result, including the qualities a working demonstration can leave untested.</description>
         </item>
         <item>
             <title>The proof is the expensive part</title>
@@ -36,7 +36,7 @@
             <guid isPermaLink="true">https://ze-software.net/blog/the-proof-is-the-expensive-part/</guid>
             <pubDate>Thu, 06 Aug 2026 00:00:00 +0000</pubDate>
             <dc:creator>Thomas Mangin</dc:creator>
-            <description>Passing unit tests and CI does not establish that Ze behaves as the protocol requires. Our RFC testing framework connects each requirement to the behaviour its tests observe.</description>
+            <description>Ze aims to meet every applicable mandatory RFC requirement. Interoperability labs and tests tied to the RFC text help establish what the running router does and which claims remain unverified.</description>
         </item>
         <item>
             <title>How Ze reuses memory for BGP UPDATEs</title>
@@ -44,15 +44,15 @@
             <guid isPermaLink="true">https://ze-software.net/blog/how-ze-manages-memory/</guid>
             <pubDate>Tue, 04 Aug 2026 00:00:00 +0000</pubDate>
             <dc:creator>Thomas Mangin</dc:creator>
-            <description>Go's garbage collector reclaims unused memory, but creating and copying data still has a cost. Ze's BGP UPDATE processing shows how we design to avoid that work.</description>
+            <description>From the Amiga demo scene to BGP UPDATEs, earlier experience informs how Ze reuses memory and avoids unnecessary allocation in Go.</description>
         </item>
         <item>
-            <title>AI slop is the wrong test</title>
+            <title>AI slop is human slop</title>
             <link>https://ze-software.net/blog/ai-slop-is-the-wrong-test/</link>
             <guid isPermaLink="true">https://ze-software.net/blog/ai-slop-is-the-wrong-test/</guid>
             <pubDate>Mon, 03 Aug 2026 00:00:00 +0000</pubDate>
             <dc:creator>Thomas Mangin</dc:creator>
-            <description>AI often writes better code than I would, and considerably more tests per feature. I have little patience for calling it all slop when human-written software has given us so much to complain about.</description>
+            <description>AI often writes better code than I would, and far more tests per feature. I judge that code by what it does and the evidence behind it, and remain responsible for what Ze releases.</description>
         </item>
     </channel>
 </rss>

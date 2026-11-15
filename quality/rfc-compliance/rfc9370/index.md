@@ -1,6 +1,6 @@
 # RFC 9370 - Multiple Key Exchanges in the Internet Key Exchange Protocol Version 2 (IKEv2)
 
-Multiple key exchanges (hybrid post-quantum). Every requirement this repository extracted from RFC 9370, the tests bound to it, and what a reader has verified about them. This summary is not enrolled.
+Multiple key exchanges (hybrid post-quantum). Every requirement listed for RFC 9370, the tests linked to it, and their recorded reviews. This summary is excluded from automatic compliance checks.
 
 ## Overview
 
@@ -10,24 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 0 | of 23 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0 | of 23 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 23 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 23 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 0 | 0 of 0 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-
-### Neutral
-
-measures that are neither good news nor bad
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| MUSTs declared | 23 | of 27 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (out-of-scope), so every count below reads what the summary records rather than what the gate enforces |
-| Out of scope | 0 | of 23 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 23 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 23 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 23 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 23 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Tested both ways | 0 | of 23 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0 | of 23 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 23 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 23 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Tests shown to detect a fault | 0 | 0 of 0 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -35,54 +22,74 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 23 | of 23 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Declared gap or no test | 23 | of 23 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 
-The 9 counts marked as a part above are the whole of the 23 gated MUSTs: they add up to 23. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Neutral
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+measures that are neither good news nor bad
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Out of scope | 0 | of 23 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 23 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 23 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 23 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 23 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+
+### Totals
+
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level), not checked | 23 | of 27 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements listed in this summary. This RFC is excluded from automatic checks (out-of-scope), so these requirements are not checked. The counts above show what the summary records. |
+
+The 9 counts marked as a part above are the whole of the 23 mandatory requirements: they add up to 23. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| MUSTs declared | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level), not checked | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | Multiple key exchanges (hybrid post-quantum) |
-| Enrolment | Not enrolled (out-of-scope) |
+| Automatic checks | Excluded (out-of-scope) |
 | Requirements | 27 |
-| Gated MUST-level | 23 |
+| Mandatory requirements (MUST level), not checked | 23 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 23 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 0 |
-| Tagged units | 0 |
+| Tests linked to requirements | 0 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 0 |
+| Fault test records | 0 |
 | Summary | `rfc/short/rfc9370.md` |
-| Requirement shard | `rfc/requirements/rfc9370.md` |
+| Requirement table | `rfc/requirements/rfc9370.md` |
 | RFC text | `rfc/full/rfc9370.txt` |
 
-## Enrolment
+## Automatic checks
 
-Not enrolled (out-of-scope, the requirements ARE extracted and the owner decided not to offer the feature for now, so the absence is a scope decision rather than a conformance gap): OUT OF SCOPE as a document by owner decision, 2026-10-26: the owner rule committed in 1e7a9dbc34 (ai/META-DECISIONS.md, Goal and scope) counts an RFC a profile lists as optional only once Thomas brings it into scope, and this summary's `Optional use cases` row lists this RFC in the optional tier of the vpn-endpoint and vpn-concentrator profiles. The extraction is COMPLETE: the source text is at rfc/full/rfc9370.txt and the extraction sign-off is rfc/extraction/rfc9370.json. Ze implements none of it, and each MUST-level row keeps its `{gap}` note naming the absent producer: all 23 MUST-level requirements are classified, and all 23 are `{gap}`, because Ze's IKE engine implements neither the IKE_INTERMEDIATE exchange (RFC 9242) nor IKE_FOLLOWUP_KE, nor the ADDKE Transform Types 6 to 12. `internal/component/ike/wire/header.go` declares exchange types 34 to 37 only, and `internal/component/ike/wire/payload_notify.go` declares neither ADDITIONAL_KEY_EXCHANGE (16441) nor STATE_NOT_FOUND (47). One Appendix C site states the rationale for a discarded alternative design and is excluded in the extraction sign-off.
+Excluded from automatic checks (out-of-scope, the requirements ARE extracted and the owner decided not to offer the feature for now, so the absence is a scope decision rather than a conformance gap): OUT OF SCOPE as a document by owner decision, 2026-10-26: the owner rule committed in 1e7a9dbc34 (ai/META-DECISIONS.md, Goal and scope) counts an RFC a profile lists as optional only once Thomas brings it into scope, and this summary's `Optional use cases` row lists this RFC in the optional tier of the vpn-endpoint and vpn-concentrator profiles. The extraction is COMPLETE: the source text is at rfc/full/rfc9370.txt and the extraction sign-off is rfc/extraction/rfc9370.json. Ze implements none of it, and each MUST-level row keeps its `{gap}` note naming the absent producer: all 23 MUST-level requirements are classified, and all 23 are `{gap}`, because Ze's IKE engine implements neither the IKE_INTERMEDIATE exchange (RFC 9242) nor IKE_FOLLOWUP_KE, nor the ADDKE Transform Types 6 to 12. `internal/component/ike/wire/header.go` declares exchange types 34 to 37 only, and `internal/component/ike/wire/payload_notify.go` declares neither ADDITIONAL_KEY_EXCHANGE (16441) nor STATE_NOT_FOUND (47). One Appendix C site states the rationale for a discarded alternative design and is excluded in the extraction sign-off.
 
-## What the public ledger says
+## Published support status
 
 **Area:** Multiple key exchanges (hybrid post-quantum)
 
@@ -97,33 +104,36 @@ Not enrolled (out-of-scope, the requirements ARE extracted and the owner decided
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 0 | one part of the gated population |
-| Annotated (including scoped evidence) | 23 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **23** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 0 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 23 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level), not checked** | **23** | every mandatory requirement appears in exactly one group above |
 
 **Annotated (including scoped evidence) (23):** [`RFC9370-2.2.1-1`](#rfc9370-2.2.1-1), [`RFC9370-2.2.1-2`](#rfc9370-2.2.1-2), [`RFC9370-2.2.1-3`](#rfc9370-2.2.1-3), [`RFC9370-2.2.1-4`](#rfc9370-2.2.1-4), [`RFC9370-2.2.1-5`](#rfc9370-2.2.1-5), [`RFC9370-2.2.1-6`](#rfc9370-2.2.1-6), [`RFC9370-2.2.1-7`](#rfc9370-2.2.1-7), [`RFC9370-2.2.1-8`](#rfc9370-2.2.1-8), [`RFC9370-2.2.1-9`](#rfc9370-2.2.1-9), [`RFC9370-2.2.1-10`](#rfc9370-2.2.1-10), [`RFC9370-2.2.1-11`](#rfc9370-2.2.1-11), [`RFC9370-2.2.1-12`](#rfc9370-2.2.1-12), [`RFC9370-2.2.2-1`](#rfc9370-2.2.2-1), [`RFC9370-2.2.4-1`](#rfc9370-2.2.4-1), [`RFC9370-2.2.4-2`](#rfc9370-2.2.4-2), [`RFC9370-2.2.4-3`](#rfc9370-2.2.4-3), [`RFC9370-2.2.4-4`](#rfc9370-2.2.4-4), [`RFC9370-2.2.4-5`](#rfc9370-2.2.4-5), [`RFC9370-2.2.4-6`](#rfc9370-2.2.4-6), [`RFC9370-2.2.4-7`](#rfc9370-2.2.4-7), [`RFC9370-2.2.4-8`](#rfc9370-2.2.4-8), [`RFC9370-2.2.4-9`](#rfc9370-2.2.4-9), [`RFC9370-2.2.4-10`](#rfc9370-2.2.4-10)
 
 ## Figures
 
-- **MUST bar**: Ze correctness gap 23
-- **Overview bar**: SHOULD not decided 4, Ze correctness gap 23
+- **MUST bar**: Not built 23
+- **Overview bar**: Not assessed 4, Not built 23
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 23 |
 | MUST rows kept (the MUST bar) | 23 |
 | Ze proven | 0 |
 | OS verified | 0 |
+| Proof pending | 0 |
 | OS testing gap | 0 |
-| Ze correctness gap | 23 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 23 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -136,11 +146,12 @@ Not enrolled (out-of-scope, the requirements ARE extracted and the owner decided
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 4 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 4 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc9370.json](../../../data/rfc/rfc9370.json).
 
@@ -206,193 +217,193 @@ Source: [data/rfc/rfc9370.json](../../../data/rfc/rfc9370.json).
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC9370-2.2.1-1`](#rfc9370-2.2.1-1)
 
 Additional key exchanges negotiated via newly defined transforms MUST take place in a series of IKE_INTERMEDIATE exchanges following the IKE_SA_INIT exchange, performed in an order of the values of their Transform Types. (§2.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9370-2.2.1-1, so no unit is bound to it.
+No test carries RFC9370-2.2.1-1, so there is no linked test.
 
 ### [`RFC9370-2.2.1-2`](#rfc9370-2.2.1-2)
 
 Each additional key exchange method MUST be fully completed before the next one is started. (§2.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9370-2.2.1-2, so no unit is bound to it.
+No test carries RFC9370-2.2.1-2, so there is no linked test.
 
 ### [`RFC9370-2.2.1-3`](#rfc9370-2.2.1-3)
 
 On the other hand, if the initiator includes any ADDKE Transform Type in the proposal, the responder MUST select one of the algorithms proposed using this type. (§2.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9370-2.2.1-3, so no unit is bound to it.
+No test carries RFC9370-2.2.1-3, so there is no linked test.
 
 ### [`RFC9370-2.2.1-4`](#rfc9370-2.2.1-4)
 
 However, for the ADDKE Transform Types, the responder's choice MUST NOT contain duplicated algorithms (those with an identical Transform ID and attributes), except for the Transform ID of NONE. (§2.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9370-2.2.1-4, so no unit is bound to it.
+No test carries RFC9370-2.2.1-4, so there is no linked test.
 
 ### [`RFC9370-2.2.1-5`](#rfc9370-2.2.1-5)
 
 If the responder is unable to select algorithms that are not duplicated for each proposed key exchange (either because the proposal contains too few choices or due to the local policy restrictions on using the proposed algorithms), then the responder MUST reject the message with an error notification of type NO_PROPOSAL_CHOSEN. (§2.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9370-2.2.1-5, so no unit is bound to it.
+No test carries RFC9370-2.2.1-5, so there is no linked test.
 
 ### [`RFC9370-2.2.1-6`](#rfc9370-2.2.1-6)
 
 If the responder's message contains one or more duplicated choices, the initiator should log the error and MUST treat the exchange as failed. (§2.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9370-2.2.1-6, so no unit is bound to it.
+No test carries RFC9370-2.2.1-6, so there is no linked test.
 
 ### [`RFC9370-2.2.1-7`](#rfc9370-2.2.1-7)
 
 The initiator MUST NOT initiate any IKE_INTERMEDIATE (or IKE_FOLLOWUP_KE) exchanges so that no new SA is created. (§2.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9370-2.2.1-7, so no unit is bound to it.
+No test carries RFC9370-2.2.1-7, so there is no linked test.
 
 ### [`RFC9370-2.2.1-8`](#rfc9370-2.2.1-8)
 
 If the responder selects NONE for some ADDKE Transform Types (provided they are proposed by the initiator), then any corresponding additional key exchanges MUST NOT take place. (§2.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9370-2.2.1-8, so no unit is bound to it.
+No test carries RFC9370-2.2.1-8, so there is no linked test.
 
 ### [`RFC9370-2.2.1-9`](#rfc9370-2.2.1-9)
 
 The responder MUST treat all of the omitted ADDKE transforms as if they were proposed with Transform ID NONE. (§2.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9370-2.2.1-9, so no unit is bound to it.
+No test carries RFC9370-2.2.1-9, so there is no linked test.
 
 ### [`RFC9370-2.2.1-10`](#rfc9370-2.2.1-10)
 
 If the initiator includes any ADDKE Transform Types into the SA payload in the IKE_SA_INIT exchange request message, then it MUST also negotiate the use of the IKE_INTERMEDIATE exchange, as described in [RFC9242] by including an INTERMEDIATE_EXCHANGE_SUPPORTED notification in the same message. (§2.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9370-2.2.1-10, so no unit is bound to it.
+No test carries RFC9370-2.2.1-10, so there is no linked test.
 
 ### [`RFC9370-2.2.1-11`](#rfc9370-2.2.1-11)
 
 If the responder agrees to use additional key exchanges while establishing an initial IKE SA, it MUST also return this notification in the IKE_SA_INIT response message, confirming that IKE_INTERMEDIATE exchange is supported and will be used for transferring additional key exchange data. (§2.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9370-2.2.1-11, so no unit is bound to it.
+No test carries RFC9370-2.2.1-11, so there is no linked test.
 
 ### [`RFC9370-2.2.1-12`](#rfc9370-2.2.1-12)
 
 If the IKE_INTERMEDIATE exchange is not negotiated, then the peers MUST treat any ADDKE Transform Types in the IKE_SA_INIT exchange messages as unknown transform types and skip the proposals they appear in. (§2.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9370-2.2.1-12, so no unit is bound to it.
+No test carries RFC9370-2.2.1-12, so there is no linked test.
 
 ### [`RFC9370-2.2.2-1`](#rfc9370-2.2.2-1)
 
 The former "Diffie-Hellman Group Num" (now called "Key Exchange Method") field in the KEi(n) and KEr(n) payloads MUST match the n-th negotiated additional key exchange. (§2.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9370-2.2.2-1, so no unit is bound to it.
+No test carries RFC9370-2.2.2-1, so there is no linked test.
 
 ### [`RFC9370-2.2.4-1`](#rfc9370-2.2.4-1)
 
 Each additional key exchange method MUST be fully completed before the next one is started. (§2.2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9370-2.2.4-1, so no unit is bound to it.
+No test carries RFC9370-2.2.4-1, so there is no linked test.
 
 ### [`RFC9370-2.2.4-2`](#rfc9370-2.2.4-2)
 
 The responder MUST include this notification in a CREATE_CHILD_SA or IKE_FOLLOWUP_KE response message in case the next IKE_FOLLOWUP_KE exchange is expected, filling it with some data that would allow linking the current exchange to the next one. (§2.2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9370-2.2.4-2, so no unit is bound to it.
+No test carries RFC9370-2.2.4-2, so there is no linked test.
 
 ### [`RFC9370-2.2.4-3`](#rfc9370-2.2.4-3)
 
 The initiator MUST send back this notification intact in the request message of the next IKE_FOLLOWUP_KE exchange. (§2.2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9370-2.2.4-3, so no unit is bound to it.
+No test carries RFC9370-2.2.4-3, so there is no linked test.
 
 ### [`RFC9370-2.2.4-4`](#rfc9370-2.2.4-4)
 
 The former "Diffie-Hellman Group Num" (now called "Key Exchange Method") field in the KEi(n) and KEr(n) payloads MUST match the n-th negotiated additional key exchange. (§2.2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9370-2.2.4-4, so no unit is bound to it.
+No test carries RFC9370-2.2.4-4, so there is no linked test.
 
 ### [`RFC9370-2.2.4-5`](#rfc9370-2.2.4-5)
 
 The responder MUST handle this situation gracefully and delete the associated state if it does not receive the next expected IKE_FOLLOWUP_KE request after some reasonable period of time. (§2.2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9370-2.2.4-5, so no unit is bound to it.
+No test carries RFC9370-2.2.4-5, so there is no linked test.
 
 ### [`RFC9370-2.2.4-6`](#rfc9370-2.2.4-6)
 
 If the responder receives an IKE_FOLLOWUP_KE message for which it does not have a key exchange state, it MUST send back a new error type notification called "STATE_NOT_FOUND". (§2.2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9370-2.2.4-6, so no unit is bound to it.
+No test carries RFC9370-2.2.4-6, so there is no linked test.
 
 ### [`RFC9370-2.2.4-7`](#rfc9370-2.2.4-7)
 
 If the initiator receives this notification in response to an IKE_FOLLOWUP_KE exchange performing an additional key exchange, it MUST cancel this exchange and MUST treat the whole series of exchanges started from the CREATE_CHILD_SA exchange as having failed. (§2.2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9370-2.2.4-7, so no unit is bound to it.
+No test carries RFC9370-2.2.4-7, so there is no linked test.
 
 ### [`RFC9370-2.2.4-8`](#rfc9370-2.2.4-8)
 
 If the initiator continues to receive STATE_NOT_FOUND notifications after several retries, it MUST treat this situation as a fatal error and delete the IKE SA by sending a DELETE payload. (§2.2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9370-2.2.4-8, so no unit is bound to it.
+No test carries RFC9370-2.2.4-8, so there is no linked test.
 
 ### [`RFC9370-2.2.4-9`](#rfc9370-2.2.4-9)
 
 For this reason, if additional key exchanges are negotiated in the CREATE_CHILD_SA exchange in which the smallest nonce is used, then, because there is nothing to delete yet, the initiator of this exchange just stops the rekeying process, and it MUST NOT initiate the IKE_FOLLOWUP_KE exchange. (§2.2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9370-2.2.4-9, so no unit is bound to it.
+No test carries RFC9370-2.2.4-9, so there is no linked test.
 
 ### [`RFC9370-2.2.4-10`](#rfc9370-2.2.4-10)
 
 In this case, a TEMPORARY_FAILURE notification MUST be sent in response to such a request. (§2.2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9370-2.2.4-10, so no unit is bound to it.
+No test carries RFC9370-2.2.4-10, so there is no linked test.
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -411,32 +422,32 @@ No test carries RFC9370-2.2.4-10, so no unit is bound to it.
 
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
-| `front` | not stated | 0 | walked | not stated |
-| `1` | not stated | 0 | walked | not stated |
-| `1.1` | not stated | 0 | walked | not stated |
-| `1.2` | not stated | 0 | walked | not stated |
-| `1.3` | not stated | 0 | walked | not stated |
-| `2` | not stated | 0 | walked | not stated |
-| `2.1` | not stated | 0 | walked | not stated |
-| `2.2` | not stated | 0 | walked | not stated |
-| `2.2.1` | not stated | 12 | walked | not stated |
-| `2.2.2` | not stated | 1 | walked | not stated |
-| `2.2.3` | not stated | 0 | walked | not stated |
-| `2.2.4` | not stated | 10 | walked | not stated |
-| `2.2.5` | not stated | 0 | walked | not stated |
-| `2.2.5.1` | not stated | 0 | walked | not stated |
-| `3` | not stated | 0 | walked | not stated |
-| `4` | not stated | 0 | walked | not stated |
-| `5` | not stated | 0 | walked | not stated |
-| `5.1` | not stated | 0 | walked | not stated |
-| `5.2` | not stated | 0 | walked | not stated |
-| `A` | not stated | 0 | walked | not stated |
-| `A.1` | not stated | 0 | walked | not stated |
-| `A.2` | not stated | 0 | walked | not stated |
-| `A.3` | not stated | 0 | walked | not stated |
-| `A.4` | not stated | 0 | walked | not stated |
-| `B` | not stated | 0 | walked | not stated |
-| `C` | not stated | 1 | walked | not stated |
+| `front` | not stated | 0 | reviewed | not stated |
+| `1` | not stated | 0 | reviewed | not stated |
+| `1.1` | not stated | 0 | reviewed | not stated |
+| `1.2` | not stated | 0 | reviewed | not stated |
+| `1.3` | not stated | 0 | reviewed | not stated |
+| `2` | not stated | 0 | reviewed | not stated |
+| `2.1` | not stated | 0 | reviewed | not stated |
+| `2.2` | not stated | 0 | reviewed | not stated |
+| `2.2.1` | not stated | 12 | reviewed | not stated |
+| `2.2.2` | not stated | 1 | reviewed | not stated |
+| `2.2.3` | not stated | 0 | reviewed | not stated |
+| `2.2.4` | not stated | 10 | reviewed | not stated |
+| `2.2.5` | not stated | 0 | reviewed | not stated |
+| `2.2.5.1` | not stated | 0 | reviewed | not stated |
+| `3` | not stated | 0 | reviewed | not stated |
+| `4` | not stated | 0 | reviewed | not stated |
+| `5` | not stated | 0 | reviewed | not stated |
+| `5.1` | not stated | 0 | reviewed | not stated |
+| `5.2` | not stated | 0 | reviewed | not stated |
+| `A` | not stated | 0 | reviewed | not stated |
+| `A.1` | not stated | 0 | reviewed | not stated |
+| `A.2` | not stated | 0 | reviewed | not stated |
+| `A.3` | not stated | 0 | reviewed | not stated |
+| `A.4` | not stated | 0 | reviewed | not stated |
+| `B` | not stated | 0 | reviewed | not stated |
+| `C` | not stated | 1 | reviewed | not stated |
 
 ### Excluded sentences
 

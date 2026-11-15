@@ -1,6 +1,6 @@
 # RFC 1035 - Domain Names - Implementation and Specification
 
-DNS message behavior. Every requirement this repository extracted from RFC 1035, the tests bound to it, and what a reader has verified about them. This summary is not enrolled.
+DNS message behavior. Every requirement listed for RFC 1035, the tests linked to it, and their recorded reviews. This summary is excluded from automatic compliance checks.
 
 ## Overview
 
@@ -10,24 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 25 | of 27 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0 | of 27 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 27 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 27 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 26 | 26 of 85 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-
-### Neutral
-
-measures that are neither good news nor bad
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| MUSTs declared | 27 | of 33 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (backlog), so every count below reads what the summary records rather than what the gate enforces |
-| Out of scope | 0 | of 27 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 27 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 27 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 27 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 27 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Tested both ways | 25 | of 27 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0 | of 27 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 27 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 27 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Tests shown to detect a fault | 26 | 26 of 85 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -35,54 +22,74 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 2 | of 27 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Declared gap or no test | 2 | of 27 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 
-The 9 counts marked as a part above are the whole of the 27 gated MUSTs: they add up to 27. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Neutral
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+measures that are neither good news nor bad
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Out of scope | 0 | of 27 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 27 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 27 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 27 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 27 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+
+### Totals
+
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level), not checked | 27 | of 33 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements listed in this summary. This RFC is excluded from automatic checks (backlog), so these requirements are not checked. The counts above show what the summary records. |
+
+The 9 counts marked as a part above are the whole of the 27 mandatory requirements: they add up to 27. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| MUSTs declared | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level), not checked | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | DNS message behavior |
-| Enrolment | Not enrolled (backlog) |
+| Automatic checks | Excluded (backlog) |
 | Requirements | 33 |
-| Gated MUST-level | 27 |
+| Mandatory requirements (MUST level), not checked | 27 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 2 |
+| Mandatory requirements with no test and no annotation | 2 |
 | Nightly-only evidence | 0 |
 | Test tags | 85 |
-| Tagged units | 85 |
+| Tests linked to requirements | 85 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 26 |
+| Fault test records | 26 |
 | Summary | `rfc/short/rfc1035.md` |
-| Requirement shard | `rfc/requirements/rfc1035.md` |
+| Requirement table | `rfc/requirements/rfc1035.md` |
 | RFC text | `rfc/full/rfc1035.txt` |
 
-## Enrolment
+## Automatic checks
 
-Not enrolled (backlog, the requirements have not been extracted from the document yet; this is work owed rather than a decision): Domain Names: Implementation and Specification. Re-authored 2026-07-30 and it now declares 27 MUST-level obligations read from the indicative prose of a 1987 document (0 capitalised keywords, 23 lowercase must), so this is no longer an empty checklist. It is not enrolled because the obligations are not all proven and the unproven ones need an owner ruling, not an implementer's annotation. The obligation with no code path in Ze is zone transfer: Ze performs none, and the owner ruled RFC 1035 out of scope on 2026-08-18, so that work is not to be started. The 512-octet UDP bound and the TC bit ARE enforced -- send calls Msg.Truncate(udpReplyLimit(r)) for a datagram reply in internal/core/dnsserver/handler.go, and udpReplyLimit holds the Section 2.3.4 floor while letting an RFC 6891 Section 6.2.3 OPT record raise it. An unsupported inverse query DOES draw Not Implemented: Authoritative branches on the opcode before any zone lookup, in the same file. It was the one obligation the 73-section walk found OUTSIDE the summary's declared scope and added to it. The response TTL is deliberately not raised to the SOA MINIMUM -- RFC 2308 Section 4 withdrew that rule, hdr in internal/plugins/geodns/server.go applies no floor, and TestRFC2308_NoZoneWideTTLFloor holds the decision. About 6 requirements admit only a positive polarity because miekg/dns owns the wire codec and no Ze-side change can break them. Escalated for scoping per OR-1b.
+Excluded from automatic checks (backlog, the requirements have not been extracted from the document yet; this is work owed rather than a decision): Domain Names: Implementation and Specification. Re-authored 2026-07-30 and it now declares 27 MUST-level obligations read from the indicative prose of a 1987 document (0 capitalised keywords, 23 lowercase must), so this is no longer an empty checklist. It is not enrolled because the obligations are not all proven and the unproven ones need an owner ruling, not an implementer's annotation. The obligation with no code path in Ze is zone transfer: Ze performs none, and the owner ruled RFC 1035 out of scope on 2026-08-18, so that work is not to be started. The 512-octet UDP bound and the TC bit ARE enforced -- send calls Msg.Truncate(udpReplyLimit(r)) for a datagram reply in internal/core/dnsserver/handler.go, and udpReplyLimit holds the Section 2.3.4 floor while letting an RFC 6891 Section 6.2.3 OPT record raise it. An unsupported inverse query DOES draw Not Implemented: Authoritative branches on the opcode before any zone lookup, in the same file. It was the one obligation the 73-section walk found OUTSIDE the summary's declared scope and added to it. The response TTL is deliberately not raised to the SOA MINIMUM -- RFC 2308 Section 4 withdrew that rule, hdr in internal/plugins/geodns/server.go applies no floor, and TestRFC2308_NoZoneWideTTLFloor holds the decision. About 6 requirements admit only a positive polarity because miekg/dns owns the wire codec and no Ze-side change can break them. Escalated for scoping per OR-1b.
 
-## What the public ledger says
+## Published support status
 
 **Area:** DNS message behavior
 
@@ -97,14 +104,14 @@ Not enrolled (backlog, the requirements have not been extracted from the documen
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 25 | one part of the gated population |
-| Annotated (including scoped evidence) | 0 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 2 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **27** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 25 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 0 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 2 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level), not checked** | **27** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (25):** [`RFC1035-2.3.3-1`](#rfc1035-2.3.3-1), [`RFC1035-2.3.3-2`](#rfc1035-2.3.3-2), [`RFC1035-2.3.4-1`](#rfc1035-2.3.4-1), [`RFC1035-2.3.4-2`](#rfc1035-2.3.4-2), [`RFC1035-3.1-1`](#rfc1035-3.1-1), [`RFC1035-3.1-2`](#rfc1035-3.1-2), [`RFC1035-3.1-3`](#rfc1035-3.1-3), [`RFC1035-3.1-4`](#rfc1035-3.1-4), [`RFC1035-3.1-5`](#rfc1035-3.1-5), [`RFC1035-3.1-6`](#rfc1035-3.1-6), [`RFC1035-4.1.1-1`](#rfc1035-4.1.1-1), [`RFC1035-4.1.1-2`](#rfc1035-4.1.1-2), [`RFC1035-4.1.1-3`](#rfc1035-4.1.1-3), [`RFC1035-4.1.3-1`](#rfc1035-4.1.3-1), [`RFC1035-4.1.3-2`](#rfc1035-4.1.3-2), [`RFC1035-4.1.4-1`](#rfc1035-4.1.4-1), [`RFC1035-4.1.4-2`](#rfc1035-4.1.4-2), [`RFC1035-4.1.4-3`](#rfc1035-4.1.4-3), [`RFC1035-4.1.4-4`](#rfc1035-4.1.4-4), [`RFC1035-4.1.4-5`](#rfc1035-4.1.4-5), [`RFC1035-4.2.1-1`](#rfc1035-4.2.1-1), [`RFC1035-4.2.1-2`](#rfc1035-4.2.1-2), [`RFC1035-4.2.1-3`](#rfc1035-4.2.1-3), [`RFC1035-4.2.2-1`](#rfc1035-4.2.2-1), [`RFC1035-6.4-1`](#rfc1035-6.4-1)
 
@@ -112,20 +119,23 @@ Not enrolled (backlog, the requirements have not been extracted from the documen
 
 ## Figures
 
-- **MUST bar**: Ze proven 12, Ze correctness gap 15
-- **Overview bar**: Ze MUST proven 12, SHOULD not decided 6, Ze correctness gap 15
+- **MUST bar**: Ze proven 12, Proof pending 13, Not assessed 2
+- **Overview bar**: Ze MUST proven 12, Proof pending 13, Not assessed 8
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 27 |
 | MUST rows kept (the MUST bar) | 27 |
 | Ze proven | 12 |
 | OS verified | 0 |
+| Proof pending | 13 |
 | OS testing gap | 0 |
-| Ze correctness gap | 15 |
+| Exclusion unchecked | 0 |
+| Not assessed | 2 |
+| Not built | 0 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -138,11 +148,12 @@ Not enrolled (backlog, the requirements have not been extracted from the documen
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 6 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 6 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc1035.json](../../../data/rfc/rfc1035.json).
 
@@ -193,13 +204,13 @@ Source: [data/rfc/rfc1035.json](../../../data/rfc/rfc1035.json).
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC1035-2.3.3-1`](#rfc1035-2.3.3-1)
 
 For all parts of the DNS that are part of the official protocol, all comparisons between character strings (e.g., labels, domain names, etc.) are done in a case-insensitive manner (§2.3.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -212,7 +223,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Loss of case sensitive data must be minimized (§2.3.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -223,7 +234,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 TTL positive values of a signed 32 bit number. (§2.3.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -234,7 +245,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 UDP messages 512 octets or less (§2.3.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -245,7 +256,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Each label is represented as a one octet length field followed by that number of octets (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -256,7 +267,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Since every domain name ends with the null label of the root, a domain name is terminated by a length byte of zero (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -267,7 +278,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The high order two bits of every length octet must be zero, and the remaining six bits of the length field limit the label to 63 octets or less (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -280,7 +291,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 To simplify implementations, the total length of a domain name (i.e., label octets and label length octets) is restricted to 255 octets or less. (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -293,7 +304,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Name servers and resolvers must compare labels in a case-insensitive manner (i.e., A=a), assuming ASCII with zero parity (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -306,7 +317,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Non-alphabetic codes must match exactly (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -317,15 +328,15 @@ Audit verdict: not audited: no reader has judged these tests
 
 Whenever a RR is sent in a response to a query, the TTL field is set to the maximum of the TTL field from the RR and the MINIMUM field in the appropriate SOA (§3.3.13)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC1035-3.3.13-1, so no unit is bound to it.
+No test carries RFC1035-3.3.13-1, so there is no linked test.
 
 ### [`RFC1035-4.1.1-1`](#rfc1035-4.1.1-1)
 
 Must be zero in all queries and responses. (§4.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -338,7 +349,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 AA Authoritative Answer - this bit is valid in responses, and specifies that the responding name server is an authority for the domain name in question section. (§4.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -353,7 +364,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 3 Name Error - Meaningful only for responses from an authoritative name server, this code signifies that the domain name referenced in the query does not exist. (§4.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -366,7 +377,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 TTL a 32 bit unsigned integer that specifies the time interval (in seconds) that the resource record may be cached before it should be discarded. (§4.1.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -377,7 +388,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 RDLENGTH an unsigned 16 bit integer that specifies the length in octets of the RDATA field. (§4.1.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -388,7 +399,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 This allows a pointer to be distinguished from a label, since the label must begin with two zero bits because labels are restricted to 63 octets or less. (§4.1.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -401,7 +412,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The OFFSET field specifies an offset from the start of the message (i.e., the first octet of the ID field in the domain header). (§4.1.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -412,7 +423,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Pointers can only be used for occurances of a domain name where the format is not class specific (§4.1.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -423,7 +434,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If a domain name is contained in a part of the message subject to a length field (such as the RDATA section of an RR), and compression is used, the length of the compressed name is used in the length calculation, rather than the length of the expanded name. (§4.1.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -434,7 +445,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 However all programs are required to understand arriving messages that contain pointers. (§4.1.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -447,15 +458,15 @@ Audit verdict: not audited: no reader has judged these tests
 
 Zone refresh activities must use virtual circuits because of the need for reliable transfer (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC1035-4.2-1, so no unit is bound to it.
+No test carries RFC1035-4.2-1, so there is no linked test.
 
 ### [`RFC1035-4.2.1-1`](#rfc1035-4.2.1-1)
 
 Messages carried by UDP are restricted to 512 bytes (not counting the IP or UDP headers). (§4.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -469,7 +480,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Longer messages are truncated and the TC bit is set in the header (§4.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -485,7 +496,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Messages sent using UDP user server port 53 (decimal) (§4.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -499,7 +510,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Messages sent over TCP connections use server port 53 (decimal). The message is prefixed with a two byte length field which gives the message length, excluding the two byte length field. (§4.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -512,7 +523,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 While inverse query support is optional, all name servers must be at least able to return the error response (§6.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -521,7 +532,7 @@ Audit verdict: not audited: no reader has judged these tests
 | positive | [`TestRFC1035_UnsupportedOpcodeReturnsNotImplemented`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L241) | unit/verify | unproven |
 | positive | [`TestRFC1035ResolverInverseQueryNotImplemented`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L441) | unit/verify | mutant, verified |
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -542,75 +553,75 @@ Audit verdict: not audited: no reader has judged these tests
 |---|---|---|---|---|
 | `front` | not stated | 0 | skipped (front-matter) | Network Working Group header, obsoletes/updates block and the table of contents. |
 | `1` | STATUS OF THIS MEMO | 0 | skipped (front-matter) | STATUS OF THIS MEMO. Distribution statement and the note that this RFC obsoletes RFC 882 and RFC 883. |
-| `2` | INTRODUCTION heading, with no body of its own | 0 | walked | INTRODUCTION heading, with no body of its own. |
-| `2.1` | not stated | 0 | walked | Overview of the three-part domain system (name space, name servers, resolvers). Descriptive. |
-| `2.2` | not stated | 1 | walked | Common configurations: the deployment shapes a resolver and a name server can take. Its one site is a characterisation, excluded below. |
-| `2.3` | Conventions | 1 | walked | Conventions. The section preamble is its one site, an applicability statement excluded below; the conventions themselves are in 2.3.1 to 2.3.4. |
-| `2.3.1` | Preferred name syntax | 3 | walked | Preferred name syntax. Two sites map to the single [SHOULD] row that carries both halves; the third restates section 3.1's 63-octet limit. |
-| `2.3.2` | not stated | 0 | walked | Data Transmission Order: the big-endian octet and bit order of every multi-octet field. Stated as a description of the diagrams, with no modal verb, so the prose scan finds no site. Ze inherits the encoding from miekg/dns and adds nothing. |
-| `2.3.3` | Character Case | 1 | walked | Character Case. Its one site is the case-preservation obligation; the case-insensitive comparison rule and the two 'should' clauses are read from the surrounding prose, which carries no scanned keyword. |
-| `2.3.4` | Size limits | 0 | walked | Size limits. Stated as a bare list ('labels 63 octets or less', 'names 255 octets or less', 'TTL positive values of a signed 32 bit number', 'UDP messages 512 octets or less') with no modal verb, so the scan finds no site here even though two of the four are declared as requirements. |
-| `3` | DOMAIN NAME SPACE AND RR DEFINITIONS heading | 0 | walked | DOMAIN NAME SPACE AND RR DEFINITIONS heading. |
-| `3.1` | Name space definitions: the wire form of a domain name | 3 | walked | Name space definitions: the wire form of a domain name. Three sites map to the length-octet, case-folding and exact-match rules; the label/terminator/total-length statements and the 'strongly recommended' clause are indicative prose. |
-| `3.2` | RR definitions heading | 0 | walked | RR definitions heading. |
-| `3.2.1` | not stated | 0 | walked | Format: the NAME/TYPE/CLASS/TTL/RDLENGTH/RDATA layout, given as a diagram plus field descriptions with no modal verb. |
-| `3.2.2` | TYPE values: the registry table | 0 | walked | TYPE values: the registry table. |
-| `3.2.3` | QTYPE values: the registry table | 0 | walked | QTYPE values: the registry table. |
-| `3.2.4` | CLASS values: the registry table | 0 | walked | CLASS values: the registry table. |
-| `3.2.5` | QCLASS values: the registry table | 0 | walked | QCLASS values: the registry table. |
-| `3.3` | not stated | 0 | walked | Standard RRs preamble, defining the <domain-name> and <character-string> sub-formats. |
-| `3.3.1` | CNAME RDATA format | 0 | walked | CNAME RDATA format. Ze emits no CNAME. |
-| `3.3.2` | HINFO RDATA format | 0 | walked | HINFO RDATA format. Ze emits no HINFO. |
-| `3.3.3` | MB RDATA format (EXPERIMENTAL) | 0 | walked | MB RDATA format (EXPERIMENTAL). Ze emits no MB. |
-| `3.3.4` | MD RDATA format (Obsolete) | 0 | walked | MD RDATA format (Obsolete). Ze emits no MD. |
-| `3.3.5` | MF RDATA format (Obsolete) | 0 | walked | MF RDATA format (Obsolete). Ze emits no MF. |
-| `3.3.6` | MG RDATA format (EXPERIMENTAL) | 0 | walked | MG RDATA format (EXPERIMENTAL). Ze emits no MG. |
-| `3.3.7` | MINFO RDATA format (EXPERIMENTAL) | 0 | walked | MINFO RDATA format (EXPERIMENTAL). Ze emits no MINFO. |
-| `3.3.8` | MR RDATA format (EXPERIMENTAL) | 0 | walked | MR RDATA format (EXPERIMENTAL). Ze emits no MR. |
-| `3.3.9` | MX RDATA format | 0 | walked | MX RDATA format. Ze emits no MX. |
-| `3.3.10` | NULL RDATA format (EXPERIMENTAL) | 0 | walked | NULL RDATA format (EXPERIMENTAL). Ze emits no NULL. |
-| `3.3.11` | NS RDATA format | 0 | walked | NS RDATA format. Ze emits NS for the zone apex and for synthesised nameserver glue; the section states the RDATA layout with no modal verb. |
-| `3.3.12` | PTR RDATA format | 0 | walked | PTR RDATA format. Ze's as112 zones answer PTR queries with NODATA and emit no PTR record. |
-| `3.3.13` | not stated | 0 | walked | SOA RDATA format, and the source of the MINIMUM-versus-TTL rule. Both its statements are indicative ('the TTL field is set to the maximum of', 'this use of MINIMUM should occur'), so the scan finds no site. |
-| `3.3.14` | TXT RDATA format | 0 | walked | TXT RDATA format. Ze's as112 hostname zone emits TXT. |
-| `3.4` | Internet specific RRs heading | 0 | walked | Internet specific RRs heading. |
-| `3.4.1` | A RDATA format: a single 32-bit address | 0 | walked | A RDATA format: a single 32-bit address. Ze emits A records. |
-| `3.4.2` | WKS RDATA format | 1 | walked | WKS RDATA format. Its one site is the bit-map alignment rule, excluded below because Ze emits no WKS record. |
-| `3.5` | IN-ADDR.ARPA domain | 1 | walked | IN-ADDR.ARPA domain. Its one site binds a host bootstrapping routing from DNS. |
-| `3.6` | Defining new types, classes, and special namespaces | 1 | walked | Defining new types, classes, and special namespaces. Its one site binds whoever defines a new TYPE or CLASS. |
-| `4` | MESSAGES heading | 0 | walked | MESSAGES heading. |
-| `4.1` | Format: the five-section message layout | 0 | walked | Format: the five-section message layout. |
-| `4.1.1` | Header section format | 1 | walked | Header section format. Its one site is the Z field; AA and RCODE 3 are described field by field with no modal verb. |
-| `4.1.2` | Question section format: QNAME, QTYPE, QCLASS | 0 | walked | Question section format: QNAME, QTYPE, QCLASS. |
-| `4.1.3` | Resource record format | 0 | walked | Resource record format. TTL and RDLENGTH are given as field descriptions, and the zero-TTL clause is a 'should not', so the scan finds no site. |
-| `4.1.4` | Message compression | 3 | walked | Message compression. Three sites; the pointer form and the receive-side obligation map, the third is rationale. The OFFSET base, the class-specific restriction and the enclosing-length rule are indicative prose. |
-| `4.2` | Transport preamble | 1 | walked | Transport preamble. Its one site is the zone-refresh rule. |
-| `4.2.1` | UDP usage | 1 | walked | UDP usage. Its one site is a querier obligation; the 512-octet limit, the truncation-plus-TC rule and the port are indicative prose. |
-| `4.2.2` | TCP usage | 0 | walked | TCP usage. The port and the two-octet length prefix are stated indicatively. |
-| `5` | MASTER FILES heading | 0 | walked | MASTER FILES heading. Ze parses no master file: a repo-wide search for NewZoneParser, ZoneParser, ReadRR and dns.NewRR finds no production call site. |
-| `5.1` | Format | 1 | walked | Format. Its one site is master-file quoting syntax. |
-| `5.2` | Use of master files to define zones | 1 | walked | Use of master files to define zones. Its one site concerns glue. |
-| `5.3` | Master file example | 0 | walked | Master file example. Illustrative. |
-| `6` | NAME SERVER IMPLEMENTATION heading | 0 | walked | NAME SERVER IMPLEMENTATION heading. The sections under it describe one suggested internal architecture, and Ze implements none of the recursion, caching or zone refresh they assume. |
-| `6.1` | not stated | 0 | walked | Architecture, whose preamble states that the optimal structure depends on the host operating system and that the section 'discusses implementation considerations'. |
-| `6.1.1` | Control | 1 | walked | Control. Its one site constrains internal task structure. |
-| `6.1.2` | Database | 1 | walked | Database. Its one site is conditioned on choosing the suggested hash structure. |
-| `6.1.3` | not stated | 0 | walked | Time: the suggestion to keep absolute rather than relative times internally. |
-| `6.2` | Standard query processing | 1 | walked | Standard query processing. Its one site is the 'should' governing truncation order. |
-| `6.3` | Zone refresh and reload processing | 0 | walked | Zone refresh and reload processing. Ze performs no zone transfer of any kind: a repo-wide search for AXFR, IXFR, TypeAXFR, TypeIXFR, dns.Transfer, SetAxfr, SetNotify and OpcodeNotify finds nothing. |
-| `6.4` | Inverse queries (Optional) | 2 | walked | Inverse queries (Optional). Two sites: the permission not to implement them, and the obligation that survives declining -- the one obligation this walk added to the summary. |
-| `6.4.1` | The contents of inverse queries and responses | 0 | walked | The contents of inverse queries and responses. Descriptive. |
-| `6.4.2` | Inverse query and response example | 0 | walked | Inverse query and response example. Illustrative. |
-| `6.4.3` | Inverse query processing | 0 | walked | Inverse query processing. Describes the optional algorithm. |
-| `6.5` | not stated | 0 | walked | Completion queries and responses: obsoleted by this RFC and retained for historical reference only. |
-| `7` | RESOLVER IMPLEMENTATION heading | 0 | walked | RESOLVER IMPLEMENTATION heading. Every obligation under it binds a resolver, a role the authoritative-server surface this summary scopes does not play. |
-| `7.1` | Transforming a user request into a query | 4 | walked | Transforming a user request into a query. Four sites, all resolver obligations or descriptions of the suggested request structure. |
-| `7.2` | Sending the queries | 1 | walked | Sending the queries. Its one site is resolver round-trip-time estimation. |
-| `7.3` | Processing responses | 1 | walked | Processing responses. Its one site is resolver request matching. |
-| `7.4` | Using the cache | 0 | walked | Using the cache. Ze holds no resolver cache. |
-| `8` | MAIL SUPPORT heading | 0 | walked | MAIL SUPPORT heading. Ze emits no MX, MB, MG, MR or MINFO record and implements no mail binding. |
-| `8.1` | Mail exchange binding | 0 | walked | Mail exchange binding. Describes the MX transition from MD/MF. |
-| `8.2` | Mailbox binding (Experimental) | 0 | walked | Mailbox binding (Experimental). Experimental and unimplemented everywhere. |
+| `2` | INTRODUCTION heading, with no body of its own | 0 | reviewed | INTRODUCTION heading, with no body of its own. |
+| `2.1` | not stated | 0 | reviewed | Overview of the three-part domain system (name space, name servers, resolvers). Descriptive. |
+| `2.2` | not stated | 1 | reviewed | Common configurations: the deployment shapes a resolver and a name server can take. Its one site is a characterisation, excluded below. |
+| `2.3` | Conventions | 1 | reviewed | Conventions. The section preamble is its one site, an applicability statement excluded below; the conventions themselves are in 2.3.1 to 2.3.4. |
+| `2.3.1` | Preferred name syntax | 3 | reviewed | Preferred name syntax. Two sites map to the single [SHOULD] row that carries both halves; the third restates section 3.1's 63-octet limit. |
+| `2.3.2` | not stated | 0 | reviewed | Data Transmission Order: the big-endian octet and bit order of every multi-octet field. Stated as a description of the diagrams, with no modal verb, so the prose scan finds no site. Ze inherits the encoding from miekg/dns and adds nothing. |
+| `2.3.3` | Character Case | 1 | reviewed | Character Case. Its one site is the case-preservation obligation; the case-insensitive comparison rule and the two 'should' clauses are read from the surrounding prose, which carries no scanned keyword. |
+| `2.3.4` | Size limits | 0 | reviewed | Size limits. Stated as a bare list ('labels 63 octets or less', 'names 255 octets or less', 'TTL positive values of a signed 32 bit number', 'UDP messages 512 octets or less') with no modal verb, so the scan finds no site here even though two of the four are declared as requirements. |
+| `3` | DOMAIN NAME SPACE AND RR DEFINITIONS heading | 0 | reviewed | DOMAIN NAME SPACE AND RR DEFINITIONS heading. |
+| `3.1` | Name space definitions: the wire form of a domain name | 3 | reviewed | Name space definitions: the wire form of a domain name. Three sites map to the length-octet, case-folding and exact-match rules; the label/terminator/total-length statements and the 'strongly recommended' clause are indicative prose. |
+| `3.2` | RR definitions heading | 0 | reviewed | RR definitions heading. |
+| `3.2.1` | not stated | 0 | reviewed | Format: the NAME/TYPE/CLASS/TTL/RDLENGTH/RDATA layout, given as a diagram plus field descriptions with no modal verb. |
+| `3.2.2` | TYPE values: the registry table | 0 | reviewed | TYPE values: the registry table. |
+| `3.2.3` | QTYPE values: the registry table | 0 | reviewed | QTYPE values: the registry table. |
+| `3.2.4` | CLASS values: the registry table | 0 | reviewed | CLASS values: the registry table. |
+| `3.2.5` | QCLASS values: the registry table | 0 | reviewed | QCLASS values: the registry table. |
+| `3.3` | not stated | 0 | reviewed | Standard RRs preamble, defining the <domain-name> and <character-string> sub-formats. |
+| `3.3.1` | CNAME RDATA format | 0 | reviewed | CNAME RDATA format. Ze emits no CNAME. |
+| `3.3.2` | HINFO RDATA format | 0 | reviewed | HINFO RDATA format. Ze emits no HINFO. |
+| `3.3.3` | MB RDATA format (EXPERIMENTAL) | 0 | reviewed | MB RDATA format (EXPERIMENTAL). Ze emits no MB. |
+| `3.3.4` | MD RDATA format (Obsolete) | 0 | reviewed | MD RDATA format (Obsolete). Ze emits no MD. |
+| `3.3.5` | MF RDATA format (Obsolete) | 0 | reviewed | MF RDATA format (Obsolete). Ze emits no MF. |
+| `3.3.6` | MG RDATA format (EXPERIMENTAL) | 0 | reviewed | MG RDATA format (EXPERIMENTAL). Ze emits no MG. |
+| `3.3.7` | MINFO RDATA format (EXPERIMENTAL) | 0 | reviewed | MINFO RDATA format (EXPERIMENTAL). Ze emits no MINFO. |
+| `3.3.8` | MR RDATA format (EXPERIMENTAL) | 0 | reviewed | MR RDATA format (EXPERIMENTAL). Ze emits no MR. |
+| `3.3.9` | MX RDATA format | 0 | reviewed | MX RDATA format. Ze emits no MX. |
+| `3.3.10` | NULL RDATA format (EXPERIMENTAL) | 0 | reviewed | NULL RDATA format (EXPERIMENTAL). Ze emits no NULL. |
+| `3.3.11` | NS RDATA format | 0 | reviewed | NS RDATA format. Ze emits NS for the zone apex and for synthesised nameserver glue; the section states the RDATA layout with no modal verb. |
+| `3.3.12` | PTR RDATA format | 0 | reviewed | PTR RDATA format. Ze's as112 zones answer PTR queries with NODATA and emit no PTR record. |
+| `3.3.13` | not stated | 0 | reviewed | SOA RDATA format, and the source of the MINIMUM-versus-TTL rule. Both its statements are indicative ('the TTL field is set to the maximum of', 'this use of MINIMUM should occur'), so the scan finds no site. |
+| `3.3.14` | TXT RDATA format | 0 | reviewed | TXT RDATA format. Ze's as112 hostname zone emits TXT. |
+| `3.4` | Internet specific RRs heading | 0 | reviewed | Internet specific RRs heading. |
+| `3.4.1` | A RDATA format: a single 32-bit address | 0 | reviewed | A RDATA format: a single 32-bit address. Ze emits A records. |
+| `3.4.2` | WKS RDATA format | 1 | reviewed | WKS RDATA format. Its one site is the bit-map alignment rule, excluded below because Ze emits no WKS record. |
+| `3.5` | IN-ADDR.ARPA domain | 1 | reviewed | IN-ADDR.ARPA domain. Its one site binds a host bootstrapping routing from DNS. |
+| `3.6` | Defining new types, classes, and special namespaces | 1 | reviewed | Defining new types, classes, and special namespaces. Its one site binds whoever defines a new TYPE or CLASS. |
+| `4` | MESSAGES heading | 0 | reviewed | MESSAGES heading. |
+| `4.1` | Format: the five-section message layout | 0 | reviewed | Format: the five-section message layout. |
+| `4.1.1` | Header section format | 1 | reviewed | Header section format. Its one site is the Z field; AA and RCODE 3 are described field by field with no modal verb. |
+| `4.1.2` | Question section format: QNAME, QTYPE, QCLASS | 0 | reviewed | Question section format: QNAME, QTYPE, QCLASS. |
+| `4.1.3` | Resource record format | 0 | reviewed | Resource record format. TTL and RDLENGTH are given as field descriptions, and the zero-TTL clause is a 'should not', so the scan finds no site. |
+| `4.1.4` | Message compression | 3 | reviewed | Message compression. Three sites; the pointer form and the receive-side obligation map, the third is rationale. The OFFSET base, the class-specific restriction and the enclosing-length rule are indicative prose. |
+| `4.2` | Transport preamble | 1 | reviewed | Transport preamble. Its one site is the zone-refresh rule. |
+| `4.2.1` | UDP usage | 1 | reviewed | UDP usage. Its one site is a querier obligation; the 512-octet limit, the truncation-plus-TC rule and the port are indicative prose. |
+| `4.2.2` | TCP usage | 0 | reviewed | TCP usage. The port and the two-octet length prefix are stated indicatively. |
+| `5` | MASTER FILES heading | 0 | reviewed | MASTER FILES heading. Ze parses no master file: a repo-wide search for NewZoneParser, ZoneParser, ReadRR and dns.NewRR finds no production call site. |
+| `5.1` | Format | 1 | reviewed | Format. Its one site is master-file quoting syntax. |
+| `5.2` | Use of master files to define zones | 1 | reviewed | Use of master files to define zones. Its one site concerns glue. |
+| `5.3` | Master file example | 0 | reviewed | Master file example. Illustrative. |
+| `6` | NAME SERVER IMPLEMENTATION heading | 0 | reviewed | NAME SERVER IMPLEMENTATION heading. The sections under it describe one suggested internal architecture, and Ze implements none of the recursion, caching or zone refresh they assume. |
+| `6.1` | not stated | 0 | reviewed | Architecture, whose preamble states that the optimal structure depends on the host operating system and that the section 'discusses implementation considerations'. |
+| `6.1.1` | Control | 1 | reviewed | Control. Its one site constrains internal task structure. |
+| `6.1.2` | Database | 1 | reviewed | Database. Its one site is conditioned on choosing the suggested hash structure. |
+| `6.1.3` | not stated | 0 | reviewed | Time: the suggestion to keep absolute rather than relative times internally. |
+| `6.2` | Standard query processing | 1 | reviewed | Standard query processing. Its one site is the 'should' governing truncation order. |
+| `6.3` | Zone refresh and reload processing | 0 | reviewed | Zone refresh and reload processing. Ze performs no zone transfer of any kind: a repo-wide search for AXFR, IXFR, TypeAXFR, TypeIXFR, dns.Transfer, SetAxfr, SetNotify and OpcodeNotify finds nothing. |
+| `6.4` | Inverse queries (Optional) | 2 | reviewed | Inverse queries (Optional). Two sites: the permission not to implement them, and the obligation that survives declining -- the one obligation this walk added to the summary. |
+| `6.4.1` | The contents of inverse queries and responses | 0 | reviewed | The contents of inverse queries and responses. Descriptive. |
+| `6.4.2` | Inverse query and response example | 0 | reviewed | Inverse query and response example. Illustrative. |
+| `6.4.3` | Inverse query processing | 0 | reviewed | Inverse query processing. Describes the optional algorithm. |
+| `6.5` | not stated | 0 | reviewed | Completion queries and responses: obsoleted by this RFC and retained for historical reference only. |
+| `7` | RESOLVER IMPLEMENTATION heading | 0 | reviewed | RESOLVER IMPLEMENTATION heading. Every obligation under it binds a resolver, a role the authoritative-server surface this summary scopes does not play. |
+| `7.1` | Transforming a user request into a query | 4 | reviewed | Transforming a user request into a query. Four sites, all resolver obligations or descriptions of the suggested request structure. |
+| `7.2` | Sending the queries | 1 | reviewed | Sending the queries. Its one site is resolver round-trip-time estimation. |
+| `7.3` | Processing responses | 1 | reviewed | Processing responses. Its one site is resolver request matching. |
+| `7.4` | Using the cache | 0 | reviewed | Using the cache. Ze holds no resolver cache. |
+| `8` | MAIL SUPPORT heading | 0 | reviewed | MAIL SUPPORT heading. Ze emits no MX, MB, MG, MR or MINFO record and implements no mail binding. |
+| `8.1` | Mail exchange binding | 0 | reviewed | Mail exchange binding. Describes the MX transition from MD/MF. |
+| `8.2` | Mailbox binding (Experimental) | 0 | reviewed | Mailbox binding (Experimental). Experimental and unimplemented everywhere. |
 | `9` | not stated | 0 | skipped (references) | REFERENCES and BIBLIOGRAPHY, followed by the index and the author's address. |
 
 ### Excluded sentences

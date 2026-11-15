@@ -1,6 +1,6 @@
 # Dependencies
 
-Ze is Go, and Go code leans on packages. 55 direct dependencies, read straight from `go.mod` so the list and versions can't drift -- each one with a plain-English reason it's there, grounded in where it's actually imported, not its own pitch.
+Ze uses 57 direct Go dependencies. The list and versions come from `go.mod`, and each entry explains how Ze uses that dependency, with references to the code that imports it.
 
 ## Terminal, Web & SSH Interfaces (11)
 
@@ -83,10 +83,12 @@ Ze is Go, and Go code leans on packages. 55 direct dependencies, read straight f
 | `golang.org/x/tools` | `v0.52.0` | Build-time only: goimports, pinned via a tools.go tracking file, never compiled into Ze's binaries. |
 | `golang.org/x/vuln` | `v1.9.0` | Build-time only: govulncheck, pinned through the tools.go tracking file, which reports known vulnerabilities in the modules Ze vendors. |
 
-## Testing & Build Tooling (9)
+## Testing & Build Tooling (11)
 
 | Module | Version | Why we use it |
 | --- | --- | --- |
+| `github.com/moby/patternmatcher` | `v0.6.1` | Applies .dockerignore patterns when preparing the files sent to Docker for lab image builds. |
+| `mvdan.cc/sh/v3` | `v3.14.1` | Parses Bash commands so the agent safety checks can inspect the commands a session is about to run. |
 | `github.com/stretchr/testify` | `v1.12.1` | Assertion and require helpers used across the Go unit test suite. |
 | `github.com/gokrazy/tools` | `v0.0.0-20261026191944-942a8faaca93` | Drives gokrazy appliance image builds from Ze's appliance build tooling. |
 | `github.com/gokrazy/updater` | `v0.0.0-20260620140544-0a84d8ab3878` | Referenced only in a regression test against Ze's own vendored update-push logic, written locally after a bug was found upstream. Not used in production. |

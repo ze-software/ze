@@ -57,6 +57,7 @@
 <li><a href="#running">Running</a></li>
 <li><a href="#scenarios">Scenarios</a>
 <ol>
+<li><a href="#lcp-restart-timer-pppd">lcp-restart-timer-pppd</a></li>
 <li><a href="#01-ppp-ipv4">01-ppp-ipv4</a></li>
 <li><a href="#02-ppp-bgp-redistribute-frr">02-ppp-bgp-redistribute-frr</a></li>
 <li><a href="#03-ze-lac-xl2tpd-lns">03-ze-lac-xl2tpd-lns</a></li>
@@ -97,6 +98,7 @@ route redistribution from a live PPP session.</p>
     dns-resolver-l2tp-subscriber/   IPCP DNS to Ze's LAN resolver, then a lookup
     l2tp-unknown-mandatory-avp-xl2tpd/   unknown AVP, M=0 then M=1, through the relay
     ppp-code-reject-xl2tpd/   unknown LCP and IPCP Codes injected through the relay
+    lcp-restart-timer-pppd/   configured retry interval and request budget after live LCP restart
     l2tp-lns-mru-xl2tpd/   configured MRU, CHAP, live daemon output, and traffic
     l2tp-lns-omitted-mru-xl2tpd/   default peer MRU and Ze-side transmit cap
     l2tp-lns-negotiated-mru-xl2tpd/   unequal configured/negotiated session output
@@ -152,6 +154,31 @@ ZE_L2TP_INTEROP_SCENARIO=l2tp-lns-chap-only-xl2tpd ./le --name session test depl
 <code>ZE_L2TP_INTEROP_SCENARIO</code>, and <code>ZE_L2TP_INTEROP_SUFFIX</code> (default PID, for
 parallel-run isolation).</p>
 <h2 id="scenarios">Scenarios</h2>
+<h3 id="lcp-restart-timer-pppd">lcp-restart-timer-pppd</h3>
+<p>The real xl2tpd/pppd peer completes IPCP and successfully pings Ze first. With
+<code>l2tp lcp restart-timer 500</code> and <code>max-configure 3</code>, the checker then arms the
+relay to inject one empty LCP Configure-Request on that live session and drop
+the LAC's subsequent LCP packets. L2TP control packets continue to flow. This
+is packet loss after a working session, so a peer that never opens cannot pass.</p>
+<p>The checker requires exactly three Configure-Requests from Ze, with gaps and
+the final timeout following the configured 500 ms interval, and a CDN from Ze
+ending that same session. Relay timestamps use one process's monotonic clock;
+Docker log delivery delay does not decide the measured interval. A 350–900 ms
+window allows scheduling delay while rejecting even a one-second interval.
+At least one actual pppd Configure reply must be observed and dropped. Finally,
+the checker stops xl2tpd and requires both peers' kernel L2TP/PPP resources to
+disappear. It adds no grants or runtime packages to either peer.</p>
+<!-- source: internal/le/interoplab/l2tp/lcp_restart.go -- checkLCPRestart, requireRestartEvidence -->
+<!-- source: internal/le/interoplab/l2tp/avprelay/lcprestart.go -- relayRestartData, encodeWire -->
+<p>The LAC image pins pppd 2.5.5. Its <code>fsm_rconfreq</code> invokes the down callback and
+starts a new request when it receives a Configure-Request in Opened, then sends
+the Ack, Nak or Reject that its option checker selects. The lab reads that
+reply before discarding it; it does not substitute for pppd's negotiation.
+<a href="https://github.com/ppp-project/ppp/blob/v2.5.5/pppd/fsm.c" target="_blank" rel="noopener">Pinned peer source</a>.</p>
+<!-- source: test/interop-l2tp/Dockerfile.lac -- PPP_VERSION -->
+<p>Run <code>ZE_L2TP_INTEROP_SCENARIO=lcp-restart-timer-pppd ./le --name session test deployment docker-l2tp-ppp</code>.
+A successful run requires both the answering-peer control and the silent-peer
+wire assertions.</p>
 <h3 id="01-ppp-ipv4">01-ppp-ipv4</h3>
 <p>Proves: L2TP tunnel establishment, PPP LCP/IPCP completion, kernel <code>pppN</code>
 with correct local/peer addresses, dataplane ping from LAC to Ze through the
@@ -410,8 +437,10 @@ separate xl2tpd interoperability scenarios.</p>
 <!-- source: test/interop-l2tp/scenarios/l2tp-proxy-mru-transmit-cap/ze.conf -- proxy policy and local credentials -->
 <p>The shared <code>StageBinaries</code> preflight builds a separate static Linux <code>le</code>
 personality from the current checkout, with the same feature gates as the
-daemon. The existing Ze image copies it to <code>/usr/local/bin/le</code>; its name
-selects the registered fixture commands. The image carries no compiler,
+daemon, and starts it once with <code>help</code> before any image build, so an le that
+cannot start stops the run there (<code>docs/architecture/testing/interop.md</code>,
+"The start probe"). The existing Ze image copies it to <code>/usr/local/bin/le</code>;
+its name selects the registered fixture commands. The image carries no compiler,
 and its daemon remains the normal <code>ze_core</code> build. The checker rejects a
 missing helper, nonzero exit, usage output, or absent MTU, ICMP, CHAP,
 IPCP or cleanup evidence.</p>
@@ -541,7 +570,7 @@ specific to this protocol.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
+                    <span class="footer-published">Published 15 November 2026 00:14 UTC</span>
                 </div>
             </div>
         </footer>

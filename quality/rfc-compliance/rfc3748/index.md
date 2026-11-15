@@ -1,6 +1,6 @@
 # RFC 3748 - Extensible Authentication Protocol (EAP)
 
-EAP. Every requirement this repository extracted from RFC 3748, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+EAP. Every requirement listed for RFC 3748, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,24 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 50 | of 59 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 3 | of 59 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 59 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 59 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 131 | 131 of 158 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-
-### Neutral
-
-measures that are neither good news nor bad
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Gated MUSTs | 59 | of 63 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 59 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 59 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 59 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 59 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 59 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Tested both ways | 50 | of 59 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 3 | of 59 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 59 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 59 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Tests shown to detect a fault | 130 | 130 of 158 tests linked to requirements, 0 without a fault test and 1 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -35,54 +22,74 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 6 | of 59 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Declared gap or no test | 6 | of 59 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 
-The 9 counts marked as a part above are the whole of the 59 gated MUSTs: they add up to 59. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Neutral
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+measures that are neither good news nor bad
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Out of scope | 0 | of 59 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 59 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 59 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 59 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 59 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+
+### Totals
+
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 59 | of 63 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 59 mandatory requirements: they add up to 59. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | EAP |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 63 |
-| Gated MUST-level | 59 |
+| Mandatory requirements (MUST level) | 59 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 6 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 158 |
-| Tagged units | 158 |
+| Tests linked to requirements | 158 |
 | Recorded audit verdicts | 36 |
-| Discrimination records | 131 |
+| Fault test records | 131 |
 | Summary | `rfc/short/rfc3748.md` |
-| Requirement shard | `rfc/requirements/rfc3748.md` |
+| Requirement table | `rfc/requirements/rfc3748.md` |
 | RFC text | `rfc/full/rfc3748.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: IKEv2-carried EAP peer and co-located authenticator are enrolled, with local method termination and no pass-through. Tagged tests cover packet handling and method exchanges, but do not establish full conformance. Current source discards undefined and wrong-role Codes before charging the peer's exchange budget or producing an authenticator Failure. The strengthened IKE carrier proof still requires recorded execution, semantic discrimination and independent rejudgment.
+Included in automatic checks: IKEv2-carried EAP peer and co-located authenticator are enrolled, with local method termination and no pass-through. Tagged tests cover packet handling and method exchanges, but do not establish full conformance. Current source discards undefined and wrong-role Codes before charging the peer's exchange budget or producing an authenticator Failure. The strengthened IKE carrier proof still requires recorded execution, semantic discrimination and independent rejudgment.
 
-## What the public ledger says
+## Published support status
 
 **Area:** EAP
 
@@ -97,14 +104,14 @@ Enrolled: IKEv2-carried EAP peer and co-located authenticator are enrolled, with
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 50 | one part of the gated population |
-| Annotated (including scoped evidence) | 9 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **59** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 50 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 9 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **59** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (50):** [`RFC3748-4-1`](#rfc3748-4-1), [`RFC3748-4-2`](#rfc3748-4-2), [`RFC3748-2-2`](#rfc3748-2-2), [`RFC3748-2.1-1`](#rfc3748-2.1-1), [`RFC3748-2.1-2`](#rfc3748-2.1-2), [`RFC3748-2.1-3`](#rfc3748-2.1-3), [`RFC3748-4.1-1`](#rfc3748-4.1-1), [`RFC3748-4.2-2`](#rfc3748-4.2-2), [`RFC3748-7.10-2`](#rfc3748-7.10-2), [`RFC3748-4-4`](#rfc3748-4-4), [`RFC3748-4.1-3`](#rfc3748-4.1-3), [`RFC3748-4.1-4`](#rfc3748-4.1-4), [`RFC3748-4.1-5`](#rfc3748-4.1-5), [`RFC3748-4.2-5`](#rfc3748-4.2-5), [`RFC3748-4.2-6`](#rfc3748-4.2-6), [`RFC3748-4-5`](#rfc3748-4-5), [`RFC3748-4.2-7`](#rfc3748-4.2-7), [`RFC3748-4.2-8`](#rfc3748-4.2-8), [`RFC3748-4.2-9`](#rfc3748-4.2-9), [`RFC3748-2-3`](#rfc3748-2-3), [`RFC3748-2.2-1`](#rfc3748-2.2-1), [`RFC3748-4.1-6`](#rfc3748-4.1-6), [`RFC3748-4.1-7`](#rfc3748-4.1-7), [`RFC3748-4.1-8`](#rfc3748-4.1-8), [`RFC3748-4.1-9`](#rfc3748-4.1-9), [`RFC3748-4.1-10`](#rfc3748-4.1-10), [`RFC3748-4.1-11`](#rfc3748-4.1-11), [`RFC3748-2.1-4`](#rfc3748-2.1-4), [`RFC3748-4.2-15`](#rfc3748-4.2-15), [`RFC3748-4.2-10`](#rfc3748-4.2-10), [`RFC3748-4.2-11`](#rfc3748-4.2-11), [`RFC3748-4.2-12`](#rfc3748-4.2-12), [`RFC3748-4.2-13`](#rfc3748-4.2-13), [`RFC3748-4.2-14`](#rfc3748-4.2-14), [`RFC3748-7.10-5`](#rfc3748-7.10-5), [`RFC3748-7.10-6`](#rfc3748-7.10-6), [`RFC3748-7.10-7`](#rfc3748-7.10-7), [`RFC3748-5-1`](#rfc3748-5-1), [`RFC3748-5-2`](#rfc3748-5-2), [`RFC3748-5.2-1`](#rfc3748-5.2-1), [`RFC3748-5.2-2`](#rfc3748-5.2-2), [`RFC3748-5.3.1-1`](#rfc3748-5.3.1-1), [`RFC3748-5.3.1-2`](#rfc3748-5.3.1-2), [`RFC3748-5.3.1-3`](#rfc3748-5.3.1-3), [`RFC3748-5.3.1-4`](#rfc3748-5.3.1-4), [`RFC3748-5.4-1`](#rfc3748-5.4-1), [`RFC3748-5.4-2`](#rfc3748-5.4-2), [`RFC3748-5.1-2`](#rfc3748-5.1-2), [`RFC3748-7.5-1`](#rfc3748-7.5-1), [`RFC3748-7.10-4`](#rfc3748-7.10-4)
 
@@ -112,20 +119,23 @@ Enrolled: IKEv2-carried EAP peer and co-located authenticator are enrolled, with
 
 ## Figures
 
-- **MUST bar**: Ze proven 42, Ze correctness gap 17
-- **Overview bar**: Ze MUST proven 42, SHOULD not decided 4, Ze correctness gap 17
+- **MUST bar**: Ze proven 42, Proof pending 11, Not built 6
+- **Overview bar**: Ze MUST proven 42, Proof pending 11, Not assessed 4, Not built 6
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 59 |
 | MUST rows kept (the MUST bar) | 59 |
 | Ze proven | 42 |
 | OS verified | 0 |
+| Proof pending | 11 |
 | OS testing gap | 0 |
-| Ze correctness gap | 17 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 6 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -138,11 +148,12 @@ Enrolled: IKEv2-carried EAP peer and co-located authenticator are enrolled, with
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 4 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 4 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc3748.json](../../../data/rfc/rfc3748.json).
 
@@ -227,7 +238,7 @@ Source: [data/rfc/rfc3748.json](../../../data/rfc/rfc3748.json).
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC3748-4-1`](#rfc3748-4-1)
 
@@ -333,9 +344,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. 'Onl
 
 If a peer receives a valid duplicate Request for which it has already sent a Response, it MUST resend its original Response without reprocessing the Request. (S4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3748-4.1-2, so no unit is bound to it.
+No test carries RFC3748-4.1-2, so there is no linked test.
 
 ### [`RFC3748-4.2-1`](#rfc3748-4.2-1)
 
@@ -376,41 +387,41 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-r
 
 Compliant pass- through authenticator implementations MUST by default forward EAP packets of any Type. (S2.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3748-2.3-1, so no unit is bound to it.
+No test carries RFC3748-2.3-1, so there is no linked test.
 
 ### [`RFC3748-3.1-1`](#rfc3748-3.1-1)
 
 Lower layer transports for EAP MUST preserve ordering between a source and destination at a given priority level (the ordering guarantee provided by [IEEE-802]). (S3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3748-3.1-1, so no unit is bound to it.
+No test carries RFC3748-3.1-1, so there is no linked test.
 
 ### [`RFC3748-3.1-2`](#rfc3748-3.1-2)
 
 While EAP does not assume that the lower layer is reliable, it does rely on lower layer error detection (e.g., CRC, Checksum, MIC, etc.). (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3748-3.1-2, so no unit is bound to it.
+No test carries RFC3748-3.1-2, so there is no linked test.
 
 ### [`RFC3748-3.1-3`](#rfc3748-3.1-3)
 
 EAP is capable of functioning on lower layers that provide an EAP MTU size of 1020 octets or greater. (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3748-3.1-3, so no unit is bound to it.
+No test carries RFC3748-3.1-3, so there is no linked test.
 
 ### [`RFC3748-5.7-1`](#rfc3748-5.7-1)
 
 An implementation that supports the Expanded attribute MUST treat EAP Types that are less than 256 equivalently, whether they appear as a single octet or as the 32-bit Vendor-Type within an Expanded Type where Vendor-Id is 0. (§5.7)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3748-5.7-1, so no unit is bound to it.
+No test carries RFC3748-5.7-1, so there is no linked test.
 
 ### [`RFC3748-7.10-2`](#rfc3748-7.10-2)
 
@@ -502,7 +513,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 Since EAP only defines Codes 1-4, EAP packets with other codes MUST be silently discarded by both authenticators and peers. (S4)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-08 (child 22, home-cpe-22 reauth) after responder.go::handleResponderInbound changed in fc9b7f5a3b/f50e28c360/67700fd37e. RFC 3748 Section 4: "Since EAP only defines Codes 1-4, EAP packets with other codes MUST be silently discarded by both authenticators and peers." The only change to handleResponderInbound since the last judgement (9e3ed47790) is the StateEstablished comment, now naming handleHeldSuccessorInbound (held_successor.go); no statement changed and the StateEAPInProgress arm still replays a cached response or reaches handleResponderEAP. The new routing in handleInbound (fsm.go, not a cited unit) calls handleHeldSuccessorInbound first, but holdsSuccessor requires sa.State == StateEstablished, so an SA in StateEAPInProgress always falls through to handleResponderInbound and the EAP discard path is unchanged. fsm.go::handleEAPResponse, responder_eap.go::handleResponderEAP, eap.go::Process and peer.go::Process are byte-identical to the last judgement (the later responder_eap.go and peer.go edits in b0cca10f29 touch eapTLSServerConfig and startTLSClient comments only). The three tagged units are unchanged: TestEngineDiscardedEAPCodesPreserveExchange sends encrypted Codes 0, 5 and 255 into both IKE roles in StateEAPInProgress through handleInbound and asserts state, expected Message ID, last sent message and retransmission state unchanged, then a held-back valid packet at the same Message ID completes both roles with matching nonzero MSKs and a verified AUTH; the core units assert the authenticator answers nothing for Codes 0, 5, 255 and wrong-role Codes, and the peer reports a discard with no response, error, Done or MSK, with state, method and round budget unchanged, before legitimate MS-CHAPv2 packets complete the exchange. Tests not re-run by this judge (read-only phase).
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-11 by an independent auditor (not the author) after fsm.go::handleEAPResponse and responder_eap.go::handleResponderEAP changed in 9019fe4d21 and a49d4d301f. RFC 3748 Section 4: "Since EAP only defines Codes 1-4, EAP packets with other codes MUST be silently discarded by both authenticators and peers." Both handlers now open the SK payload through openProtected (protected_input.go), which drops input that fails its integrity check before any EAP processing (nothing written to the SA, nothing sent) and returns only authenticated-malformed errors wrapping errInnerParse; a chain failure is wrapped as "%w: %w" with errInnerChain, so eapMessageDiscarded (errors.Is ErrEAPLengthExceedsData) still matches and is still asked first, before the StateDead arm. wire.PayloadEAP parsing accepts any Code, so an authenticated packet with Code 0, 5 or 255 opens cleanly and reaches ps.Process (peer, result.Discarded return with no state, Message ID or retransmit change) or sess.Process (authenticator, nil next, no send) exactly as before; the new drop arm only widens silence for unauthenticated input and cannot turn a discard into a state change. responder.go::handleResponderInbound, core eap.go::Process and peer.go::Process are unchanged since the 2026-11-10 judgement, and the three tagged units are byte-identical. TestEngineDiscardedEAPCodesPreserveExchange seals its injected Codes with the production builder buildEncryptedMessageEx under the live SA keys, the same path that seals the held-back valid packets, so the injected packets pass openProtected and exercise the RFC 3748 arm rather than the unauthenticated drop: a sealing defect would also redden the valid controls. It asserts both roles keep state, expected/next Message ID, LastSentMsg, retransmit time and count, and send nothing on UDP, then the held-back valid packet advances each round and the exchange ends with matching nonzero MSKs and a verified AUTH. The core units assert the authenticator answers nothing for Codes 0, 5, 255 and the peer reports Discarded with no response, error, Done or MSK, state and round budget unchanged, before legitimate packets complete. Residual note: the engine test calls decryptAndParse, now a test-only helper in protected_input_test.go; the spec's next phase deleting it must keep that helper or rewrite the call. Verdict stands. Tests not re-run by this judge.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -541,7 +552,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Both
 
 On the peer, after success result indications have been exchanged by both sides, a Failure packet MUST be silently discarded (S4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -552,7 +563,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The authenticator MUST NOT send a Success or Failure packet when retransmitting or when it fails to get a response from the peer (S2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -578,7 +589,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. All 
 
 Additional Request packets MUST be sent until a valid Response packet is received, an optional retry counter expires, or a lower layer failure indication is received (S4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -589,7 +600,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The peer MUST send a Response packet in reply to a valid Request packet (S4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -602,7 +613,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Requests MUST be processed in the order that they are received, and MUST be processed to their completion before inspecting the next Request (S4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -615,7 +626,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 A single Type MUST be specified for each EAP Request or Response (S4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -626,7 +637,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 An authenticator receiving a Response whose Identifier value does not match that of the currently outstanding Request MUST silently discard the Response (S4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -673,7 +684,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Clau
 
 Success and Failure packets MUST NOT be sent by an EAP authenticator if the specification of the given method does not explicitly permit the method to finish at that point (S4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -696,7 +707,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Both
 
 After the authenticator sends a failure result indication to the peer, regardless of the response from the peer, it MUST subsequently send a Failure packet (S4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -707,7 +718,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 After the authenticator sends a success result indication to the peer and receives a success result indication from the peer, it MUST subsequently send a Success packet (S4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -718,7 +729,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If the peer attempts to authenticate to the authenticator and fails to do so, the authenticator MUST send a Failure packet and MUST NOT grant access by sending a Success packet (S4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -729,12 +740,12 @@ Audit verdict: not audited: no reader has judged these tests
 
 The MSK and EMSK MUST NOT be used directly to protect data (S7.10)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC3748TheEAPMSKNeverKeysTheDataItProtects`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3748_msk_test.go#L148) | unit/verify | revert, verified |
-| positive | [`TestRFC3748TheEAPMSKNeverKeysTheDataItProtects`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3748_msk_test.go#L114) | unit/verify | mutant, verified |
+| positive | [`TestRFC3748TheEAPMSKNeverKeysTheDataItProtects`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3748_msk_test.go#L114) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC3748-7.10-6`](#rfc3748-7.10-6)
 
@@ -777,7 +788,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 All EAP implementations MUST support Types 1-4, which are defined in this document (S5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -810,7 +821,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 Where a peer receives a Request for an unacceptable authentication Type (4-253,255), or a peer lacking support for Expanded Types receives a Request for Type 254, a Nak Response (Type 3) MUST be sent (S5.3.1, S5.7)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -822,7 +833,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The Type-Data field of the Nak Response (Type 3) MUST contain one or more octets indicating the desired authentication Type(s), one octet per Type, or the value zero (0) to indicate no proposed alternative (S5.3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -833,7 +844,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The Identifier field of a legacy Nak Response MUST match the Identifier field of the Request packet that it is sent in response to (S5.3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -879,7 +890,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Posi
 
 The Identity Response field MUST NOT be null terminated (S5.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -912,7 +923,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Both
 | positive | [`TestRFC3748KeyDerivingMethodsAuthenticateThePeerToo`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L595) | unit/verify | revert, verified |
 | positive | [`TestRFC3748KeyDerivingMethodAuthenticatesBothEnds`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L505) | unit/verify | revert, verified |
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -932,57 +943,57 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Both
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
 | `front` | not stated | 0 | skipped (front-matter) | Title block, abstract, status of this memo and table of contents. |
-| `1` | not stated | 0 | walked | not stated |
-| `1.1` | not stated | 0 | walked | not stated |
-| `1.2` | not stated | 1 | walked | not stated |
-| `1.3` | not stated | 0 | walked | not stated |
-| `2` | not stated | 3 | walked | not stated |
-| `2.1` | not stated | 4 | walked | not stated |
-| `2.2` | not stated | 1 | walked | not stated |
-| `2.3` | not stated | 4 | walked | not stated |
-| `2.4` | not stated | 0 | walked | not stated |
-| `3` | not stated | 0 | walked | not stated |
-| `3.1` | not stated | 1 | walked | not stated |
-| `3.2` | not stated | 1 | walked | not stated |
-| `3.2.1` | not stated | 0 | walked | not stated |
-| `3.3` | not stated | 0 | walked | not stated |
-| `3.4` | not stated | 0 | walked | not stated |
-| `4` | not stated | 3 | walked | not stated |
-| `4.1` | not stated | 16 | walked | not stated |
-| `4.2` | not stated | 16 | walked | not stated |
-| `4.3` | not stated | 1 | walked | not stated |
-| `5` | not stated | 2 | walked | not stated |
-| `5.1` | not stated | 1 | walked | not stated |
-| `5.2` | not stated | 5 | walked | not stated |
-| `5.3` | not stated | 0 | walked | not stated |
-| `5.3.1` | not stated | 4 | walked | not stated |
-| `5.3.2` | not stated | 4 | walked | not stated |
-| `5.4` | not stated | 4 | walked | not stated |
-| `5.5` | not stated | 4 | walked | not stated |
-| `5.6` | not stated | 5 | walked | not stated |
-| `5.7` | not stated | 2 | walked | not stated |
-| `5.8` | not stated | 0 | walked | not stated |
+| `1` | not stated | 0 | reviewed | not stated |
+| `1.1` | not stated | 0 | reviewed | not stated |
+| `1.2` | not stated | 1 | reviewed | not stated |
+| `1.3` | not stated | 0 | reviewed | not stated |
+| `2` | not stated | 3 | reviewed | not stated |
+| `2.1` | not stated | 4 | reviewed | not stated |
+| `2.2` | not stated | 1 | reviewed | not stated |
+| `2.3` | not stated | 4 | reviewed | not stated |
+| `2.4` | not stated | 0 | reviewed | not stated |
+| `3` | not stated | 0 | reviewed | not stated |
+| `3.1` | not stated | 1 | reviewed | not stated |
+| `3.2` | not stated | 1 | reviewed | not stated |
+| `3.2.1` | not stated | 0 | reviewed | not stated |
+| `3.3` | not stated | 0 | reviewed | not stated |
+| `3.4` | not stated | 0 | reviewed | not stated |
+| `4` | not stated | 3 | reviewed | not stated |
+| `4.1` | not stated | 16 | reviewed | not stated |
+| `4.2` | not stated | 16 | reviewed | not stated |
+| `4.3` | not stated | 1 | reviewed | not stated |
+| `5` | not stated | 2 | reviewed | not stated |
+| `5.1` | not stated | 1 | reviewed | not stated |
+| `5.2` | not stated | 5 | reviewed | not stated |
+| `5.3` | not stated | 0 | reviewed | not stated |
+| `5.3.1` | not stated | 4 | reviewed | not stated |
+| `5.3.2` | not stated | 4 | reviewed | not stated |
+| `5.4` | not stated | 4 | reviewed | not stated |
+| `5.5` | not stated | 4 | reviewed | not stated |
+| `5.6` | not stated | 5 | reviewed | not stated |
+| `5.7` | not stated | 2 | reviewed | not stated |
+| `5.8` | not stated | 0 | reviewed | not stated |
 | `6` | not stated | 0 | skipped (iana) | IANA Considerations: the registry actions bind IANA, not an implementation. |
 | `6.1` | not stated | 0 | skipped (iana) | IANA Considerations, Packet Codes: a registry allocation policy. |
 | `6.2` | not stated | 0 | skipped (iana) | IANA Considerations, Method Types: a registry allocation policy. |
-| `7` | not stated | 0 | walked | not stated |
-| `7.1` | not stated | 0 | walked | not stated |
-| `7.2` | not stated | 4 | walked | not stated |
-| `7.2.1` | not stated | 2 | walked | not stated |
-| `7.3` | not stated | 0 | walked | not stated |
-| `7.4` | not stated | 0 | walked | not stated |
-| `7.5` | not stated | 1 | walked | not stated |
-| `7.6` | not stated | 0 | walked | not stated |
-| `7.7` | not stated | 0 | walked | not stated |
-| `7.8` | not stated | 0 | walked | not stated |
-| `7.9` | not stated | 0 | walked | not stated |
-| `7.10` | not stated | 11 | walked | not stated |
-| `7.11` | not stated | 0 | walked | not stated |
-| `7.12` | not stated | 0 | walked | not stated |
-| `7.13` | not stated | 1 | walked | not stated |
-| `7.14` | not stated | 0 | walked | not stated |
-| `7.15` | not stated | 0 | walked | not stated |
-| `7.16` | not stated | 2 | walked | not stated |
+| `7` | not stated | 0 | reviewed | not stated |
+| `7.1` | not stated | 0 | reviewed | not stated |
+| `7.2` | not stated | 4 | reviewed | not stated |
+| `7.2.1` | not stated | 2 | reviewed | not stated |
+| `7.3` | not stated | 0 | reviewed | not stated |
+| `7.4` | not stated | 0 | reviewed | not stated |
+| `7.5` | not stated | 1 | reviewed | not stated |
+| `7.6` | not stated | 0 | reviewed | not stated |
+| `7.7` | not stated | 0 | reviewed | not stated |
+| `7.8` | not stated | 0 | reviewed | not stated |
+| `7.9` | not stated | 0 | reviewed | not stated |
+| `7.10` | not stated | 11 | reviewed | not stated |
+| `7.11` | not stated | 0 | reviewed | not stated |
+| `7.12` | not stated | 0 | reviewed | not stated |
+| `7.13` | not stated | 1 | reviewed | not stated |
+| `7.14` | not stated | 0 | reviewed | not stated |
+| `7.15` | not stated | 0 | reviewed | not stated |
+| `7.16` | not stated | 2 | reviewed | not stated |
 | `8` | Acknowledgements | 0 | skipped (acknowledgements) | Acknowledgements. |
 | `9` | References | 0 | skipped (references) | References. |
 | `9.1` | Normative References | 0 | skipped (references) | Normative References. |

@@ -87,7 +87,10 @@
 <ol>
 <li><a href="#1-config-issues">1. Config Issues</a></li>
 <li><a href="#2-route-not-being-sent">2. Route Not Being Sent</a></li>
-<li><a href="#3-session-issues">3. Session Issues</a></li>
+<li><a href="#3-session-issues">3. Session Issues</a>
+<ol>
+<li><a href="#a-session-closed-because-the-peer-stopped-reading">A session closed because the peer stopped reading</a></li>
+</ol></li>
 <li><a href="#4-test-failures">4. Test Failures</a></li>
 <li><a href="#5-interactive-functional-test-debugging">5. Interactive Functional Test Debugging</a></li>
 </ol></li>
@@ -414,6 +417,56 @@ ze.log.bgp.reactor.peer=debug ze.log.bgp.reactor.session=debug ze bgp server con
 
 # Look for FSM transitions and session establishment
 </code></pre>
+<h4 id="a-session-closed-because-the-peer-stopped-reading">A session closed because the peer stopped reading</h4>
+<p>Ze logs this line at WARN, with no debug logging needed, when it closes a
+session whose peer accepted no data:</p>
+<pre><code>level=WARN msg="BGP session closed: the peer accepted no data for the write budget; ze connects to it again by itself" subsystem=bgp.reactor.session peer=192.0.2.1 budget=30s fix="..." code=doctor-bgp-peer-not-reading
+</code></pre>
+<p>What it means: ze had data to send, and for the whole write budget the peer
+took none of it while it kept the TCP connection open. Its BGP process is not
+reading. Ze closed the connection with no NOTIFICATION, because the peer could
+not have read one, and connects again by itself. The routes are sent again
+when the session is Established.</p>
+<p>A hold timer, a send hold timer or an operator can end the session before the
+write budget passes. The blocked route write then still holds the session, and
+ze logs this line at ERROR instead, with the code <code>doctor-bgp-write-path-held</code>:</p>
+<pre><code>level=ERROR msg="no NOTIFICATION was sent to the peer: another writer held the session's write path, so the connection is closed without one" subsystem=bgp.reactor.session peer=192.0.2.1 fix="..." code=doctor-bgp-write-path-held
+</code></pre>
+<p>Ze did not wait for the blocked write: it failed that write, closed the
+connection and connects again by itself. The cause and the fix are the same as
+above. <code>ze show diagnostic doctor-bgp-write-path-held</code> names the second cause,
+a plugin that does not take its events.</p>
+<table>
+<thead>
+<tr>
+<th>Where</th>
+<th>What it shows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze show errors</code>, <code>ze show doctor</code></td>
+<td>One event per close, code <code>doctor-bgp-peer-not-reading</code>, with the peer and the budget that passed</td>
+</tr>
+<tr>
+<td><code>ze show bgp peer</code>, field <code>last-error</code></td>
+<td><code>peer accepted no data for the write budget (no NOTIFICATION sent)</code>, until a later NOTIFICATION replaces it</td>
+</tr>
+<tr>
+<td><code>ze show diagnostic doctor-bgp-peer-not-reading</code></td>
+<td>The description of the code</td>
+</tr>
+</tbody>
+</table>
+<p>What to do: on the peer, find why its BGP process stopped reading (CPU load,
+a stalled process, a full input queue). The budget of a route write is
+<code>ze.fwd.write.deadline</code> (30s by default); a KEEPALIVE, OPEN or NOTIFICATION
+has a third of the hold time, between 10s and 30s. Raise
+<code>ze.fwd.write.deadline</code> only for a peer that is known to be slow and healthy:
+a longer budget keeps a dead session up for longer.</p>
+<!-- source: internal/component/bgp/reactor/session_write_budget.go -- recordWriteFailure, reportWriteBudgetExpiry, writeBudgetExpiryFix -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/summary.go -- lastErrorString, closedWithoutNotification -->
+<!-- source: internal/core/diagnostic/codes.go -- CodeDoctorBGPPeerNotReading -->
 <h3 id="4-test-failures">4. Test Failures</h3>
 <pre><code class="language-bash"># Run single test
 le test bgp encode 1
@@ -527,6 +580,10 @@ myLogger.Warn("unexpected state", "state", state, "expected", expected)
                         <span class="page-sidebar-link-label">Quickstart</span>
                         <small>Start from a minimal working setup.</small>
                     </a>
+                    <a class="page-sidebar-link" href="../../guides/ai-agent/">
+                        <span class="page-sidebar-link-label">Use Ze with an AI agent</span>
+                        <small>Let Claude Code or Codex drive Ze for you.</small>
+                    </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
                         <small>Install Ze, create the store, and start SSH.</small>
@@ -556,7 +613,7 @@ myLogger.Warn("unexpected state", "state", state, "expected", expected)
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 20:44 UTC</span>
                 </div>
             </div>
         </footer>

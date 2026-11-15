@@ -47,7 +47,7 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Release profile</span>
     <h1 id="rfc-profile-title">Route collector</h1>
-    <p>The RFCs this use case requires, each declared by the Use cases row of its own summary. RFCs it lists as optional follow in their own table and never enter its figures. Before release, every mandatory requirement of every required RFC must be proven by a recorded break of its test.</p>
+    <p>The RFCs this use case requires, each declared by the Use cases row of its own summary. RFCs it lists as optional follow in their own table and never enter its figures. Before release, every mandatory requirement of every required RFC must have a test that has been shown to fail when the behavior it checks is deliberately broken.</p>
 </div>
 <style>
 .rfc-table-wrap { overflow-x: auto; }
@@ -57,16 +57,25 @@
 .rfc-verdict p:last-child { margin-bottom: 0; }
 .rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
-.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
-.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: block; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
 .rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
-.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
-.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-card b { display: block; margin: 0; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: .5rem 0 0; color: var(--muted); font-size: .92rem; line-height: 1.6; }
+.rfc-card.rfc-total-card { grid-column: 1 / -1; display: grid; grid-template-columns: 15rem minmax(0, 1fr); column-gap: 1.5rem; align-items: start; }
+.rfc-card.rfc-total-card span, .rfc-card.rfc-total-card strong, .rfc-card.rfc-total-card b { grid-column: 1; }
+.rfc-card.rfc-total-card p { grid-column: 2; grid-row: 1 / span 3; margin: 0; }
+@media (max-width: 760px) {
+  .rfc-card-grid { grid-template-columns: minmax(0, 1fr); }
+  .rfc-card.rfc-total-card { display: block; }
+  .rfc-card.rfc-total-card p { margin: .5rem 0 0; }
+}
 .rfc-ok { border-left: 7px solid var(--green); }
 .rfc-neutral { border-left: 7px solid var(--line-strong); }
 .rfc-warn { border-left: 7px solid var(--amber); }
 .rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-card.rfc-total-card { background: var(--bg-soft); border: 1px solid var(--line-strong); box-shadow: none; }
 .rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
 .rfc-tape span { width: var(--w); min-width: 0; display: block; }
 .rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
@@ -87,6 +96,7 @@
 .rfc-swatch.rfc-neutral { background: var(--line-strong); }
 .rfc-swatch.rfc-warn { background: var(--amber); }
 .rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-swatch.rfc-total-card { background: var(--bg-soft); }
 .rfc-total td { border-top: 2px solid var(--line-strong); }
 .rfc-prose { max-width: 46rem; }
 ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
@@ -117,9 +127,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><a href="../">All profiles</a> · <a href="../../">All RFCs</a></p>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="profile/route-collector/required:must">Ze proven 212, Ze correctness gap 150</div>
+<div data-ze-rfc-bar="profile/route-collector/required:must">Ze proven 214, Proof pending 106, Not built 42</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="profile/route-collector/required:overview">Ze MUST proven 212, SHOULD proven 8, SHOULD not decided 91, Ze correctness gap 150</div>
+<div data-ze-rfc-bar="profile/route-collector/required:overview">Ze MUST proven 214, SHOULD proven 8, Proof pending 108, Not assessed 89, Not built 42</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -127,10 +137,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>RFCs</td>
 <td><span data-ze-rfc="profile/route-collector/required:rfcs">18</span></td>
 </tr>
-<tr><td>Not walked</td>
+<tr><td>Requirements not reviewed</td>
 <td><span data-ze-rfc="profile/route-collector/required:not-walked">0</span></td>
 </tr>
-<tr><td>Mandatory register</td>
+<tr><td>Mandatory requirements complete</td>
 <td><span data-ze-rfc="profile/route-collector/required:register">not complete</span></td>
 </tr>
 <tr><td>MUST rows</td>
@@ -140,16 +150,25 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="profile/route-collector/required:must.kept">362</span></td>
 </tr>
 <tr><td>Ze proven</td>
-<td><span data-ze-rfc="profile/route-collector/required:must.ze-proven">212</span></td>
+<td><span data-ze-rfc="profile/route-collector/required:must.ze-proven">214</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="profile/route-collector/required:must.os-verified">0</span></td>
 </tr>
+<tr><td>Proof pending</td>
+<td><span data-ze-rfc="profile/route-collector/required:must.proof-pending">106</span></td>
+</tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="profile/route-collector/required:must.os-gap">0</span></td>
 </tr>
-<tr><td>Ze correctness gap</td>
-<td><span data-ze-rfc="profile/route-collector/required:must.ze-gap">150</span></td>
+<tr><td>Exclusion unchecked</td>
+<td><span data-ze-rfc="profile/route-collector/required:must.exclusion-unchecked">0</span></td>
+</tr>
+<tr><td>Not assessed</td>
+<td><span data-ze-rfc="profile/route-collector/required:must.not-assessed">0</span></td>
+</tr>
+<tr><td>Not built</td>
+<td><span data-ze-rfc="profile/route-collector/required:must.not-built">42</span></td>
 </tr>
 <tr><td>MUST rows not owed</td>
 <td><span data-ze-rfc="profile/route-collector/required:must.not-owed">0</span></td>
@@ -187,22 +206,25 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD not owed: not-applicable</td>
 <td><span data-ze-rfc="profile/route-collector/required:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
-<tr><td>SHOULD not ever</td>
-<td><span data-ze-rfc="profile/route-collector/required:should.not-ever">0</span></td>
+<tr><td>SHOULD proof pending</td>
+<td><span data-ze-rfc="profile/route-collector/required:should.proof-pending">2</span></td>
 </tr>
-<tr><td>SHOULD not yet</td>
-<td><span data-ze-rfc="profile/route-collector/required:should.not-yet">0</span></td>
+<tr><td>SHOULD exclusion unchecked</td>
+<td><span data-ze-rfc="profile/route-collector/required:should.exclusion-unchecked">0</span></td>
 </tr>
-<tr><td>SHOULD not decided</td>
-<td><span data-ze-rfc="profile/route-collector/required:should.not-decided">91</span></td>
+<tr><td>SHOULD not assessed</td>
+<td><span data-ze-rfc="profile/route-collector/required:should.not-assessed">89</span></td>
+</tr>
+<tr><td>SHOULD not built</td>
+<td><span data-ze-rfc="profile/route-collector/required:should.not-built">0</span></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.</p>
+<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
 </section>
 <section><h2>Tree</h2>
-<p>Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each RFC carries the same two bars as the set above, from its own data file; an RFC that is not walked shows &#34;not walked&#34; and no bar. The last column names the summary whose Use cases row declares the RFC: a normative citation never adds one.</p>
+<p>The RFCs are listed with the standards they build on first. An RFC appears one level after the highest level of its dependencies; RFCs that refer back to each other share a level. Each RFC has the same two coverage bars as the group above. An RFC whose requirement list has not been reviewed shows &#34;requirements not reviewed&#34; instead of a bar. The last column names the summary whose Use cases row declares the RFC: a normative citation never adds one.</p>
 <h3>Level 3</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -210,8 +232,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc4271/">RFC 4271</a></td>
 <td>A Border Gateway Protocol 4 (BGP-4)</td>
-<td><div data-ze-rfc-bar="rfc4271:must">Ze proven 85, Ze correctness gap 48</div></td>
-<td><div data-ze-rfc-bar="rfc4271:overview">Ze MUST proven 85, SHOULD proven 3, SHOULD not decided 31, Ze correctness gap 48</div></td>
+<td><div data-ze-rfc-bar="rfc4271:must">Ze proven 85, Proof pending 29, Not built 19</div></td>
+<td><div data-ze-rfc-bar="rfc4271:overview">Ze MUST proven 85, SHOULD proven 3, Proof pending 30, Not assessed 30, Not built 19</div></td>
 <td>route-collector: required by rfc/short/rfc4271.md</td>
 </tr>
 </tbody>
@@ -224,26 +246,26 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc2545/">RFC 2545</a></td>
 <td>Use of BGP-4 Multiprotocol Extensions for IPv6 Inter-Domain Routing</td>
-<td><div data-ze-rfc-bar="rfc2545:must">Ze proven 3, Ze correctness gap 2</div></td>
-<td><div data-ze-rfc-bar="rfc2545:overview">Ze MUST proven 3, SHOULD not decided 2, Ze correctness gap 2</div></td>
+<td><div data-ze-rfc-bar="rfc2545:must">Ze proven 3, Not built 2</div></td>
+<td><div data-ze-rfc-bar="rfc2545:overview">Ze MUST proven 3, Not assessed 2, Not built 2</div></td>
 <td>route-collector: required by rfc/short/rfc2545.md</td>
 </tr>
 <tr><td><a href="../../rfc5492/">RFC 5492</a></td>
 <td>Capabilities Advertisement with BGP-4</td>
-<td><div data-ze-rfc-bar="rfc5492:must">Ze proven 8, Ze correctness gap 1</div></td>
-<td><div data-ze-rfc-bar="rfc5492:overview">Ze MUST proven 8, SHOULD not decided 7, Ze correctness gap 1</div></td>
+<td><div data-ze-rfc-bar="rfc5492:must">Ze proven 8, Not built 1</div></td>
+<td><div data-ze-rfc-bar="rfc5492:overview">Ze MUST proven 8, Not assessed 7, Not built 1</div></td>
 <td>route-collector: required by rfc/short/rfc5492.md</td>
 </tr>
 <tr><td><a href="../../rfc6608/">RFC 6608</a></td>
 <td>Subcodes for BGP Finite State Machine Error</td>
-<td><div data-ze-rfc-bar="rfc6608:must">Ze correctness gap 3</div></td>
-<td><div data-ze-rfc-bar="rfc6608:overview">Ze correctness gap 3</div></td>
+<td><div data-ze-rfc-bar="rfc6608:must">Not built 3</div></td>
+<td><div data-ze-rfc-bar="rfc6608:overview">Not built 3</div></td>
 <td>route-collector: required by rfc/short/rfc6608.md</td>
 </tr>
 <tr><td><a href="../../rfc9687/">RFC 9687</a></td>
 <td>Border Gateway Protocol 4 (BGP-4) Send Hold Timer</td>
-<td><div data-ze-rfc-bar="rfc9687:must">Ze proven 3, Ze correctness gap 10</div></td>
-<td><div data-ze-rfc-bar="rfc9687:overview">Ze MUST proven 3, SHOULD not decided 7, Ze correctness gap 10</div></td>
+<td><div data-ze-rfc-bar="rfc9687:must">Ze proven 4, Proof pending 9</div></td>
+<td><div data-ze-rfc-bar="rfc9687:overview">Ze MUST proven 4, Proof pending 9, Not assessed 7</div></td>
 <td>route-collector: required by rfc/short/rfc9687.md</td>
 </tr>
 </tbody>
@@ -257,7 +279,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td><a href="../../rfc4760/">RFC 4760</a></td>
 <td>Multiprotocol Extensions for BGP-4</td>
 <td><div data-ze-rfc-bar="rfc4760:must">Ze proven 6</div></td>
-<td><div data-ze-rfc-bar="rfc4760:overview">Ze MUST proven 6, SHOULD proven 1, SHOULD not decided 10</div></td>
+<td><div data-ze-rfc-bar="rfc4760:overview">Ze MUST proven 6, SHOULD proven 1, Not assessed 10</div></td>
 <td>route-collector: required by rfc/short/rfc4760.md</td>
 </tr>
 </tbody>
@@ -270,14 +292,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc6793/">RFC 6793</a> (cycle with rfc5668)</td>
 <td>BGP Support for Four-Octet Autonomous System (AS) Number Space</td>
-<td><div data-ze-rfc-bar="rfc6793:must">Ze proven 21, Ze correctness gap 9</div></td>
-<td><div data-ze-rfc-bar="rfc6793:overview">Ze MUST proven 21, SHOULD not decided 6, Ze correctness gap 9</div></td>
+<td><div data-ze-rfc-bar="rfc6793:must">Ze proven 21, Proof pending 8, Not built 1</div></td>
+<td><div data-ze-rfc-bar="rfc6793:overview">Ze MUST proven 21, Proof pending 8, Not assessed 6, Not built 1</div></td>
 <td>route-collector: required by rfc/short/rfc6793.md</td>
 </tr>
 <tr><td><a href="../../rfc7911/">RFC 7911</a></td>
 <td>Advertisement of Multiple Paths in BGP</td>
 <td><div data-ze-rfc-bar="rfc7911:must">Ze proven 9</div></td>
-<td><div data-ze-rfc-bar="rfc7911:overview">Ze MUST proven 9, SHOULD not decided 4</div></td>
+<td><div data-ze-rfc-bar="rfc7911:overview">Ze MUST proven 9, Not assessed 4</div></td>
 <td>route-collector: required by rfc/short/rfc7911.md</td>
 </tr>
 </tbody>
@@ -290,14 +312,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc6286/">RFC 6286</a></td>
 <td>Autonomous-System-Wide Unique BGP Identifier for BGP-4</td>
-<td><div data-ze-rfc-bar="rfc6286:must">Ze correctness gap 4</div></td>
-<td><div data-ze-rfc-bar="rfc6286:overview">SHOULD proven 1, Ze correctness gap 4</div></td>
+<td><div data-ze-rfc-bar="rfc6286:must">Proof pending 3, Not built 1</div></td>
+<td><div data-ze-rfc-bar="rfc6286:overview">SHOULD proven 1, Proof pending 3, Not built 1</div></td>
 <td>route-collector: required by rfc/short/rfc6286.md</td>
 </tr>
 <tr><td><a href="../../rfc7606/">RFC 7606</a> (cycle with rfc4364, rfc4659, rfc4798, rfc6368, rfc8277, rfc8950)</td>
 <td>Revised Error Handling for BGP UPDATE Messages</td>
-<td><div data-ze-rfc-bar="rfc7606:must">Ze proven 28, Ze correctness gap 25</div></td>
-<td><div data-ze-rfc-bar="rfc7606:overview">Ze MUST proven 28, SHOULD not decided 4, Ze correctness gap 25</div></td>
+<td><div data-ze-rfc-bar="rfc7606:must">Ze proven 28, Proof pending 24, Not built 1</div></td>
+<td><div data-ze-rfc-bar="rfc7606:overview">Ze MUST proven 28, Proof pending 24, Not assessed 4, Not built 1</div></td>
 <td>route-collector: required by rfc/short/rfc7606.md</td>
 </tr>
 </tbody>
@@ -310,20 +332,20 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc7607/">RFC 7607</a></td>
 <td>Codification of AS 0 Processing</td>
-<td><div data-ze-rfc-bar="rfc7607:must">Ze correctness gap 5</div></td>
-<td><div data-ze-rfc-bar="rfc7607:overview">Ze correctness gap 5</div></td>
+<td><div data-ze-rfc-bar="rfc7607:must">Proof pending 5</div></td>
+<td><div data-ze-rfc-bar="rfc7607:overview">Proof pending 5</div></td>
 <td>route-collector: required by rfc/short/rfc7607.md</td>
 </tr>
 <tr><td><a href="../../rfc7854/">RFC 7854</a></td>
 <td>BGP Monitoring Protocol (BMP)</td>
-<td><div data-ze-rfc-bar="rfc7854:must">Ze proven 25, Ze correctness gap 14</div></td>
-<td><div data-ze-rfc-bar="rfc7854:overview">Ze MUST proven 25, SHOULD proven 3, SHOULD not decided 6, Ze correctness gap 14</div></td>
+<td><div data-ze-rfc-bar="rfc7854:must">Ze proven 25, Proof pending 14</div></td>
+<td><div data-ze-rfc-bar="rfc7854:overview">Ze MUST proven 25, SHOULD proven 3, Proof pending 15, Not assessed 5</div></td>
 <td>route-collector: required by rfc/short/rfc7854.md</td>
 </tr>
 <tr><td><a href="../../rfc9774/">RFC 9774</a></td>
 <td>Deprecation of AS_SET and AS_CONFED_SET in BGP</td>
-<td><div data-ze-rfc-bar="rfc9774:must">Ze proven 2, Ze correctness gap 1</div></td>
-<td><div data-ze-rfc-bar="rfc9774:overview">Ze MUST proven 2, Ze correctness gap 1</div></td>
+<td><div data-ze-rfc-bar="rfc9774:must">Ze proven 2, Not built 1</div></td>
+<td><div data-ze-rfc-bar="rfc9774:overview">Ze MUST proven 2, Not built 1</div></td>
 <td>route-collector: required by rfc/short/rfc9774.md</td>
 </tr>
 </tbody>
@@ -336,14 +358,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc8671/">RFC 8671</a></td>
 <td>Support for Adj-RIB-Out in the BGP Monitoring Protocol (BMP)</td>
-<td><div data-ze-rfc-bar="rfc8671:must">Ze proven 2, Ze correctness gap 9</div></td>
-<td><div data-ze-rfc-bar="rfc8671:overview">Ze MUST proven 2, SHOULD not decided 1, Ze correctness gap 9</div></td>
+<td><div data-ze-rfc-bar="rfc8671:must">Ze proven 2, Proof pending 7, Not built 2</div></td>
+<td><div data-ze-rfc-bar="rfc8671:overview">Ze MUST proven 2, Proof pending 7, Not assessed 1, Not built 2</div></td>
 <td>route-collector: required by rfc/short/rfc8671.md</td>
 </tr>
 <tr><td><a href="../../rfc9069/">RFC 9069</a></td>
 <td>Support for Local RIB in the BGP Monitoring Protocol (BMP)</td>
-<td><div data-ze-rfc-bar="rfc9069:must">Ze proven 9, Ze correctness gap 7</div></td>
-<td><div data-ze-rfc-bar="rfc9069:overview">Ze MUST proven 9, Ze correctness gap 7</div></td>
+<td><div data-ze-rfc-bar="rfc9069:must">Ze proven 10, Proof pending 6</div></td>
+<td><div data-ze-rfc-bar="rfc9069:overview">Ze MUST proven 10, Proof pending 6</div></td>
 <td>route-collector: required by rfc/short/rfc9069.md</td>
 </tr>
 </tbody>
@@ -356,8 +378,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc6396/">RFC 6396</a></td>
 <td>Multi-Threaded Routing Toolkit (MRT) Routing Information Export Format</td>
-<td><div data-ze-rfc-bar="rfc6396:must">Ze proven 6, Ze correctness gap 7</div></td>
-<td><div data-ze-rfc-bar="rfc6396:overview">Ze MUST proven 6, SHOULD not decided 12, Ze correctness gap 7</div></td>
+<td><div data-ze-rfc-bar="rfc6396:must">Ze proven 6, Proof pending 1, Not built 6</div></td>
+<td><div data-ze-rfc-bar="rfc6396:overview">Ze MUST proven 6, Proof pending 1, Not assessed 12, Not built 6</div></td>
 <td>route-collector: required by rfc/short/rfc6396.md</td>
 </tr>
 </tbody>
@@ -370,14 +392,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc6397/">RFC 6397</a></td>
 <td>Multi-Threaded Routing Toolkit (MRT) Border Gateway Protocol (BGP) Routing Information Export Format with Geo-Location Extensions</td>
-<td><div data-ze-rfc-bar="rfc6397:must">Ze correctness gap 4</div></td>
-<td><div data-ze-rfc-bar="rfc6397:overview">SHOULD not decided 1, Ze correctness gap 4</div></td>
+<td><div data-ze-rfc-bar="rfc6397:must">Not built 4</div></td>
+<td><div data-ze-rfc-bar="rfc6397:overview">Not assessed 1, Not built 4</div></td>
 <td>route-collector: required by rfc/short/rfc6397.md</td>
 </tr>
 <tr><td><a href="../../rfc8050/">RFC 8050</a></td>
 <td>Multi-Threaded Routing Toolkit (MRT) Routing Information Export Format with BGP Additional Path Extensions</td>
-<td><div data-ze-rfc-bar="rfc8050:must">Ze proven 5, Ze correctness gap 1</div></td>
-<td><div data-ze-rfc-bar="rfc8050:overview">Ze MUST proven 5, Ze correctness gap 1</div></td>
+<td><div data-ze-rfc-bar="rfc8050:must">Ze proven 5, Not built 1</div></td>
+<td><div data-ze-rfc-bar="rfc8050:overview">Ze MUST proven 5, Not built 1</div></td>
 <td>route-collector: required by rfc/short/rfc8050.md</td>
 </tr>
 </tbody>
@@ -387,9 +409,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <section><h2>Optional (not counted)</h2>
 <p>RFCs this use case lists as optional, each declared by the Optional use cases row of its own summary. They count in none of the figures above until the owner brings one into scope by moving it to the Use cases row. Their own bars and figures follow.</p>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="profile/route-collector/optional:must">Ze proven 17, Ze correctness gap 9</div>
+<div data-ze-rfc-bar="profile/route-collector/optional:must">Ze proven 17, Proof pending 4, Not built 5</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="profile/route-collector/optional:overview">Ze MUST proven 17, SHOULD proven 3, Not owed 1, SHOULD not decided 9, Ze correctness gap 9</div>
+<div data-ze-rfc-bar="profile/route-collector/optional:overview">Ze MUST proven 17, SHOULD proven 3, Not owed 1, Proof pending 4, Not assessed 9, Not built 5</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -397,10 +419,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>RFCs</td>
 <td><span data-ze-rfc="profile/route-collector/optional:rfcs">3</span></td>
 </tr>
-<tr><td>Not walked</td>
+<tr><td>Requirements not reviewed</td>
 <td><span data-ze-rfc="profile/route-collector/optional:not-walked">0</span></td>
 </tr>
-<tr><td>Mandatory register</td>
+<tr><td>Mandatory requirements complete</td>
 <td><span data-ze-rfc="profile/route-collector/optional:register">not complete</span></td>
 </tr>
 <tr><td>MUST rows</td>
@@ -415,11 +437,20 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="profile/route-collector/optional:must.os-verified">0</span></td>
 </tr>
+<tr><td>Proof pending</td>
+<td><span data-ze-rfc="profile/route-collector/optional:must.proof-pending">4</span></td>
+</tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="profile/route-collector/optional:must.os-gap">0</span></td>
 </tr>
-<tr><td>Ze correctness gap</td>
-<td><span data-ze-rfc="profile/route-collector/optional:must.ze-gap">9</span></td>
+<tr><td>Exclusion unchecked</td>
+<td><span data-ze-rfc="profile/route-collector/optional:must.exclusion-unchecked">0</span></td>
+</tr>
+<tr><td>Not assessed</td>
+<td><span data-ze-rfc="profile/route-collector/optional:must.not-assessed">0</span></td>
+</tr>
+<tr><td>Not built</td>
+<td><span data-ze-rfc="profile/route-collector/optional:must.not-built">5</span></td>
 </tr>
 <tr><td>MUST rows not owed</td>
 <td><span data-ze-rfc="profile/route-collector/optional:must.not-owed">1</span></td>
@@ -457,39 +488,42 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD not owed: not-applicable</td>
 <td><span data-ze-rfc="profile/route-collector/optional:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
-<tr><td>SHOULD not ever</td>
-<td><span data-ze-rfc="profile/route-collector/optional:should.not-ever">0</span></td>
+<tr><td>SHOULD proof pending</td>
+<td><span data-ze-rfc="profile/route-collector/optional:should.proof-pending">0</span></td>
 </tr>
-<tr><td>SHOULD not yet</td>
-<td><span data-ze-rfc="profile/route-collector/optional:should.not-yet">0</span></td>
+<tr><td>SHOULD exclusion unchecked</td>
+<td><span data-ze-rfc="profile/route-collector/optional:should.exclusion-unchecked">0</span></td>
 </tr>
-<tr><td>SHOULD not decided</td>
-<td><span data-ze-rfc="profile/route-collector/optional:should.not-decided">9</span></td>
+<tr><td>SHOULD not assessed</td>
+<td><span data-ze-rfc="profile/route-collector/optional:should.not-assessed">9</span></td>
+</tr>
+<tr><td>SHOULD not built</td>
+<td><span data-ze-rfc="profile/route-collector/optional:should.not-built">0</span></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.</p>
+<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th><th>Why it is here</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc9072/">RFC 9072</a></td>
 <td>Extended Optional Parameters Length for BGP OPEN Message</td>
-<td><div data-ze-rfc-bar="rfc9072:must">Ze proven 5, Ze correctness gap 4</div></td>
-<td><div data-ze-rfc-bar="rfc9072:overview">Ze MUST proven 5, SHOULD proven 1, SHOULD not decided 2, Ze correctness gap 4</div></td>
+<td><div data-ze-rfc-bar="rfc9072:must">Ze proven 5, Not built 4</div></td>
+<td><div data-ze-rfc-bar="rfc9072:overview">Ze MUST proven 5, SHOULD proven 1, Not assessed 2, Not built 4</div></td>
 <td>route-collector: optional in rfc/short/rfc9072.md</td>
 </tr>
 <tr><td><a href="../../rfc2918/">RFC 2918</a></td>
 <td>Route Refresh Capability for BGP-4</td>
-<td><div data-ze-rfc-bar="rfc2918:must">Ze proven 3, Ze correctness gap 3</div></td>
-<td><div data-ze-rfc-bar="rfc2918:overview">Ze MUST proven 3, SHOULD proven 1, SHOULD not decided 4, Ze correctness gap 3</div></td>
+<td><div data-ze-rfc-bar="rfc2918:must">Ze proven 3, Proof pending 3</div></td>
+<td><div data-ze-rfc-bar="rfc2918:overview">Ze MUST proven 3, SHOULD proven 1, Proof pending 3, Not assessed 4</div></td>
 <td>route-collector: optional in rfc/short/rfc2918.md</td>
 </tr>
 <tr><td><a href="../../rfc8654/">RFC 8654</a></td>
 <td>Extended Message Support for BGP</td>
-<td><div data-ze-rfc-bar="rfc8654:must">Ze proven 9, Ze correctness gap 2</div></td>
-<td><div data-ze-rfc-bar="rfc8654:overview">Ze MUST proven 9, SHOULD proven 1, Not owed 1, SHOULD not decided 3, Ze correctness gap 2</div></td>
+<td><div data-ze-rfc-bar="rfc8654:must">Ze proven 9, Proof pending 1, Not built 1</div></td>
+<td><div data-ze-rfc-bar="rfc8654:overview">Ze MUST proven 9, SHOULD proven 1, Not owed 1, Proof pending 1, Not assessed 3, Not built 1</div></td>
 <td>route-collector: optional in rfc/short/rfc8654.md</td>
 </tr>
 </tbody>
@@ -509,7 +543,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     </a>
                     <a class="page-sidebar-link" href="../../../../quality/verify-debugging/">
                         <span class="page-sidebar-link-label">Verify debugging</span>
-                        <small>How failed checks route to evidence.</small>
+                        <small>How to investigate failed checks using their logs.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -528,7 +562,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 20:44 UTC</span>
                 </div>
             </div>
         </footer>

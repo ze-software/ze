@@ -144,6 +144,7 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_rpki_vrps_cached` | Gauge | | bgp-rpki |
 | `ze_rpki_sessions_active` | Gauge | | bgp-rpki |
 | `ze_rpki_validation_outcomes_total` | CounterVec | result | bgp-rpki |
+| `ze_rpki_updates_refused_total` | CounterVec | reason | bgp-rpki: JSON UPDATEs refused before validation, with `unknown-peer-as` or `malformed-peer-as` |
 | `ze_role_route_rejects_total` | CounterVec | reason | bgp-role |
 | `ze_role_route_suppressions_total` | CounterVec | reason | bgp-role |
 | `ze_filter_path_asn_rejects_total` | CounterVec | direction, position, reason | bgp-filter-path-asn |
@@ -219,6 +220,8 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_managed_config_fetch_total` | CounterVec | result | managed (hub server) |
 | `ze_managed_config_changed_pushed_total` | Counter | | managed (hub server) |
 | `ze_plugin_write_watchdog_total` | CounterVec | transport | plugin (server) |
+| `ze_plugin_delivery_failures_total` | CounterVec | plugin | plugin (process): event batches sent with no caller waiting that failed to reach the plugin |
+| `ze_plugin_delivery_slow_batches_total` | CounterVec | plugin | plugin (process): event batches that took over 500 ms to deliver, on any transport |
 | `ze_plugin_filter_batch_routes` | Histogram | | plugin (ipc): the routes one filter-update exchange with a forked plugin carried, buckets 1 to 64 (`rpc.FilterUpdateBatchMax`); a plugin running internal is called through its filter slot and observes nothing |
 | `ze_plugin_filter_slot_routes_total` | Counter | | plugin (ipc): routes for which the typed in-process filter slot returned a non-nil verdict without an error; closed slots and evaluator errors do not count. The batch histogram's `_sum` counts routes sent through the encoded transport instead |
 | `ze_plugin_filter_route_enqueues_total` | Counter | | plugin (ipc): routes successfully sent to the encoded filter-update queue, including routes whose later exchange fails. Closed connections and canceled waits that enqueue nothing do not count. Unlike the batch histogram, this advances while an earlier exchange is still in flight |
@@ -270,6 +273,7 @@ under load: the worker was behind and the event path still carried every
 interface to its final state. The resync counter moving is the one that says a
 transition never arrived at all.
 
+<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- SetMetricsRegistry, handleEvent -->
 <!-- source: internal/component/iface/rate.go -- ownedDevices gauge registration -->
 <!-- source: internal/component/iface/link_queue.go -- coalesced and resync counters -->
 <!-- source: internal/component/iface/resolve.go -- onLinkEvent and sendLatest, the discard counter -->
@@ -554,6 +558,34 @@ boundary, not parity with native Prometheus's support for infinite aggregates:
 <!-- source: internal/component/plugin/cli/cli.go -- withForkedMetrics -->
 <!-- source: pkg/plugin/sdk/metrics.go -- MetricsPublisher, SetMetricsInterval, FlushMetrics, flushMetricsAtBye -->
 <!-- source: internal/component/plugin/server/dispatch_metrics.go -- pluginMetricSet -->
+
+## System RIB routing-view metrics
+
+The existing `ze_systemrib_events_received_total` counter counts each accepted
+nonempty authoritative selected-change batch, including a duplicate input that
+produces no FIB change. Malformed batches and empty selected-feed idle polls do
+not count. Route-change counters count the emitted forwarding effects separately.
+Both placements retain their existing metrics registration and transport.
+<!-- source: internal/component/sysrib/route_view_forwarding.go -- applySelectedBatch -->
+
+The system RIB's routing-view monitor creates three scalar metrics through
+`Plugin.MetricsRegistry` before `Run`. The SDK's existing publisher carries
+them in both placements; the monitor starts no publisher of its own.
+<!-- source: internal/component/sysrib/doctor_route_view.go -- newRouteViewHealth -->
+
+| Metric | Meaning |
+|--------|---------|
+| `ze_rib_view_resync_total` | Reconstruction attempts after the initial consumer starts, including selected-view reset and local capture overflow. |
+| `ze_rib_view_pending_prefixes` | Distinct prefixes held in an incomplete selected snapshot or collected forwarding work awaiting reconciliation. |
+| `ze_rib_view_ready` | One after the view and its forwarding output synchronize; zero during initialization, reconstruction, failure or shutdown. |
+<!-- source: internal/component/sysrib/doctor_route_view.go -- beginResync, setPending, markSynchronized, fail, stop -->
+
+These names have no labels, so route prefixes and session tokens cannot grow
+their series. The `ze_rib_view_` names describe the shared routing-view
+transport; the existing system RIB metrics retain `ze_systemrib_`.
+<!-- source: internal/component/sysrib/doctor_route_view.go -- newRouteViewHealth -->
+<!-- source: internal/component/sysrib/route_view_worker.go -- readSelected -->
+<!-- source: internal/component/sysrib/route_view_worker_operations.go -- reopen, collect -->
 
 ## NopRegistry Fallback
 

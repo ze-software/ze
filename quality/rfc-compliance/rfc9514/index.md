@@ -1,6 +1,6 @@
 # RFC 9514 - Border Gateway Protocol - Link State (BGP-LS) Extensions for Segment Routing over IPv6 (SRv6)
 
-BGP-LS SRv6 extensions. Every requirement this repository extracted from RFC 9514, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+BGP-LS SRv6 extensions. Every requirement listed for RFC 9514, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,23 +10,10 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 13 | of 20 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 2 | of 20 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 20 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 42 | 42 of 42 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-
-### Neutral
-
-measures that are neither good news nor bad
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Gated MUSTs | 20 | of 23 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 20 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 20 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 20 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 20 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 20 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Tested both ways | 13 | of 20 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 2 | of 20 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 20 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Tests shown to detect a fault | 42 | 42 of 42 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -34,56 +21,76 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Partial proof; remaining gap | 2 | of 20 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| No test at all | 3 | of 20 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 17 | of 20 gated MUSTs judged | 2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+| Partial proof; remaining gap | 2 | of 20 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Declared gap or no test | 3 | of 20 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Audit verdicts | 17 | of 20 mandatory requirements reviewed | 2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
-The 9 counts marked as a part above are the whole of the 20 gated MUSTs: they add up to 20. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Neutral
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+measures that are neither good news nor bad
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Out of scope | 0 | of 20 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 20 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 20 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 20 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 20 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+
+### Totals
+
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 20 | of 23 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 20 mandatory requirements: they add up to 20. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | bad | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | BGP-LS SRv6 extensions |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 23 |
-| Gated MUST-level | 20 |
+| Mandatory requirements (MUST level) | 20 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 3 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 42 |
-| Tagged units | 42 |
+| Tests linked to requirements | 42 |
 | Recorded audit verdicts | 17 |
-| Discrimination records | 42 |
+| Fault test records | 42 |
 | Summary | `rfc/short/rfc9514.md` |
-| Requirement shard | `rfc/requirements/rfc9514.md` |
+| Requirement table | `rfc/requirements/rfc9514.md` |
 | RFC text | `rfc/full/rfc9514.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: BGP-LS SRv6 extensions, including separate origination and reserved-field receive obligations. The offline attribute decoder handles SRv6 Capabilities and Locator TLVs through its registered consumer decoders.
+Included in automatic checks: BGP-LS SRv6 extensions, including separate origination and reserved-field receive obligations. The offline attribute decoder handles SRv6 Capabilities and Locator TLVs through its registered consumer decoders.
 
-## What the public ledger says
+## Published support status
 
 **Area:** BGP-LS SRv6 extensions
 
@@ -98,14 +105,14 @@ Enrolled: BGP-LS SRv6 extensions, including separate origination and reserved-fi
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 13 | one part of the gated population |
-| Annotated (including scoped evidence) | 7 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 2 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **20** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 13 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 7 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 2 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **20** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (13):** [`RFC9514-3.1-1`](#rfc9514-3.1-1), [`RFC9514-3.1-2`](#rfc9514-3.1-2), [`RFC9514-3.1-3`](#rfc9514-3.1-3), [`RFC9514-4.1-1`](#rfc9514-4.1-1), [`RFC9514-4.1-2`](#rfc9514-4.1-2), [`RFC9514-4.2-1`](#rfc9514-4.2-1), [`RFC9514-4.2-2`](#rfc9514-4.2-2), [`RFC9514-5.1-1`](#rfc9514-5.1-1), [`RFC9514-5.1-2`](#rfc9514-5.1-2), [`RFC9514-7.1-1`](#rfc9514-7.1-1), [`RFC9514-7.1-2`](#rfc9514-7.1-2), [`RFC9514-7.1-4`](#rfc9514-7.1-4), [`RFC9514-8-1`](#rfc9514-8-1)
 
@@ -115,20 +122,23 @@ Enrolled: BGP-LS SRv6 extensions, including separate origination and reserved-fi
 
 ## Figures
 
-- **MUST bar**: Ze proven 15, Ze correctness gap 5
-- **Overview bar**: Ze MUST proven 15, SHOULD not decided 3, Ze correctness gap 5
+- **MUST bar**: Ze proven 15, Not built 5
+- **Overview bar**: Ze MUST proven 15, Not assessed 3, Not built 5
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 20 |
 | MUST rows kept (the MUST bar) | 20 |
 | Ze proven | 15 |
 | OS verified | 0 |
+| Proof pending | 0 |
 | OS testing gap | 0 |
-| Ze correctness gap | 5 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 5 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -141,11 +151,12 @@ Enrolled: BGP-LS SRv6 extensions, including separate origination and reserved-fi
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 3 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 3 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc9514.json](../../../data/rfc/rfc9514.json).
 
@@ -169,9 +180,9 @@ Source: [data/rfc/rfc9514.json](../../../data/rfc/rfc9514.json).
 | `RFC9514-7.1-3` | The algorithm value MUST be 0 unless an algorithm is associated locally with the SRv6 Locator from which the SID is allocated. (§7.1) | MUST | 7.1 - SRv6 Endpoint Behavior TLV | **positive:** `unit/verify` [`TestRFC9514ISISEndpointBehaviorAlgorithm`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9514_bgpls_export_test.go#L154). **negative:** no negative test. **{single-polarity}:** the IS-IS source copies the algorithm of the locator the SID is allocated from into the TLV (internal/plugins/isis/bgpls_export.go::endSID) and reads no other algorithm, so both branches of the rule, 0 with no associated algorithm and the associated one otherwise, are conforming outputs the positive test asserts, and no input exists for a refusal |
 | `RFC9514-7.2-1` | The SRv6 BGP PeerNode SID TLV is a mandatory TLV for use in the BGP-LS Attribute for an SRv6 SID NLRI advertised by BGP for the EPE functionality. This TLV MUST be included along with SRv6 SIDs that are associated with the BGP PeerNode or PeerSet functionality. (§7.2) | MUST | 7.2 - SRv6 BGP Peer Node SID TLV | **positive:** no positive test. **negative:** no negative test. **{gap}:** the lsSRv6BGPPeerNodeSID decoder and encoder exist but no EPE origination path instantiates or includes the TLV from a live session (internal/component/bgp/plugins/nlri/ls/attr_srv6.go:78, :102, plugin.go:70-71) |
 | `RFC9514-7.2-2` | Other bits are reserved for future use and MUST be set to 0 when originated (§7.2) | MUST | 7.2 - SRv6 BGP Peer Node SID TLV | **positive:** no positive test. **negative:** no negative test. **{gap}:** no production path originates an SRv6 BGP PeerNode SID TLV 1251, because Ze assigns no SRv6 BGP EPE segments (RFC9514-7.2-1), so no originated Flags octet exists to prove; the BGP-LS exporter masks the Flags of any TLV 1251 a producer hands it to the three defined bits (value[0] &= 0xe0 in internal/component/bgp/plugins/ls_export/export_encode.go clearOriginatedReserved), and the offline nlri/ls struct encoder, which is not on the origination path, writes Flags verbatim (internal/component/bgp/plugins/nlri/ls/attr_srv6.go:170) |
-| `RFC9514-7.2-5` | Other bits are reserved for future use and MUST be set to 0 when originated and ignored on receipt. (§7.2) | MUST | 7.2 - SRv6 BGP Peer Node SID TLV | **positive:** `unit/verify` [`TestRFC9514PeerNodeSIDReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go#L110). **negative:** `unit/verify` [`TestRFC9514PeerNodeSIDReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go#L111). **{partial}:** tested "ignored on receipt."; gap "MUST be set to 0 when originated"; internal/component/bgp/plugins/nlri/ls/attr_srv6.go::decodeSRv6BGPPeerNodeSID accepts reserved flag bits without interpreting them; no live SRv6 BGP EPE segment-assignment path originates TLV 1251, so offline encoding and export masking do not prove the origination clause. **Scoped evidence:** Tests and tag-claim records apply only to Tested; zero whole-requirement credit. partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). The decode producers in attr_srv6.go changed only by bgpls.ErrBGPLSTruncated/WriteTLV qualification and the owner-approved unexporting of lsSRv6EndpointBehavior/lsSRv6BGPPeerNodeSID. Tested "ignored on receipt.": TestRFC9514PeerNodeSIDReservedIgnored decodes 12-octet TLV 1251 values differing only in the low five Flags bits (0xe0 vs 0xff) to the same Weight, Peer AS 65000 and Peer BGP-ID, and never refuses them. Gap "MUST be set to 0 when originated": no live SRv6 BGP EPE origination of TLV 1251 exists (native EPE originates MPLS PeerNode 1101 only). Producer internal/component/bgp/plugins/nlri/ls/attr_srv6.go::decodeSRv6BGPPeerNodeSID, body unchanged apart from the renames. Partial earns no whole-requirement credit. |
+| `RFC9514-7.2-5` | Other bits are reserved for future use and MUST be set to 0 when originated and ignored on receipt. (§7.2) | MUST | 7.2 - SRv6 BGP Peer Node SID TLV | **positive:** `unit/verify` [`TestRFC9514PeerNodeSIDReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go#L110). **negative:** `unit/verify` [`TestRFC9514PeerNodeSIDReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go#L111). **{partial}:** tested "ignored on receipt."; gap "MUST be set to 0 when originated"; internal/component/bgp/plugins/nlri/ls/attr_srv6.go::decodeSRv6BGPPeerNodeSID accepts reserved flag bits without interpreting them; no live SRv6 BGP EPE segment-assignment path originates TLV 1251, so offline encoding and export masking do not prove the origination clause. **Partial test coverage:** Tests and fault test records cover only the part marked Tested; they do not prove the whole requirement. partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). The decode producers in attr_srv6.go changed only by bgpls.ErrBGPLSTruncated/WriteTLV qualification and the owner-approved unexporting of lsSRv6EndpointBehavior/lsSRv6BGPPeerNodeSID. Tested "ignored on receipt.": TestRFC9514PeerNodeSIDReservedIgnored decodes 12-octet TLV 1251 values differing only in the low five Flags bits (0xe0 vs 0xff) to the same Weight, Peer AS 65000 and Peer BGP-ID, and never refuses them. Gap "MUST be set to 0 when originated": no live SRv6 BGP EPE origination of TLV 1251 exists (native EPE originates MPLS PeerNode 1101 only). Producer internal/component/bgp/plugins/nlri/ls/attr_srv6.go::decodeSRv6BGPPeerNodeSID, body unchanged apart from the renames. Partial earns no whole-requirement credit. |
 | `RFC9514-7.2-3` | Reserved: 2-octet field. The value MUST be set to 0 when originated (§7.2) | MUST | 7.2 - SRv6 BGP Peer Node SID TLV | **positive:** no positive test. **negative:** no negative test. **{gap}:** no production path originates an SRv6 BGP PeerNode SID TLV 1251, because Ze assigns no SRv6 BGP EPE segments (RFC9514-7.2-1); the BGP-LS exporter clears the Reserved field of any TLV 1251 a producer hands it (clear(value[2:4]) in internal/component/bgp/plugins/ls_export/export_encode.go clearOriginatedReserved), and the offline nlri/ls struct encoder writes it as 0 (internal/component/bgp/plugins/nlri/ls/attr_srv6.go:172-173) |
-| `RFC9514-7.2-6` | Reserved: 2-octet field. The value MUST be set to 0 when originated and ignored on receipt. (§7.2) | MUST | 7.2 - SRv6 BGP Peer Node SID TLV | **positive:** `unit/verify` [`TestRFC9514PeerNodeSIDReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go#L123). **negative:** `unit/verify` [`TestRFC9514PeerNodeSIDReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go#L124). **{partial}:** tested "ignored on receipt."; gap "MUST be set to 0 when originated"; internal/component/bgp/plugins/nlri/ls/attr_srv6.go::decodeSRv6BGPPeerNodeSID ignores the Reserved field; no live SRv6 BGP EPE segment-assignment path originates TLV 1251, so offline encoding and export masking do not prove the origination clause. **Scoped evidence:** Tests and tag-claim records apply only to Tested; zero whole-requirement credit. partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). The decode producers in attr_srv6.go changed only by bgpls.ErrBGPLSTruncated/WriteTLV qualification and the owner-approved unexporting of lsSRv6EndpointBehavior/lsSRv6BGPPeerNodeSID. Tested "ignored on receipt.": TestRFC9514PeerNodeSIDReservedIgnored accepts Reserved 0xffff and requires the whole decoded object equal to the Reserved-0 decode. Gap "MUST be set to 0 when originated": no live native origination of TLV 1251. Producer internal/component/bgp/plugins/nlri/ls/attr_srv6.go::decodeSRv6BGPPeerNodeSID skips bytes 2:4, unchanged apart from the renames. |
+| `RFC9514-7.2-6` | Reserved: 2-octet field. The value MUST be set to 0 when originated and ignored on receipt. (§7.2) | MUST | 7.2 - SRv6 BGP Peer Node SID TLV | **positive:** `unit/verify` [`TestRFC9514PeerNodeSIDReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go#L123). **negative:** `unit/verify` [`TestRFC9514PeerNodeSIDReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go#L124). **{partial}:** tested "ignored on receipt."; gap "MUST be set to 0 when originated"; internal/component/bgp/plugins/nlri/ls/attr_srv6.go::decodeSRv6BGPPeerNodeSID ignores the Reserved field; no live SRv6 BGP EPE segment-assignment path originates TLV 1251, so offline encoding and export masking do not prove the origination clause. **Partial test coverage:** Tests and fault test records cover only the part marked Tested; they do not prove the whole requirement. partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). The decode producers in attr_srv6.go changed only by bgpls.ErrBGPLSTruncated/WriteTLV qualification and the owner-approved unexporting of lsSRv6EndpointBehavior/lsSRv6BGPPeerNodeSID. Tested "ignored on receipt.": TestRFC9514PeerNodeSIDReservedIgnored accepts Reserved 0xffff and requires the whole decoded object equal to the Reserved-0 decode. Gap "MUST be set to 0 when originated": no live native origination of TLV 1251. Producer internal/component/bgp/plugins/nlri/ls/attr_srv6.go::decodeSRv6BGPPeerNodeSID skips bytes 2:4, unchanged apart from the renames. |
 | `RFC9514-8-1` | The sum of the LB Length, LN Length, Fun. Length, and Arg. Length MUST be less than or equal to 128. (§8) | MUST | 8 - SRv6 SID Structure TLV | **positive:** `unit/verify` [`TestRFC9514NativeSIDStructureBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9514_export_test.go#L85). **negative:** `unit/verify` [`TestRFC9514NativeSIDStructureBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9514_export_test.go#L86) |
 | `RFC9514-11-1` | The isolation of BGP-LS peering sessions is RECOMMENDED to ensure that BGP-LS topology information (including the newly added SR information) is not advertised to an external BGP peering session outside the SR domain. (§11) | SHOULD | 11 - Security Considerations | **positive:** no positive test. **negative:** no negative test |
 | `RFC9514-6-2` | This field MUST contain a single SRv6 SID Information TLV (Section 6.1) and MAY contain the Multi-Topology Identifier TLV [RFC7752]. (§6) | MAY | 6 - SRv6 SID NLRI | **positive:** no positive test. **negative:** no negative test |
@@ -189,7 +200,7 @@ Source: [data/rfc/rfc9514.json](../../../data/rfc/rfc9514.json).
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC9514-3.1-1`](#rfc9514-3.1-1)
 
@@ -357,23 +368,23 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 The SRv6 BGP PeerNode SID TLV is a mandatory TLV for use in the BGP-LS Attribute for an SRv6 SID NLRI advertised by BGP for the EPE functionality. This TLV MUST be included along with SRv6 SIDs that are associated with the BGP PeerNode or PeerSet functionality. (§7.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9514-7.2-1, so no unit is bound to it.
+No test carries RFC9514-7.2-1, so there is no linked test.
 
 ### [`RFC9514-7.2-2`](#rfc9514-7.2-2)
 
 Other bits are reserved for future use and MUST be set to 0 when originated (§7.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9514-7.2-2, so no unit is bound to it.
+No test carries RFC9514-7.2-2, so there is no linked test.
 
 ### [`RFC9514-7.2-5`](#rfc9514-7.2-5)
 
 Other bits are reserved for future use and MUST be set to 0 when originated and ignored on receipt. (§7.2)
 
-Scoped tag-claim records only: tested "ignored on receipt."; gap "MUST be set to 0 when originated"; internal/component/bgp/plugins/nlri/ls/attr_srv6.go::decodeSRv6BGPPeerNodeSID accepts reserved flag bits without interpreting them; no live SRv6 BGP EPE segment-assignment path originates TLV 1251, so offline encoding and export masking do not prove the origination clause; zero whole-requirement credit.
+Records cover only part of this requirement: tested "ignored on receipt."; gap "MUST be set to 0 when originated"; internal/component/bgp/plugins/nlri/ls/attr_srv6.go::decodeSRv6BGPPeerNodeSID accepts reserved flag bits without interpreting them; no live SRv6 BGP EPE segment-assignment path originates TLV 1251, so offline encoding and export masking do not prove the origination clause; they do not prove the whole requirement.
 
 Audit verdict: partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). The decode producers in attr_srv6.go changed only by bgpls.ErrBGPLSTruncated/WriteTLV qualification and the owner-approved unexporting of lsSRv6EndpointBehavior/lsSRv6BGPPeerNodeSID. Tested "ignored on receipt.": TestRFC9514PeerNodeSIDReservedIgnored decodes 12-octet TLV 1251 values differing only in the low five Flags bits (0xe0 vs 0xff) to the same Weight, Peer AS 65000 and Peer BGP-ID, and never refuses them. Gap "MUST be set to 0 when originated": no live SRv6 BGP EPE origination of TLV 1251 exists (native EPE originates MPLS PeerNode 1101 only). Producer internal/component/bgp/plugins/nlri/ls/attr_srv6.go::decodeSRv6BGPPeerNodeSID, body unchanged apart from the renames. Partial earns no whole-requirement credit.
 
@@ -386,15 +397,15 @@ Audit verdict: partial (the tests enforce only the declared tested scope; the wh
 
 Reserved: 2-octet field. The value MUST be set to 0 when originated (§7.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9514-7.2-3, so no unit is bound to it.
+No test carries RFC9514-7.2-3, so there is no linked test.
 
 ### [`RFC9514-7.2-6`](#rfc9514-7.2-6)
 
 Reserved: 2-octet field. The value MUST be set to 0 when originated and ignored on receipt. (§7.2)
 
-Scoped tag-claim records only: tested "ignored on receipt."; gap "MUST be set to 0 when originated"; internal/component/bgp/plugins/nlri/ls/attr_srv6.go::decodeSRv6BGPPeerNodeSID ignores the Reserved field; no live SRv6 BGP EPE segment-assignment path originates TLV 1251, so offline encoding and export masking do not prove the origination clause; zero whole-requirement credit.
+Records cover only part of this requirement: tested "ignored on receipt."; gap "MUST be set to 0 when originated"; internal/component/bgp/plugins/nlri/ls/attr_srv6.go::decodeSRv6BGPPeerNodeSID ignores the Reserved field; no live SRv6 BGP EPE segment-assignment path originates TLV 1251, so offline encoding and export masking do not prove the origination clause; they do not prove the whole requirement.
 
 Audit verdict: partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). The decode producers in attr_srv6.go changed only by bgpls.ErrBGPLSTruncated/WriteTLV qualification and the owner-approved unexporting of lsSRv6EndpointBehavior/lsSRv6BGPPeerNodeSID. Tested "ignored on receipt.": TestRFC9514PeerNodeSIDReservedIgnored accepts Reserved 0xffff and requires the whole decoded object equal to the Reserved-0 decode. Gap "MUST be set to 0 when originated": no live native origination of TLV 1251. Producer internal/component/bgp/plugins/nlri/ls/attr_srv6.go::decodeSRv6BGPPeerNodeSID skips bytes 2:4, unchanged apart from the renames.
 
@@ -414,7 +425,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 | negative | [`TestRFC9514NativeSIDStructureBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9514_export_test.go#L86) | unit/verify | revert, verified |
 | positive | [`TestRFC9514NativeSIDStructureBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9514_export_test.go#L85) | unit/verify | revert, verified |
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -433,35 +444,35 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
-| `front` | not stated | 1 | walked | not stated |
-| `1` | not stated | 1 | walked | not stated |
-| `1.1` | not stated | 0 | walked | not stated |
-| `2` | not stated | 1 | walked | not stated |
-| `3` | not stated | 0 | walked | not stated |
-| `3.1` | SRv6 Capabilities TLV | 2 | walked | SRv6 Capabilities TLV. Two sites: the single-instance inclusion MUST (3.1-1) and the Reserved field (3.1-2). Each reserved-field sentence in this document states two obligations, "MUST be set to 0 when originated and ignored on receipt", and the MUST-level scan raises one site for the pair. The originate-as-zero half is mapped below. The ignore-on-receipt half shares that same site and is declared unsourced here, because it is the half a decode-only implementation is the entry point for. RFC9514-3.1-3 carries it. |
-| `3.2` | not stated | 0 | walked | not stated |
-| `4` | not stated | 0 | walked | not stated |
-| `4.1` | SRv6 End.X SID TLV | 1 | walked | SRv6 End.X SID TLV. One site, the Reserved field, mapped to 4.1-1. Each reserved-field sentence in this document states two obligations, "MUST be set to 0 when originated and ignored on receipt", and the MUST-level scan raises one site for the pair. The originate-as-zero half is mapped below. The ignore-on-receipt half shares that same site and is declared unsourced here, because it is the half a decode-only implementation is the entry point for. RFC9514-4.1-2 carries it. |
-| `4.2` | SRv6 LAN End.X SID TLV | 1 | walked | SRv6 LAN End.X SID TLV. One site, the Reserved field, mapped to 4.2-1. Each reserved-field sentence in this document states two obligations, "MUST be set to 0 when originated and ignored on receipt", and the MUST-level scan raises one site for the pair. The originate-as-zero half is mapped below. The ignore-on-receipt half shares that same site and is declared unsourced here, because it is the half a decode-only implementation is the entry point for. RFC9514-4.2-2 carries it. |
-| `4.3` | SRv6 Locator TLV reference in the link attribute set | 0 | walked | SRv6 Locator TLV reference in the link attribute set. No 2119 keyword and no obligation of its own. |
-| `5` | not stated | 0 | walked | not stated |
-| `5.1` | SRv6 Locator TLV | 1 | walked | SRv6 Locator TLV. One site, the Reserved field, mapped to 5.1-1. Each reserved-field sentence in this document states two obligations, "MUST be set to 0 when originated and ignored on receipt", and the MUST-level scan raises one site for the pair. The originate-as-zero half is mapped below. The ignore-on-receipt half shares that same site and is declared unsourced here, because it is the half a decode-only implementation is the entry point for. RFC9514-5.1-2 carries it. |
-| `6` | SRv6 SID NLRI | 1 | walked | SRv6 SID NLRI. One site carrying two levels: the MUST that the SRv6 SID Descriptors field contain a single SRv6 SID Information TLV (mapped to 6-1) and the MAY that it contain the Multi-Topology Identifier TLV of RFC 7752, declared unsourced as 6-2. |
-| `6.1` | not stated | 0 | walked | not stated |
-| `7` | not stated | 0 | walked | not stated |
-| `7.1` | SRv6 Endpoint Behavior TLV | 3 | walked | SRv6 Endpoint Behavior TLV. Three sites: the mandatory inclusion of the TLV in the BGP-LS Attribute of the SRv6 SID NLRI (7.1-1), the algorithm value of 0 unless an algorithm is associated locally with the SRv6 Locator (7.1-3), and undefined flags (7.1-2). Each reserved-field sentence in this document states two obligations, "MUST be set to 0 when originated and ignored on receipt", and the MUST-level scan raises one site for the pair. The originate-as-zero half is mapped below. The ignore-on-receipt half shares that same site and is declared unsourced here, because it is the half a decode-only implementation is the entry point for. RFC9514-7.1-4 carries it for the undefined flags. |
-| `7.2` | SRv6 BGP Peer Node SID TLV | 3 | walked | SRv6 BGP Peer Node SID TLV. Three sites: the inclusion MUST for SIDs associated with BGP PeerNode or PeerSet functionality (7.2-1), the bits reserved for future use in the Flags field (7.2-2), and the Reserved field (7.2-3). Each reserved-field sentence states origination and receipt obligations, and the MUST-level scan raises one site for the pair. Sites 7.2:2 and 7.2:3 remain mapped to the origination rows 7.2-2 and 7.2-3. Unsourced rows RFC9514-7.2-5 and RFC9514-7.2-6 retain the complete sentences, with proof scoped to receipt and an explicit origination gap; they do not quote only the receipt half. Owner decision 10 and its 2026-10-02 annotation-plus-partial-verdict approval authorize this representation. This explanation correction changes no site, mapping, exclusion or requirement identity and claims no new extraction walk. The MAY that a PeerSet SID be assigned to one or more End.X SIDs carries no MUST-level site and is declared unsourced as 7.2-4. |
-| `8` | SRv6 SID Structure TLV | 1 | walked | SRv6 SID Structure TLV. One site: the sum of LB Length, LN Length, Function Length and Argument Length MUST be at most 128, mapped to 8-1. |
-| `9` | not stated | 0 | walked | not stated |
-| `9.1` | not stated | 0 | walked | not stated |
-| `9.2` | not stated | 0 | walked | not stated |
-| `9.3` | not stated | 0 | walked | not stated |
-| `10` | not stated | 0 | walked | not stated |
-| `11` | Security Considerations | 1 | walked | Security Considerations. No MUST-level site. The RECOMMENDED isolation of BGP-LS peering sessions, so that topology information is not advertised outside the SR domain, is declared unsourced as 11-1. |
-| `12` | not stated | 0 | walked | not stated |
-| `12.1` | not stated | 0 | walked | not stated |
-| `12.2` | not stated | 0 | walked | not stated |
-| `A` | not stated | 1 | walked | not stated |
+| `front` | not stated | 1 | reviewed | not stated |
+| `1` | not stated | 1 | reviewed | not stated |
+| `1.1` | not stated | 0 | reviewed | not stated |
+| `2` | not stated | 1 | reviewed | not stated |
+| `3` | not stated | 0 | reviewed | not stated |
+| `3.1` | SRv6 Capabilities TLV | 2 | reviewed | SRv6 Capabilities TLV. Two sites: the single-instance inclusion MUST (3.1-1) and the Reserved field (3.1-2). Each reserved-field sentence in this document states two obligations, "MUST be set to 0 when originated and ignored on receipt", and the MUST-level scan raises one site for the pair. The originate-as-zero half is mapped below. The ignore-on-receipt half shares that same site and is declared unsourced here, because it is the half a decode-only implementation is the entry point for. RFC9514-3.1-3 carries it. |
+| `3.2` | not stated | 0 | reviewed | not stated |
+| `4` | not stated | 0 | reviewed | not stated |
+| `4.1` | SRv6 End.X SID TLV | 1 | reviewed | SRv6 End.X SID TLV. One site, the Reserved field, mapped to 4.1-1. Each reserved-field sentence in this document states two obligations, "MUST be set to 0 when originated and ignored on receipt", and the MUST-level scan raises one site for the pair. The originate-as-zero half is mapped below. The ignore-on-receipt half shares that same site and is declared unsourced here, because it is the half a decode-only implementation is the entry point for. RFC9514-4.1-2 carries it. |
+| `4.2` | SRv6 LAN End.X SID TLV | 1 | reviewed | SRv6 LAN End.X SID TLV. One site, the Reserved field, mapped to 4.2-1. Each reserved-field sentence in this document states two obligations, "MUST be set to 0 when originated and ignored on receipt", and the MUST-level scan raises one site for the pair. The originate-as-zero half is mapped below. The ignore-on-receipt half shares that same site and is declared unsourced here, because it is the half a decode-only implementation is the entry point for. RFC9514-4.2-2 carries it. |
+| `4.3` | SRv6 Locator TLV reference in the link attribute set | 0 | reviewed | SRv6 Locator TLV reference in the link attribute set. No 2119 keyword and no obligation of its own. |
+| `5` | not stated | 0 | reviewed | not stated |
+| `5.1` | SRv6 Locator TLV | 1 | reviewed | SRv6 Locator TLV. One site, the Reserved field, mapped to 5.1-1. Each reserved-field sentence in this document states two obligations, "MUST be set to 0 when originated and ignored on receipt", and the MUST-level scan raises one site for the pair. The originate-as-zero half is mapped below. The ignore-on-receipt half shares that same site and is declared unsourced here, because it is the half a decode-only implementation is the entry point for. RFC9514-5.1-2 carries it. |
+| `6` | SRv6 SID NLRI | 1 | reviewed | SRv6 SID NLRI. One site carrying two levels: the MUST that the SRv6 SID Descriptors field contain a single SRv6 SID Information TLV (mapped to 6-1) and the MAY that it contain the Multi-Topology Identifier TLV of RFC 7752, declared unsourced as 6-2. |
+| `6.1` | not stated | 0 | reviewed | not stated |
+| `7` | not stated | 0 | reviewed | not stated |
+| `7.1` | SRv6 Endpoint Behavior TLV | 3 | reviewed | SRv6 Endpoint Behavior TLV. Three sites: the mandatory inclusion of the TLV in the BGP-LS Attribute of the SRv6 SID NLRI (7.1-1), the algorithm value of 0 unless an algorithm is associated locally with the SRv6 Locator (7.1-3), and undefined flags (7.1-2). Each reserved-field sentence in this document states two obligations, "MUST be set to 0 when originated and ignored on receipt", and the MUST-level scan raises one site for the pair. The originate-as-zero half is mapped below. The ignore-on-receipt half shares that same site and is declared unsourced here, because it is the half a decode-only implementation is the entry point for. RFC9514-7.1-4 carries it for the undefined flags. |
+| `7.2` | SRv6 BGP Peer Node SID TLV | 3 | reviewed | SRv6 BGP Peer Node SID TLV. Three sites: the inclusion MUST for SIDs associated with BGP PeerNode or PeerSet functionality (7.2-1), the bits reserved for future use in the Flags field (7.2-2), and the Reserved field (7.2-3). Each reserved-field sentence states origination and receipt obligations, and the MUST-level scan raises one site for the pair. Sites 7.2:2 and 7.2:3 remain mapped to the origination rows 7.2-2 and 7.2-3. Unsourced rows RFC9514-7.2-5 and RFC9514-7.2-6 retain the complete sentences, with proof scoped to receipt and an explicit origination gap; they do not quote only the receipt half. Owner decision 10 and its 2026-10-02 annotation-plus-partial-verdict approval authorize this representation. This explanation correction changes no site, mapping, exclusion or requirement identity and claims no new extraction walk. The MAY that a PeerSet SID be assigned to one or more End.X SIDs carries no MUST-level site and is declared unsourced as 7.2-4. |
+| `8` | SRv6 SID Structure TLV | 1 | reviewed | SRv6 SID Structure TLV. One site: the sum of LB Length, LN Length, Function Length and Argument Length MUST be at most 128, mapped to 8-1. |
+| `9` | not stated | 0 | reviewed | not stated |
+| `9.1` | not stated | 0 | reviewed | not stated |
+| `9.2` | not stated | 0 | reviewed | not stated |
+| `9.3` | not stated | 0 | reviewed | not stated |
+| `10` | not stated | 0 | reviewed | not stated |
+| `11` | Security Considerations | 1 | reviewed | Security Considerations. No MUST-level site. The RECOMMENDED isolation of BGP-LS peering sessions, so that topology information is not advertised outside the SR domain, is declared unsourced as 11-1. |
+| `12` | not stated | 0 | reviewed | not stated |
+| `12.1` | not stated | 0 | reviewed | not stated |
+| `12.2` | not stated | 0 | reviewed | not stated |
+| `A` | not stated | 1 | reviewed | not stated |
 
 ### Excluded sentences
 

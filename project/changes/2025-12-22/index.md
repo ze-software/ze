@@ -1,6 +1,6 @@
 # 2025-12-22 – 2025-12-28 (1 week)
 
-Work on the BGP engine itself: route encoding correctness, session robustness, and a first real API surface for driving peers programmatically.
+This week's BGP engine changes improve route encoding and session reliability, and introduce an API for controlling peers from other programs.
 
 ## 🛰️ Protocol correctness
 
@@ -24,7 +24,7 @@ Work on the BGP engine itself: route encoding correctness, session robustness, a
 
 ## 🧰 API
 
-A command surface for controlling BGP sessions and routes is taking shape:
+The API is gaining commands to control BGP sessions and routes:
 
 - Session-level commands: status, enable, disable
 - RIB flush/clear commands

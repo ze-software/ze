@@ -51,21 +51,21 @@
 </div>
 <div class="doc-layout">
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
-<li><a href="#choose-the-deployment-shape">Choose the deployment shape</a></li>
+<li><a href="#choose-the-routers-role">Choose the router&#39;s role</a></li>
 <li><a href="#complete-injection-lab">Complete injection lab</a></li>
-<li><a href="#use-an-atomic-window">Use an atomic window</a></li>
+<li><a href="#send-related-rules-together">Send related rules together</a></li>
 <li><a href="#authorisation-and-policy">Authorisation and policy</a></li>
 <li><a href="#verification">Verification</a></li>
 <li><a href="#failure-cases">Failure cases</a></li>
 </ol></details></nav><div class="doc-body">
 <p><strong>RFC completion:</strong> the <a href="../../quality/rfc-compliance/profiles/ddos-flowspec/">DDoS detection and mitigation by sending FlowSpec upstream coverage page</a> shows how much of the RFC work behind this use case is proven by tests.</p>
-<h2 id="choose-the-deployment-shape">Choose the deployment shape</h2>
-<p>Two common shapes are:</p>
+<h2 id="choose-the-routers-role">Choose the router's role</h2>
+<p>The router can take either of these roles:</p>
 <ol>
 <li>A FlowSpec route reflector receives rules from an authorised controller and reflects them to clients.</li>
 <li>A protected router receives FlowSpec and translates accepted rules into local firewall actions.</li>
 </ol>
-<p>The existing <a href="../../guides/flowspec-route-reflector/">FlowSpec route-reflector</a> and <a href="../../guides/flowspec-protected-router/">protected-router</a> guides cover those complete roles. This page focuses on the injection boundary.</p>
+<p>The existing <a href="../../guides/flowspec-route-reflector/">FlowSpec route-reflector</a> and <a href="../../guides/flowspec-protected-router/">protected-router</a> guides cover those complete roles. This page explains how an automation system sends and withdraws rules.</p>
 <h2 id="complete-injection-lab">Complete injection lab</h2>
 <p>The destination peer must negotiate the FlowSpec family. Save this minimal
 sender configuration as <code>flowspec-sender.conf</code>; configure the remote router as
@@ -104,7 +104,7 @@ ze cli -c "show bgp peer flowspec-client capabilities"
 MCP. Confirm the remote router installed the rule, then withdraw the exact NLRI:</p>
 <pre><code class="language-console">ze cli -c "send bgp flowspec-client update text nlri ipv4/flow del destination-ipv4 203.0.113.0/24 protocol tcp destination-port =443"
 </code></pre>
-<h2 id="use-an-atomic-window">Use an atomic window</h2>
+<h2 id="send-related-rules-together">Send related rules together</h2>
 <p>When several rules form one mitigation, stage and inspect them before release:</p>
 <pre><code class="language-console">ze cli -c "request commit start mitigation-42"
 ze cli -c "send bgp flowspec-client update text extended-community [rate-limit:0] nhop self nlri ipv4/flow add destination-ipv4 203.0.113.0/24 protocol tcp destination-port =443"
@@ -122,7 +122,7 @@ review fails. This prevents clients from observing a partial mitigation policy.<
 <li>validate component ranges, actions, and traffic rates;</li>
 <li>reject rules outside the protected address space;</li>
 <li>record the actor and request in the audit trail;</li>
-<li>set an external expiry or withdrawal owner for temporary rules.</li>
+<li>arrange for another service or an operator to withdraw temporary rules when they expire.</li>
 </ul>
 <p>A controller must be able to withdraw every rule it installs. Do not rely on process exit as cleanup.</p>
 <h2 id="verification">Verification</h2>
@@ -160,7 +160,7 @@ ze cli -c "show errors"
                     <h2>Related usage</h2>
                     <a class="page-sidebar-link" href="../../use-cases/">
                         <span class="page-sidebar-link-label">All usage examples</span>
-                        <small>Return to the deployment shapes.</small>
+                        <small>Return to the deployment examples.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../docs/">
                         <span class="page-sidebar-link-label">Documentation hub</span>
@@ -187,7 +187,7 @@ ze cli -c "show errors"
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 00:45 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 02:04 UTC</span>
                 </div>
             </div>
         </footer>

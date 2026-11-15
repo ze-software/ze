@@ -207,7 +207,7 @@ docker run --rm -v ./bird.conf:/etc/bird.conf:ro \
 <!-- source: internal/chaos/orchestrator/cli.go -- --application, --binary flags; internal/chaos/scenario/config_frr.go, config_bird.go -->
 <h3 id="event-logging-and-replay">Event Logging and Replay</h3>
 <pre><code class="language-bash"># Record events
-./le chaos run --event-log run.ndjson --seed 42 | ./bin/ze -
+./le chaos run --pipe --event-log run.ndjson --seed 42 | ./bin/ze -
 
 # Replay a recorded failure
 ./le chaos run --replay run.ndjson
@@ -217,7 +217,7 @@ docker run --rm -v ./bird.conf:/etc/bird.conf:ro \
 </code></pre>
 <!-- source: internal/chaos/orchestrator/subcommand.go -- event logging, replay, shrink modes -->
 <h3 id="property-validation">Property Validation</h3>
-<pre><code class="language-bash">./le chaos run --properties all --convergence-deadline 5s | ./bin/ze -
+<pre><code class="language-bash">./le chaos run --pipe --properties all --convergence-deadline 5s | ./bin/ze -
 ./le chaos run --properties list    # Show available properties
 </code></pre>
 <p>Properties validated:</p>
@@ -313,6 +313,10 @@ ze --chaos-seed 42 --chaos-rate 0.1 config.conf
                         <span class="page-sidebar-link-label">Quickstart</span>
                         <small>Start from a minimal working setup.</small>
                     </a>
+                    <a class="page-sidebar-link" href="../../guides/ai-agent/">
+                        <span class="page-sidebar-link-label">Use Ze with an AI agent</span>
+                        <small>Let Claude Code or Codex drive Ze for you.</small>
+                    </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
                         <small>Install Ze, create the store, and start SSH.</small>
@@ -342,7 +346,7 @@ ze --chaos-seed 42 --chaos-rate 0.1 config.conf
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 02:34 UTC</span>
                 </div>
             </div>
         </footer>

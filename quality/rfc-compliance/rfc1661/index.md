@@ -1,6 +1,6 @@
 # RFC 1661 - The Point-to-Point Protocol (PPP)
 
-PPP LCP. Every requirement this repository extracted from RFC 1661, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+PPP LCP. Every requirement listed for RFC 1661, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,24 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 47 | of 76 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 10 | of 76 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 76 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 76 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 124 | 124 of 199 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-
-### Neutral
-
-measures that are neither good news nor bad
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Gated MUSTs | 76 | of 101 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 76 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 76 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 2 | of 76 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 76 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 76 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Tested both ways | 51 | of 76 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 10 | of 76 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 76 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 76 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Tests shown to detect a fault | 96 | 96 of 211 tests linked to requirements, 0 without a fault test and 28 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -35,97 +22,120 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 17 | of 76 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Declared gap or no test | 13 | of 76 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 
-The 9 counts marked as a part above are the whole of the 76 gated MUSTs: they add up to 76. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Neutral
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+measures that are neither good news nor bad
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Out of scope | 0 | of 76 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 76 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 2 | of 76 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 76 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 76 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+
+### Totals
+
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 76 | of 101 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 76 mandatory requirements: they add up to 76. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | PPP LCP |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 101 |
-| Gated MUST-level | 76 |
+| Mandatory requirements (MUST level) | 76 |
 | Not applicable, so out of scope | 0 |
-| Declared gaps | 17 |
+| Declared gaps | 13 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 199 |
-| Tagged units | 199 |
+| Test tags | 211 |
+| Tests linked to requirements | 211 |
 | Recorded audit verdicts | 58 |
-| Discrimination records | 124 |
+| Fault test records | 124 |
 | Summary | `rfc/short/rfc1661.md` |
-| Requirement shard | `rfc/requirements/rfc1661.md` |
+| Requirement table | `rfc/requirements/rfc1661.md` |
 | RFC text | `rfc/full/rfc1661.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: PPP LCP under L2TP and PPPoE. Ze implements framing, option negotiation, authentication phase selection, restart and termination actions, Code-Reject and Protocol-Reject, and Echo keepalive. The checklist records remaining behavior and evidence gaps; the requirement index binds the tagged tests.
+Included in automatic checks: PPP LCP under L2TP and PPPoE. Ze implements framing, option negotiation, authentication phase selection, restart and termination actions, Code-Reject and Protocol-Reject, and Echo keepalive. The checklist records remaining behavior and evidence gaps; the requirement index binds the tagged tests.
 
-## What the public ledger says
+## Published support status
 
 **Area:** PPP LCP
 
-**Proof:** 43 of 76 MUST proven
+**Proof:** 35 of 76 MUST proven
 
-**Evidence:** interop 4, unit 39
+**Evidence:** interop 4, unit 31
 
-**Unmet:** RFC1661-2-2, RFC1661-3.4-1, RFC1661-3.5-2, RFC1661-3.5-4, RFC1661-3.7-2, RFC1661-4.3-3, RFC1661-4.4-1, RFC1661-4.6-1, RFC1661-4.6-2, RFC1661-4.6-3, RFC1661-4.6-4, RFC1661-5-1, RFC1661-5.3-4, RFC1661-5.7-2, RFC1661-5.9-1, RFC1661-5.9-3, RFC1661-6.5-3
+**Unmet:** RFC1661-2-2, RFC1661-3.4-1, RFC1661-3.5-2, RFC1661-3.5-4, RFC1661-3.7-2, RFC1661-4.3-3, RFC1661-4.4-1, RFC1661-5-1, RFC1661-5.3-4, RFC1661-5.7-2, RFC1661-5.9-1, RFC1661-5.9-3, RFC1661-6.5-3
 
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 47 | one part of the gated population |
-| Annotated (including scoped evidence) | 29 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **76** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 51 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 25 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **76** | every mandatory requirement appears in exactly one group above |
 
-**Positive and negative tests (47):** [`RFC1661-2-1`](#rfc1661-2-1), [`RFC1661-5-2`](#rfc1661-5-2), [`RFC1661-6-2`](#rfc1661-6-2), [`RFC1661-3.1-2`](#rfc1661-3.1-2), [`RFC1661-3.5-1`](#rfc1661-3.5-1), [`RFC1661-3.5-3`](#rfc1661-3.5-3), [`RFC1661-3.6-1`](#rfc1661-3.6-1), [`RFC1661-3.6-3`](#rfc1661-3.6-3), [`RFC1661-4.3-1`](#rfc1661-4.3-1), [`RFC1661-5.1-1`](#rfc1661-5.1-1), [`RFC1661-5.1-2`](#rfc1661-5.1-2), [`RFC1661-5.1-3`](#rfc1661-5.1-3), [`RFC1661-5.2-1`](#rfc1661-5.2-1), [`RFC1661-5.2-2`](#rfc1661-5.2-2), [`RFC1661-5.2-3`](#rfc1661-5.2-3), [`RFC1661-5.2-4`](#rfc1661-5.2-4), [`RFC1661-5.3-1`](#rfc1661-5.3-1), [`RFC1661-5.3-2`](#rfc1661-5.3-2), [`RFC1661-5.3-3`](#rfc1661-5.3-3), [`RFC1661-5.3-5`](#rfc1661-5.3-5), [`RFC1661-5.3-6`](#rfc1661-5.3-6), [`RFC1661-5.3-7`](#rfc1661-5.3-7), [`RFC1661-5.3-8`](#rfc1661-5.3-8), [`RFC1661-5.4-1`](#rfc1661-5.4-1), [`RFC1661-5.4-2`](#rfc1661-5.4-2), [`RFC1661-5.4-3`](#rfc1661-5.4-3), [`RFC1661-5.4-4`](#rfc1661-5.4-4), [`RFC1661-5.4-5`](#rfc1661-5.4-5), [`RFC1661-5.5-1`](#rfc1661-5.5-1), [`RFC1661-5.6-1`](#rfc1661-5.6-1), [`RFC1661-5.6-3`](#rfc1661-5.6-3), [`RFC1661-5.7-1`](#rfc1661-5.7-1), [`RFC1661-5.7-4`](#rfc1661-5.7-4), [`RFC1661-5.8-1`](#rfc1661-5.8-1), [`RFC1661-5.8-2`](#rfc1661-5.8-2), [`RFC1661-6.4-1`](#rfc1661-6.4-1), [`RFC1661-6.4-2`](#rfc1661-6.4-2), [`RFC1661-6.4-3`](#rfc1661-6.4-3), [`RFC1661-4.4-2`](#rfc1661-4.4-2), [`RFC1661-5.5-2`](#rfc1661-5.5-2), [`RFC1661-5.8-4`](#rfc1661-5.8-4), [`RFC1661-5.8-5`](#rfc1661-5.8-5), [`RFC1661-6.1-1`](#rfc1661-6.1-1), [`RFC1661-6.4-5`](#rfc1661-6.4-5), [`RFC1661-6.4-6`](#rfc1661-6.4-6), [`RFC1661-6.4-7`](#rfc1661-6.4-7), [`RFC1661-6.4-8`](#rfc1661-6.4-8)
+**Positive and negative tests (51):** [`RFC1661-2-1`](#rfc1661-2-1), [`RFC1661-5-2`](#rfc1661-5-2), [`RFC1661-6-2`](#rfc1661-6-2), [`RFC1661-3.1-2`](#rfc1661-3.1-2), [`RFC1661-3.5-1`](#rfc1661-3.5-1), [`RFC1661-3.5-3`](#rfc1661-3.5-3), [`RFC1661-3.6-1`](#rfc1661-3.6-1), [`RFC1661-3.6-3`](#rfc1661-3.6-3), [`RFC1661-4.3-1`](#rfc1661-4.3-1), [`RFC1661-5.1-1`](#rfc1661-5.1-1), [`RFC1661-5.1-2`](#rfc1661-5.1-2), [`RFC1661-5.1-3`](#rfc1661-5.1-3), [`RFC1661-5.2-1`](#rfc1661-5.2-1), [`RFC1661-5.2-2`](#rfc1661-5.2-2), [`RFC1661-5.2-3`](#rfc1661-5.2-3), [`RFC1661-5.2-4`](#rfc1661-5.2-4), [`RFC1661-5.3-1`](#rfc1661-5.3-1), [`RFC1661-5.3-2`](#rfc1661-5.3-2), [`RFC1661-5.3-3`](#rfc1661-5.3-3), [`RFC1661-5.3-5`](#rfc1661-5.3-5), [`RFC1661-5.3-6`](#rfc1661-5.3-6), [`RFC1661-5.3-7`](#rfc1661-5.3-7), [`RFC1661-5.3-8`](#rfc1661-5.3-8), [`RFC1661-5.4-1`](#rfc1661-5.4-1), [`RFC1661-5.4-2`](#rfc1661-5.4-2), [`RFC1661-5.4-3`](#rfc1661-5.4-3), [`RFC1661-5.4-4`](#rfc1661-5.4-4), [`RFC1661-5.4-5`](#rfc1661-5.4-5), [`RFC1661-5.5-1`](#rfc1661-5.5-1), [`RFC1661-5.6-1`](#rfc1661-5.6-1), [`RFC1661-5.6-3`](#rfc1661-5.6-3), [`RFC1661-5.7-1`](#rfc1661-5.7-1), [`RFC1661-5.7-4`](#rfc1661-5.7-4), [`RFC1661-5.8-1`](#rfc1661-5.8-1), [`RFC1661-5.8-2`](#rfc1661-5.8-2), [`RFC1661-6.4-1`](#rfc1661-6.4-1), [`RFC1661-6.4-2`](#rfc1661-6.4-2), [`RFC1661-6.4-3`](#rfc1661-6.4-3), [`RFC1661-4.6-1`](#rfc1661-4.6-1), [`RFC1661-4.6-2`](#rfc1661-4.6-2), [`RFC1661-4.6-3`](#rfc1661-4.6-3), [`RFC1661-4.6-4`](#rfc1661-4.6-4), [`RFC1661-4.4-2`](#rfc1661-4.4-2), [`RFC1661-5.5-2`](#rfc1661-5.5-2), [`RFC1661-5.8-4`](#rfc1661-5.8-4), [`RFC1661-5.8-5`](#rfc1661-5.8-5), [`RFC1661-6.1-1`](#rfc1661-6.1-1), [`RFC1661-6.4-5`](#rfc1661-6.4-5), [`RFC1661-6.4-6`](#rfc1661-6.4-6), [`RFC1661-6.4-7`](#rfc1661-6.4-7), [`RFC1661-6.4-8`](#rfc1661-6.4-8)
 
-**Annotated (including scoped evidence) (29):** [`RFC1661-2-2`](#rfc1661-2-2), [`RFC1661-5-1`](#rfc1661-5-1), [`RFC1661-3.1-1`](#rfc1661-3.1-1), [`RFC1661-3.4-1`](#rfc1661-3.4-1), [`RFC1661-3.5-2`](#rfc1661-3.5-2), [`RFC1661-3.5-4`](#rfc1661-3.5-4), [`RFC1661-3.6-2`](#rfc1661-3.6-2), [`RFC1661-3.7-1`](#rfc1661-3.7-1), [`RFC1661-3.7-2`](#rfc1661-3.7-2), [`RFC1661-4.3-2`](#rfc1661-4.3-2), [`RFC1661-4.3-3`](#rfc1661-4.3-3), [`RFC1661-5.3-4`](#rfc1661-5.3-4), [`RFC1661-5.6-2`](#rfc1661-5.6-2), [`RFC1661-5.7-2`](#rfc1661-5.7-2), [`RFC1661-5.7-3`](#rfc1661-5.7-3), [`RFC1661-5.9-1`](#rfc1661-5.9-1), [`RFC1661-5.9-2`](#rfc1661-5.9-2), [`RFC1661-6.2-1`](#rfc1661-6.2-1), [`RFC1661-6.5-1`](#rfc1661-6.5-1), [`RFC1661-6.5-2`](#rfc1661-6.5-2), [`RFC1661-6.5-3`](#rfc1661-6.5-3), [`RFC1661-6.6-1`](#rfc1661-6.6-1), [`RFC1661-6.6-2`](#rfc1661-6.6-2), [`RFC1661-4.6-1`](#rfc1661-4.6-1), [`RFC1661-4.6-2`](#rfc1661-4.6-2), [`RFC1661-4.6-3`](#rfc1661-4.6-3), [`RFC1661-4.6-4`](#rfc1661-4.6-4), [`RFC1661-4.4-1`](#rfc1661-4.4-1), [`RFC1661-5.9-3`](#rfc1661-5.9-3)
+**Annotated (including scoped evidence) (25):** [`RFC1661-2-2`](#rfc1661-2-2), [`RFC1661-5-1`](#rfc1661-5-1), [`RFC1661-3.1-1`](#rfc1661-3.1-1), [`RFC1661-3.4-1`](#rfc1661-3.4-1), [`RFC1661-3.5-2`](#rfc1661-3.5-2), [`RFC1661-3.5-4`](#rfc1661-3.5-4), [`RFC1661-3.6-2`](#rfc1661-3.6-2), [`RFC1661-3.7-1`](#rfc1661-3.7-1), [`RFC1661-3.7-2`](#rfc1661-3.7-2), [`RFC1661-4.3-2`](#rfc1661-4.3-2), [`RFC1661-4.3-3`](#rfc1661-4.3-3), [`RFC1661-5.3-4`](#rfc1661-5.3-4), [`RFC1661-5.6-2`](#rfc1661-5.6-2), [`RFC1661-5.7-2`](#rfc1661-5.7-2), [`RFC1661-5.7-3`](#rfc1661-5.7-3), [`RFC1661-5.9-1`](#rfc1661-5.9-1), [`RFC1661-5.9-2`](#rfc1661-5.9-2), [`RFC1661-6.2-1`](#rfc1661-6.2-1), [`RFC1661-6.5-1`](#rfc1661-6.5-1), [`RFC1661-6.5-2`](#rfc1661-6.5-2), [`RFC1661-6.5-3`](#rfc1661-6.5-3), [`RFC1661-6.6-1`](#rfc1661-6.6-1), [`RFC1661-6.6-2`](#rfc1661-6.6-2), [`RFC1661-4.4-1`](#rfc1661-4.4-1), [`RFC1661-5.9-3`](#rfc1661-5.9-3)
 
 ## Figures
 
-- **MUST bar**: Ze proven 43, OS testing gap 2, Ze correctness gap 31
-- **Overview bar**: Ze MUST proven 43, SHOULD proven 2, SHOULD not decided 23, OS testing gap 2, Ze correctness gap 31
+- **MUST bar**: Ze proven 35, Proof pending 26, OS testing gap 2, Not built 13
+- **Overview bar**: Ze MUST proven 35, SHOULD proven 2, Proof pending 27, OS testing gap 2, Not assessed 22, Not built 13
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 76 |
 | MUST rows kept (the MUST bar) | 76 |
-| Ze proven | 43 |
+| Ze proven | 35 |
 | OS verified | 0 |
+| Proof pending | 26 |
 | OS testing gap | 2 |
-| Ze correctness gap | 31 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 13 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -138,11 +148,12 @@ Enrolled: PPP LCP under L2TP and PPPoE. Ze implements framing, option negotiatio
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 23 |
+| SHOULD proof pending | 1 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 22 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc1661.json](../../../data/rfc/rfc1661.json).
 
@@ -150,78 +161,78 @@ Source: [data/rfc/rfc1661.json](../../../data/rfc/rfc1661.json).
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC1661-2-1` | All Protocols MUST be odd; the least significant bit of the least significant octet MUST equal "1".  Also, all Protocols MUST be assigned such that the least significant bit of the most significant octet equals "0".  Frames received which don't comply with these rules MUST be treated as having an unrecognized Protocol. (§2) | MUST | 2 | **positive:** `unit/verify` [`TestRFC1661CompliantProtocolRecognized`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L238). **positive:** `unit/verify` [`TestRFC1661ProtocolWithOddHighOctetTreatedUnrecognized`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L48). **negative:** `unit/verify` [`TestRFC1661NonCompliantProtocolTreatedUnrecognized`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L203). **negative:** `unit/verify` [`TestRFC1661ProtocolWithOddHighOctetTreatedUnrecognized`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L49) |
+| `RFC1661-2-1` | All Protocols MUST be odd; the least significant bit of the least significant octet MUST equal "1".  Also, all Protocols MUST be assigned such that the least significant bit of the most significant octet equals "0".  Frames received which don't comply with these rules MUST be treated as having an unrecognized Protocol. (§2) | MUST | 2 | **positive:** `unit/verify` [`TestRFC1661CompliantProtocolRecognized`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L239). **positive:** `unit/verify` [`TestRFC1661ProtocolWithOddHighOctetTreatedUnrecognized`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L48). **negative:** `unit/verify` [`TestRFC1661NonCompliantProtocolTreatedUnrecognized`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L204). **negative:** `unit/verify` [`TestRFC1661ProtocolWithOddHighOctetTreatedUnrecognized`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L49) |
 | `RFC1661-2-2` | The maximum length for the Information field, including Padding, but not including the Protocol field, is termed the Maximum Receive Unit (MRU), which defaults to 1500 octets. (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** getFrameBuf in internal/component/l2tp/ppp/session_run.go supplies MaxFrameBufLen bytes, enough for 1500 Information octets and the Protocol field. sendProtocolReject and writeCodeReject clamp to the peer MRU, but sendEchoReply (BuildLCPEchoReply in internal/component/l2tp/ppp/echo.go) echoes the request's Data with no clamp, so a peer whose Echo-Request is longer than its own established MRU draws an Echo-Reply that exceeds it. Disclosed in docs/features/rfc-status.md |
 | `RFC1661-5-1` | The Length MUST NOT exceed the MRU of the link. (§5) | MUST NOT | 5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** WriteLCPPacket in internal/component/l2tp/ppp/lcp.go backfills the packet length from its supplied payload; sendCodeReject in internal/component/l2tp/ppp/session_run.go bounds that payload by the default-sized Information field rather than a smaller negotiatedMRU. Protocol-Reject has a separate peer-MRU clamp. Disclosed in docs/features/rfc-status.md |
 | `RFC1661-5-2` | When a packet is received with an invalid Length field, the packet is silently discarded without affecting the automaton. (§5) | MUST | 5 | **positive:** `unit/verify` [`TestIPCPFrameRejectsNonSinglePacket`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/frame_test.go#L188). **positive:** `unit/verify` [`TestRFC1661InvalidLengthPacketSilentlyDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_packet_length_test.go#L36). **negative:** `unit/verify` [`TestRFC1661ValidLengthWithPaddingIsAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_packet_length_test.go#L77) |
 | `RFC1661-6-1` | If a negotiable Configuration Option is received in a Configure- Request, but with an invalid or unrecognized Length, a Configure- Nak SHOULD be transmitted which includes the desired Configuration Option with an appropriate Length and Data. (§6) | SHOULD | 6 | **positive:** `unit/verify` [`TestRFC1661ClientInvalidOptionLengthDrawsNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go#L166). **positive:** `unit/verify` [`TestRFC1661InvalidOptionLengthDrawsNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L154). **positive:** `unit/verify` [`TestRFC1661LCPInvalidOptionLengthDrawsNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L318). **positive:** `unit/verify` [`TestRFC1661LCPWrongLengthMagicIsNakedNotRejected`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L404). **positive:** `unit/verify` [`TestRFC1661ReplyListsEachOptionTypeOnce`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L744). **negative:** `unit/verify` [`TestRFC1661ClientInvalidOptionLengthDrawsNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go#L172). **negative:** `unit/verify` [`TestRFC1661InvalidOptionLengthDrawsNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L159). **negative:** `unit/verify` [`TestRFC1661LCPInvalidOptionLengthDrawsNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L325). **negative:** `unit/verify` [`TestRFC1661LCPUnrecognizedTypeOutranksInvalidLength`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L465). **negative:** `unit/verify` [`TestRFC1661LCPWrongLengthMagicIsNakedNotRejected`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L408). **negative:** `unit/verify` [`TestRFC1661ReplyListsEachOptionTypeOnce`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L748) |
 | `RFC1661-6-2` | When the Data field is indicated by the Length to extend beyond the end of the Information field, the entire packet is silently discarded without affecting the automaton. (§6) | MUST | 6 | **positive:** `unit/verify` [`TestRFC1661ClientRequestPastEndSilentlyDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go#L122). **positive:** `unit/verify` [`TestRFC1661LCPReplyWithOptionsPastEndDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L584). **positive:** `unit/verify` [`TestRFC1661LCPTruncatedOptionSilentlyDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L236). **positive:** `unit/verify` [`TestRFC1661NCPReplyWithOptionsPastEndDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L675). **positive:** `unit/verify` [`TestRFC1661TruncatedOptionSilentlyDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L75). **negative:** `unit/verify` [`TestRFC1661ClientRequestPastEndSilentlyDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go#L129). **negative:** `unit/verify` [`TestRFC1661LCPReplyWithOptionsPastEndDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L590). **negative:** `unit/verify` [`TestRFC1661LCPTruncatedOptionSilentlyDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L243). **negative:** `unit/verify` [`TestRFC1661NCPReplyWithOptionsPastEndDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L680). **negative:** `unit/verify` [`TestRFC1661TruncatedOptionSilentlyDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L81) |
 | `RFC1661-3.1-1` | In order to establish communications over a point-to-point link, each end of the PPP link MUST first send LCP packets to configure and test the data link. (Section 3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestRFC1661RunSendsLCPBeforeAnyOtherProtocol`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L51). **negative:** no negative test. **{single-polarity}:** run (internal/component/l2tp/ppp/session_run.go:182-197) drives the synthetic Initial->Closed->ReqSent sequence whose scr action puts an LCP Configure-Request on the wire before any other traffic, and the sole branch that skips it is the RFC 2661 Section 4.4.5 proxy-LCP path where the LAC has already run LCP and the LNS policy is `proxy-lcp accept` (under `proxy-lcp renegotiate` the scr runs as for any session), so there is no case in which ze opens a link with LCP packets unsent |
-| `RFC1661-3.1-2` | Then, PPP MUST send NCP packets to choose and configure one or more network-layer protocols. (Section 3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestRFC1661NCPConfiguresEachFamilySeparately`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L331). **positive:** `unit/verify` [`TestRFC1661RunSendsNCPAfterLCPOpens`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L66). **negative:** `unit/verify` [`TestRFC1661NoNCPPacketsWhenNoNetworkProtocol`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L370) |
+| `RFC1661-3.1-2` | Then, PPP MUST send NCP packets to choose and configure one or more network-layer protocols. (Section 3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestRFC1661NCPConfiguresEachFamilySeparately`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L332). **positive:** `unit/verify` [`TestRFC1661RunSendsNCPAfterLCPOpens`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L66). **negative:** `unit/verify` [`TestRFC1661NoNCPPacketsWhenNoNetworkProtocol`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L371) |
 | `RFC1661-3.4-1` | Any non-LCP packets received during this phase MUST be silently discarded. (Section 3.4) | MUST | 3.4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** handleFrame in internal/component/l2tp/ppp/session_run.go now discards IPCP/IPv6CP before the current authenticated LCP lifetime is admitted. Bounded phase and lifetime tests exist; complete proof across all protocol types remains open. |
-| `RFC1661-3.5-1` | If an implementation desires that the peer authenticate with some specific authentication protocol, then it MUST request the use of that authentication protocol during Link Establishment phase. (Section 3.5) | MUST | 3.5 | **positive:** `unit/verify` [`TestRFC1661AuthProtocolRequestedDuringEstablishment`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L442). **negative:** `unit/verify` [`TestRFC1661NoAuthProtocolWhenNotDesired`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L473) |
+| `RFC1661-3.5-1` | If an implementation desires that the peer authenticate with some specific authentication protocol, then it MUST request the use of that authentication protocol during Link Establishment phase. (Section 3.5) | MUST | 3.5 | **positive:** `unit/verify` [`TestRFC1661AuthProtocolRequestedDuringEstablishment`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L443). **negative:** `unit/verify` [`TestRFC1661NoAuthProtocolWhenNotDesired`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L474) |
 | `RFC1661-3.5-2` | An implementation MUST NOT allow the exchange of link quality determination packets to delay authentication indefinitely. (Section 3.5) | MUST NOT | 3.5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** gap in proof: internal/component/l2tp/ppp/lcp_options.go::negotiatePeerOption meets it, because it Configure-Rejects the Quality-Protocol option (type 4) as an unknown type, so ze exchanges no link quality determination packet that could delay authentication; no test asserts it |
-| `RFC1661-3.5-3` | Advancement from the Authentication phase to the Network-Layer Protocol phase MUST NOT occur until authentication has completed. (Section 3.5) | MUST NOT | 3.5 | **positive:** `unit/verify` [`TestRFC1661NoNetworkPhaseBeforeAuthenticationCompletes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L85). **positive:** `unit/verify` [`TestRFC1661NoNetworkPhaseUntilAuthCompletes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L500). **negative:** `unit/verify` [`TestRFC1661NetworkPhaseRunsAfterAuthCompletes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L532). **negative:** `unit/verify` [`TestRFC1661NoNetworkPhaseBeforeAuthenticationCompletes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L84) |
+| `RFC1661-3.5-3` | Advancement from the Authentication phase to the Network-Layer Protocol phase MUST NOT occur until authentication has completed. (Section 3.5) | MUST NOT | 3.5 | **positive:** `unit/verify` [`TestRFC1661NoNetworkPhaseBeforeAuthenticationCompletes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L85). **positive:** `unit/verify` [`TestRFC1661NoNetworkPhaseUntilAuthCompletes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L501). **negative:** `unit/verify` [`TestRFC1661NetworkPhaseRunsAfterAuthCompletes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L533). **negative:** `unit/verify` [`TestRFC1661NoNetworkPhaseBeforeAuthenticationCompletes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L84) |
 | `RFC1661-3.5-4` | All other packets received during this phase MUST be silently discarded. (Section 3.5) | MUST | 3.5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** handleFrame in internal/component/l2tp/ppp/session_run.go now discards IPCP/IPv6CP before authentication completes rather than retaining early frames. Bounded phase and lifetime tests exist; complete proof across all protocol types remains open. |
-| `RFC1661-3.6-1` | Once PPP has finished the previous phases, each network-layer protocol (such as IP, IPX, or AppleTalk) MUST be separately configured by the appropriate Network Control Protocol (NCP). (Section 3.6) | MUST | 3.6 | **positive:** `unit/verify` [`TestRFC1661NCPConfiguresEachFamilySeparately`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L335). **negative:** `unit/verify` [`TestRFC1661NCPStatesAreIndependent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L387) |
-| `RFC1661-3.6-2` | Any supported network-layer protocol packets received when the corresponding NCP is not in the Opened state MUST be silently discarded. (Section 3.6) | MUST | 3.6 | **positive:** `unit/verify` [`TestDialRenegotiatesLCPInNetworkPhase`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc1661_pppoe_packets_integration_linux_test.go#L29). **positive:** `unit/verify` [`TestRFC1661NetworkLayerPacketDiscardedBeforeNCPOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L406). **negative:** no negative test. **{single-polarity}:** handleFrame (internal/component/l2tp/ppp/session_run.go) dispatches only the three control protocols, and rejectUnsupportedProtocol discards an IPv4 (0x0021) or IPv6 (0x0057) frame whose NCP ze supports in every NCP state, so no state exists in which a network-layer packet is processed in userspace and there is no accepting counterpart to assert |
+| `RFC1661-3.6-1` | Once PPP has finished the previous phases, each network-layer protocol (such as IP, IPX, or AppleTalk) MUST be separately configured by the appropriate Network Control Protocol (NCP). (Section 3.6) | MUST | 3.6 | **positive:** `unit/verify` [`TestRFC1661NCPConfiguresEachFamilySeparately`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L336). **negative:** `unit/verify` [`TestRFC1661NCPStatesAreIndependent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L388) |
+| `RFC1661-3.6-2` | Any supported network-layer protocol packets received when the corresponding NCP is not in the Opened state MUST be silently discarded. (Section 3.6) | MUST | 3.6 | **positive:** `unit/verify` [`TestDialRenegotiatesLCPInNetworkPhase`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc1661_pppoe_packets_integration_linux_test.go#L29). **positive:** `unit/verify` [`TestRFC1661NetworkLayerPacketDiscardedBeforeNCPOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L407). **negative:** no negative test. **{single-polarity}:** handleFrame (internal/component/l2tp/ppp/session_run.go) dispatches only the three control protocols, and rejectUnsupportedProtocol discards an IPv4 (0x0021) or IPv6 (0x0057) frame whose NCP ze supports in every NCP state, so no state exists in which a network-layer packet is processed in userspace and there is no accepting counterpart to assert |
 | `RFC1661-3.6-3` | While LCP is in the Opened state, any protocol packet which is unsupported by the implementation MUST be returned in a Protocol- Reject (described later). (Section 3.6) | MUST | 3.6 | **positive:** `unit/verify` [`TestRFC1661UnsupportedProtocolRejectedInOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go#L46). **negative:** `unit/verify` [`TestRFC1661UnsupportedProtocolNotRejectedBeforeOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go#L93) |
-| `RFC1661-3.7-1` | The receiver of a Terminate-Request SHOULD wait for the peer to disconnect, and MUST NOT disconnect until at least one Restart time has passed after sending a Terminate-Ack. (§3.7) | MUST NOT | 3.7 | **positive:** `unit/verify` [`TestRFC1661TerminateAckHoldsLinkForRestartTime`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L372). **positive:** `unit/verify` [`TestRFC1661TerminateAckSentAndLinkHeld`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L564). **negative:** no negative test. **{single-polarity}:** the Opened+RTR edge (internal/component/l2tp/ppp/ppp_fsm.go:393-394) lands in Stopping and handleLCPPacket emits EventSessionDown only for Closed or Stopped (internal/component/l2tp/ppp/session_run.go), so after sending a Terminate-Ack ze holds the link; there is no early-disconnect branch to assert |
+| `RFC1661-3.7-1` | The receiver of a Terminate-Request SHOULD wait for the peer to disconnect, and MUST NOT disconnect until at least one Restart time has passed after sending a Terminate-Ack. (§3.7) | MUST NOT | 3.7 | **positive:** `unit/verify` [`TestRFC1661TerminateAckHoldsLinkForRestartTime`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L372). **positive:** `unit/verify` [`TestRFC1661TerminateAckSentAndLinkHeld`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L565). **negative:** no negative test. **{single-polarity}:** the Opened+RTR edge (internal/component/l2tp/ppp/ppp_fsm.go:393-394) lands in Stopping and handleLCPPacket emits EventSessionDown only for Closed or Stopped (internal/component/l2tp/ppp/session_run.go), so after sending a Terminate-Ack ze holds the link; there is no early-disconnect branch to assert |
 | `RFC1661-3.7-2` | Any non-LCP packets received during this phase MUST be silently discarded. (Section 3.7) | MUST | 3.7 | **positive:** no positive test. **negative:** no negative test. **{gap}:** handleFrame and performAction in internal/component/l2tp/ppp/session_run.go now gate NCP on the current LCP lifetime and clear admission when that lifetime ends. Bounded lifecycle tests exist; complete requirement-level proof remains open. |
-| `RFC1661-4.3-1` | The implementation MUST be prepared to immediately renegotiate the Configuration Options. (Section 4.3) | MUST | 4.3 | **positive:** `unit/verify` [`TestRFC1661ClientRenegotiatesLCPDuringAuth`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go#L126). **positive:** `unit/verify` [`TestRFC1661ClientRenegotiatesLCPDuringIPCP`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go#L189). **positive:** `unit/verify` [`TestRFC1661ClientRenegotiatesLCPInNetworkPhase`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go#L197). **positive:** `unit/verify` [`TestRFC1661ConfigureRequestInOpenedRenegotiates`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L216). **positive:** `unit/verify` [`TestRFC1661RenegotiateOnConfigureRequestInOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L624). **negative:** `unit/verify` [`TestRFC1661EchoDoesNotRenegotiate`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L657) |
-| `RFC1661-4.3-2` | The implementation MUST be prepared to receive a new Configure-Request without network administrator intervention. (Section 4.3) | MUST | 4.3 | **positive:** `unit/verify` [`TestRFC1661NewConfigureRequestAcceptedAfterTerminateRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L677). **positive:** `unit/verify` [`TestRFC1661StoppedAfterPeerTerminateTakesNewConfigureRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L257). **negative:** no negative test. **{single-polarity}:** every post-RTR state in LCPDoTransition accepts a fresh RCR+ (internal/component/l2tp/ppp/ppp_fsm.go:295-296, :327-328, :359-360) and no code path consults an administrative flag before doing so, so there is no refusing counterpart to assert |
+| `RFC1661-4.3-1` | The implementation MUST be prepared to immediately renegotiate the Configuration Options. (Section 4.3) | MUST | 4.3 | **positive:** `unit/verify` [`TestRFC1661ClientRenegotiatesLCPDuringAuth`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go#L126). **positive:** `unit/verify` [`TestRFC1661ClientRenegotiatesLCPDuringIPCP`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go#L189). **positive:** `unit/verify` [`TestRFC1661ClientRenegotiatesLCPInNetworkPhase`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go#L197). **positive:** `unit/verify` [`TestRFC1661ConfigureRequestInOpenedRenegotiates`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L216). **positive:** `unit/verify` [`TestRFC1661RenegotiateOnConfigureRequestInOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L625). **negative:** `unit/verify` [`TestRFC1661EchoDoesNotRenegotiate`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L658) |
+| `RFC1661-4.3-2` | The implementation MUST be prepared to receive a new Configure-Request without network administrator intervention. (Section 4.3) | MUST | 4.3 | **positive:** `unit/verify` [`TestRFC1661NewConfigureRequestAcceptedAfterTerminateRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L678). **positive:** `unit/verify` [`TestRFC1661StoppedAfterPeerTerminateTakesNewConfigureRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L257). **negative:** no negative test. **{single-polarity}:** every post-RTR state in LCPDoTransition accepts a fresh RCR+ (internal/component/l2tp/ppp/ppp_fsm.go:295-296, :327-328, :359-360) and no code path consults an administrative flag before doing so, so there is no refusing counterpart to assert |
 | `RFC1661-4.3-3` | The implementation MUST stop sending the offending packet type. (Section 4.3) | MUST | 4.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** codeToEvent and handleLCPPacket in internal/component/l2tp/ppp/session_run.go handle received rejects without retaining an offending-code suppression set. The Opened RXJ+ transition can send an Echo-Reply; it does not prevent later transmission of the rejected packet type. |
-| `RFC1661-5.1-1` | An implementation wishing to open a connection MUST transmit a Configure-Request. (Section 5.1) | MUST | 5.1 | **positive:** `unit/verify` [`TestRFC1661OpenTransmitsConfigureRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L703). **positive:** `unit/verify` [`TestRFC1661OpenTransmitsConfigureRequestOnWire`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L420). **negative:** `unit/verify` [`TestRFC1661OpenTransmitsConfigureRequestOnWire`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L421). **negative:** `unit/verify` [`TestRFC1661UpWithoutOpenSendsNoConfigureRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L734) |
-| `RFC1661-5.1-2` | Upon reception of a Configure-Request, an appropriate reply MUST be transmitted. (Section 5.1) | MUST | 5.1 | **positive:** `unit/verify` [`TestRFC1661ConfigureAckEchoesOptionsVerbatim`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L752). **negative:** `unit/verify` [`TestRFC1661ConfigureRejectForUnrecognizedOption`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L816) |
+| `RFC1661-5.1-1` | An implementation wishing to open a connection MUST transmit a Configure-Request. (Section 5.1) | MUST | 5.1 | **positive:** `unit/verify` [`TestRFC1661OpenTransmitsConfigureRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L704). **positive:** `unit/verify` [`TestRFC1661OpenTransmitsConfigureRequestOnWire`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L420). **negative:** `unit/verify` [`TestRFC1661OpenTransmitsConfigureRequestOnWire`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L421). **negative:** `unit/verify` [`TestRFC1661UpWithoutOpenSendsNoConfigureRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L735) |
+| `RFC1661-5.1-2` | Upon reception of a Configure-Request, an appropriate reply MUST be transmitted. (Section 5.1) | MUST | 5.1 | **positive:** `unit/verify` [`TestRFC1661ConfigureAckEchoesOptionsVerbatim`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L753). **negative:** `unit/verify` [`TestRFC1661ConfigureRejectForUnrecognizedOption`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L817) |
 | `RFC1661-5.1-3` | The Identifier field MUST be changed whenever the contents of the Options field changes, and whenever a valid reply has been received for a previous request. (Section 5.1) | MUST | 5.1 | **positive:** `unit/verify` [`TestClientLCPRejectRemovesOnlyRejectedOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L80). **positive:** `unit/verify` [`TestLCPConfigureRequestIdentifierLifecycle`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L492). **negative:** `unit/verify` [`TestClientLCPNakChangesIdentifierAndDropsStaleReply`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L146). **negative:** `unit/verify` [`TestLCPConfigureRequestIdentifierLifecycle`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L493) |
-| `RFC1661-5.2-1` | If every Configuration Option received in a Configure-Request is recognizable and all values are acceptable, then the implementation MUST transmit a Configure-Ack. (Section 5.2) | MUST | 5.2 | **positive:** `unit/verify` [`TestRFC1661ConfigureAckEchoesOptionsVerbatim`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L756). **negative:** `unit/verify` [`TestRFC1661ConfigureRejectForUnrecognizedOption`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L820). **negative:** `unit/verify` [`TestRFC1877ConfigureAckEchoesAcceptable`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_dns_options_test.go#L18) |
-| `RFC1661-5.2-2` | The acknowledged Configuration Options MUST NOT be reordered or modified in any way. (§5.2) | MUST NOT | 5.2 | **positive:** `unit/verify` [`TestRFC1661ConfigureAckEchoesOptionsVerbatim`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L759). **positive:** `unit/verify` [`TestRFC1877ConfigureAckEchoesAcceptable`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_dns_options_test.go#L14). **negative:** `unit/verify` [`TestRFC1661ConfigureAckDoesNotReorderOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L785) |
+| `RFC1661-5.2-1` | If every Configuration Option received in a Configure-Request is recognizable and all values are acceptable, then the implementation MUST transmit a Configure-Ack. (Section 5.2) | MUST | 5.2 | **positive:** `unit/verify` [`TestRFC1661ConfigureAckEchoesOptionsVerbatim`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L757). **negative:** `unit/verify` [`TestRFC1661ConfigureRejectForUnrecognizedOption`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L821). **negative:** `unit/verify` [`TestRFC1877ConfigureAckEchoesAcceptable`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_dns_options_test.go#L18) |
+| `RFC1661-5.2-2` | The acknowledged Configuration Options MUST NOT be reordered or modified in any way. (§5.2) | MUST NOT | 5.2 | **positive:** `unit/verify` [`TestRFC1661ConfigureAckEchoesOptionsVerbatim`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L760). **positive:** `unit/verify` [`TestRFC1877ConfigureAckEchoesAcceptable`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_dns_options_test.go#L14). **negative:** `unit/verify` [`TestRFC1661ConfigureAckDoesNotReorderOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L786) |
 | `RFC1661-5.2-3` | On reception of a Configure-Ack, the Identifier field MUST match that of the last transmitted Configure-Request. (Section 5.2) | MUST | 5.2 | **positive:** `unit/verify` [`TestClientLCPReplyCorrelation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L18). **positive:** `unit/verify` [`TestLCPRepliesMatchOutstandingRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L399). **negative:** `unit/verify` [`TestClientLCPReplyCorrelation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L19). **negative:** `unit/verify` [`TestLCPRepliesMatchOutstandingRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L400) |
 | `RFC1661-5.2-4` | Additionally, the Configuration Options in a Configure-Ack MUST exactly match those of the last transmitted Configure-Request. (Section 5.2) | MUST | 5.2 | **positive:** `unit/verify` [`TestClientLCPReplyCorrelation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L20). **positive:** `unit/verify` [`TestLCPRepliesMatchOutstandingRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L401). **negative:** `unit/verify` [`TestClientLCPReplyCorrelation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L21). **negative:** `unit/verify` [`TestLCPRepliesMatchOutstandingRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L402) |
-| `RFC1661-5.3-1` | If every instance of the received Configuration Options is recognizable, but some values are not acceptable, then the implementation MUST transmit a Configure-Nak. (§5.3) | MUST | 5.3 | **positive:** `unit/verify` [`TestRFC1661ConfigureNakSuggestsAcceptableValue`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L906). **negative:** `unit/verify` [`TestRFC1661NoNakForAcceptableValue`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L941) |
-| `RFC1661-5.3-2` | Options which have no value fields (boolean options) MUST use the Configure-Reject reply instead. (Section 5.3) | MUST | 5.3 | **positive:** `unit/verify` [`TestRFC1661BooleanOptionsUseRejectNotNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L971). **positive:** `unit/verify` [`TestRFC1661WellFormedBooleanDeclinedWithReject`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L92). **negative:** `unit/verify` [`TestRFC1661ValuedOptionUsesNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L993). **negative:** `unit/verify` [`TestRFC1661WellFormedBooleanDeclinedWithReject`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L93) |
-| `RFC1661-5.3-3` | Each Configuration Option which is allowed only a single instance MUST be modified to a value acceptable to the Configure-Nak sender. (Section 5.3) | MUST | 5.3 | **positive:** `unit/verify` [`TestRFC1661ConfigureNakSuggestsAcceptableValue`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L910). **positive:** `unit/verify` [`TestRFC1661RepeatedOptionDrawsOneNakEntry`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L345). **negative:** `unit/verify` [`TestRFC1661NoNakForAcceptableValue`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L944) |
+| `RFC1661-5.3-1` | If every instance of the received Configuration Options is recognizable, but some values are not acceptable, then the implementation MUST transmit a Configure-Nak. (§5.3) | MUST | 5.3 | **positive:** `unit/verify` [`TestRFC1661ConfigureNakSuggestsAcceptableValue`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L907). **negative:** `unit/verify` [`TestRFC1661NoNakForAcceptableValue`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L942) |
+| `RFC1661-5.3-2` | Options which have no value fields (boolean options) MUST use the Configure-Reject reply instead. (Section 5.3) | MUST | 5.3 | **positive:** `unit/verify` [`TestRFC1661BooleanOptionsUseRejectNotNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L972). **positive:** `unit/verify` [`TestRFC1661WellFormedBooleanDeclinedWithReject`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L92). **negative:** `unit/verify` [`TestRFC1661ValuedOptionUsesNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L994). **negative:** `unit/verify` [`TestRFC1661WellFormedBooleanDeclinedWithReject`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L93) |
+| `RFC1661-5.3-3` | Each Configuration Option which is allowed only a single instance MUST be modified to a value acceptable to the Configure-Nak sender. (Section 5.3) | MUST | 5.3 | **positive:** `unit/verify` [`TestRFC1661ConfigureNakSuggestsAcceptableValue`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L911). **positive:** `unit/verify` [`TestRFC1661RepeatedOptionDrawsOneNakEntry`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L345). **negative:** `unit/verify` [`TestRFC1661NoNakForAcceptableValue`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L945) |
 | `RFC1661-5.3-4` | When a particular type of Configuration Option can be listed more than once with different values, the Configure-Nak MUST include a list of all values for that option which are acceptable to the Configure-Nak sender. (Section 5.3) | MUST | 5.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** gap in proof: the condition never holds for ze, because RFC 1661 Section 6 lists no Configuration Option that can be listed more than once and ze negotiates only types 1, 2, 3, 5, 7 and 8 (internal/component/l2tp/ppp/lcp_options.go::negotiatePeerOption); no test asserts that no input yields a multi-value Configure-Nak |
-| `RFC1661-5.3-5` | Any value fields for the option MUST indicate values acceptable to the Configure-Nak sender. (Section 5.3) | MUST | 5.3 | **positive:** `unit/verify` [`TestRFC1661NakValueIsAcceptable`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1010). **negative:** `unit/verify` [`TestRFC1661RejectedValueStaysUnacceptable`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1032) |
-| `RFC1661-5.3-6` | All acceptable Configuration Options are filtered out of the Configure-Nak, but otherwise the Configuration Options from the Configure-Request MUST NOT be reordered. (§5.3) | MUST NOT | 5.3 | **positive:** `unit/verify` [`TestRFC1661NakFiltersAcceptableOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L138). **positive:** `unit/verify` [`TestRFC1661NakPreservesRequestOrder`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1049). **negative:** `unit/verify` [`TestRFC1661NakFiltersAcceptableOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L139). **negative:** `unit/verify` [`TestRFC1661NakOrderFollowsRequestNotAFixedOrder`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1077) |
+| `RFC1661-5.3-5` | Any value fields for the option MUST indicate values acceptable to the Configure-Nak sender. (Section 5.3) | MUST | 5.3 | **positive:** `unit/verify` [`TestRFC1661NakValueIsAcceptable`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1011). **negative:** `unit/verify` [`TestRFC1661RejectedValueStaysUnacceptable`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1033) |
+| `RFC1661-5.3-6` | All acceptable Configuration Options are filtered out of the Configure-Nak, but otherwise the Configuration Options from the Configure-Request MUST NOT be reordered. (§5.3) | MUST NOT | 5.3 | **positive:** `unit/verify` [`TestRFC1661NakFiltersAcceptableOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L138). **positive:** `unit/verify` [`TestRFC1661NakPreservesRequestOrder`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1050). **negative:** `unit/verify` [`TestRFC1661NakFiltersAcceptableOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L139). **negative:** `unit/verify` [`TestRFC1661NakOrderFollowsRequestNotAFixedOrder`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1078) |
 | `RFC1661-5.3-7` | On reception of a Configure-Nak, the Identifier field MUST match that of the last transmitted Configure-Request. (Section 5.3) | MUST | 5.3 | **positive:** `unit/verify` [`TestClientLCPNakChangesIdentifierAndDropsStaleReply`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L145). **positive:** `unit/verify` [`TestLCPRepliesMatchOutstandingRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L403). **negative:** `unit/verify` [`TestClientLCPReplyCorrelation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L22). **negative:** `unit/verify` [`TestLCPRepliesMatchOutstandingRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L404) |
-| `RFC1661-5.3-8` | Since the Nak'd Option has been modified by the peer, the implementation MUST be able to handle an Option length which is different from the original Configure-Request. (Section 5.3) | MUST | 5.3 | **positive:** `unit/verify` [`TestRFC1661NakHandlesDifferentOptionLength`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1098). **negative:** `unit/verify` [`TestRFC1661NakTooShortOptionNotDecoded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1122) |
-| `RFC1661-5.4-1` | If some Configuration Options received in a Configure-Request are not recognizable or are not acceptable for negotiation (as configured by a network administrator), then the implementation MUST transmit a Configure-Reject. (Section 5.4) | MUST | 5.4 | **positive:** `unit/verify` [`TestRFC1661ClientUnrecognizedTypeOutranksInvalidLength`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go#L215). **positive:** `unit/verify` [`TestRFC1661ConfigureRejectForOptionRefusedByConfiguration`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L169). **positive:** `unit/verify` [`TestRFC1661ConfigureRejectForUnrecognizedOption`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L823). **positive:** `unit/verify` [`TestRFC1661LCPUnrecognizedTypeOutranksInvalidLength`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L459). **positive:** `unit/verify` [`TestRFC1661NCPUnrecognizedTypeOutranksInvalidLength`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L526). **negative:** `unit/verify` [`TestRFC1661ClientAcceptsServerAuthProtocol`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go#L372). **negative:** `unit/verify` [`TestRFC1661ClientUnrecognizedTypeOutranksInvalidLength`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go#L220). **negative:** `unit/verify` [`TestRFC1661ConfigureRejectForOptionRefusedByConfiguration`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L170). **negative:** `unit/verify` [`TestRFC1661NCPUnrecognizedTypeOutranksInvalidLength`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L531). **negative:** `unit/verify` [`TestRFC1661NoConfigureRejectWhenAllOptionsRecognized`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L854). **negative:** `unit/verify` [`TestRFC1877ConfigureRejectEchoesUnsupportedOnly`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_dns_options_test.go#L70) |
-| `RFC1661-5.4-2` | All recognizable and negotiable Configuration Options are filtered out of the Configure-Reject, but otherwise the Configuration Options MUST NOT be reordered or modified in any way. (§5.4) | MUST NOT | 5.4 | **positive:** `unit/verify` [`TestRFC1661ClientRejectEchoesTheRefusedOptionUnmodified`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go#L251). **positive:** `unit/verify` [`TestRFC1661ConfigureRejectForUnrecognizedOption`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L826). **positive:** `unit/verify` [`TestRFC1661LCPRejectEchoesTheRefusedOptionUnmodified`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L828). **positive:** `unit/verify` [`TestRFC1877ConfigureRejectEchoesUnsupportedOnly`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_dns_options_test.go#L67). **negative:** `unit/verify` [`TestRFC1661ClientRejectEchoesTheRefusedOptionUnmodified`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go#L263). **negative:** `unit/verify` [`TestRFC1661ConfigureRejectDoesNotReorderOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L872). **negative:** `unit/verify` [`TestRFC1661LCPRejectEchoesTheRefusedOptionUnmodified`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L839) |
+| `RFC1661-5.3-8` | Since the Nak'd Option has been modified by the peer, the implementation MUST be able to handle an Option length which is different from the original Configure-Request. (Section 5.3) | MUST | 5.3 | **positive:** `unit/verify` [`TestRFC1661NakHandlesDifferentOptionLength`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1099). **negative:** `unit/verify` [`TestRFC1661NakTooShortOptionNotDecoded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1123) |
+| `RFC1661-5.4-1` | If some Configuration Options received in a Configure-Request are not recognizable or are not acceptable for negotiation (as configured by a network administrator), then the implementation MUST transmit a Configure-Reject. (Section 5.4) | MUST | 5.4 | **positive:** `unit/verify` [`TestRFC1661ClientUnrecognizedTypeOutranksInvalidLength`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go#L215). **positive:** `unit/verify` [`TestRFC1661ConfigureRejectForOptionRefusedByConfiguration`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L169). **positive:** `unit/verify` [`TestRFC1661ConfigureRejectForUnrecognizedOption`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L824). **positive:** `unit/verify` [`TestRFC1661LCPUnrecognizedTypeOutranksInvalidLength`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L459). **positive:** `unit/verify` [`TestRFC1661NCPUnrecognizedTypeOutranksInvalidLength`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L526). **negative:** `unit/verify` [`TestRFC1661ClientAcceptsServerAuthProtocol`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go#L372). **negative:** `unit/verify` [`TestRFC1661ClientUnrecognizedTypeOutranksInvalidLength`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go#L220). **negative:** `unit/verify` [`TestRFC1661ConfigureRejectForOptionRefusedByConfiguration`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L170). **negative:** `unit/verify` [`TestRFC1661NCPUnrecognizedTypeOutranksInvalidLength`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L531). **negative:** `unit/verify` [`TestRFC1661NoConfigureRejectWhenAllOptionsRecognized`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L855). **negative:** `unit/verify` [`TestRFC1877ConfigureRejectEchoesUnsupportedOnly`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_dns_options_test.go#L70) |
+| `RFC1661-5.4-2` | All recognizable and negotiable Configuration Options are filtered out of the Configure-Reject, but otherwise the Configuration Options MUST NOT be reordered or modified in any way. (§5.4) | MUST NOT | 5.4 | **positive:** `unit/verify` [`TestRFC1661ClientRejectEchoesTheRefusedOptionUnmodified`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go#L251). **positive:** `unit/verify` [`TestRFC1661ConfigureRejectForUnrecognizedOption`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L827). **positive:** `unit/verify` [`TestRFC1661LCPRejectEchoesTheRefusedOptionUnmodified`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L828). **positive:** `unit/verify` [`TestRFC1877ConfigureRejectEchoesUnsupportedOnly`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_dns_options_test.go#L67). **negative:** `unit/verify` [`TestRFC1661ClientRejectEchoesTheRefusedOptionUnmodified`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go#L263). **negative:** `unit/verify` [`TestRFC1661ConfigureRejectDoesNotReorderOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L873). **negative:** `unit/verify` [`TestRFC1661LCPRejectEchoesTheRefusedOptionUnmodified`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L839) |
 | `RFC1661-5.4-3` | On reception of a Configure-Reject, the Identifier field MUST match that of the last transmitted Configure-Request. (Section 5.4) | MUST | 5.4 | **positive:** `unit/verify` [`TestClientLCPRejectRemovesOnlyRejectedOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L76). **positive:** `unit/verify` [`TestLCPRepliesMatchOutstandingRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L405). **negative:** `unit/verify` [`TestClientLCPReplyCorrelation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L23). **negative:** `unit/verify` [`TestLCPRepliesMatchOutstandingRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L406) |
 | `RFC1661-5.4-4` | Additionally, the Configuration Options in a Configure-Reject MUST be a subset of those in the last transmitted Configure- Request. (§5.4, erratum 543) | MUST | 5.4 | **positive:** `unit/verify` [`TestClientLCPRejectRemovesOnlyRejectedOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L77). **positive:** `unit/verify` [`TestLCPRepliesMatchOutstandingRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L407). **negative:** `unit/verify` [`TestClientLCPReplyCorrelation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L24). **negative:** `unit/verify` [`TestLCPRepliesMatchOutstandingRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L408) |
 | `RFC1661-5.4-5` | Reception of a valid Configure-Reject indicates that when a new Configure-Request is sent, it MUST NOT include any of the Configuration Options listed in the Configure-Reject. (§5.4) | MUST NOT | 5.4 | **positive:** `unit/verify` [`TestClientLCPRejectRemovesOnlyRejectedOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L78). **positive:** `unit/verify` [`TestLCPRejectedOptionsStayRemoved`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L533). **positive:** `unit/verify` [`TestRFC1661ClientDropsRejectedDNSOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_client_dns_test.go#L149). **negative:** `unit/verify` [`TestClientLCPRejectRemovesOnlyRejectedOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L79). **negative:** `unit/verify` [`TestLCPRejectedOptionsStayRemoved`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L534) |
-| `RFC1661-5.5-1` | Upon reception of a Terminate-Request, a Terminate-Ack MUST be transmitted. (Section 5.5) | MUST | 5.5 | **positive:** `unit/verify` [`TestRFC1661TerminateAckSentAndLinkHeld`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L569). **negative:** `unit/verify` [`TestRFC1661NoTerminateAckForTerminateAck`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L603). **positive:** `interop/nightly` [`checkPPPCodeReject`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/l2tp/ppp_code_reject.go#L96) |
-| `RFC1661-5.6-1` | This MUST be reported back to the sender of the unknown Code by transmitting a Code- Reject. (Section 5.6) | MUST | 5.6 | **positive:** `unit/verify` [`TestRFC1661CodeRejectForUnknownCode`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1146). **negative:** `unit/verify` [`TestRFC1661NoCodeRejectForKnownCode`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1178). **positive:** `interop/nightly` [`checkPPPCodeReject`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/l2tp/ppp_code_reject.go#L82) |
+| `RFC1661-5.5-1` | Upon reception of a Terminate-Request, a Terminate-Ack MUST be transmitted. (Section 5.5) | MUST | 5.5 | **positive:** `unit/verify` [`TestRFC1661TerminateAckSentAndLinkHeld`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L570). **negative:** `unit/verify` [`TestRFC1661NoTerminateAckForTerminateAck`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L604). **positive:** `interop/nightly` [`checkPPPCodeReject`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/l2tp/ppp_code_reject.go#L96) |
+| `RFC1661-5.6-1` | This MUST be reported back to the sender of the unknown Code by transmitting a Code- Reject. (Section 5.6) | MUST | 5.6 | **positive:** `unit/verify` [`TestRFC1661CodeRejectForUnknownCode`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1147). **negative:** `unit/verify` [`TestRFC1661NoCodeRejectForKnownCode`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1179). **positive:** `interop/nightly` [`checkPPPCodeReject`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/l2tp/ppp_code_reject.go#L82) |
 | `RFC1661-5.6-2` | The Identifier field MUST be changed for each Code-Reject sent. (Section 5.6) | MUST | 5.6 | **positive:** `unit/verify` [`TestRFC1661LCPCodeRejectIdentifierChanges`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_code_reject_test.go#L48). **positive:** `unit/verify` [`TestRFC1661NCPCodeRejectIdentifierChanges`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_code_reject_test.go#L76). **negative:** no negative test. **positive:** `interop/nightly` [`checkPPPCodeReject`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/l2tp/ppp_code_reject.go#L86). **{single-polarity}:** sendCodeReject (internal/component/l2tp/ppp/session_run.go) advances lcpCodeRejectID, and sendNCPCodeReject (internal/component/l2tp/ppp/ncp.go) advances the family's ipcpCodeRejectID or ipv6cpCodeRejectID, before every packet written, and no input asks ze to hold the Identifier still, so the obligation has no refusing counterpart to assert |
 | `RFC1661-5.6-3` | The Rejected-Packet MUST be truncated to comply with the peer's established MRU. (Section 5.6) | MUST | 5.6 | **positive:** `unit/verify` [`TestRFC1661CodeRejectTruncatedToMRU`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_code_reject_test.go#L122). **negative:** `unit/verify` [`TestRFC1661CodeRejectKeptWhenItFits`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_code_reject_test.go#L185). **positive:** `interop/nightly` [`checkPPPCodeReject`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/l2tp/ppp_code_reject.go#L91) |
 | `RFC1661-5.7-1` | If the LCP automaton is in the Opened state, then this MUST be reported back to the peer by transmitting a Protocol-Reject. (Section 5.7) | MUST | 5.7 | **positive:** `unit/verify` [`TestRFC1661UnsupportedProtocolRejectedInOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go#L40). **negative:** `unit/verify` [`TestRFC1661UnsupportedProtocolNotRejectedBeforeOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go#L88) |
 | `RFC1661-5.7-2` | Upon reception of a Protocol-Reject, the implementation MUST stop sending packets of the indicated protocol at the earliest opportunity. (Section 5.7) | MUST | 5.7 | **positive:** no positive test. **negative:** no negative test. **{gap}:** handleLCPPacket in internal/component/l2tp/ppp/session_run.go maps the rejection to RXJ+ but records no rejected-protocol set. The FSM transition does not implement suppression of later packets of that protocol. |
 | `RFC1661-5.7-3` | The Identifier field MUST be changed for each Protocol-Reject sent. (Section 5.7) | MUST | 5.7 | **positive:** `unit/verify` [`TestRFC1661ProtocolRejectIdentifierChanges`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go#L136). **negative:** no negative test. **{single-polarity}:** sendProtocolReject (internal/component/l2tp/ppp/session_run.go) advances protocolRejectID before every packet it writes, and no input asks ze to hold the Identifier still, so the obligation has no refusing counterpart to assert |
 | `RFC1661-5.7-4` | The Rejected-Information MUST be truncated to comply with the peer's established MRU. (Section 5.7) | MUST | 5.7 | **positive:** `unit/verify` [`TestRFC1661ProtocolRejectInformationTruncatedToMRU`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go#L165). **negative:** `unit/verify` [`TestRFC1661ProtocolRejectInformationKeptWhenItFits`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go#L200) |
-| `RFC1661-5.8-1` | Upon reception of an Echo-Request in the LCP Opened state, an Echo-Reply MUST be transmitted. (Section 5.8) | MUST | 5.8 | **positive:** `unit/verify` [`TestRFC1661EchoReplyInOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1199). **negative:** `unit/verify` [`TestRFC1661NoEchoOutsideOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1240) |
-| `RFC1661-5.8-2` | Echo-Request and Echo-Reply packets MUST only be sent in the LCP Opened state. (Section 5.8) | MUST | 5.8 | **positive:** `unit/verify` [`TestRFC1661EchoReplyInOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1202). **positive:** `unit/verify` [`TestRFC1661KeepaliveEchoOnlyInOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L125). **negative:** `unit/verify` [`TestClientLCPEchoBeforeOpenDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_transition_test.go#L115). **negative:** `unit/verify` [`TestRFC1661KeepaliveEchoOnlyInOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L126). **negative:** `unit/verify` [`TestRFC1661NoEchoOutsideOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1244) |
+| `RFC1661-5.8-1` | Upon reception of an Echo-Request in the LCP Opened state, an Echo-Reply MUST be transmitted. (Section 5.8) | MUST | 5.8 | **positive:** `unit/verify` [`TestRFC1661EchoReplyInOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1200). **negative:** `unit/verify` [`TestRFC1661NoEchoOutsideOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1241) |
+| `RFC1661-5.8-2` | Echo-Request and Echo-Reply packets MUST only be sent in the LCP Opened state. (Section 5.8) | MUST | 5.8 | **positive:** `unit/verify` [`TestRFC1661EchoReplyInOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1203). **positive:** `unit/verify` [`TestRFC1661KeepaliveEchoOnlyInOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L125). **negative:** `unit/verify` [`TestClientLCPEchoBeforeOpenDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_transition_test.go#L115). **negative:** `unit/verify` [`TestRFC1661KeepaliveEchoOnlyInOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L126). **negative:** `unit/verify` [`TestRFC1661NoEchoOutsideOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1245) |
 | `RFC1661-5.9-1` | Discard-Request packets MUST only be sent in the LCP Opened state. (Section 5.9) | MUST | 5.9 | **positive:** no positive test. **negative:** no negative test. **{gap}:** gap in proof: ze meets it by never sending a Discard-Request: LCPDiscardRequest appears only as a constant, in LCPCodeName (internal/component/l2tp/ppp/lcp.go) and in the receive-side codeToEvent mapping (internal/component/l2tp/ppp/session_run.go), and no sender builds one; no test asserts it |
-| `RFC1661-5.9-2` | On reception, the receiver MUST silently discard any Discard- Request that it receives. (Section 5.9) | MUST | 5.9 | **positive:** `unit/verify` [`TestRFC1661DiscardRequestSilentlyDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1269). **negative:** no negative test. **{single-polarity}:** the obligation covers ANY Discard-Request, so no conforming Discard-Request exists that must instead draw a reply, and no input can make the required silence wrong. The discrimination against a receiver that answers nothing at all is carried by TestRFC1661EchoReplyInOpened, which is tagged for the Echo requirements it actually drives (RFC1661-5.8-1, RFC1661-5.8-2), not for this one |
-| `RFC1661-6.2-1` | An implementation MUST NOT include multiple Authentication- Protocol Configuration Options in its Configure-Request packets. (Section 6.2) | MUST NOT | 6.2 | **positive:** `unit/verify` [`TestRFC1661SingleAuthProtocolOptionInRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1301). **negative:** no negative test. **{single-polarity}:** LCPOptions.AuthProto is a single uint16 (internal/component/l2tp/ppp/lcp_options.go) and BuildLocalConfigRequest appends the option once (internal/component/l2tp/ppp/lcp_options.go), so no input produces two Authentication-Protocol options and there is no violating case to assert |
-| `RFC1661-6.4-1` | If an implementation does transmit a Configure-Request with a Magic-Number Configuration Option, then it MUST NOT respond with a Configure-Reject when it receives a Configure-Request with a Magic-Number Configuration Option. (Section 6.4) | MUST NOT | 6.4 | **positive:** `unit/verify` [`TestRFC1661ZeroMagicNumberRefused`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1379). **negative:** `unit/verify` [`TestRFC1661UnknownOptionRejectedWhileMagicIsNot`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1351) |
-| `RFC1661-6.4-2` | If Magic-Number has been successfully negotiated, an implementation MUST transmit these packets with the Magic-Number field set to its negotiated Magic-Number. (Section 6.4) | MUST | 6.4 | **positive:** `unit/verify` [`TestEchoRequestCarriesNegotiatedMagic`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_magic_echo_test.go#L418). **positive:** `unit/verify` [`TestRFC1661EchoReplyInOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1211). **negative:** `unit/verify` [`TestEchoRequestCarriesNegotiatedMagic`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_magic_echo_test.go#L419). **negative:** `unit/verify` [`TestRFC1661EchoReplyDoesNotMirrorPeerMagic`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1418) |
-| `RFC1661-6.4-3` | A Magic-Number of zero is illegal and MUST always be Nak'd, if it is not Rejected outright. (Section 6.4) | MUST | 6.4 | **positive:** `unit/verify` [`TestRFC1661ClientNaksZeroMagicInAWellFormedRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_client_negotiation_test.go#L44). **positive:** `unit/verify` [`TestRFC1661ClientNaksZeroMagicWithAValueOfItsOwn`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go#L420). **positive:** `unit/verify` [`TestRFC1661ZeroMagicNumberRefused`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1371). **negative:** `unit/verify` [`TestRFC1661ClientAcksANonZeroMagic`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_client_negotiation_test.go#L82). **negative:** `unit/verify` [`TestRFC1661ClientNaksZeroMagicWithAValueOfItsOwn`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go#L426). **negative:** `unit/verify` [`TestRFC1661PeerMagicNumberAcked`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1332) |
-| `RFC1661-6.5-1` | By default, all implementations MUST transmit packets with two octet PPP Protocol fields. (Section 6.5) | MUST | 6.5 | **positive:** `unit/verify` [`TestRFC1661TwoOctetProtocolField`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L259). **negative:** no negative test. **{single-polarity}:** this is a transmit obligation and WriteFrame has no compressed branch at all -- WriteFrame always writes the Protocol with binary.BigEndian.PutUint16 (internal/component/l2tp/ppp/frame.go:81-85), so no configuration or negotiated option produces a single-octet transmit to assert against. The positive test drives both PFC settings to show the option cannot change the encoder; the receive-side refusal of a one-octet Protocol is the separate RFC1661-6.5-3 |
-| `RFC1661-6.5-2` | Compressed Protocol fields MUST NOT be transmitted unless this Configuration Option has been negotiated. (Section 6.5) | MUST NOT | 6.5 | **positive:** `unit/verify` [`TestRFC1661TwoOctetProtocolField`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L263). **negative:** no negative test. **{single-polarity}:** WriteFrame (internal/component/l2tp/ppp/frame.go:81-85) has no compressed-Protocol branch, so ze transmits an uncompressed Protocol field whether or not the option is negotiated and there is no compressed-transmit case to contrast |
+| `RFC1661-5.9-2` | On reception, the receiver MUST silently discard any Discard- Request that it receives. (Section 5.9) | MUST | 5.9 | **positive:** `unit/verify` [`TestRFC1661DiscardRequestSilentlyDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1270). **negative:** no negative test. **{single-polarity}:** the obligation covers ANY Discard-Request, so no conforming Discard-Request exists that must instead draw a reply, and no input can make the required silence wrong. The discrimination against a receiver that answers nothing at all is carried by TestRFC1661EchoReplyInOpened, which is tagged for the Echo requirements it actually drives (RFC1661-5.8-1, RFC1661-5.8-2), not for this one |
+| `RFC1661-6.2-1` | An implementation MUST NOT include multiple Authentication- Protocol Configuration Options in its Configure-Request packets. (Section 6.2) | MUST NOT | 6.2 | **positive:** `unit/verify` [`TestRFC1661SingleAuthProtocolOptionInRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1302). **negative:** no negative test. **{single-polarity}:** LCPOptions.AuthProto is a single uint16 (internal/component/l2tp/ppp/lcp_options.go) and BuildLocalConfigRequest appends the option once (internal/component/l2tp/ppp/lcp_options.go), so no input produces two Authentication-Protocol options and there is no violating case to assert |
+| `RFC1661-6.4-1` | If an implementation does transmit a Configure-Request with a Magic-Number Configuration Option, then it MUST NOT respond with a Configure-Reject when it receives a Configure-Request with a Magic-Number Configuration Option. (Section 6.4) | MUST NOT | 6.4 | **positive:** `unit/verify` [`TestRFC1661ZeroMagicNumberRefused`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1380). **negative:** `unit/verify` [`TestRFC1661UnknownOptionRejectedWhileMagicIsNot`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1352) |
+| `RFC1661-6.4-2` | If Magic-Number has been successfully negotiated, an implementation MUST transmit these packets with the Magic-Number field set to its negotiated Magic-Number. (Section 6.4) | MUST | 6.4 | **positive:** `unit/verify` [`TestEchoRequestCarriesNegotiatedMagic`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_magic_echo_test.go#L418). **positive:** `unit/verify` [`TestRFC1661EchoReplyInOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1212). **negative:** `unit/verify` [`TestEchoRequestCarriesNegotiatedMagic`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_magic_echo_test.go#L419). **negative:** `unit/verify` [`TestRFC1661EchoReplyDoesNotMirrorPeerMagic`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1419) |
+| `RFC1661-6.4-3` | A Magic-Number of zero is illegal and MUST always be Nak'd, if it is not Rejected outright. (Section 6.4) | MUST | 6.4 | **positive:** `unit/verify` [`TestRFC1661ClientNaksZeroMagicInAWellFormedRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_client_negotiation_test.go#L44). **positive:** `unit/verify` [`TestRFC1661ClientNaksZeroMagicWithAValueOfItsOwn`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go#L420). **positive:** `unit/verify` [`TestRFC1661ZeroMagicNumberRefused`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1372). **negative:** `unit/verify` [`TestRFC1661ClientAcksANonZeroMagic`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_client_negotiation_test.go#L82). **negative:** `unit/verify` [`TestRFC1661ClientNaksZeroMagicWithAValueOfItsOwn`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go#L426). **negative:** `unit/verify` [`TestRFC1661PeerMagicNumberAcked`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1333) |
+| `RFC1661-6.5-1` | By default, all implementations MUST transmit packets with two octet PPP Protocol fields. (Section 6.5) | MUST | 6.5 | **positive:** `unit/verify` [`TestRFC1661TwoOctetProtocolField`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L260). **negative:** no negative test. **{single-polarity}:** this is a transmit obligation and WriteFrame has no compressed branch at all -- WriteFrame always writes the Protocol with binary.BigEndian.PutUint16 (internal/component/l2tp/ppp/frame.go:81-85), so no configuration or negotiated option produces a single-octet transmit to assert against. The positive test drives both PFC settings to show the option cannot change the encoder; the receive-side refusal of a one-octet Protocol is the separate RFC1661-6.5-3 |
+| `RFC1661-6.5-2` | Compressed Protocol fields MUST NOT be transmitted unless this Configuration Option has been negotiated. (Section 6.5) | MUST NOT | 6.5 | **positive:** `unit/verify` [`TestRFC1661TwoOctetProtocolField`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L264). **negative:** no negative test. **{single-polarity}:** WriteFrame (internal/component/l2tp/ppp/frame.go:81-85) has no compressed-Protocol branch, so ze transmits an uncompressed Protocol field whether or not the option is negotiated and there is no compressed-transmit case to contrast |
 | `RFC1661-6.5-3` | When negotiated, PPP implementations MUST accept PPP packets with either double-octet or single-octet Protocol fields, and MUST NOT distinguish between them. (§6.5) | MUST | 6.5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** whole-stack reception remains unverified. ParseFrame in internal/component/l2tp/ppp/frame.go reads a two-octet Protocol field, but that alone does not establish a failure after applicable directional negotiation and Linux PPP receive normalization. The negotiated kernel boundary needs proof. |
 | `RFC1661-6.6-1` | By default, all implementations MUST transmit frames with Address and Control fields appropriate to the link framing. (Section 6.6) | MUST | 6.6 | **positive:** no positive test. **negative:** no negative test. **{lower-layer}:** Linux PPP channels over L2TP and PPPoE (net/l2tp/l2tp_ppp.c pppol2tp_xmit, drivers/net/ppp/pppoe.c pppoe_xmit), linux:CONFIG_PPPOL2TP; internal/component/l2tp/ppp/session_run.go::writeFrame writes the Protocol field and payload that internal/component/l2tp/ppp/frame.go::WriteFrame builds to the /dev/ppp channel, and the kernel adds the Address and Control octets 0xFF 0x03 to every L2TP frame and none to a PPPoE frame, whose RFC 2516 framing carries none; ze sets no channel flag that changes this, and no VPP path carries ze's PPP sessions |
 | `RFC1661-6.6-2` | The Address and Control fields MUST NOT be compressed when sending any LCP packet. (Section 6.6) | MUST NOT | 6.6 | **positive:** no positive test. **negative:** no negative test. **{lower-layer}:** Linux PPP channel over L2TP (net/l2tp/l2tp_ppp.c pppol2tp_xmit), linux:CONFIG_PPPOL2TP; internal/component/l2tp/ppp/session_run.go::writeFrame hands every LCP packet to the /dev/ppp channel as Protocol field and payload, and pppol2tp_xmit pushes the uncompressed 0xFF 0x03 header onto every frame whatever ACFC negotiated; ze acks a peer's ACFC (internal/component/l2tp/ppp/lcp_options.go::negotiatePeerOption, refused on PPPoE) but sets no channel compression flag, so no LCP packet leaves compressed, and no VPP path carries ze's PPP sessions |
-| `RFC1661-4.6-1` | The Restart timer MUST be configurable (§4.6) | MUST | 4.6 | **positive:** no positive test. **negative:** no negative test. **{gap}:** armRestartTimer in internal/component/l2tp/ppp/session_run.go uses the fixed defaultRestartTimer of three seconds; StartSession in internal/component/l2tp/ppp/start_session.go carries no restart-timer field and no YANG leaf sets one. The PPPoE client's negotiateLCP in internal/component/l2tp/pppoeclient/session.go uses the fixed lcpRestartInterval of three seconds, with no pppoe-client leaf for it. Disclosed in docs/features/rfc-status.md |
-| `RFC1661-4.6-2` | Max-Terminate MUST be configurable (§4.6) | MUST | 4.6 | **positive:** no positive test. **negative:** no negative test. **{gap}:** applyTransition in internal/component/l2tp/ppp/session_run.go initializes restartCount from the fixed defaultMaxTerminate of two transmissions, with no session or YANG setting for that limit. Disclosed in docs/features/rfc-status.md |
-| `RFC1661-4.6-3` | Max-Configure MUST be configurable (§4.6) | MUST | 4.6 | **positive:** no positive test. **negative:** no negative test. **{gap}:** applyTransition in internal/component/l2tp/ppp/session_run.go initializes restartCount from the fixed defaultMaxConfigure of ten transmissions, with no session or YANG setting for that limit. The PPPoE client's negotiateLCP in internal/component/l2tp/pppoeclient/session.go counts its Configure-Requests from the fixed lcpConfigureMax of ten, with no pppoe-client leaf for it. Disclosed in docs/features/rfc-status.md |
-| `RFC1661-4.6-4` | Max-Failure MUST be configurable (§4.6) | MUST | 4.6 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze counts no Configure-Naks sent; sendConfigureNakOrReject (internal/component/l2tp/ppp/session_run.go) picks Nak or Reject from the LCPNakOrReject verdict over NegotiatePeerOptions output on each request, so there is no Max-Failure value to configure and no threshold that converts a Nak into a Reject. Disclosed in docs/features/rfc-status.md |
-| `RFC1661-4.4-1` | In addition to setting the Restart counter, the implementation MUST set the timeout period to the initial value when Restart timer backoff is used. (Section 4.4) | MUST | 4.4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** gap in proof: the condition never holds, because internal/component/l2tp/ppp/session_run.go resets the Restart timer to the fixed defaultRestartTimer and applies no backoff; no test asserts it |
-| `RFC1661-4.4-2` | In addition to zeroing the Restart counter, the implementation MUST set the timeout period to an appropriate value. (Section 4.4) | MUST | 4.4 | **positive:** `unit/verify` [`TestLCPPeerTerminateRestartTimer`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_restart_counter_test.go#L135). **negative:** `unit/verify` [`TestLCPPeerTerminateRestartTimer`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_restart_counter_test.go#L136) |
+| `RFC1661-4.6-1` | The Restart timer MUST be configurable (§4.6) | MUST | 4.6 | **positive:** `unit/verify` [`TestConfiguredLCPRestartTimer`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_configured_restart_test.go#L38). **negative:** `unit/verify` [`TestConfiguredLCPRestartTimer`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_configured_restart_test.go#L39) |
+| `RFC1661-4.6-2` | Max-Terminate MUST be configurable (§4.6) | MUST | 4.6 | **positive:** `unit/verify` [`TestConfiguredLCPMaxTerminate`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_configured_restart_test.go#L158). **negative:** `unit/verify` [`TestConfiguredLCPMaxTerminate`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_configured_restart_test.go#L159) |
+| `RFC1661-4.6-3` | Max-Configure MUST be configurable (§4.6) | MUST | 4.6 | **positive:** `unit/verify` [`TestConfiguredLCPMaxConfigure`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_configured_restart_test.go#L86). **negative:** `unit/verify` [`TestConfiguredLCPMaxConfigure`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_configured_restart_test.go#L87) |
+| `RFC1661-4.6-4` | Max-Failure MUST be configurable (§4.6) | MUST | 4.6 | **positive:** `unit/verify` [`TestConfiguredLCPMaxFailure`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_configured_restart_test.go#L199). **positive:** `unit/verify` [`TestRFC1661ClientMaxFailureConvertsFurtherNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_max_failure_test.go#L20). **negative:** `unit/verify` [`TestConfiguredLCPMaxFailure`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_configured_restart_test.go#L200). **negative:** `unit/verify` [`TestRFC1661ClientMaxFailureAckRenewsBudget`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_max_failure_test.go#L58) |
+| `RFC1661-4.4-1` | In addition to setting the Restart counter, the implementation MUST set the timeout period to the initial value when Restart timer backoff is used. (Section 4.4) | MUST | 4.4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** gap in proof: armRestartTimer in internal/component/l2tp/ppp/session_run.go resets the Restart timer to the configured constant period and applies no backoff, so the condition never holds; no test asserts it |
+| `RFC1661-4.4-2` | In addition to zeroing the Restart counter, the implementation MUST set the timeout period to an appropriate value. (Section 4.4) | MUST | 4.4 | **positive:** `unit/verify` [`TestConfiguredLCPZeroRestartPeriod`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_configured_restart_test.go#L243). **positive:** `unit/verify` [`TestLCPPeerTerminateRestartTimer`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_restart_counter_test.go#L135). **negative:** `unit/verify` [`TestConfiguredLCPZeroRestartPeriod`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_configured_restart_test.go#L244). **negative:** `unit/verify` [`TestLCPPeerTerminateRestartTimer`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_restart_counter_test.go#L136) |
 | `RFC1661-5.5-2` | On transmission, the Identifier field MUST be changed whenever the content of the Data field changes, and whenever a valid reply has been received for a previous request. (§5.5) | MUST | 5.5 | **positive:** `unit/verify` [`TestTerminateRequestIdentifierChanges`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_magic_echo_test.go#L59). **negative:** `unit/verify` [`TestTerminateRequestIdentifierChanges`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_magic_echo_test.go#L60) |
 | `RFC1661-5.8-4` | On transmission, the Identifier field MUST be changed whenever the content of the Data field changes, and whenever a valid reply has been received for a previous request. (§5.8) | MUST | 5.8 | **positive:** `unit/verify` [`TestEchoRequestIdentifierChanges`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_magic_echo_test.go#L89). **negative:** `unit/verify` [`TestEchoRequestIdentifierChanges`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_magic_echo_test.go#L90) |
 | `RFC1661-5.8-5` | Until the Magic-Number Configuration Option has been successfully negotiated, the Magic- Number MUST be transmitted as zero. (§5.8) | MUST | 5.8 | **positive:** `unit/verify` [`TestMagicNumberZeroUntilNegotiated`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_magic_echo_test.go#L134). **negative:** `unit/verify` [`TestMagicNumberZeroUntilNegotiated`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_magic_echo_test.go#L135) |
-| `RFC1661-5.9-3` | The Identifier field MUST be changed for each Discard-Request sent. (Section 5.9) | MUST | 5.9 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze sends no Discard-Request, so no Identifier is drawn for one; plan/spec-ppp-discard-request-sender.md |
+| `RFC1661-5.9-3` | The Identifier field MUST be changed for each Discard-Request sent. (Section 5.9) | MUST | 5.9 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze sends no Discard-Request, so no Identifier is drawn for one; plan/post-release/features/spec-ppp-discard-request-sender.md |
 | `RFC1661-6.1-1` | If smaller packets are requested, an implementation MUST still be able to receive the full 1500 octet information field in case link synchronization is lost. (Section 6.1) | MUST | 6.1 | **positive:** `unit/verify` [`TestFullInformationFieldReceived`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_magic_echo_test.go#L282). **positive:** `unit/verify` [`TestReceiveFullFrameBelowConfiguredMRU`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_proxy_policy_driver_test.go#L124). **negative:** `unit/verify` [`TestReceiveFullFrameBelowConfiguredMRU`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_proxy_policy_driver_test.go#L125) |
 | `RFC1661-6.4-5` | Before this Configuration Option is requested, an implementation MUST choose its Magic-Number. (Section 6.4) | MUST | 6.4 | **positive:** `unit/verify` [`TestMagicNumberChosenBeforeRequested`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_magic_choice_test.go#L20). **negative:** `unit/verify` [`TestMagicNumberChosenBeforeRequested`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_magic_choice_test.go#L21) |
 | `RFC1661-6.4-6` | If the two Magic-Numbers are equal, then it is possible, but not certain, that the link is looped-back and that this Configure-Request is actually the one last sent.  To determine this, a Configure-Nak MUST be sent specifying a different Magic-Number value. (§6.4) | MUST | 6.4 | **positive:** `unit/verify` [`TestEqualMagicNumberIsNaked`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_magic_choice_test.go#L66). **negative:** `unit/verify` [`TestEqualMagicNumberIsNaked`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_magic_choice_test.go#L67) |
@@ -269,45 +280,41 @@ Source: [data/rfc/rfc1661.json](../../../data/rfc/rfc1661.json).
 | [`RFC1661-6.5-3`](#rfc1661-6.5-3) When negotiated, PPP implementations MUST accept PPP packets with either double-octet or single-octet Protocol fields, and MUST NOT distinguish between them. (§6.5) | {gap}, no test | whole-stack reception remains unverified. ParseFrame in internal/component/l2tp/ppp/frame.go reads a two-octet Protocol field, but that alone does not establish a failure after applicable directional negotiation and Linux PPP receive normalization. The negotiated kernel boundary needs proof. |
 | [`RFC1661-6.6-1`](#rfc1661-6.6-1) By default, all implementations MUST transmit frames with Address and Control fields appropriate to the link framing. (Section 6.6) | no test | no test carries this requirement id; annotated {lower-layer}: Linux PPP channels over L2TP and PPPoE (net/l2tp/l2tp_ppp.c pppol2tp_xmit, drivers/net/ppp/pppoe.c pppoe_xmit), linux:CONFIG_PPPOL2TP; internal/component/l2tp/ppp/session_run.go::writeFrame writes the Protocol field and payload that internal/component/l2tp/ppp/frame.go::WriteFrame builds to the /dev/ppp channel, and the kernel adds the Address and Control octets 0xFF 0x03 to every L2TP frame and none to a PPPoE frame, whose RFC 2516 framing carries none; ze sets no channel flag that changes this, and no VPP path carries ze's PPP sessions |
 | [`RFC1661-6.6-2`](#rfc1661-6.6-2) The Address and Control fields MUST NOT be compressed when sending any LCP packet. (Section 6.6) | no test | no test carries this requirement id; annotated {lower-layer}: Linux PPP channel over L2TP (net/l2tp/l2tp_ppp.c pppol2tp_xmit), linux:CONFIG_PPPOL2TP; internal/component/l2tp/ppp/session_run.go::writeFrame hands every LCP packet to the /dev/ppp channel as Protocol field and payload, and pppol2tp_xmit pushes the uncompressed 0xFF 0x03 header onto every frame whatever ACFC negotiated; ze acks a peer's ACFC (internal/component/l2tp/ppp/lcp_options.go::negotiatePeerOption, refused on PPPoE) but sets no channel compression flag, so no LCP packet leaves compressed, and no VPP path carries ze's PPP sessions |
-| [`RFC1661-4.6-1`](#rfc1661-4.6-1) The Restart timer MUST be configurable (§4.6) | {gap}, no test | armRestartTimer in internal/component/l2tp/ppp/session_run.go uses the fixed defaultRestartTimer of three seconds; StartSession in internal/component/l2tp/ppp/start_session.go carries no restart-timer field and no YANG leaf sets one. The PPPoE client's negotiateLCP in internal/component/l2tp/pppoeclient/session.go uses the fixed lcpRestartInterval of three seconds, with no pppoe-client leaf for it. Disclosed in docs/features/rfc-status.md |
-| [`RFC1661-4.6-2`](#rfc1661-4.6-2) Max-Terminate MUST be configurable (§4.6) | {gap}, no test | applyTransition in internal/component/l2tp/ppp/session_run.go initializes restartCount from the fixed defaultMaxTerminate of two transmissions, with no session or YANG setting for that limit. Disclosed in docs/features/rfc-status.md |
-| [`RFC1661-4.6-3`](#rfc1661-4.6-3) Max-Configure MUST be configurable (§4.6) | {gap}, no test | applyTransition in internal/component/l2tp/ppp/session_run.go initializes restartCount from the fixed defaultMaxConfigure of ten transmissions, with no session or YANG setting for that limit. The PPPoE client's negotiateLCP in internal/component/l2tp/pppoeclient/session.go counts its Configure-Requests from the fixed lcpConfigureMax of ten, with no pppoe-client leaf for it. Disclosed in docs/features/rfc-status.md |
-| [`RFC1661-4.6-4`](#rfc1661-4.6-4) Max-Failure MUST be configurable (§4.6) | {gap}, no test | ze counts no Configure-Naks sent; sendConfigureNakOrReject (internal/component/l2tp/ppp/session_run.go) picks Nak or Reject from the LCPNakOrReject verdict over NegotiatePeerOptions output on each request, so there is no Max-Failure value to configure and no threshold that converts a Nak into a Reject. Disclosed in docs/features/rfc-status.md |
-| [`RFC1661-4.4-1`](#rfc1661-4.4-1) In addition to setting the Restart counter, the implementation MUST set the timeout period to the initial value when Restart timer backoff is used. (Section 4.4) | {gap}, no test | gap in proof: the condition never holds, because internal/component/l2tp/ppp/session_run.go resets the Restart timer to the fixed defaultRestartTimer and applies no backoff; no test asserts it |
-| [`RFC1661-5.9-3`](#rfc1661-5.9-3) The Identifier field MUST be changed for each Discard-Request sent. (Section 5.9) | {gap}, no test | Ze sends no Discard-Request, so no Identifier is drawn for one; plan/spec-ppp-discard-request-sender.md |
+| [`RFC1661-4.4-1`](#rfc1661-4.4-1) In addition to setting the Restart counter, the implementation MUST set the timeout period to the initial value when Restart timer backoff is used. (Section 4.4) | {gap}, no test | gap in proof: armRestartTimer in internal/component/l2tp/ppp/session_run.go resets the Restart timer to the configured constant period and applies no backoff, so the condition never holds; no test asserts it |
+| [`RFC1661-5.9-3`](#rfc1661-5.9-3) The Identifier field MUST be changed for each Discard-Request sent. (Section 5.9) | {gap}, no test | Ze sends no Discard-Request, so no Identifier is drawn for one; plan/post-release/features/spec-ppp-discard-request-sender.md |
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC1661-2-1`](#rfc1661-2-1)
 
 All Protocols MUST be odd; the least significant bit of the least significant octet MUST equal "1".  Also, all Protocols MUST be assigned such that the least significant bit of the most significant octet equals "0".  Frames received which don't comply with these rules MUST be treated as having an unrecognized Protocol. (§2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 1661 Section 2: "Frames received which don't comply with these rules MUST be treated as having an unrecognized Protocol." Rejudged after 83deb89129, which changed only the doc comment of TestRFC1661CompliantProtocolRecognized ('dropped' became a Protocol-Reject, matching the code). Low-octet rule: TestRFC1661NonCompliantProtocolTreatedUnrecognized sends 0xC020 and asserts no termination, exactly one Protocol-Reject naming 0xC020 and state Opened; the recorded mutant removes the final rejectUnsupportedProtocol return of handleFrame. High-octet rule: TestRFC1661ProtocolWithOddHighOctetTreatedUnrecognized sends 0xC121 and asserts one Protocol-Reject naming it, so no Echo-Reply, and state Opened. Transmit side: the same unit checks both parity bits on LCP, PAP, CHAP, IPCP, IPV6CP, IPv4 and IPv6, and the package's WriteFrame callers name LCP, PAP, CHAP and the NCP protocols; the one variable caller, session_run.go:2228, was judged earlier as writeCodeReject with ProtoLCP or ncpProto and was not re-traced here. TestRFC1661CompliantProtocolRecognized requires the Echo-Reply under 0xC021, so a blanket refusal goes red. Caveat on proof: the recorded break of the parity-constant positive panics rejectUnsupportedProtocol, which reddens the later half of the unit and never falsifies the constant loop; by reading, an even constant reaches t.Fatalf, but no record shows it.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661CompliantProtocolRecognized, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NonCompliantProtocolTreatedUnrecognized moved. RFC 1661 Section 2: "Frames received which don't comply with these rules MUST be treated as having an unrecognized Protocol." Rejudged after 83deb89129, which changed only the doc comment of TestRFC1661CompliantProtocolRecognized ('dropped' became a Protocol-Reject, matching the code). Low-octet rule: TestRFC1661NonCompliantProtocolTreatedUnrecognized sends 0xC020 and asserts no termination, exactly one Protocol-Reject naming 0xC020 and state Opened; the recorded mutant removes the final rejectUnsupportedProtocol return of handleFrame. High-octet rule: TestRFC1661ProtocolWithOddHighOctetTreatedUnrecognized sends 0xC121 and asserts one Protocol-Reject naming it, so no Echo-Reply, and state Opened. Transmit side: the same unit checks both parity bits on LCP, PAP, CHAP, IPCP, IPV6CP, IPv4 and IPv6, and the package's WriteFrame callers name LCP, PAP, CHAP and the NCP protocols; the one variable caller, session_run.go:2228, was judged earlier as writeCodeReject with ProtoLCP or ncpProto and was not re-traced here. TestRFC1661CompliantProtocolRecognized requires the Echo-Reply under 0xC021, so a blanket refusal goes red. Caveat on proof: the recorded break of the parity-constant positive panics rejectUnsupportedProtocol, which reddens the later half of the unit and never falsifies the constant loop; by reading, an even constant reaches t.Fatalf, but no record shows it.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC1661ProtocolWithOddHighOctetTreatedUnrecognized`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L49) | unit/verify | revert, verified |
-| negative | [`TestRFC1661NonCompliantProtocolTreatedUnrecognized`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L203) | unit/verify | mutant, verified |
+| negative | [`TestRFC1661NonCompliantProtocolTreatedUnrecognized`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L204) | unit/verify | mutant, verified |
 | positive | [`TestRFC1661ProtocolWithOddHighOctetTreatedUnrecognized`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L48) | unit/verify | revert, verified |
-| positive | [`TestRFC1661CompliantProtocolRecognized`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L238) | unit/verify | mutant, verified |
+| positive | [`TestRFC1661CompliantProtocolRecognized`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L239) | unit/verify | mutant, verified |
 
 ### [`RFC1661-2-2`](#rfc1661-2-2)
 
 The maximum length for the Information field, including Padding, but not including the Protocol field, is termed the Maximum Receive Unit (MRU), which defaults to 1500 octets. (§2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC1661-2-2, so no unit is bound to it.
+No test carries RFC1661-2-2, so there is no linked test.
 
 ### [`RFC1661-5-1`](#rfc1661-5-1)
 
 The Length MUST NOT exceed the MRU of the link. (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC1661-5-1, so no unit is bound to it.
+No test carries RFC1661-5-1, so there is no linked test.
 
 ### [`RFC1661-5-2`](#rfc1661-5-2)
 
@@ -325,7 +332,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 If a negotiable Configuration Option is received in a Configure- Request, but with an invalid or unrecognized Length, a Configure- Nak SHOULD be transmitted which includes the desired Configuration Option with an appropriate Length and Data. (§6)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Sentence: a negotiable option received with an invalid or unrecognized Length SHOULD draw a Configure-Nak carrying the desired option with an appropriate Length and Data. (a) Rejecting or ignoring it, or Naking with a bad Length or value: TestRFC1661LCPInvalidOptionLengthDrawsNak (Length 3, 1, 0) goes red on onlyLCPNak, ParseLCPOptions, len(opts[0].Data) != 2 and value != 1500; TestRFC1661LCPWrongLengthMagicIsNakedNotRejected checks Magic at 4 octets, non-zero; TestRFC1661InvalidOptionLengthDrawsNak and TestRFC1661ClientInvalidOptionLengthDrawsNak cover IPCP and the PPPoE client. Negative: valid Length draws an Ack, unrecognized Type draws a Reject.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientInvalidOptionLengthDrawsNak, internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientInvalidOptionLengthDrawsNak#2 moved. Sentence: a negotiable option received with an invalid or unrecognized Length SHOULD draw a Configure-Nak carrying the desired option with an appropriate Length and Data. (a) Rejecting or ignoring it, or Naking with a bad Length or value: TestRFC1661LCPInvalidOptionLengthDrawsNak (Length 3, 1, 0) goes red on onlyLCPNak, ParseLCPOptions, len(opts[0].Data) != 2 and value != 1500; TestRFC1661LCPWrongLengthMagicIsNakedNotRejected checks Magic at 4 octets, non-zero; TestRFC1661InvalidOptionLengthDrawsNak and TestRFC1661ClientInvalidOptionLengthDrawsNak cover IPCP and the PPPoE client. Negative: valid Length draws an Ack, unrecognized Type draws a Reject.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -345,7 +352,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Sent
 
 When the Data field is indicated by the Length to extend beyond the end of the Information field, the entire packet is silently discarded without affecting the automaton. (§6)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Sentence: when an option Data is indicated by its Length to extend beyond the Information field, the entire packet is silently discarded without affecting the automaton. (a) Replying: TestRFC1661LCPTruncatedOptionSilentlyDiscarded goes red on rec.count() != 0 for three layouts. (b) Moving the automaton: the same test starts in ReqSent and AckSent and asserts currentState() == start, then that a valid request is still Acked. TestRFC1661TruncatedOptionSilentlyDiscarded (IPCP, IPv6CP), the reply-direction units and TestRFC1661ClientRequestPastEndSilentlyDiscarded extend it. Negative: a contained unacceptable option still draws a Nak.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRequestPastEndSilentlyDiscarded, internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRequestPastEndSilentlyDiscarded#2 moved. Sentence: when an option Data is indicated by its Length to extend beyond the Information field, the entire packet is silently discarded without affecting the automaton. (a) Replying: TestRFC1661LCPTruncatedOptionSilentlyDiscarded goes red on rec.count() != 0 for three layouts. (b) Moving the automaton: the same test starts in ReqSent and AckSent and asserts currentState() == start, then that a valid request is still Acked. TestRFC1661TruncatedOptionSilentlyDiscarded (IPCP, IPv6CP), the reply-direction units and TestRFC1661ClientRequestPastEndSilentlyDiscarded extend it. Negative: a contained unacceptable option still draws a Nak.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -374,83 +381,83 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 Then, PPP MUST send NCP packets to choose and configure one or more network-layer protocols. (Section 3.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge 2026-09-29. Positive TestRFC1661RunSendsNCPAfterLCPOpens drives run(): LCP Opened, no-auth accepted, then an address request and an IPCP (0x8021) Configure-Request on the wire, else red; observed red with runNCPPhase broken. HEAD negative (both NCPs disabled, runNCPPhase writes 0 frames) is the boundary where nothing is to be chosen: it refuses NCP packets for a protocol not configured, the complement of the positive rather than a violating input, which the obligation (send NCP for the protocols to configure) has no other form of.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NCPConfiguresEachFamilySeparately, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoNCPPacketsWhenNoNetworkProtocol moved. Judge 2026-09-29. Positive TestRFC1661RunSendsNCPAfterLCPOpens drives run(): LCP Opened, no-auth accepted, then an address request and an IPCP (0x8021) Configure-Request on the wire, else red; observed red with runNCPPhase broken. HEAD negative (both NCPs disabled, runNCPPhase writes 0 frames) is the boundary where nothing is to be chosen: it refuses NCP packets for a protocol not configured, the complement of the positive rather than a violating input, which the obligation (send NCP for the protocols to configure) has no other form of.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC1661NoNCPPacketsWhenNoNetworkProtocol`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L370) | unit/verify | mutant, verified |
+| negative | [`TestRFC1661NoNCPPacketsWhenNoNetworkProtocol`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L371) | unit/verify | mutant, verified |
 | positive | [`TestRFC1661RunSendsNCPAfterLCPOpens`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L66) | unit/verify | mutant, verified |
-| positive | [`TestRFC1661NCPConfiguresEachFamilySeparately`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L331) | unit/verify | revert, verified |
+| positive | [`TestRFC1661NCPConfiguresEachFamilySeparately`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L332) | unit/verify | revert, verified |
 
 ### [`RFC1661-3.4-1`](#rfc1661-3.4-1)
 
 Any non-LCP packets received during this phase MUST be silently discarded. (Section 3.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC1661-3.4-1, so no unit is bound to it.
+No test carries RFC1661-3.4-1, so there is no linked test.
 
 ### [`RFC1661-3.5-1`](#rfc1661-3.5-1)
 
 If an implementation desires that the peer authenticate with some specific authentication protocol, then it MUST request the use of that authentication protocol during Link Establishment phase. (Section 3.5)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: desired auth protocol not requested in the Link Establishment Configure-Request. TestRFC1661AuthProtocolRequestedDuringEstablishment goes red on a missing option (!found) or a wrong protocol (!= 0xC223) in the LCP Configure-Request sendConfigureRequest writes; the negative TestRFC1661NoAuthProtocolWhenNotDesired goes red if the option is sent for AuthMethodNone.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661AuthProtocolRequestedDuringEstablishment, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoAuthProtocolWhenNotDesired moved. Forbidden: desired auth protocol not requested in the Link Establishment Configure-Request. TestRFC1661AuthProtocolRequestedDuringEstablishment goes red on a missing option (!found) or a wrong protocol (!= 0xC223) in the LCP Configure-Request sendConfigureRequest writes; the negative TestRFC1661NoAuthProtocolWhenNotDesired goes red if the option is sent for AuthMethodNone.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC1661NoAuthProtocolWhenNotDesired`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L473) | unit/verify | unproven |
-| positive | [`TestRFC1661AuthProtocolRequestedDuringEstablishment`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L442) | unit/verify | unproven |
+| negative | [`TestRFC1661NoAuthProtocolWhenNotDesired`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L474) | unit/verify | unproven |
+| positive | [`TestRFC1661AuthProtocolRequestedDuringEstablishment`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L443) | unit/verify | unproven |
 
 ### [`RFC1661-3.5-2`](#rfc1661-3.5-2)
 
 An implementation MUST NOT allow the exchange of link quality determination packets to delay authentication indefinitely. (Section 3.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC1661-3.5-2, so no unit is bound to it.
+No test carries RFC1661-3.5-2, so there is no linked test.
 
 ### [`RFC1661-3.5-3`](#rfc1661-3.5-3)
 
 Advancement from the Authentication phase to the Network-Layer Protocol phase MUST NOT occur until authentication has completed. (Section 3.5)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 1661 Section 3.5: "Advancement from the Authentication phase to the Network-Layer Protocol phase MUST NOT occur until authentication has completed." Rejudged statically at HEAD. TestRFC1661NoNetworkPhaseBeforeAuthenticationCompletes runs the real session with CHAP and IPCP enabled: ipEvents is buffered, so its emptiness after one second and synctest.Wait is observable; pending yields no address request, rejected yields none, accepted yields the address request and an IPCP Configure-Request. Running runNCPPhase ahead of runAuthPhase goes red by reading. The narrowed claim on TestRFC1661NoNetworkPhaseUntilAuthCompletes now states only what it asserts: on a rejected no-auth decision afterLCPOpen returns false with no SetMTU, setMRU or SetAdminUp. TestRFC1661NetworkPhaseRunsAfterAuthCompletes proves that path runs on accept. afterLCPOpen as changed by 926f01f732 still runs runAuthPhase before runNCPPhase and SetMTU. Pending is proved for CHAP only; PAP and MS-CHAPv2 share the runAuthPhase dispatch.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NetworkPhaseRunsAfterAuthCompletes, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoNetworkPhaseUntilAuthCompletes moved. RFC 1661 Section 3.5: "Advancement from the Authentication phase to the Network-Layer Protocol phase MUST NOT occur until authentication has completed." Rejudged statically at HEAD. TestRFC1661NoNetworkPhaseBeforeAuthenticationCompletes runs the real session with CHAP and IPCP enabled: ipEvents is buffered, so its emptiness after one second and synctest.Wait is observable; pending yields no address request, rejected yields none, accepted yields the address request and an IPCP Configure-Request. Running runNCPPhase ahead of runAuthPhase goes red by reading. The narrowed claim on TestRFC1661NoNetworkPhaseUntilAuthCompletes now states only what it asserts: on a rejected no-auth decision afterLCPOpen returns false with no SetMTU, setMRU or SetAdminUp. TestRFC1661NetworkPhaseRunsAfterAuthCompletes proves that path runs on accept. afterLCPOpen as changed by 926f01f732 still runs runAuthPhase before runNCPPhase and SetMTU. Pending is proved for CHAP only; PAP and MS-CHAPv2 share the runAuthPhase dispatch.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC1661NoNetworkPhaseBeforeAuthenticationCompletes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L84) | unit/verify | revert, verified |
-| negative | [`TestRFC1661NetworkPhaseRunsAfterAuthCompletes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L532) | unit/verify | mutant, verified |
+| negative | [`TestRFC1661NetworkPhaseRunsAfterAuthCompletes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L533) | unit/verify | mutant, verified |
 | positive | [`TestRFC1661NoNetworkPhaseBeforeAuthenticationCompletes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L85) | unit/verify | mutant, verified |
-| positive | [`TestRFC1661NoNetworkPhaseUntilAuthCompletes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L500) | unit/verify | mutant, verified |
+| positive | [`TestRFC1661NoNetworkPhaseUntilAuthCompletes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L501) | unit/verify | mutant, verified |
 
 ### [`RFC1661-3.5-4`](#rfc1661-3.5-4)
 
 All other packets received during this phase MUST be silently discarded. (Section 3.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC1661-3.5-4, so no unit is bound to it.
+No test carries RFC1661-3.5-4, so there is no linked test.
 
 ### [`RFC1661-3.6-1`](#rfc1661-3.6-1)
 
 Once PPP has finished the previous phases, each network-layer protocol (such as IP, IPX, or AppleTalk) MUST be separately configured by the appropriate Network Control Protocol (NCP). (Section 3.6)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden (a): a family configured by the wrong NCP -- TestRFC1661NCPConfiguresEachFamilySeparately goes red on frames[0].Proto != 0x8021 or frames[1].Proto != 0x8057; (b) NCPs not separate -- TestRFC1661NCPStatesAreIndependent goes red when opening IPCP moves IPv6CP off Initial.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NCPConfiguresEachFamilySeparately, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NCPStatesAreIndependent moved. Forbidden (a): a family configured by the wrong NCP -- TestRFC1661NCPConfiguresEachFamilySeparately goes red on frames[0].Proto != 0x8021 or frames[1].Proto != 0x8057; (b) NCPs not separate -- TestRFC1661NCPStatesAreIndependent goes red when opening IPCP moves IPv6CP off Initial.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC1661NCPStatesAreIndependent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L387) | unit/verify | unproven |
-| positive | [`TestRFC1661NCPConfiguresEachFamilySeparately`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L335) | unit/verify | unproven |
+| negative | [`TestRFC1661NCPStatesAreIndependent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L388) | unit/verify | unproven |
+| positive | [`TestRFC1661NCPConfiguresEachFamilySeparately`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L336) | unit/verify | unproven |
 
 ### [`RFC1661-3.6-2`](#rfc1661-3.6-2)
 
 Any supported network-layer protocol packets received when the corresponding NCP is not in the Opened state MUST be silently discarded. (Section 3.6)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudge 2026-11-09: 65044f40ad added only the //ze:guest-root directive to TestDialRenegotiatesLCPInNetworkPhase's doc comment, which selects the uid the guest observation runs under; the body, assertions and inputs are byte-identical to the 2026-11-08 judgement. That judgement stands: client-role positive over a real PPPoE session through the kernel PPP channel, operator config through plugin delivery: IPv4 in both directions is delivered before renegotiation and after IPCP reopens, and is NOT delivered while LCP, PAP and IPCP renegotiate with each Ack held back; the inbound drop window fails on any delivered datagram, and a late one also fails the next stage's payload match. Producer: connected_session.go/ipcp_independent.go set NPModeDrop on restart; NPModePass there turns the inbound DROP checks red. {single-polarity} stands. TestRFC1661NetworkLayerPacketDiscardedBeforeNCPOpened (ppp) unchanged. Client IPv6 while IPv6CP is not Opened is not covered by any tag of this row (other units exercise setIPv6Mode, untagged).
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NetworkLayerPacketDiscardedBeforeNCPOpened moved. Rejudge 2026-11-09: 65044f40ad added only the //ze:guest-root directive to TestDialRenegotiatesLCPInNetworkPhase's doc comment, which selects the uid the guest observation runs under; the body, assertions and inputs are byte-identical to the 2026-11-08 judgement. That judgement stands: client-role positive over a real PPPoE session through the kernel PPP channel, operator config through plugin delivery: IPv4 in both directions is delivered before renegotiation and after IPCP reopens, and is NOT delivered while LCP, PAP and IPCP renegotiate with each Ack held back; the inbound drop window fails on any delivered datagram, and a late one also fails the next stage's payload match. Producer: connected_session.go/ipcp_independent.go set NPModeDrop on restart; NPModePass there turns the inbound DROP checks red. {single-polarity} stands. TestRFC1661NetworkLayerPacketDiscardedBeforeNCPOpened (ppp) unchanged. Client IPv6 while IPv6CP is not Opened is not covered by any tag of this row (other units exercise setIPv6Mode, untagged).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | positive | [`TestDialRenegotiatesLCPInNetworkPhase`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc1661_pppoe_packets_integration_linux_test.go#L29) | unit/verify | mutant, verified |
-| positive | [`TestRFC1661NetworkLayerPacketDiscardedBeforeNCPOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L406) | unit/verify | mutant, verified |
+| positive | [`TestRFC1661NetworkLayerPacketDiscardedBeforeNCPOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L407) | unit/verify | mutant, verified |
 
 ### [`RFC1661-3.6-3`](#rfc1661-3.6-3)
 
@@ -467,332 +474,332 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 
 
 The receiver of a Terminate-Request SHOULD wait for the peer to disconnect, and MUST NOT disconnect until at least one Restart time has passed after sending a Terminate-Ack. (§3.7)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Single-polarity accepted: no early-disconnect branch exists after sca in Opened+RTR. TestRFC1661TerminateAckSentAndLinkHeld pins the instant of receipt; TestRFC1661TerminateAckHoldsLinkForRestartTime adds the time bound: after the Terminate-Ack the Restart timer is running (armed by zrc via armRestartTimer, which uses defaultRestartTimer, asserted >= 3 s), and a Configure-Request and an Echo-Request meanwhile keep Stopping with no end and no EventSessionDown. Residual: the armed duration is asserted through the constant, not read off the timer.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661TerminateAckSentAndLinkHeld moved. Single-polarity accepted: no early-disconnect branch exists after sca in Opened+RTR. TestRFC1661TerminateAckSentAndLinkHeld pins the instant of receipt; TestRFC1661TerminateAckHoldsLinkForRestartTime adds the time bound: after the Terminate-Ack the Restart timer is running (armed by zrc via armRestartTimer, which uses defaultRestartTimer, asserted >= 3 s), and a Configure-Request and an Echo-Request meanwhile keep Stopping with no end and no EventSessionDown. Residual: the armed duration is asserted through the constant, not read off the timer.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC1661TerminateAckHoldsLinkForRestartTime`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L372) | unit/verify | revert, verified |
-| positive | [`TestRFC1661TerminateAckSentAndLinkHeld`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L564) | unit/verify | mutant, verified |
+| positive | [`TestRFC1661TerminateAckHoldsLinkForRestartTime`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L372) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC1661TerminateAckSentAndLinkHeld`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L565) | unit/verify | mutant, verified |
 
 ### [`RFC1661-3.7-2`](#rfc1661-3.7-2)
 
 Any non-LCP packets received during this phase MUST be silently discarded. (Section 3.7)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC1661-3.7-2, so no unit is bound to it.
+No test carries RFC1661-3.7-2, so there is no linked test.
 
 ### [`RFC1661-4.3-1`](#rfc1661-4.3-1)
 
 The implementation MUST be prepared to immediately renegotiate the Configuration Options. (Section 4.3)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudge 2026-11-08: three new client-role positives drive the real frame consumers with a peer LCP Configure-Request (Identifier 0x73, Magic 0x55667788): TestRFC1661ClientRenegotiatesLCPDuringAuth (runClientAuth; also requires a second CHAP Response after the restart), ...DuringIPCP (negotiateIPCP) and ...InNetworkPhase (keepaliveLoop). assertClientRenegotiationReply requires the exact Configure-Ack preceded directly by ze's own LCP Configure-Request, so a consumer that ignores or drops the request is red; observed-red records exist on the admission branches. ppp units unchanged: TestRFC1661ConfigureRequestInOpenedRenegotiates and the Opened+RCR/RXR table controls.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go::TestRFC1661ClientRenegotiatesLCPInNetworkPhase moved. Independent rejudge 2026-11-14 after explicit client LCP timing fixtures: the changed network-phase unit still requires the exact peer Identifier and Magic in Configure-Ack, immediately preceded by our Configure-Request. The Auth and IPCP consumer tests retain the same outputs and the Auth test requires a second CHAP Response. The unchanged ppp tests require Ack-Sent and scr/sca or scr/scn from Opened, with an Echo control keeping Opened without scr/tld. The new timing fields carry the previous three-second and ten-request defaults, so no input, acceptance boundary or assertion was removed. Re-read keepaliveLoop, connectedSession.restart, negotiatePhases, negotiateLCP and the RFC Section 4.1 table and Section 4.3 implementation note. The changed unit still owes its observed-red record retake.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC1661EchoDoesNotRenegotiate`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L657) | unit/verify | revert, verified |
+| negative | [`TestRFC1661EchoDoesNotRenegotiate`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L658) | unit/verify | revert, verified |
 | positive | [`TestRFC1661ConfigureRequestInOpenedRenegotiates`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L216) | unit/verify | mutant, verified |
-| positive | [`TestRFC1661RenegotiateOnConfigureRequestInOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L624) | unit/verify | revert, verified |
+| positive | [`TestRFC1661RenegotiateOnConfigureRequestInOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L625) | unit/verify | revert, verified |
 | positive | [`TestRFC1661ClientRenegotiatesLCPDuringAuth`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go#L126) | unit/verify | mutant, verified |
-| positive | [`TestRFC1661ClientRenegotiatesLCPDuringIPCP`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go#L189) | unit/verify | mutant, verified |
-| positive | [`TestRFC1661ClientRenegotiatesLCPInNetworkPhase`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go#L197) | unit/verify | mutant, verified |
+| positive | [`TestRFC1661ClientRenegotiatesLCPDuringIPCP`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go#L189) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC1661ClientRenegotiatesLCPInNetworkPhase`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go#L197) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
 
 ### [`RFC1661-4.3-2`](#rfc1661-4.3-2)
 
 The implementation MUST be prepared to receive a new Configure-Request without network administrator intervention. (Section 4.3)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge 2026-09-29 (R16). RFC 1661 4.3 RTR note plus 4.4 tlf read. TestRFC1661StoppedAfterPeerTerminateTakesNewConfigureRequest: Opened + Terminate-Request, Timeout -> run not ended, Stopped, exactly one EventSessionDown (User Request, the tlf signal), then a Configure-Request with no Open event draws ze's CONFREQ and an Ack echoing Id 0x32, Ack-Sent, no end, no second down. Red if Stopped ends the session (sessionEndedAt) or if tlf is not signalled (recorded against signalLayerFinished). Producer checked: signalLayerFinished runs only on a Stopped sessionEndedAt kept; sendEvent's at-most-once drop cannot swallow a legitimate down because every other emitter (fail, auth, NCP, run exit paths, ncp.go) ends the session and was the first down; after tlf a renegotiation ends at Opened (TestRFC1661StoppedAfterPeerTerminateEndsOnOpened) or at a later Stopped/Closed, so the wait is bounded by the CDN/PADT teardown ze started (L2TP teardownSession -> kernel worker closes the PPPoX socket; PPPoE handleSessionDown closes the transport). Valid single-polarity: no refusing counterpart; marker still true.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NewConfigureRequestAcceptedAfterTerminateRequest moved. Judge 2026-09-29 (R16). RFC 1661 4.3 RTR note plus 4.4 tlf read. TestRFC1661StoppedAfterPeerTerminateTakesNewConfigureRequest: Opened + Terminate-Request, Timeout -> run not ended, Stopped, exactly one EventSessionDown (User Request, the tlf signal), then a Configure-Request with no Open event draws ze's CONFREQ and an Ack echoing Id 0x32, Ack-Sent, no end, no second down. Red if Stopped ends the session (sessionEndedAt) or if tlf is not signalled (recorded against signalLayerFinished). Producer checked: signalLayerFinished runs only on a Stopped sessionEndedAt kept; sendEvent's at-most-once drop cannot swallow a legitimate down because every other emitter (fail, auth, NCP, run exit paths, ncp.go) ends the session and was the first down; after tlf a renegotiation ends at Opened (TestRFC1661StoppedAfterPeerTerminateEndsOnOpened) or at a later Stopped/Closed, so the wait is bounded by the CDN/PADT teardown ze started (L2TP teardownSession -> kernel worker closes the PPPoX socket; PPPoE handleSessionDown closes the transport). Valid single-polarity: no refusing counterpart; marker still true.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | positive | [`TestRFC1661StoppedAfterPeerTerminateTakesNewConfigureRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L257) | unit/verify | revert, verified |
-| positive | [`TestRFC1661NewConfigureRequestAcceptedAfterTerminateRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L677) | unit/verify | revert, verified |
+| positive | [`TestRFC1661NewConfigureRequestAcceptedAfterTerminateRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L678) | unit/verify | revert, verified |
 
 ### [`RFC1661-4.3-3`](#rfc1661-4.3-3)
 
 The implementation MUST stop sending the offending packet type. (Section 4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC1661-4.3-3, so no unit is bound to it.
+No test carries RFC1661-4.3-3, so there is no linked test.
 
 ### [`RFC1661-5.1-1`](#rfc1661-5.1-1)
 
 An implementation wishing to open a connection MUST transmit a Configure-Request. (Section 5.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC1661OpenTransmitsConfigureRequestOnWire runs applyTransition (the same path run() uses for its synthetic Open) for Closed+Open and Starting+Up: red unless exactly one LCP Configure-Request reaches the wire and state is Req-Sent. Initial+Up (no Open) writes nothing and lands in Closed. The run() entry itself is RFC1661-3.1-1's, still open.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661OpenTransmitsConfigureRequest, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661UpWithoutOpenSendsNoConfigureRequest moved. TestRFC1661OpenTransmitsConfigureRequestOnWire runs applyTransition (the same path run() uses for its synthetic Open) for Closed+Open and Starting+Up: red unless exactly one LCP Configure-Request reaches the wire and state is Req-Sent. Initial+Up (no Open) writes nothing and lands in Closed. The run() entry itself is RFC1661-3.1-1's, still open.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC1661OpenTransmitsConfigureRequestOnWire`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L421) | unit/verify | revert, verified |
-| negative | [`TestRFC1661UpWithoutOpenSendsNoConfigureRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L734) | unit/verify | revert, verified |
+| negative | [`TestRFC1661OpenTransmitsConfigureRequestOnWire`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L421) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC1661UpWithoutOpenSendsNoConfigureRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L735) | unit/verify | revert, verified |
 | positive | [`TestRFC1661OpenTransmitsConfigureRequestOnWire`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L420) | unit/verify | revert, verified |
-| positive | [`TestRFC1661OpenTransmitsConfigureRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L703) | unit/verify | revert, verified |
+| positive | [`TestRFC1661OpenTransmitsConfigureRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L704) | unit/verify | revert, verified |
 
 ### [`RFC1661-5.1-2`](#rfc1661-5.1-2)
 
 Upon reception of a Configure-Request, an appropriate reply MUST be transmitted. (Section 5.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: no reply, or the wrong reply, to a Configure-Request. TestRFC1661ConfigureAckEchoesOptionsVerbatim goes red when no Configure-Ack (Identifier 0x21) is written for an acceptable request; TestRFC1661ConfigureRejectForUnrecognizedOption goes red on an Ack or a missing Configure-Reject for an unrecognized option. Driven in ReqSent through handleLCPPacket.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureAckEchoesOptionsVerbatim, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureRejectForUnrecognizedOption moved. Forbidden: no reply, or the wrong reply, to a Configure-Request. TestRFC1661ConfigureAckEchoesOptionsVerbatim goes red when no Configure-Ack (Identifier 0x21) is written for an acceptable request; TestRFC1661ConfigureRejectForUnrecognizedOption goes red on an Ack or a missing Configure-Reject for an unrecognized option. Driven in ReqSent through handleLCPPacket.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC1661ConfigureRejectForUnrecognizedOption`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L816) | unit/verify | unproven |
-| positive | [`TestRFC1661ConfigureAckEchoesOptionsVerbatim`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L752) | unit/verify | unproven |
+| negative | [`TestRFC1661ConfigureRejectForUnrecognizedOption`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L817) | unit/verify | unproven |
+| positive | [`TestRFC1661ConfigureAckEchoesOptionsVerbatim`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L753) | unit/verify | unproven |
 
 ### [`RFC1661-5.1-3`](#rfc1661-5.1-3)
 
 The Identifier field MUST be changed whenever the contents of the Options field changes, and whenever a valid reply has been received for a previous request. (Section 5.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudge 2026-11-08: the pppoeclient units changed only in plumbing (frames through testFrameReader, negotiateLCP's new nil reentry argument and shared Identifier counter new(uint8), which negotiateLCP increments before every Configure-Request); every input, assertion and comparison is unchanged and negotiateLCP still gates each reply through ppp.ValidateLCPReply. (a) options change -> new Identifier: TestLCPConfigureRequestIdentifierLifecycle red when changed.Identifier == retry.Identifier; (b) valid reply -> new Identifier: server red when afterAck.Identifier == changed.Identifier, client units TestClientLCPRejectRemovesOnlyRejectedOptions and TestClientLCPNakChangesIdentifierAndDropsStaleReply red when the post-Reject / post-Nak request keeps first.Identifier. Negative: timeout retransmission keeps the request byte-identical, a stale Ack does not advance.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPNakChangesIdentifierAndDropsStaleReply, internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions moved. Independent rejudge 2026-11-14: explicit three-second and ten-request session fixtures preserve the prior behavior. TestLCPConfigureRequestIdentifierLifecycle requires a fresh Identifier when request data changes and after a valid Ack, while timeout retransmission stays byte-identical and a stale Ack leaves Req-Sent. The client Nak and Reject tests still require a changed Identifier after the valid reply, reject the stale Ack and finish on the replacement Ack. Re-read RFC Section 5.1 and negotiateLCP; every relevant assertion and peer packet is unchanged.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestLCPConfigureRequestIdentifierLifecycle`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L493) | unit/verify | unproven |
-| negative | [`TestClientLCPNakChangesIdentifierAndDropsStaleReply`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L146) | unit/verify | revert, verified |
+| negative | [`TestClientLCPNakChangesIdentifierAndDropsStaleReply`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L146) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 | positive | [`TestLCPConfigureRequestIdentifierLifecycle`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L492) | unit/verify | unproven |
-| positive | [`TestClientLCPRejectRemovesOnlyRejectedOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L80) | unit/verify | revert, verified |
+| positive | [`TestClientLCPRejectRemovesOnlyRejectedOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L80) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 
 ### [`RFC1661-5.2-1`](#rfc1661-5.2-1)
 
 If every Configuration Option received in a Configure-Request is recognizable and all values are acceptable, then the implementation MUST transmit a Configure-Ack. (Section 5.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: not Acking a fully acceptable request. TestRFC1661ConfigureAckEchoesOptionsVerbatim goes red on no Configure-Ack; TestRFC1877ConfigureAckEchoesAcceptable goes red when an acceptable IPCP request draws no Ack echoing it. Negatives: an unrecognized option (no Ack) and an unacceptable IP-Address (Nak).
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureAckEchoesOptionsVerbatim, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureRejectForUnrecognizedOption moved. Forbidden: not Acking a fully acceptable request. TestRFC1661ConfigureAckEchoesOptionsVerbatim goes red on no Configure-Ack; TestRFC1877ConfigureAckEchoesAcceptable goes red when an acceptable IPCP request draws no Ack echoing it. Negatives: an unrecognized option (no Ack) and an unacceptable IP-Address (Nak).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC1877ConfigureAckEchoesAcceptable`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_dns_options_test.go#L18) | unit/verify | revert, verified |
-| negative | [`TestRFC1661ConfigureRejectForUnrecognizedOption`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L820) | unit/verify | unproven |
-| positive | [`TestRFC1661ConfigureAckEchoesOptionsVerbatim`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L756) | unit/verify | unproven |
+| negative | [`TestRFC1661ConfigureRejectForUnrecognizedOption`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L821) | unit/verify | unproven |
+| positive | [`TestRFC1661ConfigureAckEchoesOptionsVerbatim`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L757) | unit/verify | unproven |
 
 ### [`RFC1661-5.2-2`](#rfc1661-5.2-2)
 
 The acknowledged Configuration Options MUST NOT be reordered or modified in any way. (§5.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Sentence: the acknowledged Configuration Options MUST NOT be reordered or modified in any way. (a) Reordering: TestRFC1661ConfigureAckDoesNotReorderOptions sends MRU,Magic and Magic,MRU and bytes.Equal(pkt.Data, data) goes red on a normalized order. (b) Modifying: TestRFC1661ConfigureAckEchoesOptionsVerbatim bytes.Equal(pkt.Data, data) goes red on any changed value or length; TestRFC1877ConfigureAckEchoesAcceptable carries the same check for IPCP.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureAckDoesNotReorderOptions, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureAckEchoesOptionsVerbatim moved. Sentence: the acknowledged Configuration Options MUST NOT be reordered or modified in any way. (a) Reordering: TestRFC1661ConfigureAckDoesNotReorderOptions sends MRU,Magic and Magic,MRU and bytes.Equal(pkt.Data, data) goes red on a normalized order. (b) Modifying: TestRFC1661ConfigureAckEchoesOptionsVerbatim bytes.Equal(pkt.Data, data) goes red on any changed value or length; TestRFC1877ConfigureAckEchoesAcceptable carries the same check for IPCP.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC1661ConfigureAckDoesNotReorderOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L785) | unit/verify | unproven |
+| negative | [`TestRFC1661ConfigureAckDoesNotReorderOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L786) | unit/verify | unproven |
 | positive | [`TestRFC1877ConfigureAckEchoesAcceptable`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_dns_options_test.go#L14) | unit/verify | mutant, verified |
-| positive | [`TestRFC1661ConfigureAckEchoesOptionsVerbatim`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L759) | unit/verify | unproven |
+| positive | [`TestRFC1661ConfigureAckEchoesOptionsVerbatim`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L760) | unit/verify | unproven |
 
 ### [`RFC1661-5.2-3`](#rfc1661-5.2-3)
 
 On reception of a Configure-Ack, the Identifier field MUST match that of the last transmitted Configure-Request. (Section 5.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudge 2026-11-08: the pppoeclient units changed only in plumbing (frames through testFrameReader, negotiateLCP's new nil reentry argument and shared Identifier counter new(uint8), which negotiateLCP increments before every Configure-Request); every input, assertion and comparison is unchanged and negotiateLCP still gates each reply through ppp.ValidateLCPReply. Forbidden: accepting a Configure-Ack whose Identifier differs from the last request. TestLCPRepliesMatchOutstandingRequest (Ack wrong Identifier) red on any state or wire change; TestClientLCPReplyCorrelation red if an Identifier+1 Ack completes LCP or writes a frame. Positives: the matching Ack reaches Ack-Rcvd (server) and completes negotiation (client).
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation, internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation#2 moved. Independent rejudge 2026-11-14: TestClientLCPReplyCorrelation changes only explicit timing to the previous defaults. Its wrong-Identifier Ack cannot finish LCP or emit any extra frame, and its exact matching Ack must finish. TestLCPRepliesMatchOutstandingRequest separately requires the wrong Identifier to leave FSM and wire unchanged and a matching Ack to enter Ack-Rcvd. Re-read RFC Section 5.2, ValidateLCPReply and both receiving paths.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestLCPRepliesMatchOutstandingRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L400) | unit/verify | unproven |
-| negative | [`TestClientLCPReplyCorrelation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L19) | unit/verify | revert, verified |
+| negative | [`TestClientLCPReplyCorrelation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L19) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 | positive | [`TestLCPRepliesMatchOutstandingRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L399) | unit/verify | unproven |
-| positive | [`TestClientLCPReplyCorrelation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L18) | unit/verify | revert, verified |
+| positive | [`TestClientLCPReplyCorrelation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L18) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 
 ### [`RFC1661-5.2-4`](#rfc1661-5.2-4)
 
 Additionally, the Configuration Options in a Configure-Ack MUST exactly match those of the last transmitted Configure-Request. (Section 5.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudge 2026-11-08: the pppoeclient units changed only in plumbing (frames through testFrameReader, negotiateLCP's new nil reentry argument and shared Identifier counter new(uint8), which negotiateLCP increments before every Configure-Request); every input, assertion and comparison is unchanged and negotiateLCP still gates each reply through ppp.ValidateLCPReply. Forbidden: accepting an Ack whose options differ from the request. TestLCPRepliesMatchOutstandingRequest red when a changed value or a missing, extra or reordered option changes FSM or wire; TestClientLCPReplyCorrelation red if a nil, modified or reordered Ack completes LCP. The exact Ack advances in both.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation, internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation#2 moved. Independent rejudge 2026-11-14: the client unit adds only explicit old-default timing; missing, modified and reordered Ack options still cannot finish LCP or emit extra frames, followed by an exact Ack that opens it. The server pair additionally covers extra options and checks unchanged FSM and wire before accepting the exact Ack. Re-read RFC Section 5.2 and ValidateLCPReply's bytes.Equal boundary. No expected bytes, packet order or assertion was weakened.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestLCPRepliesMatchOutstandingRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L402) | unit/verify | unproven |
-| negative | [`TestClientLCPReplyCorrelation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L21) | unit/verify | revert, verified |
+| negative | [`TestClientLCPReplyCorrelation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L21) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 | positive | [`TestLCPRepliesMatchOutstandingRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L401) | unit/verify | unproven |
-| positive | [`TestClientLCPReplyCorrelation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L20) | unit/verify | revert, verified |
+| positive | [`TestClientLCPReplyCorrelation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L20) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 
 ### [`RFC1661-5.3-1`](#rfc1661-5.3-1)
 
 If every instance of the received Configuration Options is recognizable, but some values are not acceptable, then the implementation MUST transmit a Configure-Nak. (§5.3)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Sentence: if every instance of the received options is recognizable but some values are not acceptable, the implementation MUST transmit a Configure-Nak. (a) Answering an unacceptable MRU 2000 with Ack, Reject or nothing: TestRFC1661ConfigureNakSuggestsAcceptableValue findCode(LCPConfigureNak) fails. (b) Nak where all values are acceptable: TestRFC1661NoNakForAcceptableValue findCode(LCPConfigureNak) ok goes red.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureNakSuggestsAcceptableValue, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoNakForAcceptableValue moved. Sentence: if every instance of the received options is recognizable but some values are not acceptable, the implementation MUST transmit a Configure-Nak. (a) Answering an unacceptable MRU 2000 with Ack, Reject or nothing: TestRFC1661ConfigureNakSuggestsAcceptableValue findCode(LCPConfigureNak) fails. (b) Nak where all values are acceptable: TestRFC1661NoNakForAcceptableValue findCode(LCPConfigureNak) ok goes red.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC1661NoNakForAcceptableValue`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L941) | unit/verify | unproven |
-| positive | [`TestRFC1661ConfigureNakSuggestsAcceptableValue`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L906) | unit/verify | unproven |
+| negative | [`TestRFC1661NoNakForAcceptableValue`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L942) | unit/verify | unproven |
+| positive | [`TestRFC1661ConfigureNakSuggestsAcceptableValue`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L907) | unit/verify | unproven |
 
 ### [`RFC1661-5.3-2`](#rfc1661-5.3-2)
 
 Options which have no value fields (boolean options) MUST use the Configure-Reject reply instead. (Section 5.3)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC1661WellFormedBooleanDeclinedWithReject removes the length-fault confound: a well-formed Length-2 ACFC declined on PPPoE draws a Configure-Reject whose options are exactly that ACFC and no Nak; beside a Nak-earning MRU, NegotiatePeerOptions puts the ACFC in rejects not naks and the wire reply is the Reject naming only ACFC. Red on a Nak for the boolean.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661BooleanOptionsUseRejectNotNak, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ValuedOptionUsesNak moved. TestRFC1661WellFormedBooleanDeclinedWithReject removes the length-fault confound: a well-formed Length-2 ACFC declined on PPPoE draws a Configure-Reject whose options are exactly that ACFC and no Nak; beside a Nak-earning MRU, NegotiatePeerOptions puts the ACFC in rejects not naks and the wire reply is the Reject naming only ACFC. Red on a Nak for the boolean.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC1661WellFormedBooleanDeclinedWithReject`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L93) | unit/verify | revert, verified |
-| negative | [`TestRFC1661ValuedOptionUsesNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L993) | unit/verify | revert, verified |
+| negative | [`TestRFC1661ValuedOptionUsesNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L994) | unit/verify | revert, verified |
 | positive | [`TestRFC1661WellFormedBooleanDeclinedWithReject`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L92) | unit/verify | revert, verified |
-| positive | [`TestRFC1661BooleanOptionsUseRejectNotNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L971) | unit/verify | revert, verified |
+| positive | [`TestRFC1661BooleanOptionsUseRejectNotNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L972) | unit/verify | revert, verified |
 
 ### [`RFC1661-5.3-3`](#rfc1661-5.3-3)
 
 Each Configuration Option which is allowed only a single instance MUST be modified to a value acceptable to the Configure-Nak sender. (Section 5.3)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a Nak that repeats an unacceptable single-instance value. TestRFC1661ConfigureNakSuggestsAcceptableValue goes red unless the Nak carries one MRU at 1500 for a requested 2000; TestRFC1661RepeatedOptionDrawsOneNakEntry goes red on more than one Magic entry; TestRFC1661NoNakForAcceptableValue goes red if an acceptable MRU is Nak'd or modified.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureNakSuggestsAcceptableValue, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoNakForAcceptableValue moved. Forbidden: a Nak that repeats an unacceptable single-instance value. TestRFC1661ConfigureNakSuggestsAcceptableValue goes red unless the Nak carries one MRU at 1500 for a requested 2000; TestRFC1661RepeatedOptionDrawsOneNakEntry goes red on more than one Magic entry; TestRFC1661NoNakForAcceptableValue goes red if an acceptable MRU is Nak'd or modified.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC1661NoNakForAcceptableValue`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L944) | unit/verify | unproven |
+| negative | [`TestRFC1661NoNakForAcceptableValue`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L945) | unit/verify | unproven |
 | positive | [`TestRFC1661RepeatedOptionDrawsOneNakEntry`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L345) | unit/verify | unproven |
-| positive | [`TestRFC1661ConfigureNakSuggestsAcceptableValue`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L910) | unit/verify | unproven |
+| positive | [`TestRFC1661ConfigureNakSuggestsAcceptableValue`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L911) | unit/verify | unproven |
 
 ### [`RFC1661-5.3-4`](#rfc1661-5.3-4)
 
 When a particular type of Configuration Option can be listed more than once with different values, the Configure-Nak MUST include a list of all values for that option which are acceptable to the Configure-Nak sender. (Section 5.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC1661-5.3-4, so no unit is bound to it.
+No test carries RFC1661-5.3-4, so there is no linked test.
 
 ### [`RFC1661-5.3-5`](#rfc1661-5.3-5)
 
 Any value fields for the option MUST indicate values acceptable to the Configure-Nak sender. (Section 5.3)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a Nak value the Nak sender would not accept. TestRFC1661NakValueIsAcceptable re-offers the Nak'd MRU (from 2000 and 32) and goes red unless it draws ack=1 nak=0 rej=0; TestRFC1661RejectedValueStaysUnacceptable goes red if the original 2000 is accepted. Only the MRU option is exercised.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakValueIsAcceptable, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661RejectedValueStaysUnacceptable moved. Forbidden: a Nak value the Nak sender would not accept. TestRFC1661NakValueIsAcceptable re-offers the Nak'd MRU (from 2000 and 32) and goes red unless it draws ack=1 nak=0 rej=0; TestRFC1661RejectedValueStaysUnacceptable goes red if the original 2000 is accepted. Only the MRU option is exercised.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC1661RejectedValueStaysUnacceptable`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1032) | unit/verify | unproven |
-| positive | [`TestRFC1661NakValueIsAcceptable`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1010) | unit/verify | unproven |
+| negative | [`TestRFC1661RejectedValueStaysUnacceptable`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1033) | unit/verify | unproven |
+| positive | [`TestRFC1661NakValueIsAcceptable`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1011) | unit/verify | unproven |
 
 ### [`RFC1661-5.3-6`](#rfc1661-5.3-6)
 
 All acceptable Configuration Options are filtered out of the Configure-Nak, but otherwise the Configuration Options from the Configure-Request MUST NOT be reordered. (§5.3)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Reordering: TestRFC1661NakPreservesRequestOrder / TestRFC1661NakOrderFollowsRequestNotAFixedOrder. Filtering: TestRFC1661NakFiltersAcceptableOptions puts an acceptable ACCM between Magic 0 and MRU 2000 in both orders and reads the wire Configure-Nak: red unless its Types are exactly the two Nak-earning ones in request order, so a copied ACCM or a reorder both fail.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakOrderFollowsRequestNotAFixedOrder, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakPreservesRequestOrder moved. Reordering: TestRFC1661NakPreservesRequestOrder / TestRFC1661NakOrderFollowsRequestNotAFixedOrder. Filtering: TestRFC1661NakFiltersAcceptableOptions puts an acceptable ACCM between Magic 0 and MRU 2000 in both orders and reads the wire Configure-Nak: red unless its Types are exactly the two Nak-earning ones in request order, so a copied ACCM or a reorder both fail.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC1661NakFiltersAcceptableOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L139) | unit/verify | revert, verified |
-| negative | [`TestRFC1661NakOrderFollowsRequestNotAFixedOrder`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1077) | unit/verify | revert, verified |
+| negative | [`TestRFC1661NakOrderFollowsRequestNotAFixedOrder`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1078) | unit/verify | revert, verified |
 | positive | [`TestRFC1661NakFiltersAcceptableOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L138) | unit/verify | revert, verified |
-| positive | [`TestRFC1661NakPreservesRequestOrder`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1049) | unit/verify | revert, verified |
+| positive | [`TestRFC1661NakPreservesRequestOrder`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1050) | unit/verify | revert, verified |
 
 ### [`RFC1661-5.3-7`](#rfc1661-5.3-7)
 
 On reception of a Configure-Nak, the Identifier field MUST match that of the last transmitted Configure-Request. (Section 5.3)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudge 2026-11-08: the pppoeclient units changed only in plumbing (frames through testFrameReader, negotiateLCP's new nil reentry argument and shared Identifier counter new(uint8), which negotiateLCP increments before every Configure-Request); every input, assertion and comparison is unchanged and negotiateLCP still gates each reply through ppp.ValidateLCPReply. Forbidden: acting on a Nak whose Identifier differs from the last request. TestLCPRepliesMatchOutstandingRequest (Nak wrong Identifier) red on any state/wire change; TestClientLCPReplyCorrelation red if an Identifier+1 Nak emits a frame. Positives: a matching Nak yields a new request (server MRU 1400; client TestClientLCPNakChangesIdentifierAndDropsStaleReply, new Identifier).
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPNakChangesIdentifierAndDropsStaleReply, internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation moved. Independent rejudge 2026-11-14: explicit previous-default timing preserves both client units. A wrong-Identifier Nak in TestClientLCPReplyCorrelation emits no replacement and cannot finish; a matching Nak in TestClientLCPNakChangesIdentifierAndDropsStaleReply must produce a new request and complete only on that request's Ack. The unchanged server correlation pair also checks a valid MRU suggestion reaches the next request. Re-read RFC Section 5.3 and ValidateLCPReply; invalid Identifier is checked before any adoption or FSM transition.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestLCPRepliesMatchOutstandingRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L404) | unit/verify | unproven |
-| negative | [`TestClientLCPReplyCorrelation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L22) | unit/verify | revert, verified |
+| negative | [`TestClientLCPReplyCorrelation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L22) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 | positive | [`TestLCPRepliesMatchOutstandingRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L403) | unit/verify | unproven |
-| positive | [`TestClientLCPNakChangesIdentifierAndDropsStaleReply`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L145) | unit/verify | revert, verified |
+| positive | [`TestClientLCPNakChangesIdentifierAndDropsStaleReply`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L145) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 
 ### [`RFC1661-5.3-8`](#rfc1661-5.3-8)
 
 Since the Nak'd Option has been modified by the peer, the implementation MUST be able to handle an Option length which is different from the original Configure-Request. (Section 5.3)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 1661 Section 5.3: Since the Nak'd Option has been modified by the peer, the implementation MUST be able to handle an Option length which is different from the original Configure-Request. Rejudged TestRFC1661NakHandlesDifferentOptionLength and TestRFC1661NakTooShortOptionNotDecoded: Q1 yes, the shorter 4-octet PAP suggestion is accepted against the offered 5-octet CHAP form while a one-octet protocol value is not decoded; Q2 yes, the recorded WalkLCPOptions minimum-length mutant and adjustAuthOnNakOrReject one-byte decode mutant discriminate these exact assertions; Q3 yes, explicit permitted orders and the already-offered CHAP bit isolate length handling from authentication fallback eligibility, and the malformed value remains structurally inside its own option; Q4 yes, the variable-length acceptance obligation and unsafe-short-input boundary are covered. Existing enforced verdict retained; no product fix identified.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakHandlesDifferentOptionLength, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakTooShortOptionNotDecoded moved. RFC 1661 Section 5.3: Since the Nak'd Option has been modified by the peer, the implementation MUST be able to handle an Option length which is different from the original Configure-Request. Rejudged TestRFC1661NakHandlesDifferentOptionLength and TestRFC1661NakTooShortOptionNotDecoded: Q1 yes, the shorter 4-octet PAP suggestion is accepted against the offered 5-octet CHAP form while a one-octet protocol value is not decoded; Q2 yes, the recorded WalkLCPOptions minimum-length mutant and adjustAuthOnNakOrReject one-byte decode mutant discriminate these exact assertions; Q3 yes, explicit permitted orders and the already-offered CHAP bit isolate length handling from authentication fallback eligibility, and the malformed value remains structurally inside its own option; Q4 yes, the variable-length acceptance obligation and unsafe-short-input boundary are covered. Existing enforced verdict retained; no product fix identified.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC1661NakTooShortOptionNotDecoded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1122) | unit/verify | mutant, verified |
-| positive | [`TestRFC1661NakHandlesDifferentOptionLength`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1098) | unit/verify | mutant, verified |
+| negative | [`TestRFC1661NakTooShortOptionNotDecoded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1123) | unit/verify | mutant, verified |
+| positive | [`TestRFC1661NakHandlesDifferentOptionLength`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1099) | unit/verify | mutant, verified |
 
 ### [`RFC1661-5.4-1`](#rfc1661-5.4-1)
 
 If some Configuration Options received in a Configure-Request are not recognizable or are not acceptable for negotiation (as configured by a network administrator), then the implementation MUST transmit a Configure-Reject. (Section 5.4)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Clause (a) unrecognized: TestRFC1661ConfigureRejectForUnrecognizedOption and the OutranksInvalidLength units. Clause (b) refused by configuration: TestRFC1661ConfigureRejectForOptionRefusedByConfiguration sends Auth-Protocol (any session) and ACCM (PPPoE), red unless the Reject carries exactly that option and no Ack is written; the same ACCM on L2TP, which configuration accepts, must be Acked with no Reject.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureRejectForUnrecognizedOption, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoConfigureRejectWhenAllOptionsRecognized, internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientAcceptsServerAuthProtocol, internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientUnrecognizedTypeOutranksInvalidLength, internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientUnrecognizedTypeOutranksInvalidLength#2 moved. Clause (a) unrecognized: TestRFC1661ConfigureRejectForUnrecognizedOption and the OutranksInvalidLength units. Clause (b) refused by configuration: TestRFC1661ConfigureRejectForOptionRefusedByConfiguration sends Auth-Protocol (any session) and ACCM (PPPoE), red unless the Reject carries exactly that option and no Ack is written; the same ACCM on L2TP, which configuration accepts, must be Acked with no Reject.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC1661ConfigureRejectForOptionRefusedByConfiguration`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L170) | unit/verify | revert, verified |
 | negative | [`TestRFC1877ConfigureRejectEchoesUnsupportedOnly`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_dns_options_test.go#L70) | unit/verify | revert, verified |
 | negative | [`TestRFC1661NCPUnrecognizedTypeOutranksInvalidLength`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L531) | unit/verify | revert, verified |
-| negative | [`TestRFC1661NoConfigureRejectWhenAllOptionsRecognized`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L854) | unit/verify | mutant, verified |
+| negative | [`TestRFC1661NoConfigureRejectWhenAllOptionsRecognized`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L855) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
 | negative | [`TestRFC1661ClientAcceptsServerAuthProtocol`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go#L372) | unit/verify | revert, verified |
 | negative | [`TestRFC1661ClientUnrecognizedTypeOutranksInvalidLength`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go#L220) | unit/verify | revert, verified |
 | positive | [`TestRFC1661ConfigureRejectForOptionRefusedByConfiguration`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L169) | unit/verify | revert, verified |
 | positive | [`TestRFC1661LCPUnrecognizedTypeOutranksInvalidLength`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L459) | unit/verify | mutant, verified |
 | positive | [`TestRFC1661NCPUnrecognizedTypeOutranksInvalidLength`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L526) | unit/verify | revert, verified |
-| positive | [`TestRFC1661ConfigureRejectForUnrecognizedOption`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L823) | unit/verify | mutant, verified |
+| positive | [`TestRFC1661ConfigureRejectForUnrecognizedOption`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L824) | unit/verify | mutant, verified |
 | positive | [`TestRFC1661ClientUnrecognizedTypeOutranksInvalidLength`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go#L215) | unit/verify | revert, verified |
 
 ### [`RFC1661-5.4-2`](#rfc1661-5.4-2)
 
 All recognizable and negotiable Configuration Options are filtered out of the Configure-Reject, but otherwise the Configuration Options MUST NOT be reordered or modified in any way. (§5.4)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Sentence: all recognizable and negotiable options are filtered out of the Configure-Reject, but otherwise the options MUST NOT be reordered or modified in any way. (a) Keeping a recognizable option: TestRFC1661ConfigureRejectForUnrecognizedOption sends MRU(1400)+type 99 and bytes.Equal(pkt.Data, optStream(unknown)) goes red if MRU stays. (b) Reordering: TestRFC1661ConfigureRejectDoesNotReorderOptions compares Types in both orders. (c) Modifying: the same test compares each Data, and TestRFC1661LCPRejectEchoesTheRefusedOptionUnmodified / TestRFC1661ClientRejectEchoesTheRefusedOptionUnmodified check the echoed bytes.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureRejectDoesNotReorderOptions, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureRejectForUnrecognizedOption, internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRejectEchoesTheRefusedOptionUnmodified, internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRejectEchoesTheRefusedOptionUnmodified#2 moved. Sentence: all recognizable and negotiable options are filtered out of the Configure-Reject, but otherwise the options MUST NOT be reordered or modified in any way. (a) Keeping a recognizable option: TestRFC1661ConfigureRejectForUnrecognizedOption sends MRU(1400)+type 99 and bytes.Equal(pkt.Data, optStream(unknown)) goes red if MRU stays. (b) Reordering: TestRFC1661ConfigureRejectDoesNotReorderOptions compares Types in both orders. (c) Modifying: the same test compares each Data, and TestRFC1661LCPRejectEchoesTheRefusedOptionUnmodified / TestRFC1661ClientRejectEchoesTheRefusedOptionUnmodified check the echoed bytes.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC1661LCPRejectEchoesTheRefusedOptionUnmodified`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L839) | unit/verify | unproven |
-| negative | [`TestRFC1661ConfigureRejectDoesNotReorderOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L872) | unit/verify | unproven |
+| negative | [`TestRFC1661ConfigureRejectDoesNotReorderOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L873) | unit/verify | unproven |
 | negative | [`TestRFC1661ClientRejectEchoesTheRefusedOptionUnmodified`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go#L263) | unit/verify | unproven |
 | positive | [`TestRFC1877ConfigureRejectEchoesUnsupportedOnly`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_dns_options_test.go#L67) | unit/verify | revert, verified |
 | positive | [`TestRFC1661LCPRejectEchoesTheRefusedOptionUnmodified`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L828) | unit/verify | unproven |
-| positive | [`TestRFC1661ConfigureRejectForUnrecognizedOption`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L826) | unit/verify | unproven |
+| positive | [`TestRFC1661ConfigureRejectForUnrecognizedOption`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L827) | unit/verify | unproven |
 | positive | [`TestRFC1661ClientRejectEchoesTheRefusedOptionUnmodified`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go#L251) | unit/verify | unproven |
 
 ### [`RFC1661-5.4-3`](#rfc1661-5.4-3)
 
 On reception of a Configure-Reject, the Identifier field MUST match that of the last transmitted Configure-Request. (Section 5.4)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudge 2026-11-08: the pppoeclient units changed only in plumbing (frames through testFrameReader, negotiateLCP's new nil reentry argument and shared Identifier counter new(uint8), which negotiateLCP increments before every Configure-Request); every input, assertion and comparison is unchanged and negotiateLCP still gates each reply through ppp.ValidateLCPReply. Forbidden: acting on a Reject whose Identifier differs. TestLCPRepliesMatchOutstandingRequest (Reject wrong Identifier) and TestClientLCPReplyCorrelation red on any state/wire change; positives: a matching Reject yields a new request without MRU (server) and a new-Identifier request without the rejected options (TestClientLCPRejectRemovesOnlyRejectedOptions).
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions, internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation moved. Independent rejudge 2026-11-14: only old-default client timing became explicit. A wrong-Identifier Reject leaves output and LCP completion unchanged, while a matching Reject creates a fresh request without the rejected options. The server correlation pair checks the same Identifier distinction and that MRU is absent from the replacement after a valid Reject. Re-read RFC Section 5.4 and both ValidateLCPReply callers; peer packets and assertions remain identical.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestLCPRepliesMatchOutstandingRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L406) | unit/verify | unproven |
-| negative | [`TestClientLCPReplyCorrelation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L23) | unit/verify | revert, verified |
+| negative | [`TestClientLCPReplyCorrelation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L23) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 | positive | [`TestLCPRepliesMatchOutstandingRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L405) | unit/verify | unproven |
-| positive | [`TestClientLCPRejectRemovesOnlyRejectedOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L76) | unit/verify | revert, verified |
+| positive | [`TestClientLCPRejectRemovesOnlyRejectedOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L76) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 
 ### [`RFC1661-5.4-4`](#rfc1661-5.4-4)
 
 Additionally, the Configuration Options in a Configure-Reject MUST be a subset of those in the last transmitted Configure- Request. (§5.4, erratum 543)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudge 2026-11-08: the pppoeclient units changed only in plumbing (frames through testFrameReader, negotiateLCP's new nil reentry argument and shared Identifier counter new(uint8), which negotiateLCP increments before every Configure-Request); every input, assertion and comparison is unchanged and negotiateLCP still gates each reply through ppp.ValidateLCPReply. Sentence (erratum 543): Reject options MUST be a subset of the last request. (a) accepting a Reject naming an unrequested option or a changed value: TestLCPRepliesMatchOutstandingRequest cases red; TestClientLCPReplyCorrelation covers modified and reordered. (b) refusing a Reject equal to the whole request: TestClientLCPRejectRemovesOnlyRejectedOptions subtest all red if the replacement request is not emitted.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions, internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation moved. Independent rejudge 2026-11-14 against RFC Section 5.4 and verified erratum 543: subset includes the whole option list. The client tests still accept MRU-only, Magic-only and all-option Rejects, and refuse changed or reordered Reject bytes. The unchanged server test additionally refuses an unrequested option. The only client change is explicit three-second and ten-request timing. ValidateLCPReply still enforces ordered unchanged requested options; no input or outcome assertion changed.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestLCPRepliesMatchOutstandingRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L408) | unit/verify | unproven |
-| negative | [`TestClientLCPReplyCorrelation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L24) | unit/verify | revert, verified |
+| negative | [`TestClientLCPReplyCorrelation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L24) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 | positive | [`TestLCPRepliesMatchOutstandingRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L407) | unit/verify | unproven |
-| positive | [`TestClientLCPRejectRemovesOnlyRejectedOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L77) | unit/verify | revert, verified |
+| positive | [`TestClientLCPRejectRemovesOnlyRejectedOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L77) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 
 ### [`RFC1661-5.4-5`](#rfc1661-5.4-5)
 
 Reception of a valid Configure-Reject indicates that when a new Configure-Request is sent, it MUST NOT include any of the Configuration Options listed in the Configure-Reject. (§5.4)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudge 2026-11-08: the pppoeclient units changed only in plumbing (frames through testFrameReader, negotiateLCP's new nil reentry argument and shared Identifier counter new(uint8), which negotiateLCP increments before every Configure-Request); every input, assertion and comparison is unchanged and negotiateLCP still gates each reply through ppp.ValidateLCPReply. Re-including a rejected option: TestLCPRejectedOptionsStayRemoved (MRU only, and all) and TestClientLCPRejectRemovesOnlyRejectedOptions (MRU, Magic, all; across a retransmission and a later Nak) red on bytes.Equal(next.Data, want). New IPCP positive TestRFC1661ClientDropsRejectedDNSOptions: after a Reject of both DNS options, or of Secondary alone, the next IPCP request is exactly IP-Address (+Primary) under a new Identifier, and IPCP opens with no server learned for a rejected option. Negative: un-rejected options stay byte-identical.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions, internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions#2 moved. Independent rejudge 2026-11-14: the client LCP unit adds only explicit old-default timing and still requires rejected MRU/Magic options to stay absent across the next request, retransmission and an appended Nak suggestion, while options not rejected stay byte-identical. The server MRU/all-option pair and the IPCP both-DNS/secondary-only tests retain their exact replacement bytes and successful-completion controls. Re-read RFC Section 5.4, negotiateLCP rejection flags, negotiateIPCP and the tagged tests; no rejection persistence proof was lost.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestLCPRejectedOptionsStayRemoved`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L534) | unit/verify | unproven |
-| negative | [`TestClientLCPRejectRemovesOnlyRejectedOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L79) | unit/verify | revert, verified |
+| negative | [`TestClientLCPRejectRemovesOnlyRejectedOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L79) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 | positive | [`TestLCPRejectedOptionsStayRemoved`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L533) | unit/verify | unproven |
-| positive | [`TestRFC1661ClientDropsRejectedDNSOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_client_dns_test.go#L149) | unit/verify | mutant, verified |
-| positive | [`TestClientLCPRejectRemovesOnlyRejectedOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L78) | unit/verify | revert, verified |
+| positive | [`TestRFC1661ClientDropsRejectedDNSOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_client_dns_test.go#L149) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestClientLCPRejectRemovesOnlyRejectedOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L78) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 
 ### [`RFC1661-5.5-1`](#rfc1661-5.5-1)
 
 Upon reception of a Terminate-Request, a Terminate-Ack MUST be transmitted. (Section 5.5)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: no Terminate-Ack for a Terminate-Request. TestRFC1661TerminateAckSentAndLinkHeld goes red on no LCP Terminate-Ack or an Identifier other than the request's 0x77, as Section 5.5 asks ('the Identifier field of the Terminate-Request is copied into the Identifier field of the Terminate-Ack packet'); TestRFC1661NoTerminateAckForTerminateAck goes red if a Terminate-Ack draws one. checkPPPCodeReject assertion 6 goes red unless the relay's fifth injected frame is exactly IPCP 05 5a 00 04 and Ze then sends an IPCP Terminate-Ack carrying 0x5a; assertion 5 has already shown Ze sent no Code 1-6 packet after the probes, so the Ack is the reply to that request. IPCP inherits this obligation unchanged: RFC 1332 Section 2 makes IPCP 'exactly the same as the Link Control Protocol' and lists no Terminate exception. Scope: every tagged unit drives the Opened state (LCP and IPCP). The Section 4.1 sta edges of Stopped, Closing, Stopping, Ack-Rcvd and Ack-Sent have no test asserting a Terminate-Ack anywhere in the package (Closed is covered by TestLCPPeerTerminateRestartTimer, IPCP Req-Sent by TestIPCPUsedCodesAreNotCodeRejected); journaled as requirement-proven-in-one-state-of-many.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoTerminateAckForTerminateAck, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661TerminateAckSentAndLinkHeld moved. Forbidden: no Terminate-Ack for a Terminate-Request. TestRFC1661TerminateAckSentAndLinkHeld goes red on no LCP Terminate-Ack or an Identifier other than the request's 0x77, as Section 5.5 asks ('the Identifier field of the Terminate-Request is copied into the Identifier field of the Terminate-Ack packet'); TestRFC1661NoTerminateAckForTerminateAck goes red if a Terminate-Ack draws one. checkPPPCodeReject assertion 6 goes red unless the relay's fifth injected frame is exactly IPCP 05 5a 00 04 and Ze then sends an IPCP Terminate-Ack carrying 0x5a; assertion 5 has already shown Ze sent no Code 1-6 packet after the probes, so the Ack is the reply to that request. IPCP inherits this obligation unchanged: RFC 1332 Section 2 makes IPCP 'exactly the same as the Link Control Protocol' and lists no Terminate exception. Scope: every tagged unit drives the Opened state (LCP and IPCP). The Section 4.1 sta edges of Stopped, Closing, Stopping, Ack-Rcvd and Ack-Sent have no test asserting a Terminate-Ack anywhere in the package (Closed is covered by TestLCPPeerTerminateRestartTimer, IPCP Req-Sent by TestIPCPUsedCodesAreNotCodeRejected); journaled as requirement-proven-in-one-state-of-many.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC1661NoTerminateAckForTerminateAck`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L603) | unit/verify | unproven |
-| positive | [`TestRFC1661TerminateAckSentAndLinkHeld`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L569) | unit/verify | revert, verified |
+| negative | [`TestRFC1661NoTerminateAckForTerminateAck`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L604) | unit/verify | unproven |
+| positive | [`TestRFC1661TerminateAckSentAndLinkHeld`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L570) | unit/verify | revert, verified |
 | positive | [`checkPPPCodeReject`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/l2tp/ppp_code_reject.go#L96) | interop/nightly | mutant, verified |
 
 ### [`RFC1661-5.6-1`](#rfc1661-5.6-1)
 
 This MUST be reported back to the sender of the unknown Code by transmitting a Code- Reject. (Section 5.6)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: not Code-Rejecting an unknown Code. TestRFC1661CodeRejectForUnknownCode goes red on no Code-Reject or a Rejected-Packet not carrying Code 99, Identifier 0x41, Length 6, Data aabb; TestRFC1661NoCodeRejectForKnownCode goes red if a Terminate-Request is Code-Rejected. checkPPPCodeReject, over live xl2tpd and pppd with LCP and IPCP Opened, goes red at assertion 2 unless Ze answers the two injected LCP Code 99 probes with LCP Code-Rejects and the two IPCP Code 12 probes with IPCP Code-Rejects, and assertions 3 and 4 then require exactly two per protocol, each carrying the probe's Code and Identifier 0x42. Its claim now names both halves and states no more than the body checks. The LCP half is the sentence this row quotes; the IPCP half applies RFC 1332 Section 2 ('Other Codes should be treated as unrecognized and should result in Code-Rejects'). Its record breaks wakeUnitReader in afterLCPOpen (red at assertion 2), which proves the IPCP half needs Ze to read its PPP unit descriptor; no interop record breaks the LCP Code-Reject producer, whose discrimination rests on the unit tests.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661CodeRejectForUnknownCode, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoCodeRejectForKnownCode moved. Forbidden: not Code-Rejecting an unknown Code. TestRFC1661CodeRejectForUnknownCode goes red on no Code-Reject or a Rejected-Packet not carrying Code 99, Identifier 0x41, Length 6, Data aabb; TestRFC1661NoCodeRejectForKnownCode goes red if a Terminate-Request is Code-Rejected. checkPPPCodeReject, over live xl2tpd and pppd with LCP and IPCP Opened, goes red at assertion 2 unless Ze answers the two injected LCP Code 99 probes with LCP Code-Rejects and the two IPCP Code 12 probes with IPCP Code-Rejects, and assertions 3 and 4 then require exactly two per protocol, each carrying the probe's Code and Identifier 0x42. Its claim now names both halves and states no more than the body checks. The LCP half is the sentence this row quotes; the IPCP half applies RFC 1332 Section 2 ('Other Codes should be treated as unrecognized and should result in Code-Rejects'). Its record breaks wakeUnitReader in afterLCPOpen (red at assertion 2), which proves the IPCP half needs Ze to read its PPP unit descriptor; no interop record breaks the LCP Code-Reject producer, whose discrimination rests on the unit tests.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC1661NoCodeRejectForKnownCode`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1178) | unit/verify | unproven |
-| positive | [`TestRFC1661CodeRejectForUnknownCode`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1146) | unit/verify | unproven |
+| negative | [`TestRFC1661NoCodeRejectForKnownCode`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1179) | unit/verify | unproven |
+| positive | [`TestRFC1661CodeRejectForUnknownCode`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1147) | unit/verify | unproven |
 | positive | [`checkPPPCodeReject`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/l2tp/ppp_code_reject.go#L82) | interop/nightly | mutant, verified |
 
 ### [`RFC1661-5.6-2`](#rfc1661-5.6-2)
@@ -834,9 +841,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 
 
 Upon reception of a Protocol-Reject, the implementation MUST stop sending packets of the indicated protocol at the earliest opportunity. (Section 5.7)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC1661-5.7-2, so no unit is bound to it.
+No test carries RFC1661-5.7-2, so there is no linked test.
 
 ### [`RFC1661-5.7-3`](#rfc1661-5.7-3)
 
@@ -863,91 +870,91 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 Upon reception of an Echo-Request in the LCP Opened state, an Echo-Reply MUST be transmitted. (Section 5.8)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge ppp4 2026-09-30. TestRFC1661EchoReplyInOpened: Opened, Echo-Request with the peer's Magic-Number draws an Echo-Reply with Identifier 0x51 and ze's Magic (+). TestRFC1661NoEchoOutsideOpened (-): now sets peerMagic 0x99887766 and sends that Magic, so the Magic-Number filter in handleLCPPacket passes and the FSM state alone decides; at HEAD the Data equalled the local magic with peerMagic 0 and the packet was dropped before the FSM, a vacuous negative that is now fixed.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoReplyInOpened, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoEchoOutsideOpened moved. Judge ppp4 2026-09-30. TestRFC1661EchoReplyInOpened: Opened, Echo-Request with the peer's Magic-Number draws an Echo-Reply with Identifier 0x51 and ze's Magic (+). TestRFC1661NoEchoOutsideOpened (-): now sets peerMagic 0x99887766 and sends that Magic, so the Magic-Number filter in handleLCPPacket passes and the FSM state alone decides; at HEAD the Data equalled the local magic with peerMagic 0 and the packet was dropped before the FSM, a vacuous negative that is now fixed.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC1661NoEchoOutsideOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1240) | unit/verify | unproven |
-| positive | [`TestRFC1661EchoReplyInOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1199) | unit/verify | unproven |
+| negative | [`TestRFC1661NoEchoOutsideOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1241) | unit/verify | unproven |
+| positive | [`TestRFC1661EchoReplyInOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1200) | unit/verify | unproven |
 
 ### [`RFC1661-5.8-2`](#rfc1661-5.8-2)
 
 Echo-Request and Echo-Reply packets MUST only be sent in the LCP Opened state. (Section 5.8)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudge 2026-11-08: the pppoeclient units changed only in plumbing (frames through testFrameReader, negotiateLCP's new nil reentry argument and shared Identifier counter new(uint8), which negotiateLCP increments before every Configure-Request); every input, assertion and comparison is unchanged and negotiateLCP still gates each reply through ppp.ValidateLCPReply. Positive TestRFC1661EchoReplyInOpened (reply in Opened, recorded red on sendEchoReply); negative TestRFC1661NoEchoOutsideOpened (Echo-Request in Req-Sent/Ack-Sent/Ack-Rcvd/Stopped draws neither Echo-Reply nor Echo-Request, peer Magic matching so only state blocks it); TestRFC1661KeepaliveEchoOnlyInOpened covers the sending half. pppoeclient TestClientLCPEchoBeforeOpenDiscarded kept (client role).
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/pppoeclient/rfc1661_lcp_transition_test.go::TestClientLCPEchoBeforeOpenDiscarded moved. Independent rejudge 2026-11-14: the changed client fixture explicitly supplies its previous timer/count and still sends no Echo-Reply in Req-Sent or Ack-Rcvd, then completes valid LCP. The unchanged server pair requires an exact Echo-Reply in Opened and neither Echo request nor reply in Req-Sent, Ack-Sent, Ack-Rcvd or Stopped, with a valid peer Magic control; the lifecycle test requires a Configure-Request rather than an Echo after LCP reentry. Re-read RFC Section 5.8, negotiateLCP and the server dispatch/state guards.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC1661KeepaliveEchoOnlyInOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L126) | unit/verify | mutant, verified |
-| negative | [`TestRFC1661NoEchoOutsideOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1244) | unit/verify | revert, verified |
-| negative | [`TestClientLCPEchoBeforeOpenDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_transition_test.go#L115) | unit/verify | revert, verified |
+| negative | [`TestRFC1661KeepaliveEchoOnlyInOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L126) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC1661NoEchoOutsideOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1245) | unit/verify | revert, verified |
+| negative | [`TestClientLCPEchoBeforeOpenDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_transition_test.go#L115) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 | positive | [`TestRFC1661KeepaliveEchoOnlyInOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L125) | unit/verify | revert, verified |
-| positive | [`TestRFC1661EchoReplyInOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1202) | unit/verify | mutant, verified |
+| positive | [`TestRFC1661EchoReplyInOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1203) | unit/verify | mutant, verified |
 
 ### [`RFC1661-5.9-1`](#rfc1661-5.9-1)
 
 Discard-Request packets MUST only be sent in the LCP Opened state. (Section 5.9)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC1661-5.9-1, so no unit is bound to it.
+No test carries RFC1661-5.9-1, so there is no linked test.
 
 ### [`RFC1661-5.9-2`](#rfc1661-5.9-2)
 
 On reception, the receiver MUST silently discard any Discard- Request that it receives. (Section 5.9)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. {single-polarity} justified. Forbidden: any reply or effect for a Discard-Request. TestRFC1661DiscardRequestSilentlyDiscarded goes red on any written frame, a state change or a lifecycle event.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661DiscardRequestSilentlyDiscarded moved. {single-polarity} justified. Forbidden: any reply or effect for a Discard-Request. TestRFC1661DiscardRequestSilentlyDiscarded goes red on any written frame, a state change or a lifecycle event.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC1661DiscardRequestSilentlyDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1269) | unit/verify | unproven |
+| positive | [`TestRFC1661DiscardRequestSilentlyDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1270) | unit/verify | unproven |
 
 ### [`RFC1661-6.2-1`](#rfc1661-6.2-1)
 
 An implementation MUST NOT include multiple Authentication- Protocol Configuration Options in its Configure-Request packets. (Section 6.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. {single-polarity} justified. Forbidden: two Authentication-Protocol options in a request. TestRFC1661SingleAuthProtocolOptionInRequest goes red when BuildLocalConfigRequest emits a count != 1 for PAP, CHAP-MD5 or MS-CHAPv2.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661SingleAuthProtocolOptionInRequest moved. {single-polarity} justified. Forbidden: two Authentication-Protocol options in a request. TestRFC1661SingleAuthProtocolOptionInRequest goes red when BuildLocalConfigRequest emits a count != 1 for PAP, CHAP-MD5 or MS-CHAPv2.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC1661SingleAuthProtocolOptionInRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1301) | unit/verify | unproven |
+| positive | [`TestRFC1661SingleAuthProtocolOptionInRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1302) | unit/verify | unproven |
 
 ### [`RFC1661-6.4-1`](#rfc1661-6.4-1)
 
 If an implementation does transmit a Configure-Request with a Magic-Number Configuration Option, then it MUST NOT respond with a Configure-Reject when it receives a Configure-Request with a Magic-Number Configuration Option. (Section 6.4)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: Configure-Rejecting a peer Magic-Number while ze sends one. TestRFC1661ZeroMagicNumberRefused goes red on any reject of a zero Magic; TestRFC1661UnknownOptionRejectedWhileMagicIsNot goes red unless the Magic is Acked while Type 99 in the same request is Rejected (proving the reject path is live).
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661UnknownOptionRejectedWhileMagicIsNot, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ZeroMagicNumberRefused moved. Forbidden: Configure-Rejecting a peer Magic-Number while ze sends one. TestRFC1661ZeroMagicNumberRefused goes red on any reject of a zero Magic; TestRFC1661UnknownOptionRejectedWhileMagicIsNot goes red unless the Magic is Acked while Type 99 in the same request is Rejected (proving the reject path is live).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC1661UnknownOptionRejectedWhileMagicIsNot`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1351) | unit/verify | unproven |
-| positive | [`TestRFC1661ZeroMagicNumberRefused`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1379) | unit/verify | unproven |
+| negative | [`TestRFC1661UnknownOptionRejectedWhileMagicIsNot`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1352) | unit/verify | unproven |
+| positive | [`TestRFC1661ZeroMagicNumberRefused`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1380) | unit/verify | unproven |
 
 ### [`RFC1661-6.4-2`](#rfc1661-6.4-2)
 
 If Magic-Number has been successfully negotiated, an implementation MUST transmit these packets with the Magic-Number field set to its negotiated Magic-Number. (Section 6.4)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge ppp4 2026-09-30. Re-read after the comment-only edit to TestRFC1661EchoReplyInOpened: it still asserts the Echo-Reply Magic-Number equals the local negotiated value (+); negatives and the Echo-Request half (TestEchoRequestCarriesNegotiatedMagic) unchanged. ze sends no Discard-Request (no producer).
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoReplyDoesNotMirrorPeerMagic, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoReplyInOpened moved. Judge ppp4 2026-09-30. Re-read after the comment-only edit to TestRFC1661EchoReplyInOpened: it still asserts the Echo-Reply Magic-Number equals the local negotiated value (+); negatives and the Echo-Request half (TestEchoRequestCarriesNegotiatedMagic) unchanged. ze sends no Discard-Request (no producer).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestEchoRequestCarriesNegotiatedMagic`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_magic_echo_test.go#L419) | unit/verify | revert, verified |
-| negative | [`TestRFC1661EchoReplyDoesNotMirrorPeerMagic`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1418) | unit/verify | revert, verified |
+| negative | [`TestRFC1661EchoReplyDoesNotMirrorPeerMagic`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1419) | unit/verify | revert, verified |
 | positive | [`TestEchoRequestCarriesNegotiatedMagic`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_magic_echo_test.go#L418) | unit/verify | revert, verified |
-| positive | [`TestRFC1661EchoReplyInOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1211) | unit/verify | mutant, verified |
+| positive | [`TestRFC1661EchoReplyInOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1212) | unit/verify | mutant, verified |
 
 ### [`RFC1661-6.4-3`](#rfc1661-6.4-3)
 
 A Magic-Number of zero is illegal and MUST always be Nak'd, if it is not Rejected outright. (Section 6.4)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: accepting a zero Magic-Number. TestRFC1661ZeroMagicNumberRefused (server) and TestRFC1661ClientNaksZeroMagicInAWellFormedRequest / ...WithAValueOfItsOwn (client) go red unless a zero Magic draws a Nak carrying a 4-octet non-zero value; negatives Ack a non-zero Magic (TestRFC1661PeerMagicNumberAcked, TestRFC1661ClientAcksANonZeroMagic).
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661PeerMagicNumberAcked, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ZeroMagicNumberRefused, internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientNaksZeroMagicWithAValueOfItsOwn, internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientNaksZeroMagicWithAValueOfItsOwn#2 moved. Forbidden: accepting a zero Magic-Number. TestRFC1661ZeroMagicNumberRefused (server) and TestRFC1661ClientNaksZeroMagicInAWellFormedRequest / ...WithAValueOfItsOwn (client) go red unless a zero Magic draws a Nak carrying a 4-octet non-zero value; negatives Ack a non-zero Magic (TestRFC1661PeerMagicNumberAcked, TestRFC1661ClientAcksANonZeroMagic).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC1661PeerMagicNumberAcked`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1332) | unit/verify | unproven |
+| negative | [`TestRFC1661PeerMagicNumberAcked`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1333) | unit/verify | unproven |
 | negative | [`TestRFC1661ClientAcksANonZeroMagic`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_client_negotiation_test.go#L82) | unit/verify | unproven |
 | negative | [`TestRFC1661ClientNaksZeroMagicWithAValueOfItsOwn`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go#L426) | unit/verify | unproven |
-| positive | [`TestRFC1661ZeroMagicNumberRefused`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1371) | unit/verify | unproven |
+| positive | [`TestRFC1661ZeroMagicNumberRefused`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1372) | unit/verify | unproven |
 | positive | [`TestRFC1661ClientNaksZeroMagicInAWellFormedRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_client_negotiation_test.go#L44) | unit/verify | unproven |
 | positive | [`TestRFC1661ClientNaksZeroMagicWithAValueOfItsOwn`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go#L420) | unit/verify | unproven |
 
@@ -955,96 +962,112 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 By default, all implementations MUST transmit packets with two octet PPP Protocol fields. (Section 6.5)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. {single-polarity} justified. Forbidden: a one-octet Protocol field on transmit. TestRFC1661TwoOctetProtocolField goes red when WriteFrame writes off != 2 or octets != c021.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661TwoOctetProtocolField moved. {single-polarity} justified. Forbidden: a one-octet Protocol field on transmit. TestRFC1661TwoOctetProtocolField goes red when WriteFrame writes off != 2 or octets != c021.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC1661TwoOctetProtocolField`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L259) | unit/verify | unproven |
+| positive | [`TestRFC1661TwoOctetProtocolField`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L260) | unit/verify | unproven |
 
 ### [`RFC1661-6.5-2`](#rfc1661-6.5-2)
 
 Compressed Protocol fields MUST NOT be transmitted unless this Configuration Option has been negotiated. (Section 6.5)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. {single-polarity} justified: WriteFrame has no compressed branch. Forbidden: a compressed Protocol without negotiation. TestRFC1661TwoOctetProtocolField goes red if WriteFrame writes one octet. Its pfc loop is decorative (the built option list never reaches WriteFrame); the assertion that discriminates is the off != 2 check.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661TwoOctetProtocolField moved. {single-polarity} justified: WriteFrame has no compressed branch. Forbidden: a compressed Protocol without negotiation. TestRFC1661TwoOctetProtocolField goes red if WriteFrame writes one octet. Its pfc loop is decorative (the built option list never reaches WriteFrame); the assertion that discriminates is the off != 2 check.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC1661TwoOctetProtocolField`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L263) | unit/verify | unproven |
+| positive | [`TestRFC1661TwoOctetProtocolField`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L264) | unit/verify | unproven |
 
 ### [`RFC1661-6.5-3`](#rfc1661-6.5-3)
 
 When negotiated, PPP implementations MUST accept PPP packets with either double-octet or single-octet Protocol fields, and MUST NOT distinguish between them. (§6.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC1661-6.5-3, so no unit is bound to it.
+No test carries RFC1661-6.5-3, so there is no linked test.
 
 ### [`RFC1661-6.6-1`](#rfc1661-6.6-1)
 
 By default, all implementations MUST transmit frames with Address and Control fields appropriate to the link framing. (Section 6.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC1661-6.6-1, so no unit is bound to it.
+No test carries RFC1661-6.6-1, so there is no linked test.
 
 ### [`RFC1661-6.6-2`](#rfc1661-6.6-2)
 
 The Address and Control fields MUST NOT be compressed when sending any LCP packet. (Section 6.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC1661-6.6-2, so no unit is bound to it.
+No test carries RFC1661-6.6-2, so there is no linked test.
 
 ### [`RFC1661-4.6-1`](#rfc1661-4.6-1)
 
 The Restart timer MUST be configurable (§4.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC1661-4.6-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestConfiguredLCPRestartTimer`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_configured_restart_test.go#L39) | unit/verify | unproven |
+| positive | [`TestConfiguredLCPRestartTimer`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_configured_restart_test.go#L38) | unit/verify | unproven |
 
 ### [`RFC1661-4.6-2`](#rfc1661-4.6-2)
 
 Max-Terminate MUST be configurable (§4.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC1661-4.6-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestConfiguredLCPMaxTerminate`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_configured_restart_test.go#L159) | unit/verify | unproven |
+| positive | [`TestConfiguredLCPMaxTerminate`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_configured_restart_test.go#L158) | unit/verify | unproven |
 
 ### [`RFC1661-4.6-3`](#rfc1661-4.6-3)
 
 Max-Configure MUST be configurable (§4.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC1661-4.6-3, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestConfiguredLCPMaxConfigure`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_configured_restart_test.go#L87) | unit/verify | unproven |
+| positive | [`TestConfiguredLCPMaxConfigure`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_configured_restart_test.go#L86) | unit/verify | unproven |
 
 ### [`RFC1661-4.6-4`](#rfc1661-4.6-4)
 
 Max-Failure MUST be configurable (§4.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC1661-4.6-4, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestConfiguredLCPMaxFailure`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_configured_restart_test.go#L200) | unit/verify | unproven |
+| negative | [`TestRFC1661ClientMaxFailureAckRenewsBudget`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_max_failure_test.go#L58) | unit/verify | unproven |
+| positive | [`TestConfiguredLCPMaxFailure`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_configured_restart_test.go#L199) | unit/verify | unproven |
+| positive | [`TestRFC1661ClientMaxFailureConvertsFurtherNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_max_failure_test.go#L20) | unit/verify | unproven |
 
 ### [`RFC1661-4.4-1`](#rfc1661-4.4-1)
 
 In addition to setting the Restart counter, the implementation MUST set the timeout period to the initial value when Restart timer backoff is used. (Section 4.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC1661-4.4-1, so no unit is bound to it.
+No test carries RFC1661-4.4-1, so there is no linked test.
 
 ### [`RFC1661-4.4-2`](#rfc1661-4.4-2)
 
 In addition to zeroing the Restart counter, the implementation MUST set the timeout period to an appropriate value. (Section 4.4)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-read after TestLCPPeerTerminateRestartTimer changed its end-of-grace assertion to the RFC 1661 Section 4.3 behaviour (no session end, Stopped). The 4.4-2 assertions are unchanged: Opened+RTR arms the real Restart timer at defaultRestartTimer, the session stays Stopping for the grace period and the timer event reaches Stopped; the Closed case arms no timer. Both polarities observed red under recorded breaks (armRestartTimer, applyTransition).
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/ppp/rfc1661_configured_restart_test.go::TestConfiguredLCPZeroRestartPeriod, internal/component/l2tp/ppp/rfc1661_configured_restart_test.go::TestConfiguredLCPZeroRestartPeriod#2 moved. Re-read after TestLCPPeerTerminateRestartTimer changed its end-of-grace assertion to the RFC 1661 Section 4.3 behaviour (no session end, Stopped). The 4.4-2 assertions are unchanged: Opened+RTR arms the real Restart timer at defaultRestartTimer, the session stays Stopping for the grace period and the timer event reaches Stopped; the Closed case arms no timer. Both polarities observed red under recorded breaks (armRestartTimer, applyTransition).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestLCPPeerTerminateRestartTimer`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_restart_counter_test.go#L136) | unit/verify | revert, verified |
-| positive | [`TestLCPPeerTerminateRestartTimer`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_restart_counter_test.go#L135) | unit/verify | revert, verified |
+| negative | [`TestConfiguredLCPZeroRestartPeriod`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_configured_restart_test.go#L244) | unit/verify | unproven |
+| negative | [`TestLCPPeerTerminateRestartTimer`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_restart_counter_test.go#L136) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestConfiguredLCPZeroRestartPeriod`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_configured_restart_test.go#L243) | unit/verify | unproven |
+| positive | [`TestLCPPeerTerminateRestartTimer`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_restart_counter_test.go#L135) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC1661-5.5-2`](#rfc1661-5.5-2)
 
@@ -1083,21 +1106,21 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Sent
 
 The Identifier field MUST be changed for each Discard-Request sent. (Section 5.9)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC1661-5.9-3, so no unit is bound to it.
+No test carries RFC1661-5.9-3, so there is no linked test.
 
 ### [`RFC1661-6.1-1`](#rfc1661-6.1-1)
 
 If smaller packets are requested, an implementation MUST still be able to receive the full 1500 octet information field in case link synchronization is lost. (Section 6.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 1661 Section 6.1: "If smaller packets are requested, an implementation MUST still be able to receive the full 1500 octet information field in case link synchronization is lost." Rejudged statically at HEAD; the narrowed claims match the body. TestReceiveFullFrameBelowConfiguredMRU requests MRU 1492 through the real Driver and proxy LCP, sends a valid 1500-octet Echo-Request, and fullMRUReceiveRecorder copies the actual read: its length must be the full frame and its Code, Identifier and Data must be the original, so a buffer cut to the requested MRU goes red (recorded mutant on readFrames). The negative asserts the one setMRU call carries 1500 (recorded mutant on afterLCPOpen), which is the state Ze installs; no real kernel is exercised. The capped 1492-octet reply is not credited as receive evidence. TestFullInformationFieldReceived proves ParseFrame, the pooled read buffer and ParseLCPPacket hold 1500; its 1501 rejection is not credited. The unit-fd reader uses the same getFrameBuf.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/ppp/rfc1661_proxy_policy_driver_test.go::TestReceiveFullFrameBelowConfiguredMRU, internal/component/l2tp/ppp/rfc1661_proxy_policy_driver_test.go::TestReceiveFullFrameBelowConfiguredMRU#2 moved. RFC 1661 Section 6.1: "If smaller packets are requested, an implementation MUST still be able to receive the full 1500 octet information field in case link synchronization is lost." Rejudged statically at HEAD; the narrowed claims match the body. TestReceiveFullFrameBelowConfiguredMRU requests MRU 1492 through the real Driver and proxy LCP, sends a valid 1500-octet Echo-Request, and fullMRUReceiveRecorder copies the actual read: its length must be the full frame and its Code, Identifier and Data must be the original, so a buffer cut to the requested MRU goes red (recorded mutant on readFrames). The negative asserts the one setMRU call carries 1500 (recorded mutant on afterLCPOpen), which is the state Ze installs; no real kernel is exercised. The capped 1492-octet reply is not credited as receive evidence. TestFullInformationFieldReceived proves ParseFrame, the pooled read buffer and ParseLCPPacket hold 1500; its 1501 rejection is not credited. The unit-fd reader uses the same getFrameBuf.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestReceiveFullFrameBelowConfiguredMRU`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_proxy_policy_driver_test.go#L125) | unit/verify | mutant, verified |
+| negative | [`TestReceiveFullFrameBelowConfiguredMRU`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_proxy_policy_driver_test.go#L125) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
 | positive | [`TestFullInformationFieldReceived`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_magic_echo_test.go#L282) | unit/verify | revert, verified |
-| positive | [`TestReceiveFullFrameBelowConfiguredMRU`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_proxy_policy_driver_test.go#L124) | unit/verify | mutant, verified |
+| positive | [`TestReceiveFullFrameBelowConfiguredMRU`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_proxy_policy_driver_test.go#L124) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
 
 ### [`RFC1661-6.4-5`](#rfc1661-6.4-5)
 
@@ -1125,16 +1148,16 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Sent
 
 If the Magic-Number is equal to the one sent in the last Configure-Nak, the possibility of a looped-back link is increased, and a new Magic-Number MUST be chosen. (Section 6.4)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged (independent auditor) after a02374d9ad, which changed the client unit only by checking that sendEchoReply returns nil on the healthy frameLog writer (sendEchoReply now returns its write error); every Magic assertion is unchanged. Section 6.4: "If the Magic-Number is equal to the one sent in the last Configure-Nak, the possibility of a looped-back link is increased, and a new Magic-Number MUST be chosen." The client unit reflects ze's own Configure-Nak back as a Nak of ze's request (the looped case) and requires the next Configure-Request's Magic to be nonzero, different from clientMagic and from the suggestion, and the Echo-Reply to carry it. Producer re-read: negotiateLCP's LCPOptMagic Nak branch still calls generateDifferentMagic(localMagic) (crypto/rand, refuses the previous value, errors after 8 repeats) and never adopts the suggestion. The ppp pair is unchanged: TestRFC1661LoopedNakMagicChoosesNewMagic (+), TestRFC1661LoopedNakMagicRefusesRepeatedDraw (-, forced repeated draw), plus TestMagicNumberRedrawnOnNak. Observation kept: the client unit's two tags sit on the same assertions and its draws are random, so dropping the magic != previous guard in generateDifferentMagic survives it; the forced-repeat negative exists for the ppp role only. The client revert record no longer verifies (unit-changed) and owes a re-take.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue, internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue#2 moved. Independent rejudge 2026-11-14: the client test changes only explicit old-default timing. It loops Ze's own Magic Nak back, requires a fresh nonzero proposal differing from the old value and suggestion, and requires Echo to carry that negotiated value. Re-read RFC Section 6.4 and generateDifferentMagic's bounded redraw path. The unchanged server tests include the forced repeated first random draw, the looped-Nak exchange and the no-Magic-option control. Preserve the existing limitation: the client uses random draws and its two tags share assertions, so its own test does not discriminate removing the repeated-draw guard; that deterministic negative is provided by the server pair. The client observed-red records require retaking after the fixture change.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestMagicNumberRedrawnOnNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_magic_echo_test.go#L193) | unit/verify | revert, verified |
 | negative | [`TestRFC1661LoopedNakMagicRefusesRepeatedDraw`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_magic_loop_test.go#L101) | unit/verify | revert, verified |
-| negative | [`TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L187) | unit/verify | revert, verified |
+| negative | [`TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L187) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 | positive | [`TestMagicNumberRedrawnOnNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_magic_echo_test.go#L192) | unit/verify | revert, verified |
 | positive | [`TestRFC1661LoopedNakMagicChoosesNewMagic`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_magic_loop_test.go#L79) | unit/verify | revert, verified |
-| positive | [`TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L186) | unit/verify | revert, verified |
+| positive | [`TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L186) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 
 ### [`RFC1661-6.4-8`](#rfc1661-6.4-8)
 
@@ -1153,7 +1176,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Both
 
 If authentication fails, the authenticator SHOULD proceed instead to the Link Termination phase. (§3.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1164,14 +1187,14 @@ Audit verdict: not audited: no reader has judged these tests
 
 Instead, it SHOULD attempt to configure the most desirable protocol first.  If that protocol is Configure-Nak'd, then the implementation SHOULD attempt the next most desirable protocol in the next Configure-Request. (§6.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestAuthAllowSelectionMatrix`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_policy_driver_test.go#L32) | unit/verify | mutant, verified |
 | positive | [`TestAuthAllowSelectionMatrix`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_policy_driver_test.go#L31) | unit/verify | mutant, verified |
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -1190,43 +1213,43 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
-| `front` | not stated | 0 | walked | not stated |
-| `1` | not stated | 0 | walked | not stated |
-| `1.1` | not stated | 3 | walked | not stated |
-| `1.2` | not stated | 0 | walked | not stated |
-| `2` | not stated | 4 | walked | not stated |
-| `3` | not stated | 0 | walked | not stated |
-| `3.1` | not stated | 2 | walked | not stated |
-| `3.2` | not stated | 1 | walked | not stated |
-| `3.3` | not stated | 0 | walked | not stated |
-| `3.4` | not stated | 1 | walked | not stated |
-| `3.5` | not stated | 4 | walked | not stated |
-| `3.6` | not stated | 3 | walked | not stated |
-| `3.7` | not stated | 2 | walked | not stated |
-| `4` | not stated | 0 | walked | not stated |
-| `4.1` | not stated | 0 | walked | not stated |
-| `4.2` | not stated | 0 | walked | not stated |
-| `4.3` | not stated | 3 | walked | not stated |
-| `4.4` | not stated | 2 | walked | not stated |
-| `4.5` | not stated | 0 | walked | not stated |
-| `4.6` | not stated | 4 | walked | not stated |
-| `5` | not stated | 1 | walked | not stated |
-| `5.1` | not stated | 3 | walked | not stated |
-| `5.2` | not stated | 4 | walked | not stated |
-| `5.3` | not stated | 8 | walked | not stated |
-| `5.4` | not stated | 5 | walked | not stated |
-| `5.5` | not stated | 2 | walked | not stated |
-| `5.6` | not stated | 3 | walked | not stated |
-| `5.7` | not stated | 4 | walked | not stated |
-| `5.8` | not stated | 4 | walked | not stated |
-| `5.9` | not stated | 4 | walked | not stated |
-| `6` | not stated | 0 | walked | not stated |
-| `6.1` | not stated | 1 | walked | not stated |
-| `6.2` | not stated | 1 | walked | not stated |
-| `6.3` | not stated | 0 | walked | not stated |
-| `6.4` | not stated | 8 | walked | not stated |
-| `6.5` | not stated | 3 | walked | not stated |
-| `6.6` | not stated | 2 | walked | not stated |
+| `front` | not stated | 0 | reviewed | not stated |
+| `1` | not stated | 0 | reviewed | not stated |
+| `1.1` | not stated | 3 | reviewed | not stated |
+| `1.2` | not stated | 0 | reviewed | not stated |
+| `2` | not stated | 4 | reviewed | not stated |
+| `3` | not stated | 0 | reviewed | not stated |
+| `3.1` | not stated | 2 | reviewed | not stated |
+| `3.2` | not stated | 1 | reviewed | not stated |
+| `3.3` | not stated | 0 | reviewed | not stated |
+| `3.4` | not stated | 1 | reviewed | not stated |
+| `3.5` | not stated | 4 | reviewed | not stated |
+| `3.6` | not stated | 3 | reviewed | not stated |
+| `3.7` | not stated | 2 | reviewed | not stated |
+| `4` | not stated | 0 | reviewed | not stated |
+| `4.1` | not stated | 0 | reviewed | not stated |
+| `4.2` | not stated | 0 | reviewed | not stated |
+| `4.3` | not stated | 3 | reviewed | not stated |
+| `4.4` | not stated | 2 | reviewed | not stated |
+| `4.5` | not stated | 0 | reviewed | not stated |
+| `4.6` | not stated | 4 | reviewed | not stated |
+| `5` | not stated | 1 | reviewed | not stated |
+| `5.1` | not stated | 3 | reviewed | not stated |
+| `5.2` | not stated | 4 | reviewed | not stated |
+| `5.3` | not stated | 8 | reviewed | not stated |
+| `5.4` | not stated | 5 | reviewed | not stated |
+| `5.5` | not stated | 2 | reviewed | not stated |
+| `5.6` | not stated | 3 | reviewed | not stated |
+| `5.7` | not stated | 4 | reviewed | not stated |
+| `5.8` | not stated | 4 | reviewed | not stated |
+| `5.9` | not stated | 4 | reviewed | not stated |
+| `6` | not stated | 0 | reviewed | not stated |
+| `6.1` | not stated | 1 | reviewed | not stated |
+| `6.2` | not stated | 1 | reviewed | not stated |
+| `6.3` | not stated | 0 | reviewed | not stated |
+| `6.4` | not stated | 8 | reviewed | not stated |
+| `6.5` | not stated | 3 | reviewed | not stated |
+| `6.6` | not stated | 2 | reviewed | not stated |
 
 ### Excluded sentences
 

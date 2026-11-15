@@ -1,6 +1,6 @@
 # MPLS
 
-Technology aggregate. MPLS, LDP, RSVP-TE, and fast reroute. The RFCs whose summary names the mpls aggregate, with the MUST bar and the overview bar of the set and of each RFC.
+Technology profile. MPLS, LDP, RSVP-TE, and fast reroute. The RFCs grouped under mpls, showing mandatory requirement coverage and overall coverage for the group and each RFC.
 
 [All profiles](../) · [All RFCs](../../)
 
@@ -8,20 +8,23 @@ Figures as of the last build, read from [data/rfc/profiles/mpls.json](../../../.
 
 ## Figures
 
-- **MUST bar**: Ze proven 125, OS testing gap 7, Ze correctness gap 187
-- **Overview bar**: Ze MUST proven 125, SHOULD proven 6, SHOULD not decided 53, OS testing gap 7, Ze correctness gap 187
+- **MUST bar**: Ze proven 127, Proof pending 9, OS testing gap 2, Not built 181
+- **Overview bar**: Ze MUST proven 127, SHOULD proven 6, Proof pending 10, OS testing gap 2, Not assessed 49, Not built 184
 
 | Figure | Rows |
 |---|---|
 | RFCs | 10 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 319 |
 | MUST rows kept (the MUST bar) | 319 |
-| Ze proven | 125 |
+| Ze proven | 127 |
 | OS verified | 0 |
-| OS testing gap | 7 |
-| Ze correctness gap | 187 |
+| Proof pending | 9 |
+| OS testing gap | 2 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 181 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -34,53 +37,54 @@ Figures as of the last build, read from [data/rfc/profiles/mpls.json](../../../.
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 53 |
+| SHOULD proof pending | 1 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 49 |
+| SHOULD not built | 3 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 ## Tree
 
-Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each RFC carries the same two bars as the set above, from its own data file; an RFC that is not walked shows "not walked" and no bar.
+The RFCs are listed with the standards they build on first. An RFC appears one level after the highest level of its dependencies; RFCs that refer back to each other share a level. Each RFC has the same two coverage bars as the group above. An RFC whose requirement list has not been reviewed shows "requirements not reviewed" instead of a bar.
 
 ### Level 0
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 2205](../../rfc2205/) (cycle with rfc2210, rfc2211, rfc2215) | Resource ReSerVation Protocol (RSVP) -- Version 1 Functional Specification | Ze proven 31, Ze correctness gap 44 | Ze MUST proven 31, SHOULD not decided 5, Ze correctness gap 44 |
+| [RFC 2205](../../rfc2205/) (cycle with rfc2210, rfc2211, rfc2215) | Resource ReSerVation Protocol (RSVP) -- Version 1 Functional Specification | Ze proven 31, Not built 44 | Ze MUST proven 31, Not assessed 5, Not built 44 |
 
 ### Level 1
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 5036](../../rfc5036/) | LDP Specification | Ze proven 29, Ze correctness gap 62 | Ze MUST proven 29, SHOULD not decided 4, Ze correctness gap 62 |
+| [RFC 5036](../../rfc5036/) | LDP Specification | Ze proven 29, Proof pending 3, Not built 59 | Ze MUST proven 29, Proof pending 3, Not assessed 3, Not built 60 |
 
 ### Level 2
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 5561](../../rfc5561/) | LDP Capabilities | Ze proven 1, Ze correctness gap 16 | Ze MUST proven 1, SHOULD not decided 1, Ze correctness gap 16 |
+| [RFC 5561](../../rfc5561/) | LDP Capabilities | Ze proven 1, Not built 16 | Ze MUST proven 1, Not assessed 1, Not built 16 |
 
 ### Level 3
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 3031](../../rfc3031/) (cycle with rfc3032) | Multiprotocol Label Switching Architecture | Ze proven 2, Ze correctness gap 8 | Ze MUST proven 2, SHOULD not decided 2, Ze correctness gap 8 |
-| [RFC 3032](../../rfc3032/) (cycle with rfc3031) | MPLS Label Stack Encoding | Ze proven 1, OS testing gap 5, Ze correctness gap 12 | Ze MUST proven 1, SHOULD not decided 6, OS testing gap 5, Ze correctness gap 12 |
+| [RFC 3031](../../rfc3031/) (cycle with rfc3032) | Multiprotocol Label Switching Architecture | Ze proven 2, Not built 8 | Ze MUST proven 2, Not assessed 2, Not built 8 |
+| [RFC 3032](../../rfc3032/) (cycle with rfc3031) | MPLS Label Stack Encoding | Ze proven 3, Not built 15 | Ze MUST proven 3, Not assessed 5, Not built 16 |
 
 ### Level 4
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 3209](../../rfc3209/) | RSVP-TE: Extensions to RSVP for LSP Tunnels | Ze proven 23, OS testing gap 2, Ze correctness gap 34 | Ze MUST proven 23, SHOULD not decided 3, OS testing gap 2, Ze correctness gap 34 |
+| [RFC 3209](../../rfc3209/) | RSVP-TE: Extensions to RSVP for LSP Tunnels | Ze proven 23, Proof pending 2, OS testing gap 2, Not built 32 | Ze MUST proven 23, Proof pending 3, OS testing gap 2, Not assessed 2, Not built 32 |
 
 ### Level 5
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 4090](../../rfc4090/) | Fast Reroute Extensions to RSVP-TE for LSP Tunnels | Ze proven 29, Ze correctness gap 4 | Ze MUST proven 29, SHOULD proven 6, SHOULD not decided 2, Ze correctness gap 4 |
-| [RFC 5443](../../rfc5443/) | LDP IGP Synchronization | Ze proven 5, Ze correctness gap 3 | Ze MUST proven 5, SHOULD not decided 6, Ze correctness gap 3 |
+| [RFC 4090](../../rfc4090/) | Fast Reroute Extensions to RSVP-TE for LSP Tunnels | Ze proven 29, Proof pending 3, Not built 1 | Ze MUST proven 29, SHOULD proven 6, Proof pending 3, Not assessed 1, Not built 2 |
+| [RFC 5443](../../rfc5443/) | LDP IGP Synchronization | Ze proven 5, Not built 3 | Ze MUST proven 5, Not assessed 6, Not built 3 |
 
 ### Level 6
 
@@ -92,4 +96,4 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 5286](../../rfc5286/) | Basic Specification for IP Fast Reroute: Loop-Free Alternates | Ze proven 2, Ze correctness gap 4 | Ze MUST proven 2, SHOULD not decided 24, Ze correctness gap 4 |
+| [RFC 5286](../../rfc5286/) | Basic Specification for IP Fast Reroute: Loop-Free Alternates | Ze proven 2, Proof pending 1, Not built 3 | Ze MUST proven 2, Proof pending 1, Not assessed 24, Not built 3 |

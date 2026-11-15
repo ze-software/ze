@@ -61,13 +61,13 @@
 <ul>
 <li>Prefix limits are per address family. <code>teardown</code>, <code>idle-timeout</code> and <code>updated</code> now sit per family, joined by a new <code>reconnect</code> leaf. <code>idle-timeout 0</code>, the default, holds the peer down rather than reconnecting, and that peer reads <code>idle-hold</code>. Set <code>prefix { reconnect backoff; }</code> for the previous behaviour.</li>
 <li><code>show bgp peer detail</code> reports ConnectRetryCounter, mandatory session attribute 2 in RFC 4271, which Ze did not have at all. It is also a gauge.</li>
-<li><code>ze_bgp_announce_dropped_oversize_total</code> counts an announce whose route does not fit its build buffer, labelled by rail and stage. A log line was the only trace before.</li>
+<li><code>ze_bgp_announce_dropped_oversize_total</code> counts a route announcement dropped because it does not fit the output buffer. Its labels identify the forwarding path and processing stage. Previously, only a log line reported the drop.</li>
 <li>A peer can record every message it receives to a bounded file, and <code>ze-test replay</code> feeds that file back through the session with an injected clock. Off by default.</li>
 </ul>
 <p>Fixed:</p>
 <ul>
 <li>A message that only withdraws routes carries no path attributes, per RFC 4271 Section 4.3. Five egress rules added one anyway, FRR rejected each as malformed, and the route stayed live at the peer. The End-of-RIB marker was stamped the same way.</li>
-<li>LOCAL_PREF crossed the AS boundary on the two forward rails, which RFC 4271 Section 5.1.5 forbids.</li>
+<li>LOCAL_PREF crossed the AS boundary on both forwarding paths, which RFC 4271 Section 5.1.5 forbids.</li>
 <li>A hold expiry told the peer nothing. RFC 4271 Section 8.2.2 Event 10 lists seven actions and Ze performed one. Worst-case dead-peer detection falls from two hold times to one.</li>
 <li>MCAST-VPN and BGP-MUP relayed route types Ze cannot read, against RFC 7606 Section 5.4. Both are now parsed and installed as opaque RIB entries.</li>
 <li>An MP_UNREACH-only UPDATE whose withdrawals were all unrecognized was rebuilt into a forged End-of-RIB.</li>
@@ -95,7 +95,7 @@
                     <div class="blog-block" aria-label="🔒 IPsec and IKEv2">
                         <div class="md-content">
                             <h2>🔒 IPsec and IKEv2</h2>
-                            <p><code>show ipsec dataplane</code> reads the SAs and policies the kernel actually holds, rather than what the engine believes it installed. A doctor check covers the XFRM state, and a health detector reports the drift between the two. Every other IPsec surface reports the engine's own record, so a state the kernel silently refused was invisible from inside Ze.</p>
+                            <p><code>show ipsec dataplane</code> reads the security associations (SAs) and policies installed in the kernel. A doctor check inspects that state, and a health check reports differences from the IPsec engine's record. Other IPsec commands report the engine's record, so previously they could not reveal an installation the kernel had silently refused.</p>
 <p>Fixed:</p>
 <ul>
 <li>Every EAP-Success and EAP-Failure carried the wrong Identifier, which a conforming peer discards under RFC 3748 Section 4.2.</li>
@@ -145,9 +145,9 @@
 </ul>
                         </div>
                     </div>
-                    <div class="blog-block" aria-label="📚 Standards ledger">
+                    <div class="blog-block" aria-label="📚 Standards checks">
                         <div class="md-content">
-                            <h2>📚 Standards ledger</h2>
+                            <h2>📚 Standards checks</h2>
                             <p>Ze is being checked against every RFC it implements, one MUST at a time. A MUST counts as met only when a test names it, and only when that test fails if the behaviour is taken out. The work has started rather than finished, and it produced most of the list above. Claude Opus 5 does the checking.</p>
 <p>Where it stands: 2950 MUSTs are checked across 168 documents, and 85 of them still owe a test. Three documents have been read end to end against their own source text, to confirm the list of MUSTs missed none. The other 165 have not. So a green run today proves everything on the list, and does not yet prove the list is complete.</p>
 <p>What that turned up this week:</p>
@@ -203,7 +203,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 21:59 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 02:28 UTC</span>
                 </div>
             </div>
         </footer>

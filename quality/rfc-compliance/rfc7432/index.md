@@ -1,6 +1,6 @@
 # RFC 7432 - BGP MPLS-Based Ethernet VPN
 
-EVPN. Every requirement this repository extracted from RFC 7432, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+EVPN. Every requirement listed for RFC 7432, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,24 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 12 | of 103 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 1 | of 103 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 103 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 103 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 38 | 38 of 42 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-
-### Neutral
-
-measures that are neither good news nor bad
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Gated MUSTs | 103 | of 120 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 103 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 103 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 103 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 103 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 103 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Tested both ways | 12 | of 103 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 1 | of 103 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 103 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 103 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Tests shown to detect a fault | 38 | 38 of 42 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -35,55 +22,75 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 90 | of 103 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 14 | of 103 gated MUSTs judged | 2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+| Declared gap or no test | 90 | of 103 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Audit verdicts | 14 | of 103 mandatory requirements reviewed | 2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
-The 9 counts marked as a part above are the whole of the 103 gated MUSTs: they add up to 103. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Neutral
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+measures that are neither good news nor bad
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Out of scope | 0 | of 103 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 103 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 103 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 103 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 103 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+
+### Totals
+
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 103 | of 120 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 103 mandatory requirements: they add up to 103. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | EVPN |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 120 |
-| Gated MUST-level | 103 |
+| Mandatory requirements (MUST level) | 103 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 90 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 44 |
-| Tagged units | 42 |
+| Tests linked to requirements | 42 |
 | Recorded audit verdicts | 14 |
-| Discrimination records | 38 |
+| Fault test records | 38 |
 | Summary | `rfc/short/rfc7432.md` |
-| Requirement shard | `rfc/requirements/rfc7432.md` |
+| Requirement table | `rfc/requirements/rfc7432.md` |
 | RFC text | `rfc/full/rfc7432.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: BGP MPLS-Based Ethernet VPN (EVPN)
+Included in automatic checks: BGP MPLS-Based Ethernet VPN (EVPN)
 
-## What the public ledger says
+## Published support status
 
 **Area:** EVPN
 
@@ -98,14 +105,14 @@ Enrolled: BGP MPLS-Based Ethernet VPN (EVPN)
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 12 | one part of the gated population |
-| Annotated (including scoped evidence) | 91 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **103** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 12 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 91 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **103** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (12):** [`RFC7432-5-1`](#rfc7432-5-1), [`RFC7432-8.2.1-2`](#rfc7432-8.2.1-2), [`RFC7432-8.2.1-4`](#rfc7432-8.2.1-4), [`RFC7432-8.2.1-7`](#rfc7432-8.2.1-7), [`RFC7432-8.1.1-1`](#rfc7432-8.1.1-1), [`RFC7432-8.1.1-2`](#rfc7432-8.1.1-2), [`RFC7432-9.2.1-1`](#rfc7432-9.2.1-1), [`RFC7432-10-1`](#rfc7432-10-1), [`RFC7432-8.2.1-10`](#rfc7432-8.2.1-10), [`RFC7432-8.3-2`](#rfc7432-8.3-2), [`RFC7432-9.2.1-6`](#rfc7432-9.2.1-6), [`RFC7432-11.1-3`](#rfc7432-11.1-3)
 
@@ -113,20 +120,23 @@ Enrolled: BGP MPLS-Based Ethernet VPN (EVPN)
 
 ## Figures
 
-- **MUST bar**: Ze proven 11, Ze correctness gap 92
-- **Overview bar**: Ze MUST proven 11, SHOULD not decided 17, Ze correctness gap 92
+- **MUST bar**: Ze proven 11, Proof pending 2, Not built 90
+- **Overview bar**: Ze MUST proven 11, Proof pending 2, Not assessed 17, Not built 90
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 103 |
 | MUST rows kept (the MUST bar) | 103 |
 | Ze proven | 11 |
 | OS verified | 0 |
+| Proof pending | 2 |
 | OS testing gap | 0 |
-| Ze correctness gap | 92 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 90 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -139,11 +149,12 @@ Enrolled: BGP MPLS-Based Ethernet VPN (EVPN)
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 17 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 17 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc7432.json](../../../data/rfc/rfc7432.json).
 
@@ -369,31 +380,31 @@ Source: [data/rfc/rfc7432.json](../../../data/rfc/rfc7432.json).
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC7432-7.9-1`](#rfc7432-7.9-1)
 
 The Route Distinguisher (RD) MUST be set to the RD of the MAC-VRF that is advertising the NLRI. (§7.9)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-7.9-1, so no unit is bound to it.
+No test carries RFC7432-7.9-1, so there is no linked test.
 
 ### [`RFC7432-7.9-2`](#rfc7432-7.9-2)
 
 An RD MUST be assigned for a given MAC-VRF on a PE (§7.9)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-7.9-2, so no unit is bound to it.
+No test carries RFC7432-7.9-2, so there is no linked test.
 
 ### [`RFC7432-7.9-3`](#rfc7432-7.9-3)
 
 RD MUST be unique across all MAC-VRFs on a PE (§7.9)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-7.9-3, so no unit is bound to it.
+No test carries RFC7432-7.9-3, so there is no linked test.
 
 ### [`RFC7432-5-1`](#rfc7432-5-1)
 
@@ -410,9 +421,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 The Ethernet Tag ID MUST be set to MAX-ET. (§8.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-8.2.1-1, so no unit is bound to it.
+No test carries RFC7432-8.2.1-1, so there is no linked test.
 
 ### [`RFC7432-8.2.1-2`](#rfc7432-8.2.1-2)
 
@@ -431,9 +442,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 The ESI Label extended community MUST be included in the route. (§8.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-8.2.1-3, so no unit is bound to it.
+No test carries RFC7432-8.2.1-3, so there is no linked test.
 
 ### [`RFC7432-8.2.1-4`](#rfc7432-8.2.1-4)
 
@@ -453,9 +464,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 The MPLS label in this Extended Community is referred to as the ESI label and MUST have the same value in each Ethernet A-D per ES route advertised for the ES. (§8.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-8.2.1-5, so no unit is bound to it.
+No test carries RFC7432-8.2.1-5, so there is no linked test.
 
 ### [`RFC7432-8.2.1-11`](#rfc7432-8.2.1-11)
 
@@ -463,15 +474,15 @@ This label MUST be a downstream assigned MPLS label if the advertising PE is usi
 
 Audit verdict: unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-30 (independent judge) after the row's annotation moved from {not-applicable} to {gap}. RFC 7432 Section 8.2.1 reads: "This label MUST be a downstream assigned MPLS label if the advertising PE is using ingress replication for receiving multicast, broadcast, or unknown unicast traffic from other PEs." The label is the ESI label of the preceding sentence. Ze fills the PE role on the control plane and no owner decision declines BUM handling, so an absent label assignment is a conformance gap, not an exclusion. Ze assigns no ESI label: internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute merges the operator-supplied extended community bytes, encode.go::l2vpnRouteToEVPNParams carries them unchanged into EVPNParams.ExtCommunityBytes, and internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOriginationMode checks only that an ESI Label community is present and, through checkESILabelRedundancy, its Single-Active flag against redundancy-mode. No code selects ingress replication or P2MP LSPs for BUM traffic, allocates a label from any label space, or checks that the embedded label is downstream assigned.
 
-No test carries RFC7432-8.2.1-11, so no unit is bound to it.
+No test carries RFC7432-8.2.1-11, so there is no linked test.
 
 ### [`RFC7432-8.2.1-6`](#rfc7432-8.2.1-6)
 
 If the advertising PE is using P2MP MPLS LSPs for sending multicast, broadcast, or unknown unicast traffic, then this label MUST be an upstream assigned MPLS label. (§8.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-8.2.1-6, so no unit is bound to it.
+No test carries RFC7432-8.2.1-6, so there is no linked test.
 
 ### [`RFC7432-8.2.1-7`](#rfc7432-8.2.1-7)
 
@@ -491,9 +502,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 Each Ethernet A-D per ES route MUST carry one or more Route Target (RT) attributes. (§8.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-8.2.1-8, so no unit is bound to it.
+No test carries RFC7432-8.2.1-8, so there is no linked test.
 
 ### [`RFC7432-8.1.1-1`](#rfc7432-8.1.1-1)
 
@@ -523,25 +534,25 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. ES-I
 
 The Ethernet Segment route filtering MUST be done such that the Ethernet Segment route is imported only by the PEs that are multihomed to the same Ethernet segment. (§8.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-7.6-1, so no unit is bound to it.
+No test carries RFC7432-7.6-1, so there is no linked test.
 
 ### [`RFC7432-7.6-2`](#rfc7432-7.6-2)
 
 A BGP speaker that implements RT Constraint [RFC4684] MUST apply the RT Constraint procedures to the ES-Import RT as well. (§7.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-7.6-2, so no unit is bound to it.
+No test carries RFC7432-7.6-2, so there is no linked test.
 
 ### [`RFC7432-11-1`](#rfc7432-11-1)
 
 Each PE MUST advertise an "Inclusive Multicast Ethernet Tag route" to enable the above. (§11)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-11-1, so no unit is bound to it.
+No test carries RFC7432-11-1, so there is no linked test.
 
 ### [`RFC7432-9.2.1-1`](#rfc7432-9.2.1-1)
 
@@ -558,41 +569,41 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 
 
 The Next Hop field of the MP_REACH_NLRI attribute of the route MUST be set to the IPv4 or IPv6 address of the advertising PE. (§9.2.1, §11.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-9.2.1-2, so no unit is bound to it.
+No test carries RFC7432-9.2.1-2, so there is no linked test.
 
 ### [`RFC7432-9.2.1-3`](#rfc7432-9.2.1-3)
 
 MPLS Label1 MUST be downstream assigned (§9.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-9.2.1-3, so no unit is bound to it.
+No test carries RFC7432-9.2.1-3, so there is no linked test.
 
 ### [`RFC7432-9.1-1`](#rfc7432-9.1-1)
 
 The PEs in a particular EVPN instance MUST support local data-plane learning using standard IEEE Ethernet learning procedures. (§9.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-9.1-1, so no unit is bound to it.
+No test carries RFC7432-9.1-1, so there is no linked test.
 
 ### [`RFC7432-9.2.1-4`](#rfc7432-9.2.1-4)
 
 The BGP advertisement for the MAC/IP Advertisement route MUST also carry one or more Route Target (RT) attributes. (§9.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-9.2.1-4, so no unit is bound to it.
+No test carries RFC7432-9.2.1-4, so there is no linked test.
 
 ### [`RFC7432-8.4.1-1`](#rfc7432-8.4.1-1)
 
 The Ethernet A-D route MUST carry one or more Route Target (RT) attributes, per Section 7.10. (§8.4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-8.4.1-1, so no unit is bound to it.
+No test carries RFC7432-8.4.1-1, so there is no linked test.
 
 ### [`RFC7432-10-1`](#rfc7432-10-1)
 
@@ -610,481 +621,481 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 
 
 If there are multiple IP addresses associated with a MAC address, then multiple MAC/IP Advertisement routes MUST be generated, one for each IP address. (§10)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-10-2, so no unit is bound to it.
+No test carries RFC7432-10-2, so there is no linked test.
 
 ### [`RFC7432-10-3`](#rfc7432-10-3)
 
 When the IP address is dissociated with the MAC address, then the MAC/IP Advertisement route with that particular IP address MUST be withdrawn. (§10)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-10-3, so no unit is bound to it.
+No test carries RFC7432-10-3, so there is no linked test.
 
 ### [`RFC7432-10-4`](#rfc7432-10-4)
 
 If the receiving PE receives both the MAC-only route and the MAC/IP route, then when it receives a withdraw message for the MAC/IP route, it MUST delete the corresponding entry from the ARP table but not the MAC entry from the MAC-VRF table, unless it receives a withdraw message for the MAC-only route. (§10)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-10-4, so no unit is bound to it.
+No test carries RFC7432-10-4, so there is no linked test.
 
 ### [`RFC7432-11.1-1`](#rfc7432-11.1-1)
 
 The Originating Router's IP Address field value MUST be set to an IP address of the PE that should be common for all the EVIs on the PE (e.g., this address may be the PE's loopback address). (§11.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-11.1-1, so no unit is bound to it.
+No test carries RFC7432-11.1-1, so there is no linked test.
 
 ### [`RFC7432-11.1-2`](#rfc7432-11.1-2)
 
 The assignment of RTs as described in Section 7.10 MUST be followed. (§11.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-11.1-2, so no unit is bound to it.
+No test carries RFC7432-11.1-2, so there is no linked test.
 
 ### [`RFC7432-11.2-1`](#rfc7432-11.2-1)
 
 In order to identify the P-tunnel used for sending broadcast, unknown unicast, or multicast traffic, the Inclusive Multicast Ethernet Tag route MUST carry a Provider Multicast Service Interface (PMSI) Tunnel attribute as specified in [RFC6514]. (§11.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-11.2-1, so no unit is bound to it.
+No test carries RFC7432-11.2-1, so there is no linked test.
 
 ### [`RFC7432-11.2-2`](#rfc7432-11.2-2)
 
 + The Leaf Information Required flag of the PMSI Tunnel attribute MUST be set to zero and MUST be ignored on receipt. (§11.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-11.2-2, so no unit is bound to it.
+No test carries RFC7432-11.2-2, so there is no linked test.
 
 ### [`RFC7432-11.2-3`](#rfc7432-11.2-3)
 
 The PMSI Tunnel attribute MUST carry a downstream assigned MPLS label. (§11.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-11.2-3, so no unit is bound to it.
+No test carries RFC7432-11.2-3, so there is no linked test.
 
 ### [`RFC7432-6.1-1`](#rfc7432-6.1-1)
 
 a VID translation MUST be supported in the data path and MUST be performed on the disposition PE. (§6.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-6.1-1, so no unit is bound to it.
+No test carries RFC7432-6.1-1, so there is no linked test.
 
 ### [`RFC7432-6.1-2`](#rfc7432-6.1-2)
 
 The Ethernet Tag ID in all EVPN routes MUST be set to 0. (§6.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-6.1-2, so no unit is bound to it.
+No test carries RFC7432-6.1-2, so there is no linked test.
 
 ### [`RFC7432-6.2-1`](#rfc7432-6.2-1)
 
 This implies that MAC addresses MUST be unique across all VLANs for that EVI in order for this service to work. (§6.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-6.2-1, so no unit is bound to it.
+No test carries RFC7432-6.2-1, so there is no linked test.
 
 ### [`RFC7432-6.3-1`](#rfc7432-6.3-1)
 
 In the case where a single VLAN is represented by a single VID and thus no VID translation is required, an MPLS-encapsulated packet MUST carry that VID. (§6.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-6.3-1, so no unit is bound to it.
+No test carries RFC7432-6.3-1, so there is no linked test.
 
 ### [`RFC7432-6.3-2`](#rfc7432-6.3-2)
 
 In the case where a single VLAN is represented by different VIDs on different CEs and thus VID translation is required, a normalized Ethernet Tag ID (VID) MUST be carried in the EVPN BGP routes. (§6.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-6.3-2, so no unit is bound to it.
+No test carries RFC7432-6.3-2, so there is no linked test.
 
 ### [`RFC7432-8.3.1.1-1`](#rfc7432-8.3.1.1-1)
 
 - A non-DF ingress PE MUST include the ESI label distributed by the DF egress PE in the copy of a BUM packet sent to it. (§8.3.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-8.3.1.1-1, so no unit is bound to it.
+No test carries RFC7432-8.3.1.1-1, so there is no linked test.
 
 ### [`RFC7432-8.3.1.2-1`](#rfc7432-8.3.1.2-1)
 
 Penultimate hop popping MUST be disabled on the P2MP LSPs used in the MPLS transport infrastructure for EVPN. (§8.3.1.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-8.3.1.2-1, so no unit is bound to it.
+No test carries RFC7432-8.3.1.2-1, so there is no linked test.
 
 ### [`RFC7432-8.3.1-1`](#rfc7432-8.3.1-1)
 
 This label MUST be programmed in the platform label space by the advertising PE, and the forwarding entry for this label must result in NOT forwarding packets received with this label onto the Ethernet segment for which the label was distributed. (§8.3.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-8.3.1-1, so no unit is bound to it.
+No test carries RFC7432-8.3.1-1, so there is no linked test.
 
 ### [`RFC7432-15-1`](#rfc7432-15-1)
 
 In order to process mobility events correctly, an implementation MUST handle scenarios in which sequence number wraparound occurs. (§15)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-15-1, so no unit is bound to it.
+No test carries RFC7432-15-1, so there is no linked test.
 
 ### [`RFC7432-15-2`](#rfc7432-15-2)
 
 In order to allow all of the PEs in the EVPN instance to correctly determine the current location of the MAC address, all advertisements of it being reachable via the previous Ethernet segment MUST be withdrawn by the PEs, for the previous Ethernet segment, that had advertised it. (§15)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-15-2, so no unit is bound to it.
+No test carries RFC7432-15-2, so there is no linked test.
 
 ### [`RFC7432-15.1-1`](#rfc7432-15.1-1)
 
 The PE MUST alert the operator and stop sending and processing any BGP MAC/IP Advertisement routes for that MAC address until a corrective action is taken by the operator. (§15.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-15.1-1, so no unit is bound to it.
+No test carries RFC7432-15.1-1, so there is no linked test.
 
 ### [`RFC7432-15.1-2`](#rfc7432-15.1-2)
 
 The values of M and N MUST be configurable to allow for flexibility in operator control. (§15.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-15.1-2, so no unit is bound to it.
+No test carries RFC7432-15.1-2, so there is no linked test.
 
 ### [`RFC7432-15.2-1`](#rfc7432-15.2-1)
 
 If a PE receives such advertisements and later learns the same MAC address(es) via local learning, then the PE MUST alert the operator. (§15.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-15.2-1, so no unit is bound to it.
+No test carries RFC7432-15.2-1, so there is no linked test.
 
 ### [`RFC7432-10.1-1`](#rfc7432-10.1-1)
 
 This is accomplished by requiring the route to carry the Default Gateway extended community defined in Section 7.8 (§10.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-10.1-1, so no unit is bound to it.
+No test carries RFC7432-10.1-1, so there is no linked test.
 
 ### [`RFC7432-17.3-1`](#rfc7432-17.3-1)
 
 If the connectivity between the multihomed CE and one of the PEs to which it is attached fails, the PE MUST withdraw the set of Ethernet A-D per ES routes that had been previously advertised for that ES. (§17.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-17.3-1, so no unit is bound to it.
+No test carries RFC7432-17.3-1, so there is no linked test.
 
 ### [`RFC7432-14.1.1-1`](#rfc7432-14.1.1-1)
 
 In this case, the set of Ethernet A-D per ES routes advertised by each PE MUST have the "Single-Active" bit in the flags of the ESI Label extended community set to 1. (§8.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-14.1.1-1, so no unit is bound to it.
+No test carries RFC7432-14.1.1-1, so there is no linked test.
 
 ### [`RFC7432-8.4-1`](#rfc7432-8.4-1)
 
 Therefore, in order to handle corner cases and race conditions, the Ethernet A-D per EVI route MUST NOT be used for traffic forwarding by a remote PE until it also receives the associated set of Ethernet A-D per ES routes. (§8.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-8.4-1, so no unit is bound to it.
+No test carries RFC7432-8.4-1, so there is no linked test.
 
 ### [`RFC7432-8.3.1.1-2`](#rfc7432-8.3.1.1-2)
 
 In both All-Active and Single-Active redundancy mode, an ingress PE MUST NOT include an ESI label in the copy of a BUM packet sent to an egress PE that is not attached to the ES through which the BUM packet entered the EVI. (§8.3.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-8.3.1.1-2, so no unit is bound to it.
+No test carries RFC7432-8.3.1.1-2, so there is no linked test.
 
 ### [`RFC7432-8.3.1.1-3`](#rfc7432-8.3.1.1-3)
 
 If the next label is the ESI label assigned by PE2 for ES1, then PE2 MUST NOT forward the packet onto ES1. (§8.3.1.1, §8.3.1.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-8.3.1.1-3, so no unit is bound to it.
+No test carries RFC7432-8.3.1.1-3, so there is no linked test.
 
 ### [`RFC7432-5-3`](#rfc7432-5-3)
 
 The CE LACP System MAC address MUST be encoded in the high-order 6 octets of the ESI Value field. (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-5-3, so no unit is bound to it.
+No test carries RFC7432-5-3, so there is no linked test.
 
 ### [`RFC7432-5-4`](#rfc7432-5-4)
 
 The CE LACP port key MUST be encoded in the 2 octets next to the System MAC address. (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-5-4, so no unit is bound to it.
+No test carries RFC7432-5-4, so there is no linked test.
 
 ### [`RFC7432-5-5`](#rfc7432-5-5)
 
 The Root Bridge MAC address MUST be encoded in the high-order 6 octets of the ESI Value field. (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-5-5, so no unit is bound to it.
+No test carries RFC7432-5-5, so there is no linked test.
 
 ### [`RFC7432-5-6`](#rfc7432-5-6)
 
 The CE Root Bridge Priority MUST be encoded in the 2 octets next to the Root Bridge MAC address. (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-5-6, so no unit is bound to it.
+No test carries RFC7432-5-6, so there is no linked test.
 
 ### [`RFC7432-5-7`](#rfc7432-5-7)
 
 The PE MAC address MUST be encoded in the high-order 6 octets of the ESI Value field. (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-5-7, so no unit is bound to it.
+No test carries RFC7432-5-7, so there is no linked test.
 
 ### [`RFC7432-5-8`](#rfc7432-5-8)
 
 The Local Discriminator value MUST be encoded in the low-order 3 octets of the ESI Value. (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-5-8, so no unit is bound to it.
+No test carries RFC7432-5-8, so there is no linked test.
 
 ### [`RFC7432-5-9`](#rfc7432-5-9)
 
 The system router ID MUST be encoded in the high-order 4 octets of the ESI Value field. (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-5-9, so no unit is bound to it.
+No test carries RFC7432-5-9, so there is no linked test.
 
 ### [`RFC7432-5-10`](#rfc7432-5-10)
 
 The Local Discriminator value MUST be encoded in the 4 octets next to the IP address. (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-5-10, so no unit is bound to it.
+No test carries RFC7432-5-10, so there is no linked test.
 
 ### [`RFC7432-5-11`](#rfc7432-5-11)
 
 This is an AS number owned by the system and MUST be encoded in the high-order 4 octets of the ESI Value field. (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-5-11, so no unit is bound to it.
+No test carries RFC7432-5-11, so there is no linked test.
 
 ### [`RFC7432-5-12`](#rfc7432-5-12)
 
 The Local Discriminator value MUST be encoded in the 4 octets next to the AS number. (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-5-12, so no unit is bound to it.
+No test carries RFC7432-5-12, so there is no linked test.
 
 ### [`RFC7432-5-13`](#rfc7432-5-13)
 
 If the CE(s) constituting an Ethernet segment is (are) managed by the network operator, then ESI uniqueness should be guaranteed; however, if the CE(s) is (are) not managed, then the operator MUST configure a network-wide unique ESI for that Ethernet segment. (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-5-13, so no unit is bound to it.
+No test carries RFC7432-5-13, so there is no linked test.
 
 ### [`RFC7432-12-1`](#rfc7432-12-1)
 
 PEx MUST NOT send the frame to other PEs, since PEy would have already done so. (§12)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-12-1, so no unit is bound to it.
+No test carries RFC7432-12-1, so there is no linked test.
 
 ### [`RFC7432-12.1-1`](#rfc7432-12.1-1)
 
 The PE that receives a packet with this particular MPLS label MUST treat the packet as a broadcast, multicast, or unknown unicast packet. (§12.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-12.1-1, so no unit is bound to it.
+No test carries RFC7432-12.1-1, so there is no linked test.
 
 ### [`RFC7432-12.1-2`](#rfc7432-12.1-2)
 
 Further, if the MAC address is a unicast MAC address, the PE MUST treat the packet as an unknown unicast packet. (§12.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-12.1-2, so no unit is bound to it.
+No test carries RFC7432-12.1-2, so there is no linked test.
 
 ### [`RFC7432-12.2-1`](#rfc7432-12.2-1)
 
 The PE that receives a packet on the P2MP LSP specified in the PMSI Tunnel attribute MUST treat the packet as a broadcast, multicast, or unknown unicast packet. (§12.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-12.2-1, so no unit is bound to it.
+No test carries RFC7432-12.2-1, so there is no linked test.
 
 ### [`RFC7432-13.1-1`](#rfc7432-13.1-1)
 
 The PE MUST flood the packet to other PEs. The PE MUST first encapsulate the packet in the ESI MPLS label as described in Section 8.3. (§13.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-13.1-1, so no unit is bound to it.
+No test carries RFC7432-13.1-1, so there is no linked test.
 
 ### [`RFC7432-13.1-2`](#rfc7432-13.1-2)
 
 If ingress replication is used, the packet MUST be replicated to each remote PE, with the VPN label being an MPLS label determined as follows: This is the MPLS label advertised by the remote PE in a PMSI Tunnel attribute in the Inclusive Multicast Ethernet Tag route for a <MAC-VRF> or <MAC-VRF, Ethernet tag> combination. (§13.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-13.1-2, so no unit is bound to it.
+No test carries RFC7432-13.1-2, so there is no linked test.
 
 ### [`RFC7432-13.1-3`](#rfc7432-13.1-3)
 
 If P2MP LSPs are being used, the packet MUST be sent on the P2MP LSP of which the PE is the root, for the Ethernet tag in the EVPN instance. (§13.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-13.1-3, so no unit is bound to it.
+No test carries RFC7432-13.1-3, so there is no linked test.
 
 ### [`RFC7432-13.1-4`](#rfc7432-13.1-4)
 
 If the same P2MP LSP is used for all Ethernet tags, then all the PEs in the EVPN instance MUST be the leaves of the P2MP LSP. (§13.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-13.1-4, so no unit is bound to it.
+No test carries RFC7432-13.1-4, so there is no linked test.
 
 ### [`RFC7432-13.1-5`](#rfc7432-13.1-5)
 
 If the MAC address is unknown, then, if the administrative policy on the PE does not allow flooding of unknown unicast traffic: - the PE MUST drop the packet. (§13.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-13.1-5, so no unit is bound to it.
+No test carries RFC7432-13.1-5, so there is no linked test.
 
 ### [`RFC7432-14.1-1`](#rfc7432-14.1-1)
 
 Whenever a remote PE imports a MAC/IP Advertisement route for a given <ESI, Ethernet tag> in a MAC-VRF, it MUST examine all imported Ethernet A-D routes for that ESI in order to determine the load- balancing characteristics of the Ethernet segment. (§14.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-14.1-1, so no unit is bound to it.
+No test carries RFC7432-14.1-1, so there is no linked test.
 
 ### [`RFC7432-14.1.1-2`](#rfc7432-14.1.1-2)
 
 For a given ES, if the remote PE has imported the set of Ethernet A-D per ES routes from at least one PE, where the "Single-Active" flag in the ESI Label extended community is set, then the remote PE MUST deduce that the ES is operating in Single-Active redundancy mode. (§14.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-14.1.1-2, so no unit is bound to it.
+No test carries RFC7432-14.1.1-2, so there is no linked test.
 
 ### [`RFC7432-14.1.1-3`](#rfc7432-14.1.1-3)
 
 If there is more than one backup PE for a given ES, the remote PE MUST use the primary PE's withdrawal of its set of Ethernet A-D per ES routes as a trigger to start flooding traffic for the associated MAC addresses (as long as flooding of unknown unicast packets is administratively allowed), as it is not possible to select a single backup PE. (§14.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-14.1.1-3, so no unit is bound to it.
+No test carries RFC7432-14.1.1-3, so there is no linked test.
 
 ### [`RFC7432-14.1.2-1`](#rfc7432-14.1.2-1)
 
 For a given ES, if the remote PE has imported the set of Ethernet A-D per ES routes from one or more PEs and none of them have the "Single-Active" flag in the ESI Label extended community set, then the remote PE MUST deduce that the ES is operating in All-Active redundancy mode. (§14.1.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-14.1.2-1, so no unit is bound to it.
+No test carries RFC7432-14.1.2-1, so there is no linked test.
 
 ### [`RFC7432-14.1.2-2`](#rfc7432-14.1.2-2)
 
 The remote PE MUST use received MAC/IP Advertisement routes and Ethernet A-D per EVI/per ES routes to construct the set of next hops for the advertised MAC address. (§14.1.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-14.1.2-2, so no unit is bound to it.
+No test carries RFC7432-14.1.2-2, so there is no linked test.
 
 ### [`RFC7432-9.2.2-1`](#rfc7432-9.2.2-1)
 
 If the Ethernet Segment Identifier field in a received MAC/IP Advertisement route is set to the reserved ESI value of 0 or MAX-ESI, then if the receiving PE decides to install forwarding state for the associated MAC address, it MUST be based on the MAC/IP Advertisement route alone. (§9.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-9.2.2-1, so no unit is bound to it.
+No test carries RFC7432-9.2.2-1, so there is no linked test.
 
 ### [`RFC7432-9.2.2-2`](#rfc7432-9.2.2-2)
 
 If the Ethernet Segment Identifier field in a received MAC/IP Advertisement route is set to a non-reserved ESI, then if the receiving PE decides to install forwarding state for the associated MAC address, it MUST be when both the MAC/IP Advertisement route AND the associated set of Ethernet A-D per ES routes have been received. (§9.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-9.2.2-2, so no unit is bound to it.
+No test carries RFC7432-9.2.2-2, so there is no linked test.
 
 ### [`RFC7432-10.1-4`](#rfc7432-10.1-4)
 
 Unless it is known a priori (by means outside of this document) that all PEs of a given EVPN instance act as a default gateway for that EVPN instance, the MPLS label MUST be set to a valid downstream assigned label. (§10.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-10.1-4, so no unit is bound to it.
+No test carries RFC7432-10.1-4, so there is no linked test.
 
 ### [`RFC7432-6.2-2`](#rfc7432-6.2-2)
 
 The MPLS-encapsulated frames MUST remain tagged with the originating VID. (§6.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-6.2-2, so no unit is bound to it.
+No test carries RFC7432-6.2-2, so there is no linked test.
 
 ### [`RFC7432-6.3-3`](#rfc7432-6.3-3)
 
 Furthermore, the advertising PE advertises the MPLS Label1 in the MAC/IP Advertisement route representing both the Ethernet Tag ID and the EVI, so that upon receiving an MPLS-encapsulated packet, it can identify the corresponding bridge table from the MPLS EVPN label and perform Ethernet Tag ID translation ONLY at the disposition PE -- i.e., the Ethernet frames transported over the MPLS/IP network MUST remain tagged with the originating VID, and VID translation is performed on the disposition PE. (§6.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-6.3-3, so no unit is bound to it.
+No test carries RFC7432-6.3-3, so there is no linked test.
 
 ### [`RFC7432-6.3-4`](#rfc7432-6.3-4)
 
 The Ethernet Tag ID in all EVPN routes MUST be set to that VID. (§6.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-6.3-4, so no unit is bound to it.
+No test carries RFC7432-6.3-4, so there is no linked test.
 
 ### [`RFC7432-7.10.1-1`](#rfc7432-7.10.1-1)
 
 The Global Administrator field of the RT MUST be set to the Autonomous System (AS) number with which the PE is associated (§7.10.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-7.10.1-1, so no unit is bound to it.
+No test carries RFC7432-7.10.1-1, so there is no linked test.
 
 ### [`RFC7432-7.10.1-2`](#rfc7432-7.10.1-2)
 
 The 12-bit VLAN ID MUST be encoded in the lowest 12 bits of the Local Administrator field, with the remaining bits set to zero (§7.10.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-7.10.1-2, so no unit is bound to it.
+No test carries RFC7432-7.10.1-2, so there is no linked test.
 
 ### [`RFC7432-8.2.1-9`](#rfc7432-8.2.1-9)
 
@@ -1115,17 +1126,17 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 
 
 The set of Ethernet A-D routes per ES MUST carry the entire set of RTs for all the EVPN instances to which the Ethernet segment belongs (§8.2.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-8.2.1.1-1, so no unit is bound to it.
+No test carries RFC7432-8.2.1.1-1, so there is no linked test.
 
 ### [`RFC7432-8.3-1`](#rfc7432-8.3-1)
 
 In this case, the DF PE to which the CE is multihomed MUST drop the packet and not forward back to the CE. (§8.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-8.3-1, so no unit is bound to it.
+No test carries RFC7432-8.3-1, so there is no linked test.
 
 ### [`RFC7432-8.3-2`](#rfc7432-8.3-2)
 
@@ -1142,39 +1153,39 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. upda
 
 It MUST then push onto the MPLS label stack the MPLS label distributed by PE2 in the Inclusive Multicast Ethernet Tag route for VLAN1. (§8.3.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-8.3.1.1-6, so no unit is bound to it.
+No test carries RFC7432-8.3.1.1-6, so there is no linked test.
 
 ### [`RFC7432-8.3.1.1-7`](#rfc7432-8.3.1.1-7)
 
 If the next label is an ESI label that has not been assigned by PE2, then PE2 MUST drop the packet. (§8.3.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-8.3.1.1-7, so no unit is bound to it.
+No test carries RFC7432-8.3.1.1-7, so there is no linked test.
 
 ### [`RFC7432-8.3.1.2-2`](#rfc7432-8.3.1.2-2)
 
 If the next label is the ESI label assigned by PE1 to ES1 and PE3 is not connected to ES1, then PE3 MUST pop the label and flood the packet over all local ESIs in that EVPN instance. (§8.3.1.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-8.3.1.2-2, so no unit is bound to it.
+No test carries RFC7432-8.3.1.2-2, so there is no linked test.
 
 ### [`RFC7432-8.5-2`](#rfc7432-8.5-2)
 
 In the case of VLAN-(aware) bundle service, then the numerically lowest VLAN value in that bundle on that ES MUST be used in the modulo function. (§8.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-8.5-2, so no unit is bound to it.
+No test carries RFC7432-8.5-2, so there is no linked test.
 
 ### [`RFC7432-9.2.1-6`](#rfc7432-9.2.1-6)
 
 The encoding of an IP address MUST be either 4 octets for IPv4 or 16 octets for IPv6 (§9.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1185,9 +1196,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 Each PE that acts as a default gateway for a given EVPN instance that receives this route and imports it as per procedures specified in this document MUST create MAC forwarding state that enables it to apply IP forwarding to the packets destined to the MAC address carried in the route. (§10.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-10.1-5, so no unit is bound to it.
+No test carries RFC7432-10.1-5, so there is no linked test.
 
 ### [`RFC7432-11.1-3`](#rfc7432-11.1-3)
 
@@ -1206,17 +1217,17 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. orig
 
 + If the PE that originates the advertisement uses a P-multicast tree for the P-tunnel for EVPN, the PMSI Tunnel attribute MUST contain the identity of the tree (note that the PE could create the identity of the tree prior to the actual instantiation of the tree). (§11.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-11.2-5, so no unit is bound to it.
+No test carries RFC7432-11.2-5, so there is no linked test.
 
 ### [`RFC7432-11.2-6`](#rfc7432-11.2-6)
 
 In this case, in addition to carrying the identity of the tree, the PMSI Tunnel attribute MUST carry an MPLS upstream assigned label, which the PE has bound uniquely to the EVI associated with this update (as determined by its RTs). (§11.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-11.2-6, so no unit is bound to it.
+No test carries RFC7432-11.2-6, so there is no linked test.
 
 ### [`RFC7432-11.2-7`](#rfc7432-11.2-7)
 
@@ -1224,33 +1235,33 @@ If the PE has already advertised Inclusive Multicast Ethernet Tag routes for two
 
 Audit verdict: unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-30 (independent judge) after the row's annotation moved from {not-applicable} to {gap}. RFC 7432 Section 11.2 reads: "If the PE has already advertised Inclusive Multicast Ethernet Tag routes for two or more EVIs that it now desires to aggregate, then the PE MUST re-advertise those routes.  The re-advertised routes MUST be the same as the original ones, except for the PMSI Tunnel attribute and the label carried in that attribute." Aggregation is a MAY of a PE using a P-multicast tree, but Ze fills the PE role on the control plane and no owner decision declines that feature, so the absent procedure is a conformance gap, and the earlier not-applicable verdict no longer stands. Ze has none of it: internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute and encode.go::l2vpnRouteToEVPNParams build only the Inclusive Multicast Ethernet Tag route an operator supplies, attaching extended communities and no PMSI Tunnel attribute; internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOriginationMode checks only a route target for a type 3 route. internal/core/bgp/attribute/wire.go lists PMSI among known codes without a parser, and the only PMSI code in the tree is the name-only registration in internal/component/bgp/plugins/nlri/mvpn/register.go. No code models an EVI, binds EVIs to a P-multicast tree, or re-advertises routes on aggregation.
 
-No test carries RFC7432-11.2-7, so no unit is bound to it.
+No test carries RFC7432-11.2-7, so there is no linked test.
 
 ### [`RFC7432-13.1-6`](#rfc7432-13.1-6)
 
 If a distinct P2MP LSP is used for a given Ethernet tag in the EVPN instance, then only the PEs in the Ethernet tag MUST be the leaves of the P2MP LSP. (§13.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-13.1-6, so no unit is bound to it.
+No test carries RFC7432-13.1-6, so there is no linked test.
 
 ### [`RFC7432-13.1-7`](#rfc7432-13.1-7)
 
 The packet MUST be encapsulated in the P2MP LSP label stack. (§13.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-13.1-7, so no unit is bound to it.
+No test carries RFC7432-13.1-7, so there is no linked test.
 
 ### [`RFC7432-17.3-3`](#rfc7432-17.3-3)
 
 When the MAC entry on the PE ages out, the PE MUST withdraw the MAC address from BGP (§17.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7432-17.3-3, so no unit is bound to it.
+No test carries RFC7432-17.3-3, so there is no linked test.
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -1269,86 +1280,86 @@ No test carries RFC7432-17.3-3, so no unit is bound to it.
 
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
-| `front` | not stated | 0 | walked | not stated |
-| `1` | not stated | 0 | walked | not stated |
-| `2` | not stated | 0 | walked | not stated |
-| `3` | not stated | 0 | walked | not stated |
-| `4` | not stated | 0 | walked | not stated |
-| `5` | not stated | 11 | walked | not stated |
-| `6` | not stated | 0 | walked | not stated |
-| `6.1` | not stated | 2 | walked | not stated |
-| `6.2` | not stated | 3 | walked | not stated |
-| `6.2.1` | not stated | 0 | walked | not stated |
-| `6.3` | not stated | 5 | walked | not stated |
-| `6.3.1` | not stated | 0 | walked | not stated |
-| `7` | not stated | 0 | walked | not stated |
-| `7.1` | not stated | 0 | walked | not stated |
-| `7.2` | not stated | 0 | walked | not stated |
-| `7.3` | not stated | 0 | walked | not stated |
-| `7.4` | not stated | 0 | walked | not stated |
-| `7.5` | not stated | 0 | walked | not stated |
-| `7.6` | not stated | 1 | walked | not stated |
-| `7.7` | not stated | 0 | walked | not stated |
-| `7.8` | not stated | 0 | walked | not stated |
-| `7.9` | not stated | 3 | walked | not stated |
-| `7.10` | not stated | 0 | walked | not stated |
-| `7.10.1` | not stated | 2 | walked | not stated |
-| `8` | not stated | 0 | walked | not stated |
-| `8.1` | not stated | 0 | walked | not stated |
-| `8.1.1` | not stated | 4 | walked | not stated |
-| `8.2` | not stated | 0 | walked | not stated |
-| `8.2.1` | not stated | 11 | walked | not stated |
-| `8.2.1.1` | not stated | 2 | walked | not stated |
-| `8.3` | not stated | 3 | walked | not stated |
-| `8.3.1` | not stated | 0 | walked | not stated |
-| `8.3.1.1` | not stated | 7 | walked | not stated |
-| `8.3.1.2` | not stated | 6 | walked | not stated |
-| `8.4` | not stated | 1 | walked | not stated |
-| `8.4.1` | not stated | 4 | walked | not stated |
-| `8.5` | not stated | 2 | walked | not stated |
-| `8.6` | not stated | 0 | walked | not stated |
-| `9` | not stated | 0 | walked | not stated |
-| `9.1` | not stated | 1 | walked | not stated |
-| `9.2` | not stated | 0 | walked | not stated |
-| `9.2.1` | not stated | 6 | walked | not stated |
-| `9.2.2` | not stated | 2 | walked | not stated |
-| `10` | not stated | 4 | walked | not stated |
-| `10.1` | not stated | 3 | walked | not stated |
-| `11` | not stated | 1 | walked | not stated |
-| `11.1` | not stated | 5 | walked | not stated |
-| `11.2` | not stated | 8 | walked | not stated |
-| `12` | not stated | 1 | walked | not stated |
-| `12.1` | not stated | 2 | walked | not stated |
-| `12.2` | not stated | 2 | walked | not stated |
-| `13` | not stated | 0 | walked | not stated |
-| `13.1` | not stated | 8 | walked | not stated |
-| `13.2` | not stated | 0 | walked | not stated |
-| `13.2.1` | not stated | 0 | walked | not stated |
-| `13.2.2` | not stated | 0 | walked | not stated |
-| `14` | not stated | 0 | walked | not stated |
-| `14.1` | not stated | 1 | walked | not stated |
-| `14.1.1` | not stated | 2 | walked | not stated |
-| `14.1.2` | not stated | 3 | walked | not stated |
-| `14.2` | not stated | 0 | walked | not stated |
-| `14.2.1` | not stated | 0 | walked | not stated |
-| `14.2.2` | not stated | 0 | walked | not stated |
-| `15` | not stated | 2 | walked | not stated |
-| `15.1` | not stated | 2 | walked | not stated |
-| `15.2` | not stated | 1 | walked | not stated |
-| `16` | not stated | 0 | walked | not stated |
-| `16.1` | not stated | 0 | walked | not stated |
-| `16.2` | not stated | 0 | walked | not stated |
-| `16.2.1` | not stated | 0 | walked | not stated |
-| `17` | not stated | 0 | walked | not stated |
-| `17.1` | not stated | 0 | walked | not stated |
-| `17.2` | not stated | 0 | walked | not stated |
-| `17.3` | not stated | 4 | walked | not stated |
-| `18` | not stated | 0 | walked | not stated |
-| `19` | not stated | 0 | walked | not stated |
-| `20` | not stated | 0 | walked | not stated |
-| `21` | not stated | 0 | walked | not stated |
-| `21.1` | not stated | 0 | walked | not stated |
-| `21.2` | not stated | 0 | walked | not stated |
+| `front` | not stated | 0 | reviewed | not stated |
+| `1` | not stated | 0 | reviewed | not stated |
+| `2` | not stated | 0 | reviewed | not stated |
+| `3` | not stated | 0 | reviewed | not stated |
+| `4` | not stated | 0 | reviewed | not stated |
+| `5` | not stated | 11 | reviewed | not stated |
+| `6` | not stated | 0 | reviewed | not stated |
+| `6.1` | not stated | 2 | reviewed | not stated |
+| `6.2` | not stated | 3 | reviewed | not stated |
+| `6.2.1` | not stated | 0 | reviewed | not stated |
+| `6.3` | not stated | 5 | reviewed | not stated |
+| `6.3.1` | not stated | 0 | reviewed | not stated |
+| `7` | not stated | 0 | reviewed | not stated |
+| `7.1` | not stated | 0 | reviewed | not stated |
+| `7.2` | not stated | 0 | reviewed | not stated |
+| `7.3` | not stated | 0 | reviewed | not stated |
+| `7.4` | not stated | 0 | reviewed | not stated |
+| `7.5` | not stated | 0 | reviewed | not stated |
+| `7.6` | not stated | 1 | reviewed | not stated |
+| `7.7` | not stated | 0 | reviewed | not stated |
+| `7.8` | not stated | 0 | reviewed | not stated |
+| `7.9` | not stated | 3 | reviewed | not stated |
+| `7.10` | not stated | 0 | reviewed | not stated |
+| `7.10.1` | not stated | 2 | reviewed | not stated |
+| `8` | not stated | 0 | reviewed | not stated |
+| `8.1` | not stated | 0 | reviewed | not stated |
+| `8.1.1` | not stated | 4 | reviewed | not stated |
+| `8.2` | not stated | 0 | reviewed | not stated |
+| `8.2.1` | not stated | 11 | reviewed | not stated |
+| `8.2.1.1` | not stated | 2 | reviewed | not stated |
+| `8.3` | not stated | 3 | reviewed | not stated |
+| `8.3.1` | not stated | 0 | reviewed | not stated |
+| `8.3.1.1` | not stated | 7 | reviewed | not stated |
+| `8.3.1.2` | not stated | 6 | reviewed | not stated |
+| `8.4` | not stated | 1 | reviewed | not stated |
+| `8.4.1` | not stated | 4 | reviewed | not stated |
+| `8.5` | not stated | 2 | reviewed | not stated |
+| `8.6` | not stated | 0 | reviewed | not stated |
+| `9` | not stated | 0 | reviewed | not stated |
+| `9.1` | not stated | 1 | reviewed | not stated |
+| `9.2` | not stated | 0 | reviewed | not stated |
+| `9.2.1` | not stated | 6 | reviewed | not stated |
+| `9.2.2` | not stated | 2 | reviewed | not stated |
+| `10` | not stated | 4 | reviewed | not stated |
+| `10.1` | not stated | 3 | reviewed | not stated |
+| `11` | not stated | 1 | reviewed | not stated |
+| `11.1` | not stated | 5 | reviewed | not stated |
+| `11.2` | not stated | 8 | reviewed | not stated |
+| `12` | not stated | 1 | reviewed | not stated |
+| `12.1` | not stated | 2 | reviewed | not stated |
+| `12.2` | not stated | 2 | reviewed | not stated |
+| `13` | not stated | 0 | reviewed | not stated |
+| `13.1` | not stated | 8 | reviewed | not stated |
+| `13.2` | not stated | 0 | reviewed | not stated |
+| `13.2.1` | not stated | 0 | reviewed | not stated |
+| `13.2.2` | not stated | 0 | reviewed | not stated |
+| `14` | not stated | 0 | reviewed | not stated |
+| `14.1` | not stated | 1 | reviewed | not stated |
+| `14.1.1` | not stated | 2 | reviewed | not stated |
+| `14.1.2` | not stated | 3 | reviewed | not stated |
+| `14.2` | not stated | 0 | reviewed | not stated |
+| `14.2.1` | not stated | 0 | reviewed | not stated |
+| `14.2.2` | not stated | 0 | reviewed | not stated |
+| `15` | not stated | 2 | reviewed | not stated |
+| `15.1` | not stated | 2 | reviewed | not stated |
+| `15.2` | not stated | 1 | reviewed | not stated |
+| `16` | not stated | 0 | reviewed | not stated |
+| `16.1` | not stated | 0 | reviewed | not stated |
+| `16.2` | not stated | 0 | reviewed | not stated |
+| `16.2.1` | not stated | 0 | reviewed | not stated |
+| `17` | not stated | 0 | reviewed | not stated |
+| `17.1` | not stated | 0 | reviewed | not stated |
+| `17.2` | not stated | 0 | reviewed | not stated |
+| `17.3` | not stated | 4 | reviewed | not stated |
+| `18` | not stated | 0 | reviewed | not stated |
+| `19` | not stated | 0 | reviewed | not stated |
+| `20` | not stated | 0 | reviewed | not stated |
+| `21` | not stated | 0 | reviewed | not stated |
+| `21.1` | not stated | 0 | reviewed | not stated |
+| `21.2` | not stated | 0 | reviewed | not stated |
 
 ### Excluded sentences
 

@@ -1,6 +1,6 @@
 # 2026-07-01 – 2026-07-06 (6 days)
 
-Work landed across DNS, traffic security, routing, and the CLI this week.
+This week's changes cover DNS, traffic security, routing, and the CLI.
 
 ## 🌐 AS112 anycast DNS
 
@@ -16,8 +16,8 @@ A new security domain, separate from volumetric DDoS, that watches how traffic b
 
 - A report-only detector builds a per-source baseline (fan-out, out/in ratio, destination-port entropy, new-peer and rare-port activity, coarse beaconing), scores deviation and cohort rarity, and correlates weak signals into a single incident with a confirm/clear lifecycle. Visible under `show anomaly`.
 - Freeze-learn keeps a sustained attack from quietly training the baseline to accept it, and a never-seen source cannot trip a first-sight false positive.
-- A shadow-first responder installs surgical per-source firewall rate-limits with per-entity arming, timed auto-revert, a blast-radius cap, a kill switch, and an allowlist. Visible under `show anomaly-shape`.
-- Underneath, traffic analysis was split into a neutral facts layer that both the DDoS and anomaly families read, surfaced on its own via `show traffic-feature`.
+- The response service reports proposed firewall actions by default. When enabled, it limits each source independently, removes its rules after a timeout and caps how many sources it can affect at once. An emergency control removes all its rules, and an allowlist protects exempt sources. Its state is visible under `show anomaly-shape`.
+- DDoS and anomaly detection now use shared traffic measurements, also available through `show traffic-feature`.
 
 ## 🛰️ Routing
 
@@ -45,7 +45,7 @@ Command syntax is now uniformly verb-first, enforced so it stays that way:
 ## 🛠️ Under the hood
 
 - The VPP backend reloads on crash or reconnect to clear stale state instead of running on.
-- DNS serving moved to a shared in-core harness (now behind both GeoDNS and AS112) with the recursion guard turned into an enforced invariant.
+- GeoDNS and AS112 now use the same DNS server code, which enforces the restriction on recursive queries.
 
 ## 🔭 Looking ahead
 

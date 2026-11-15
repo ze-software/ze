@@ -1,6 +1,6 @@
 # RFC 5549 - Advertising IPv4 Network Layer Reachability Information with an IPv6 Next Hop
 
-Legacy extended next-hop encoding. Every requirement this repository extracted from RFC 5549, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+Legacy extended next-hop encoding. Every requirement listed for RFC 5549, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,12 +10,12 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 3 | of 6 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 3 | of 6 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 6 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 6 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| No test at all | 0 | of 6 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 9 | 9 of 26 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 3 | of 6 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 3 | of 6 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 6 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 6 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Declared gap or no test | 0 | of 6 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Tests shown to detect a fault | 9 | 9 of 26 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Neutral
 
@@ -23,59 +23,66 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 6 | of 9 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 6 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 6 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 6 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 6 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 6 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Out of scope | 0 | of 6 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 6 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 6 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 6 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 6 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
 
-The 9 counts marked as a part above are the whole of the 6 gated MUSTs: they add up to 6. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Totals
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 6 | of 9 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 6 mandatory requirements: they add up to 6. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | ok | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | Legacy extended next-hop encoding |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 9 |
-| Gated MUST-level | 6 |
+| Mandatory requirements (MUST level) | 6 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 26 |
-| Tagged units | 26 |
+| Tests linked to requirements | 26 |
 | Recorded audit verdicts | 5 |
-| Discrimination records | 9 |
+| Fault test records | 9 |
 | Summary | `rfc/short/rfc5549.md` |
-| Requirement shard | `rfc/requirements/rfc5549.md` |
+| Requirement table | `rfc/requirements/rfc5549.md` |
 | RFC text | `rfc/full/rfc5549.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: Advertising IPv4 NLRI with an IPv6 Next Hop (legacy encoding, obsoleted by RFC 8950 which ze implements): six MUST-level requirements, all met by the shared extended-next-hop implementation. 4-1 (cross-family IPv6 next-hop honored only when the extended-next-hop capability is negotiated), 3-1 (a 16- or 32-octet next-hop is decoded as IPv6), and 4-4 (do not use a cross-family next-hop without the negotiated capability) carry positive+negative tags. 4-2 (use the RFC 5492 capability mechanism), 4-3 (capability code 5), and 5-1 (do not rewrite a reflected next-hop) are {single-polarity: positive}. Tags added alongside the sibling RFC 8950 tags on internal/core/bgp/capability, internal/core/bgp/attribute, and internal/component/bgp/reactor tests.
+Included in automatic checks: Advertising IPv4 NLRI with an IPv6 Next Hop (legacy encoding, obsoleted by RFC 8950 which ze implements): six MUST-level requirements, all met by the shared extended-next-hop implementation. 4-1 (cross-family IPv6 next-hop honored only when the extended-next-hop capability is negotiated), 3-1 (a 16- or 32-octet next-hop is decoded as IPv6), and 4-4 (do not use a cross-family next-hop without the negotiated capability) carry positive+negative tags. 4-2 (use the RFC 5492 capability mechanism), 4-3 (capability code 5), and 5-1 (do not rewrite a reflected next-hop) are {single-polarity: positive}. Tags added alongside the sibling RFC 8950 tags on internal/core/bgp/capability, internal/core/bgp/attribute, and internal/component/bgp/reactor tests.
 
-## What the public ledger says
+## Published support status
 
 **Area:** Legacy extended next-hop encoding
 
@@ -90,14 +97,14 @@ Enrolled: Advertising IPv4 NLRI with an IPv6 Next Hop (legacy encoding, obsolete
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 3 | one part of the gated population |
-| Annotated (including scoped evidence) | 3 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **6** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 3 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 3 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **6** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (3):** [`RFC5549-4-1`](#rfc5549-4-1), [`RFC5549-3-1`](#rfc5549-3-1), [`RFC5549-4-4`](#rfc5549-4-4)
 
@@ -105,20 +112,23 @@ Enrolled: Advertising IPv4 NLRI with an IPv6 Next Hop (legacy encoding, obsolete
 
 ## Figures
 
-- **MUST bar**: Ze proven 3, Ze correctness gap 3
-- **Overview bar**: Ze MUST proven 3, SHOULD not decided 3, Ze correctness gap 3
+- **MUST bar**: Ze proven 3, Proof pending 3
+- **Overview bar**: Ze MUST proven 3, Proof pending 3, Not assessed 3
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 6 |
 | MUST rows kept (the MUST bar) | 6 |
 | Ze proven | 3 |
 | OS verified | 0 |
+| Proof pending | 3 |
 | OS testing gap | 0 |
-| Ze correctness gap | 3 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 0 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -131,11 +141,12 @@ Enrolled: Advertising IPv4 NLRI with an IPv6 Next Hop (legacy encoding, obsolete
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 3 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 3 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc5549.json](../../../data/rfc/rfc5549.json).
 
@@ -143,37 +154,37 @@ Source: [data/rfc/rfc5549.json](../../../data/rfc/rfc5549.json).
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC5549-4-1` | A BGP speaker MUST only advertise to a BGP peer the IPv4 or VPN-IPv4 NLRI with an IPv6 Next Hop if the BGP speaker has first ascertained via BGP Capability Advertisement that the BGP peer supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair. (§4) | MUST | 4 - Use of BGP Capability Advertisement | **positive:** `unit/verify` [`TestCanUseNextHopFor_ExtendedNH`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1209). **positive:** `unit/verify` [`TestNegotiateExtendedNextHop`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L328). **positive:** `unit/verify` [`TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L44). **positive:** `unit/verify` [`TestRFC8950IPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go#L38). **negative:** `unit/verify` [`TestCanUseNextHopFor_CrossFamilyNoCap`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1240). **negative:** `unit/verify` [`TestNegotiateExtendedNextHopMismatch`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L367). **negative:** `unit/verify` [`TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L45). **negative:** `unit/verify` [`TestRFC8950IPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go#L39) |
+| `RFC5549-4-1` | A BGP speaker MUST only advertise to a BGP peer the IPv4 or VPN-IPv4 NLRI with an IPv6 Next Hop if the BGP speaker has first ascertained via BGP Capability Advertisement that the BGP peer supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair. (§4) | MUST | 4 - Use of BGP Capability Advertisement | **positive:** `unit/verify` [`TestCanUseNextHopFor_ExtendedNH`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1284). **positive:** `unit/verify` [`TestNegotiateExtendedNextHop`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L328). **positive:** `unit/verify` [`TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L44). **positive:** `unit/verify` [`TestRFC8950IPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go#L38). **negative:** `unit/verify` [`TestCanUseNextHopFor_CrossFamilyNoCap`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1315). **negative:** `unit/verify` [`TestNegotiateExtendedNextHopMismatch`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L367). **negative:** `unit/verify` [`TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L45). **negative:** `unit/verify` [`TestRFC8950IPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go#L39) |
 | `RFC5549-4-2` | A BGP speaker that wishes to advertise to a BGP peer an IPv6 Next Hop for IPv4 NLRI or for VPN-IPv4 NLRI as per this specification MUST use the Capability Advertisement procedures defined in [RFC5492] with the Extended Next Hop Encoding Capability to establish whether its peer supports this for the NLRI AFI/SAFI pair(s) of interest. (§4) | MUST | 4 - Use of BGP Capability Advertisement | **positive:** `unit/verify` [`TestExtendedNextHopCapability`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L562). **positive:** `unit/verify` [`TestExtendedNextHopRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L595). **positive:** `unit/verify` [`TestRFC8950PeerSupportDecidedPerPair`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc8950_extnh_negotiation_test.go#L62). **negative:** no negative test. **{single-polarity}:** ze advertises and parses the Extended Next Hop Encoding capability exclusively through the RFC 5492 capability TLV framework (internal/core/bgp/capability/capability.go:644 WriteTo, :667 parseExtendedNextHop). There is no non-RFC-5492 signalling path in ze, so no wrong-procedure case exists to assert as a negative; the peer-support-not-ascertained negative is covered by RFC5549-4-1 |
 | `RFC5549-4-3` | o The Capability Code field MUST be set to 5 (which indicates the Extended Next Hop Encoding capability). (§4) | MUST | 4 - Use of BGP Capability Advertisement | **positive:** `unit/verify` [`TestCapabilityCodeConstants`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L17). **positive:** `unit/verify` [`TestExtendedNextHopCapability`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L565). **positive:** `unit/verify` [`TestExtendedNextHopRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L598). **negative:** no negative test. **{single-polarity}:** the Extended Next Hop Encoding capability code is the fixed constant CodeExtendedNextHop = 5 (internal/core/bgp/capability/capability.go:70); Code() returns it (capability.go:640) and WriteTo emits it (capability.go:646). The code has no alternate-value code path, so there is no wrong-code case to reject as a negative |
 | `RFC5549-3-1` | The BGP speaker receiving the advertisement MUST use the Length of Next Hop Address field to determine which network-layer protocol the next hop address belongs to (§3) | MUST | 3 | **positive:** `unit/verify` [`TestParseMPReachNLRI_ExtendedNextHop`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L342). **positive:** `unit/verify` [`TestParseMPReachNLRI_ExtendedNextHop_DualStack`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L446). **positive:** `unit/verify` [`TestParseMPReachNLRI_ExtendedNextHop_VPN`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L400). **negative:** `unit/verify` [`TestParseMPReachNLRI_InvalidNextHopLength`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L493) |
 | `RFC5549-5-1` | When a next hop address needs to be passed along unchanged (e.g., as a Route Reflector (RR) would do), its encoding MUST NOT be changed. (§5) | MUST NOT | 5 - Operations | **positive:** `unit/verify` [`TestReactorForwardRRPreservesExtendedNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L259). **negative:** no negative test. **{single-polarity}:** on the reflection path ze rewrites the next-hop only under an explicit next-hop-self/explicit override (nhMode != nhModeNone); the default nhModeNone leaves the next-hop untouched (internal/component/bgp/reactor/peer_forward_facts.go:226) and the MP re-encode changes an attribute only when the NLRI framing differs between encoding contexts (internal/component/bgp/reactor/forward_body.go:217), so a reflected next-hop is carried verbatim and there is no ze code path that rewrites an unchanged-passthrough next-hop to assert as a negative. The positive is proven byte-identical in TestReactorForwardRRPreservesExtendedNextHop |
-| `RFC5549-4-4` | A BGP speaker MUST only advertise to a BGP peer the IPv4 or VPN-IPv4 NLRI with an IPv6 Next Hop if the BGP speaker has first ascertained via BGP Capability Advertisement that the BGP peer supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair. (§4) | MUST | 4 - Use of BGP Capability Advertisement | **positive:** `unit/verify` [`TestCanUseNextHopFor_ExtendedNH`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1212). **positive:** `unit/verify` [`TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L46). **positive:** `unit/verify` [`TestRFC8950IPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go#L40). **negative:** `unit/verify` [`TestCanUseNextHopFor_CrossFamilyNoCap`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1243). **negative:** `unit/verify` [`TestCanUseNextHopFor_NilSendCtx`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1264). **negative:** `unit/verify` [`TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L47). **negative:** `unit/verify` [`TestRFC8950IPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go#L41) |
+| `RFC5549-4-4` | A BGP speaker MUST only advertise to a BGP peer the IPv4 or VPN-IPv4 NLRI with an IPv6 Next Hop if the BGP speaker has first ascertained via BGP Capability Advertisement that the BGP peer supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair. (§4) | MUST | 4 - Use of BGP Capability Advertisement | **positive:** `unit/verify` [`TestCanUseNextHopFor_ExtendedNH`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1287). **positive:** `unit/verify` [`TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L46). **positive:** `unit/verify` [`TestRFC8950IPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go#L40). **negative:** `unit/verify` [`TestCanUseNextHopFor_CrossFamilyNoCap`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1318). **negative:** `unit/verify` [`TestCanUseNextHopFor_NilSendCtx`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1339). **negative:** `unit/verify` [`TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L47). **negative:** `unit/verify` [`TestRFC8950IPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go#L41) |
 | `RFC5549-5-2` | By default, if a particular BGP session is running over IPvx (where IPvx is IPv4 or IPv6), and if the BGP speaker sending an update is putting its own address in as the next hop, then the next hop address SHOULD be specified as an IPvx address, using the encoding rules specified in the AFI/SAFI definition of the NLRI being updated. (§5) | SHOULD | 5 - Operations | **positive:** no positive test. **negative:** no negative test |
 | `RFC5549-4-5` | The Extended Next Hop Encoding capability MAY be dynamically updated through the use of the Dynamic Capability capability and associated mechanisms defined in [DYN-CAP]. (§4) | MAY | 4 - Use of BGP Capability Advertisement | **positive:** no positive test. **negative:** no negative test |
 | `RFC5549-5-3` | This default behavior may be overridden by policy. (§5) | MAY | 5 - Operations | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
-RFC 5549 declares no gap, and every gated MUST it carries has a test bound to it.
+RFC 5549 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC5549-4-1`](#rfc5549-4-1)
 
 A BGP speaker MUST only advertise to a BGP peer the IPv4 or VPN-IPv4 NLRI with an IPv6 Next Hop if the BGP speaker has first ascertained via BGP Capability Advertisement that the BGP peer supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair. (§4)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-24 (independent auditor, authored none of the change). RFC 5549 Section 4: "A BGP speaker MUST only advertise to a BGP peer the IPv4 or VPN-IPv4 NLRI with an IPv6 Next Hop if the BGP speaker has first ascertained via BGP Capability Advertisement that the BGP peer supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair." 238bdb62e9 (spec-refuse-instead-of-defaulting) changed nlri.NewINET to take an explicit has-path-id flag; the unit passes false where it passed path id 0, which already meant no ADD-PATH identifier, so the input, the route and every assertion are byte-for-byte the same (TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair, both tags). The capability-gated IPv6 next-hop assertions are unchanged; 1dbfd1d7b7 only added OPEN-order tests beside TestNegotiateExtendedNextHop, whose units are byte-identical. Verdict unchanged: enforced. Earlier judgement follows. Independent Section 4 rejudgment retains enforced for this superseded RFC8950-4-1 obligation. TestNegotiateExtendedNextHop and TestNegotiateExtendedNextHopMismatch establish advertised tuple intersection and remote absence. The tagged canUseNextHopFor, self and explicit-next-hop tests distinguish the exact 1/1 and 1/128 tuples, including wrong-pair and absent refusal. TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair installs the same real negotiated result in Session, Peer and send context and checks API refusal with no unlicensed unicast UPDATE. VPN assertions in that test remain resolver assertions, not VPN socket assertions. Negotiate projects the exact tuple to EncodingCaps; resolveNextHop/canUseNextHopFor and both forwarding consumers use that pair. The successor’s separately tagged forwarding and post-policy final-writer tests provide the shared integration evidence. No stale producer-halt record is treated as selective semantic proof.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_CrossFamilyNoCap, internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_ExtendedNH moved. Re-judged 2026-10-24 (independent auditor, authored none of the change). RFC 5549 Section 4: "A BGP speaker MUST only advertise to a BGP peer the IPv4 or VPN-IPv4 NLRI with an IPv6 Next Hop if the BGP speaker has first ascertained via BGP Capability Advertisement that the BGP peer supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair." 238bdb62e9 (spec-refuse-instead-of-defaulting) changed nlri.NewINET to take an explicit has-path-id flag; the unit passes false where it passed path id 0, which already meant no ADD-PATH identifier, so the input, the route and every assertion are byte-for-byte the same (TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair, both tags). The capability-gated IPv6 next-hop assertions are unchanged; 1dbfd1d7b7 only added OPEN-order tests beside TestNegotiateExtendedNextHop, whose units are byte-identical. Verdict unchanged: enforced. Earlier judgement follows. Independent Section 4 rejudgment retains enforced for this superseded RFC8950-4-1 obligation. TestNegotiateExtendedNextHop and TestNegotiateExtendedNextHopMismatch establish advertised tuple intersection and remote absence. The tagged canUseNextHopFor, self and explicit-next-hop tests distinguish the exact 1/1 and 1/128 tuples, including wrong-pair and absent refusal. TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair installs the same real negotiated result in Session, Peer and send context and checks API refusal with no unlicensed unicast UPDATE. VPN assertions in that test remain resolver assertions, not VPN socket assertions. Negotiate projects the exact tuple to EncodingCaps; resolveNextHop/canUseNextHopFor and both forwarding consumers use that pair. The successor’s separately tagged forwarding and post-policy final-writer tests provide the shared integration evidence. No stale producer-halt record is treated as selective semantic proof.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestCanUseNextHopFor_CrossFamilyNoCap`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1240) | unit/verify | unproven |
+| negative | [`TestCanUseNextHopFor_CrossFamilyNoCap`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1315) | unit/verify | unproven |
 | negative | [`TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L45) | unit/verify | revert, verified |
 | negative | [`TestRFC8950IPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go#L39) | unit/verify | revert, verified |
 | negative | [`TestNegotiateExtendedNextHopMismatch`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L367) | unit/verify | unproven |
-| positive | [`TestCanUseNextHopFor_ExtendedNH`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1209) | unit/verify | unproven |
+| positive | [`TestCanUseNextHopFor_ExtendedNH`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1284) | unit/verify | unproven |
 | positive | [`TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L44) | unit/verify | revert, verified |
 | positive | [`TestRFC8950IPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go#L38) | unit/verify | revert, verified |
 | positive | [`TestNegotiateExtendedNextHop`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L328) | unit/verify | unproven |
@@ -206,7 +217,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 The BGP speaker receiving the advertisement MUST use the Length of Next Hop Address field to determine which network-layer protocol the next hop address belongs to (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -229,19 +240,19 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 A BGP speaker MUST only advertise to a BGP peer the IPv4 or VPN-IPv4 NLRI with an IPv6 Next Hop if the BGP speaker has first ascertained via BGP Capability Advertisement that the BGP peer supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair. (§4)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-24 (independent auditor, authored none of the change). RFC 5549 Section 4: "A BGP speaker MUST only advertise to a BGP peer the IPv4 or VPN-IPv4 NLRI with an IPv6 Next Hop if the BGP speaker has first ascertained via BGP Capability Advertisement that the BGP peer supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair." 238bdb62e9 (spec-refuse-instead-of-defaulting) changed nlri.NewINET to take an explicit has-path-id flag; the unit passes false where it passed path id 0, which already meant no ADD-PATH identifier, so the input, the route and every assertion are byte-for-byte the same (TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair, both tags). The refusal without the negotiated pair is unchanged. Verdict unchanged: enforced. Earlier judgement follows. Independently rejudged the same Section 4 MUST-only-advertise sentence, not an invented separate MUST NOT clause. Tagged explicit/self matrices distinguish 1/1, 1/128 and neither; canUseNextHopFor tests reject absent and nil capability state and permit the licensed tuple. The explicit API test aligns actual Session and Peer negotiated state and observes ErrNextHopIncompatible with no UPDATE for unlicensed unicast. Shared RFC8950 successor evidence covers forwarding and post-policy writer admission. The positive ExtNH tag now accurately names the MUST-only-advertise condition. Retain the duplicate/superseded disposition and renew the changed claim’s native record; the former panic binding is not selective semantic proof.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_CrossFamilyNoCap, internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_ExtendedNH, internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_NilSendCtx moved. Re-judged 2026-10-24 (independent auditor, authored none of the change). RFC 5549 Section 4: "A BGP speaker MUST only advertise to a BGP peer the IPv4 or VPN-IPv4 NLRI with an IPv6 Next Hop if the BGP speaker has first ascertained via BGP Capability Advertisement that the BGP peer supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair." 238bdb62e9 (spec-refuse-instead-of-defaulting) changed nlri.NewINET to take an explicit has-path-id flag; the unit passes false where it passed path id 0, which already meant no ADD-PATH identifier, so the input, the route and every assertion are byte-for-byte the same (TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair, both tags). The refusal without the negotiated pair is unchanged. Verdict unchanged: enforced. Earlier judgement follows. Independently rejudged the same Section 4 MUST-only-advertise sentence, not an invented separate MUST NOT clause. Tagged explicit/self matrices distinguish 1/1, 1/128 and neither; canUseNextHopFor tests reject absent and nil capability state and permit the licensed tuple. The explicit API test aligns actual Session and Peer negotiated state and observes ErrNextHopIncompatible with no UPDATE for unlicensed unicast. Shared RFC8950 successor evidence covers forwarding and post-policy writer admission. The positive ExtNH tag now accurately names the MUST-only-advertise condition. Retain the duplicate/superseded disposition and renew the changed claim’s native record; the former panic binding is not selective semantic proof.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestCanUseNextHopFor_CrossFamilyNoCap`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1243) | unit/verify | unproven |
-| negative | [`TestCanUseNextHopFor_NilSendCtx`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1264) | unit/verify | unproven |
+| negative | [`TestCanUseNextHopFor_CrossFamilyNoCap`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1318) | unit/verify | unproven |
+| negative | [`TestCanUseNextHopFor_NilSendCtx`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1339) | unit/verify | unproven |
 | negative | [`TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L47) | unit/verify | revert, verified |
 | negative | [`TestRFC8950IPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go#L41) | unit/verify | revert, verified |
-| positive | [`TestCanUseNextHopFor_ExtendedNH`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1212) | unit/verify | unproven |
+| positive | [`TestCanUseNextHopFor_ExtendedNH`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1287) | unit/verify | unproven |
 | positive | [`TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L46) | unit/verify | revert, verified |
 | positive | [`TestRFC8950IPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go#L40) | unit/verify | revert, verified |
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -261,16 +272,16 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
 | `front` | not stated | 0 | skipped (front-matter) | Title block, Status of This Memo, Copyright Notice, Abstract and Table of Contents. The Abstract restates the Introduction: MP-BGP lets the AFI/SAFI decide the network-layer protocol of the Next Hop, the IPv4 AFI/SAFI definitions provide only for an IPv4 Next Hop, and this document adds the IPv6 case. It states no obligation. |
-| `1` | Introduction | 0 | walked | Introduction. Indicative prose: which AFI/SAFI pairs already let the Next Hop belong to another address family (<25/65> of L2VPN-SIG, <1/132> of RFC 4684), that RFC 4684 already decides the family from the Length of Next Hop Address field, that RFC 4798 and RFC 4659 solve IPv6 NLRI with an IPv4 Next Hop, and that no solution existed for IPv4 NLRI with an IPv6 Next Hop. The last paragraph states what this document adds. No sentence directs a speaker. |
-| `2` | Requirements Language | 0 | walked | Requirements Language. The RFC 2119 key-words paragraph. It tells a reader how to read the other sections and binds no speaker, which is why the derivation excludes it from the site inventory. |
-| `3` | not stated | 1 | walked | Extension of AFI/SAFI Definitions for the IPv4 Address Family. One capitalised MUST-level site, mapped below to RFC5549-3-1. The rest is value assignment written as a bullet list: AFI 1, SAFI 1, 2, 4 or 128, a Length of Next Hop Address of 16 or 32, and a Next Hop Address that is an IPv6 address optionally followed by the link-local IPv6 address. Those bullets carry no RFC 2119 level, and the Wire Formats and Decoding Rules tables of rfc/short/rfc5549.md hold the values. One bullet delegates rather than obliges: 'This field is to be constructed as per Section 3 of [RFC2545]', which is RFC 2545's obligation and carries its own summary. The closing note that RFC 4684 and L2VPN-SIG use the same length method is a comparison. RFC 8950 Section 3 replaces the 16-or-32 length for SAFI 128 with 24 or 48 and a zero Route Distinguisher; that successor obligation belongs to RFC8950-3-2 and is not stated here, so nothing of it is unsourced against this document. |
-| `4` | Use of BGP Capability Advertisement | 4 | walked | Use of BGP Capability Advertisement. Four capitalised MUST-level sites: the RFC 5492 procedures (RFC5549-4-2), the lead-in to the field list (excluded as a duplicate below), Capability Code 5 (RFC5549-4-3), and the precondition that a speaker advertises an IPv6 Next Hop for IPv4 or VPN-IPv4 NLRI only after the Capability Advertisement has shown peer support (RFC5549-4-1). The Capability Value format, its <NLRI AFI, NLRI SAFI, Nexthop AFI> triples and the values this document allows (NLRI AFI 1, NLRI SAFI 1, 2, 4 or 128, Nexthop AFI 2) are value assignment, held by the Wire Formats and Constants tables of rfc/short/rfc5549.md. Three sentences the site scan cannot see are scoping rather than obligations: that this document does not propose the capability for any other combination, that new AFI/SAFIs are not expected to use it, and that the capability says how a Next Hop is encoded while the Multiprotocol Extensions capability of RFC 4760 decides whether the AFI/SAFI is allowed at all. Each is indicative, so section 2 gives it no normative level. Two ids the site scan cannot reach are listed below. |
-| `5` | Operations | 1 | walked | Operations. One capitalised MUST-level site, mapped below to RFC5549-5-1. The two remaining directives are the SHOULD to give the next hop as an IPvx address when the session runs over IPvx and the speaker puts its own address in, and the MAY that policy overrides that default. Both are the unsourced ids below. The closing sentences state a consequence rather than an obligation: an RR client that cannot handle an encoding, as determined by the BGP Capability Advertisement, does not get the NLRI, and sound routing in some designs needs every RR client to handle whatever encodings any of them generate. |
-| `6` | Usage Examples | 0 | walked | Usage Examples. A heading with no text of its own. Sections 6.1 and 6.2 carry the two examples. |
-| `6.1` | IPv4 over IPv6 Core | 0 | walked | IPv4 over IPv6 Core. An illustrative encoding for the interconnection of IPv4 islands over an IPv6 backbone as described in MESH-FMWK: AFI 1, SAFI 1, Length of Next Hop Network Address 16 or 32, an IPv6 Next Hop, IPv4 routes as NLRI, and the capability triple <NLRI AFI 1, NLRI SAFI 1, Nexthop AFI 2>. Written as 'may be used' and 'would include', so it directs no speaker; the values repeat sections 3 and 4. |
-| `6.2` | IPv4 VPN over IPv6 Core | 0 | walked | IPv4 VPN over IPv6 Core. The same illustrative shape for SAFI 128: Length of Next Hop Network Address 16 or 32, an IPv6 Next Hop, IPv4-VPN routes as NLRI, and the capability triple <NLRI AFI 1, NLRI SAFI 128, Nexthop AFI 2>. No directive. This is the section Erratum ID 5253 reports, because a VPN-IPv4 Next Hop carries an 8-octet Route Distinguisher and the lengths given here leave no room for one; RFC 8950 Section 2 answers the erratum with 24 or 48. The Errata section of rfc/short/rfc5549.md records both readings, and parseVPNNextHops in internal/core/bgp/attribute/mpnlri.go accepts 16 and 32 as the legacy form beside the 24 and 48 of RFC 8950. |
+| `1` | Introduction | 0 | reviewed | Introduction. Indicative prose: which AFI/SAFI pairs already let the Next Hop belong to another address family (<25/65> of L2VPN-SIG, <1/132> of RFC 4684), that RFC 4684 already decides the family from the Length of Next Hop Address field, that RFC 4798 and RFC 4659 solve IPv6 NLRI with an IPv4 Next Hop, and that no solution existed for IPv4 NLRI with an IPv6 Next Hop. The last paragraph states what this document adds. No sentence directs a speaker. |
+| `2` | Requirements Language | 0 | reviewed | Requirements Language. The RFC 2119 key-words paragraph. It tells a reader how to read the other sections and binds no speaker, which is why the derivation excludes it from the site inventory. |
+| `3` | not stated | 1 | reviewed | Extension of AFI/SAFI Definitions for the IPv4 Address Family. One capitalised MUST-level site, mapped below to RFC5549-3-1. The rest is value assignment written as a bullet list: AFI 1, SAFI 1, 2, 4 or 128, a Length of Next Hop Address of 16 or 32, and a Next Hop Address that is an IPv6 address optionally followed by the link-local IPv6 address. Those bullets carry no RFC 2119 level, and the Wire Formats and Decoding Rules tables of rfc/short/rfc5549.md hold the values. One bullet delegates rather than obliges: 'This field is to be constructed as per Section 3 of [RFC2545]', which is RFC 2545's obligation and carries its own summary. The closing note that RFC 4684 and L2VPN-SIG use the same length method is a comparison. RFC 8950 Section 3 replaces the 16-or-32 length for SAFI 128 with 24 or 48 and a zero Route Distinguisher; that successor obligation belongs to RFC8950-3-2 and is not stated here, so nothing of it is unsourced against this document. |
+| `4` | Use of BGP Capability Advertisement | 4 | reviewed | Use of BGP Capability Advertisement. Four capitalised MUST-level sites: the RFC 5492 procedures (RFC5549-4-2), the lead-in to the field list (excluded as a duplicate below), Capability Code 5 (RFC5549-4-3), and the precondition that a speaker advertises an IPv6 Next Hop for IPv4 or VPN-IPv4 NLRI only after the Capability Advertisement has shown peer support (RFC5549-4-1). The Capability Value format, its <NLRI AFI, NLRI SAFI, Nexthop AFI> triples and the values this document allows (NLRI AFI 1, NLRI SAFI 1, 2, 4 or 128, Nexthop AFI 2) are value assignment, held by the Wire Formats and Constants tables of rfc/short/rfc5549.md. Three sentences the site scan cannot see are scoping rather than obligations: that this document does not propose the capability for any other combination, that new AFI/SAFIs are not expected to use it, and that the capability says how a Next Hop is encoded while the Multiprotocol Extensions capability of RFC 4760 decides whether the AFI/SAFI is allowed at all. Each is indicative, so section 2 gives it no normative level. Two ids the site scan cannot reach are listed below. |
+| `5` | Operations | 1 | reviewed | Operations. One capitalised MUST-level site, mapped below to RFC5549-5-1. The two remaining directives are the SHOULD to give the next hop as an IPvx address when the session runs over IPvx and the speaker puts its own address in, and the MAY that policy overrides that default. Both are the unsourced ids below. The closing sentences state a consequence rather than an obligation: an RR client that cannot handle an encoding, as determined by the BGP Capability Advertisement, does not get the NLRI, and sound routing in some designs needs every RR client to handle whatever encodings any of them generate. |
+| `6` | Usage Examples | 0 | reviewed | Usage Examples. A heading with no text of its own. Sections 6.1 and 6.2 carry the two examples. |
+| `6.1` | IPv4 over IPv6 Core | 0 | reviewed | IPv4 over IPv6 Core. An illustrative encoding for the interconnection of IPv4 islands over an IPv6 backbone as described in MESH-FMWK: AFI 1, SAFI 1, Length of Next Hop Network Address 16 or 32, an IPv6 Next Hop, IPv4 routes as NLRI, and the capability triple <NLRI AFI 1, NLRI SAFI 1, Nexthop AFI 2>. Written as 'may be used' and 'would include', so it directs no speaker; the values repeat sections 3 and 4. |
+| `6.2` | IPv4 VPN over IPv6 Core | 0 | reviewed | IPv4 VPN over IPv6 Core. The same illustrative shape for SAFI 128: Length of Next Hop Network Address 16 or 32, an IPv6 Next Hop, IPv4-VPN routes as NLRI, and the capability triple <NLRI AFI 1, NLRI SAFI 128, Nexthop AFI 2>. No directive. This is the section Erratum ID 5253 reports, because a VPN-IPv4 Next Hop carries an 8-octet Route Distinguisher and the lengths given here leave no room for one; RFC 8950 Section 2 answers the erratum with 24 or 48. The Errata section of rfc/short/rfc5549.md records both readings, and parseVPNNextHops in internal/core/bgp/attribute/mpnlri.go accepts 16 and 32 as the legacy form beside the 24 and 48 of RFC 8950. |
 | `7` | IANA Considerations | 0 | skipped (iana) | IANA Considerations. Records the allocation of Capability Code 5 for the Extended Next Hop Encoding capability from the IETF Review range of RFC 5226. Binds IANA, not a speaker. The value itself is an obligation on a speaker only through RFC5549-4-3, which site 4:3 maps. |
-| `8` | Security Considerations | 0 | walked | Security Considerations. States that the document raises no security issue beyond BGP-4 and the Multiprotocol Extensions, and that the IPv6 Next Hop Address can be an IPv4-mapped IPv6 address of RFC 4291. The last sentence addresses the network operator who configures next-hop security checks, states no capitalised keyword, and directs no speaker. |
+| `8` | Security Considerations | 0 | reviewed | Security Considerations. States that the document raises no security issue beyond BGP-4 and the Multiprotocol Extensions, and that the IPv6 Next Hop Address can be an IPv4-mapped IPv6 address of RFC 4291. The last sentence addresses the network operator who configures next-hop security checks, states no capitalised keyword, and directs no speaker. |
 | `9` | Acknowledgments | 0 | skipped (acknowledgements) | Acknowledgments. Thanks Yakov Rekhter, Pranav Mehta and John Scudder. No obligation. |
 | `10` | References | 0 | skipped (references) | References. A heading whose two lists are sections 10.1 and 10.2. |
 | `10.1` | not stated | 0 | skipped (references) | Normative References: RFC 2119, RFC 2545, RFC 3107, RFC 4291, RFC 4364, RFC 4760 and RFC 5492. |

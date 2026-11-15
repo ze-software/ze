@@ -1,6 +1,6 @@
 # RADIUS and TACACS+
 
-Technology aggregate. RADIUS and TACACS+ authentication, authorization, and accounting. The RFCs whose summary names the radius-tacacs aggregate, with the MUST bar and the overview bar of the set and of each RFC.
+Technology profile. RADIUS and TACACS+ authentication, authorization, and accounting. The RFCs grouped under radius-tacacs, showing mandatory requirement coverage and overall coverage for the group and each RFC.
 
 [All profiles](../) · [All RFCs](../../)
 
@@ -8,20 +8,23 @@ Figures as of the last build, read from [data/rfc/profiles/radius-tacacs.json](.
 
 ## Figures
 
-- **MUST bar**: Ze proven 123, Ze correctness gap 110
-- **Overview bar**: Ze MUST proven 123, SHOULD proven 5, SHOULD not decided 134, Ze correctness gap 110
+- **MUST bar**: Ze proven 123, Proof pending 29, Exclusion unchecked 2, Not assessed 56, Not built 23
+- **Overview bar**: Ze MUST proven 123, SHOULD proven 5, Proof pending 29, Exclusion unchecked 2, Not assessed 190, Not built 23
 
 | Figure | Rows |
 |---|---|
 | RFCs | 12 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 233 |
 | MUST rows kept (the MUST bar) | 233 |
 | Ze proven | 123 |
 | OS verified | 0 |
+| Proof pending | 29 |
 | OS testing gap | 0 |
-| Ze correctness gap | 110 |
+| Exclusion unchecked | 2 |
+| Not assessed | 56 |
+| Not built | 23 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -34,64 +37,65 @@ Figures as of the last build, read from [data/rfc/profiles/radius-tacacs.json](.
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 134 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 134 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 ## Tree
 
-Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each RFC carries the same two bars as the set above, from its own data file; an RFC that is not walked shows "not walked" and no bar.
+The RFCs are listed with the standards they build on first. An RFC appears one level after the highest level of its dependencies; RFCs that refer back to each other share a level. Each RFC has the same two coverage bars as the group above. An RFC whose requirement list has not been reviewed shows "requirements not reviewed" instead of a bar.
 
-### Level 0
+### Level 1
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 2865](../../rfc2865/) (cycle with rfc2866) | Remote Authentication Dial In User Service (RADIUS) | Ze proven 27, Ze correctness gap 4 | Ze MUST proven 27, SHOULD not decided 1, Ze correctness gap 4 |
-| [RFC 2866](../../rfc2866/) (cycle with rfc2865) | RADIUS Accounting | Ze proven 8, Ze correctness gap 7 | Ze MUST proven 8, SHOULD not decided 1, Ze correctness gap 7 |
+| [RFC 2865](../../rfc2865/) (cycle with rfc2866) | Remote Authentication Dial In User Service (RADIUS) | Ze proven 27, Proof pending 4 | Ze MUST proven 27, Proof pending 4, Not assessed 1 |
+| [RFC 2866](../../rfc2866/) (cycle with rfc2865) | RADIUS Accounting | Ze proven 8, Proof pending 7 | Ze MUST proven 8, Proof pending 7, Not assessed 1 |
 
 ### Level 3
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 2548](../../rfc2548/) | Microsoft Vendor-specific RADIUS Attributes | Ze correctness gap 31 | SHOULD proven 2, SHOULD not decided 32, Ze correctness gap 31 |
+| [RFC 2548](../../rfc2548/) | Microsoft Vendor-specific RADIUS Attributes | Not assessed 31 | SHOULD proven 2, Not assessed 63 |
 
 ### Level 4
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 6911](../../rfc6911/) | RADIUS Attributes for IPv6 Access Networks | Ze correctness gap 3 | SHOULD not decided 9, Ze correctness gap 3 |
+| [RFC 6911](../../rfc6911/) | RADIUS Attributes for IPv6 Access Networks | Not assessed 3 | Not assessed 12 |
 
 ### Level 5
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 4818](../../rfc4818/) | RADIUS Delegated-IPv6-Prefix Attribute | Ze correctness gap 3 | SHOULD not decided 3, Ze correctness gap 3 |
+| [RFC 4818](../../rfc4818/) | RADIUS Delegated-IPv6-Prefix Attribute | Not assessed 3 | Not assessed 6 |
 
 ### Level 6
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 2867](../../rfc2867/) (cycle with rfc2868, rfc2869) | RADIUS Accounting Modifications for Tunnel Protocol Support | Ze correctness gap 1 | SHOULD not decided 16, Ze correctness gap 1 |
-| [RFC 2868](../../rfc2868/) (cycle with rfc2867, rfc2869) | RADIUS Attributes for Tunnel Protocol Support | Ze correctness gap 18 | SHOULD not decided 43, Ze correctness gap 18 |
-| [RFC 2869](../../rfc2869/) (cycle with rfc2867, rfc2868) | RADIUS Extensions | Ze proven 4, Ze correctness gap 4 | Ze MUST proven 4, SHOULD not decided 3, Ze correctness gap 4 |
+| [RFC 2867](../../rfc2867/) (cycle with rfc2868, rfc2869) | RADIUS Accounting Modifications for Tunnel Protocol Support | Not assessed 1 | Not assessed 17 |
+| [RFC 2868](../../rfc2868/) (cycle with rfc2867, rfc2869) | RADIUS Attributes for Tunnel Protocol Support | Not assessed 18 | Not assessed 61 |
+| [RFC 2869](../../rfc2869/) (cycle with rfc2867, rfc2868) | RADIUS Extensions | Ze proven 4, Proof pending 4 | Ze MUST proven 4, Proof pending 4, Not assessed 3 |
 
 ### Level 7
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 3162](../../rfc3162/) | RADIUS and IPv6 | Ze proven 3, Ze correctness gap 3 | Ze MUST proven 3, SHOULD not decided 7, Ze correctness gap 3 |
+| [RFC 3162](../../rfc3162/) | RADIUS and IPv6 | Ze proven 3, Not built 3 | Ze MUST proven 3, Not assessed 7, Not built 3 |
 
 ### Level 8
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 3579](../../rfc3579/) (cycle with rfc5176) | RADIUS (Remote Authentication Dial In User Service) Support For Extensible Authentication Protocol (EAP) | Ze proven 17, Ze correctness gap 14 | Ze MUST proven 17, SHOULD proven 2, SHOULD not decided 17, Ze correctness gap 14 |
-| [RFC 5176](../../rfc5176/) (cycle with rfc3579) | Dynamic Authorization Extensions to Remote Authentication Dial In User Service (RADIUS) | Ze proven 26, Ze correctness gap 4 | Ze MUST proven 26, SHOULD proven 1, Ze correctness gap 4 |
+| [RFC 3579](../../rfc3579/) (cycle with rfc5176) | RADIUS (Remote Authentication Dial In User Service) Support For Extensible Authentication Protocol (EAP) | Ze proven 17, Not built 14 | Ze MUST proven 17, SHOULD proven 2, Not assessed 17, Not built 14 |
+| [RFC 5176](../../rfc5176/) (cycle with rfc3579) | Dynamic Authorization Extensions to Remote Authentication Dial In User Service (RADIUS) | Ze proven 26, Proof pending 4 | Ze MUST proven 26, SHOULD proven 1, Proof pending 4 |
 
 ### Level 9
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 8907](../../rfc8907/) | The Terminal Access Controller Access-Control System Plus (TACACS+) Protocol | Ze proven 38, Ze correctness gap 18 | Ze MUST proven 38, SHOULD not decided 2, Ze correctness gap 18 |
+| [RFC 8907](../../rfc8907/) | The Terminal Access Controller Access-Control System Plus (TACACS+) Protocol | Ze proven 38, Proof pending 10, Exclusion unchecked 2, Not built 6 | Ze MUST proven 38, Proof pending 10, Exclusion unchecked 2, Not assessed 2, Not built 6 |

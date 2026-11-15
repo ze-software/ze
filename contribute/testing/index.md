@@ -9,18 +9,20 @@ directives, fuzz target list), see `docs/functional-tests.md`.
 ```sh
 ./le setup install
 ./le setup check
-./le job run label unit-pkg command go test ./internal/core/textbuf/
+./le test unit pkg path ./internal/core/textbuf/
 ```
 
 `./le setup check` reports every tool setup installs, and the scoped package
-test proves the checkout builds and its tests run
+test proves the checkout builds and its tests run under the feature tags
 (`../guide/developer-setup.md`, "After Setup").
 
 `./le verify current` is the full verification, Thomas's release check, which
 GitHub CI also runs on a pushed commit. It runs only when stdin and stdout are
 both terminals, so Thomas starts it by hand at one. No agent runs any
-`./le verify` command, `./le verify changed` included: an agent's evidence is
-the scoped test runs of what its change reaches, run in the main checkout.
+`./le verify` command, `./le verify changed` included: the evidence for a
+change is the scoped test runs of what it reaches. The main thread runs them in
+the main checkout, from the owed commands a subagent lists in its report
+(`ai/rules/commands.md`).
 
 `./le` is the compiled repository development entry point. Each area exposes
 its own verbs, for example `./le test functional plugin`,
@@ -37,7 +39,7 @@ Use the narrowest test that covers your change. Escalate only when needed.
 
 | Step | What you run | When | Time |
 |------|--------------|------|------|
-| 1 | `./le job run label one-test command go test ./pkg/... -run TestName` | Iterating on one test | seconds |
+| 1 | `./le test unit pkg path ./internal/core/textbuf/ run TestName` | Iterating on one test | seconds |
 | 2 | `./le test unit bgp` | Checking one component group | 10s to 1:30 |
 | 3 | `./le test functional plugin` | Checking the user-visible path | varies |
 | 4 | GitHub CI on the pushed commit | Judging the pushed change set: no agent runs it locally | minutes |
@@ -56,14 +58,45 @@ current`, `./le verify current fast` and every form of `./le verify worktree`
 unless stdin and stdout are both terminals, because a full run
 loads the whole shared machine and only Thomas knows when that is safe. The
 refusal prints the exact command line for Thomas, and the scoped tests that
-are the agent's own evidence. No keyword or environment variable
+are the change's evidence, which the main thread runs. No keyword or environment variable
 skips it. When Thomas starts `./le verify current`, it runs every stage in a fresh detached worktree
 at HEAD, through the same lifecycle as `./le verify worktree`, so an edit made
 while it runs cannot move the tree it judges; `./le verify current fast` runs
 the changed-files stages in place, over the working tree.
-The narrower commands are development tools. `./le job run` admits an individual heavy command
-through `internal/le/job`, so concurrent sessions do not oversubscribe the
-machine.
+The narrower commands are development tools. `./le test unit pkg` admits its
+run through `internal/le/job`, and `./le job run` admits any other heavy
+command the same way, so concurrent sessions do not oversubscribe the machine.
+
+### One package: `./le test unit pkg`
+
+`./le test unit pkg path <dir>/ [run <regex>] [vet]` tests the packages it
+names under the feature tags from `feature-gates.txt`, with the race detector
+and the toolchain's timeout, admitted under the job label `unit-pkg`. Repeat
+`path` for each package. `run` hands its regex to `go test -run`. `vet` runs
+`go vet` on the same packages and their test files instead, under `vet-pkg`.
+`changed` in place of `path` takes the packages the change reaches.
+
+The output goes to this session's scratch log. A green run answers one line,
+`test unit pkg: exit 0, <n> packages ok, ..., log <path>`, which counts only
+the packages that ran a test. With `changed`, a `left out <package>` line
+comes before it for each reached package that `changed` set aside behind a
+group's own tags, naming the group's command. A red run prints each failed test's
+`--- FAIL:` line with the lines beneath it, then that summary. A run in which
+no package ran a test, a `run` that matched nothing included, answers exit 1.
+
+It refuses with exit 2, before it takes a slot, a line that would test more
+than the packages meant: `path ./...` (the whole tree, `./le test unit all`,
+is the owner's run), a group's whole pattern (run that group), a value that
+spans two or more groups, and a package under the `installer` group, whose
+`ze_installer` tag the feature set lacks (run `./le test unit installer`). A
+`changed` answer the selector widened to every package is refused the same
+way. The race detector is always on, and the action takes no other `go test`
+flag: a run that needs `-v`, `-count`, `-bench` or a cover profile stays on
+`./le job run label unit-pkg quiet command go test -race -tags "$tags" ...`
+with the tags written out (`running-commands.md`, "Testing one package while
+you develop it").
+<!-- source: internal/le/test/unit/pkg.go -- pkgParameters, answerPkg, pkgLineOf, namedPackagesRun, changedPackages, PkgReport.Text -->
+<!-- source: internal/le/test/unit/groups.go -- groups, place -->
 
 ### Component groups for step 3
 
@@ -96,8 +129,8 @@ right output, does the state machine transition correctly, does the encoder
 round-trip.
 
 ```sh
-./le job run label bgp-message command go test ./internal/component/bgp/message/...
-./le job run label parse-origin command go test ./internal/... -run TestParseOrigin
+./le test unit pkg path ./internal/component/bgp/message/...
+./le test unit pkg path ./internal/component/bgp/route/ run TestParseOrigin
 ```
 
 Dynamic-group coverage exercises each plugin's real configuration boundary:
@@ -141,8 +174,10 @@ the host. Write such a test this way:
   header comment.
 
 Run the evidence as your own user through the launcher, for example
-`./le job run label unit-pkg quiet command go test -v -count=1 -run '^TestName$' ./internal/core/routewatch`,
-and read `--- PASS` for each test. Off Linux, `Enter` returns true at once and
+`./le job run label unit-pkg quiet command go test -v -count=1 -race -tags "$tags" -run '^TestName$' ./internal/core/routewatch`,
+and read `--- PASS` for each test in the quiet log. It keeps the long form
+because the short action takes no `-v`, so `$tags` comes from the recipe in
+`running-commands.md`, "A bare `go test` is not `./le test unit`". Off Linux, `Enter` returns true at once and
 the test runs in place, which serves a portable test such as the traceroute
 command tests. The namespace mechanics are in
 [QEMU integration testing](https://github.com/ze-software/ze/blob/main/docs/architecture/testing/qemu-integration.md),
@@ -162,7 +197,8 @@ Go test callers using `gotoolchain.Toolchain.Environment` MUST set
 production commands retain operator checkout overrides and named-build checks.
 <!-- source: internal/le/go/toolchain/gotoolchain.go -- EnvOptions, Environment -->
 
-Direct `./le job run ... command go test ...` children use the same isolation
+A `go test` that `./le job run` starts as its direct child, and the one
+`./le test unit pkg` starts through it, use the same isolation
 at the process boundary, including Go's optional leading `-C` directory option.
 The admission process retains its root and job identity; only the test child's
 checkout/build identity is removed. The test child also gets `GOTMPDIR` set to
@@ -222,18 +258,20 @@ Each `test/` subdirectory has its own runner and format:
 | `test/exabgp-compat/` | ExaBGP compatibility | `le test exabgp` |
 
 Run a single test by one-based ID or exact name, list the available IDs, or
-resume from the last printed ID after an interrupted run. Queue the runner
-through `./le job run label <label> command <argv...>` to use the same admission
-as a full suite.
+resume from the last printed ID after an interrupted run. Each of these
+runners admits itself through the same job admission as a full suite, so it
+needs no `./le job run` around it (`running-commands.md`, "One verify at a
+time").
 
 ```sh
-./le job run label plugin-42 command bin/le test bgp plugin 42          # test id 42
-./le job run label encode-list command bin/le test bgp encode --list    # list N/TOTAL, id, and name
-./le job run label plugin-from-42 command bin/le test bgp plugin --start 42  # id 42 and every later test
-./le job run label editor-7 command bin/le test editor 7                # editor test id 7
-./le job run label editor-nav command bin/le test editor -p nav         # editor tests matching "nav"
-./le job run label exabgp-from-20 command bin/le test exabgp --start 20 # resume ExaBGP compatibility
+./le test bgp plugin 42              # test id 42
+./le test bgp encode --list          # list N/TOTAL, id, and name
+./le test bgp plugin --start 42      # id 42 and every later test
+./le test editor 7                   # editor test id 7
+./le test editor -p nav              # editor tests matching "nav"
+./le test exabgp --start 20          # resume ExaBGP compatibility
 ```
+<!-- source: internal/le/test/harnesstool/harnesstool.go -- RunnerAnswer, admitRun -->
 <!-- source: internal/test/runner/selection.go -- Selection -->
 <!-- source: internal/test/runner/display.go -- TestFinished -->
 <!-- source: internal/test/cli/cmd_exabgp.go -- ExaBGP compatibility selection -->
@@ -307,7 +345,7 @@ They are not part of the normal development cycle.
 ```sh
 ./le test integration interop
 ./le test integration iface
-./le test qemu all
+./le test qemu ci test test/<dir>/<name>.ci   # one needs-linux test in Ze's QEMU guest
 ./le test integration live-rpki
 ./le test integration docker-peers   # every package test tagged `docker`
 ./le test integration clean dry    # what a killed lab run left, and why the rest stays
@@ -346,7 +384,18 @@ The route, in order:
    `./le test weakened approve unit <package>.<TestName> reason "<the judge's verdict>"`.
    The row goes to `tmp/commit-weakening-approved-<session>.md`, keyed on the
    main thread's commit namespace, so a subagent's edit sees it too. git never
-   reads that file. On REFUSE, fix the code instead.
+   reads that file. `<package>` is the name of the directory holding the test,
+   not its Go package clause; the command refuses a unit no directory carries
+   and names the key to use. When two files of the directory declare the
+   name, it refuses the bare unit and prints the form that names the file:
+   `./le test weakened approve unit <package>.<Name> file <path> reason "<the judge's verdict>"`.
+   `file` is accepted only then: on a unit one file declares, the command
+   refuses it and prints the form without it. The file lives only in the
+   approval row; the commit's trailer names the unit alone.
+   The row records the unit's content as the judge
+   read it, so it approves that change only: a different later change of the
+   same test needs a new verdict (`docs/architecture/testing/test-health.md`,
+   "One approval names one test"). On REFUSE, fix the code instead.
 3. Make the edit.
 4. Commit with `./le commit create` as usual. The message gains one
    `Weakening-approved: <package>.<TestName>: <the judge's verdict>` line per test, and
@@ -359,6 +408,76 @@ directory is refused: one approval names one test. An `RFC-approved:` row for a
 unit (`./le rfc approve`) also accepts that unit's weakening. Because the unit
 keeps only the directory's base name, a commit that changes `cmd.TestX` in both
 `a/cmd` and `b/cmd` is refused: split it so each commit carries one of them.
+
+A helper is any function of a `_test.go` file that is not a `Test`, `Fuzz` or
+`Benchmark` function (`TestMain` counts as a helper). A weakening inside a
+helper (an assertion it no longer makes) is the helper's own finding: the row
+names the helper, `<package>.<helperName>`, because a calling test's verdict
+judged the test's text, not the helper's. A changed helper also changes every
+existing test that calls it in a file the commit carries, so that test's live
+row is spent and a stale one refuses. A test calls a helper when it names the
+helper as a call or a function value (never after a selector's dot), directly
+or through other helpers, in the `_test.go` files of the same directory. The
+rule matches names, so a local of the same name also counts as a call. A
+helper no test calls keeps its finding all the same.
+
+A weakening is the loss of proof the committed tree holds. The edit hook
+judges only the units HEAD records for the file. It follows a committed test
+file that the working tree lacks into the other test files of the same
+directory: an Edit of a file moved there (by `git mv` or by `mv`) is judged
+against the committed units. A Go test file at a path HEAD does not hold is
+judged, on the `Write` that creates it and on every later whole-file `Write`
+or `Edit`, against the committed files missing from its directory, for each
+unit it declares and the edit changes under the name of one the missing
+file held, so a stub written first cannot carry a weaker copy in later. A
+renamed file whose units are renamed too is caught only at the commit gate.
+A `Write` that
+recreates a deleted committed file is judged against HEAD's text of it. An
+alias of a committed test (a symlink, a hard link in its directory, or a case
+variant of its name on a case-insensitive filesystem) is judged as the
+committed test. A test or helper that only the working tree holds, in a new
+untracked file or added to a tracked one, is yours to rename, replace or
+remove without a verdict, unless it shares a name with a unit of a committed
+file missing from its directory. While a committed `.ci` is missing from a
+directory, every untracked `.ci` there is guarded against losing what its own
+text proves, which can refuse an edit to an unrelated new `.ci`, never admit
+a loss. When a refusal comes from a committed file missing from the
+directory, it names that file: have an independent judge approve the change,
+or, if the two files are unrelated, stop and report it, so that whoever
+deleted the file commits the deletion first. A unit the edit leaves as it was
+is not judged again; it was judged only if a `Write` or `Edit` the hook sees
+wrote it after the committed file went missing, or through a link to the
+committed file. The hook does not see these, and the commit gate judges
+them as an addition beside a deletion, or as a deletion it cannot pair:
+
+- a move to another directory, and a new `.ci` written under another name
+- an edit through a hard link made in another directory
+- a unit written by a shell command (a redirect, `sed -i`, `cp`, or a draft
+  moved into place with `mv`): the Bash hook guards shell writes only under
+  `plan/` and `ai/rules/`
+- a unit written while its committed namesake still stood, that file deleted
+  afterwards
+- a weaker copy of a moved unit added to a file HEAD already tracks, while a
+  committed sibling is missing: a tracked file is judged against its own HEAD
+  text only
+
+The rules are in `docs/architecture/testing/test-health.md`, "One approval
+names one test".
+<!-- source: internal/le/test/weakened/proposed.go -- Proposed, proposedRenamedFindings, renamedLines -->
+<!-- source: internal/le/hookruntime/bash.go -- governedShellWrite -->
+
+A test edited again after its verdict is refused at commit, even when the new
+edit weakens nothing: the row is stale, because the judge saw other text. Run
+the judge again on the change as it stands and record its fresh verdict, or
+remove the stale row when the change needs none.
+
+The writer resolves the directory key against current and HEAD carriers, and
+refuses an unknown or ambiguous key before it changes an approval file. The
+registered action checks the unit and the reason in a read-only preparation
+before startup, so a refused request writes nothing. Its admitted answer
+creates the commit namespace and writes the row.
+<!-- source: internal/le/test/weakened/approve.go -- Approve, approveAnswer, approveAdmitted -->
+<!-- source: internal/le/rfc/approvalunits.go -- ResolveApprovalUnit -->
 
 Known limit: two kinds of unit cannot be approved at all, because the unit must match
 `<package>.<TestName>` with one dot and no empty side. A `.ci` or `.et` file
@@ -428,8 +547,8 @@ silent for that long. That is the linter in a queue, not a hang.
 
 ### The post-edit lint takes no index lock
 
-<!-- source: internal/le/hookruntime/postwrite.go -- postLintCommand -->
-<!-- source: internal/le/gitenv/gitenv.go -- ReadOnly, ReadOnlyPatch -->
+<!-- source: internal/le/hookruntime/postwrite.go -- postLintCommand, postLinter -->
+<!-- source: internal/le/gitenv/gitenv.go -- ReadOnly, ReadOnlyPatch, ReadOnlyQuery -->
 
 After each Go edit the post-write hook lints the edited package with
 `--new-from-rev=HEAD --timeout=30s`. For `--new-from-rev`, golangci-lint runs
@@ -440,12 +559,18 @@ hook therefore runs the linter with `GIT_OPTIONAL_LOCKS=0`, which stops
 `git status` refreshing the index, and `diff.autoRefreshIndex=false`, which
 stops `git diff` writing the refresh back. The patch the linter reads is the
 same either way. le's other `git status` queries under a deadline carry the
-first setting through `gitenv.ReadOnly`.
+first setting through `gitenv.ReadOnly`. The weakening check's queries, which
+the edit hook runs on every test edit, carry `gitenv.ReadOnlyQuery`: the
+first setting plus `maintenance.auto=false` and `gc.auto=0`, so none of them
+starts a detached maintenance run under `.git`. The post-edit hook starts the real linter, not
+the `golangci-lint` shim, so the kill at the hook's 60 second budget ends the linter
+itself and no `le exec` waits for a job slot on an edit (`postLinter`).
 
 ### Post-tool hooks block only on the author's own files
 
 <!-- source: internal/le/hookruntime/postwrite.go -- postLintVerdict -->
-<!-- source: internal/le/hookruntime/postbash.go -- postBashGofmt, commandNames -->
+<!-- source: internal/le/hookruntime/postbash.go -- postBashGofmt, commandNames, commandNamedPaths, redirectWritesGo, readerCall, wordPath, globOnly, commandUnread -->
+<!-- source: internal/le/hookruntime/shellparse.go -- treeMisreadsLine -->
 <!-- source: internal/le/hookruntime/runtime.go -- shownVerdicts -->
 
 A post-tool hook's blocking text enters the agent's context, and every later
@@ -460,6 +585,77 @@ therefore blocks only on what the tool call itself touched:
 
 When any check blocks, the hook drops the code-0 hints from what it prints,
 because a hint carries nothing for the agent to act on.
+
+The gofmt check reads what a command names from its parse as bash, never from
+its text. A file is named when a whole word of the line is its path or a
+directory above it:
+
+- `./`, a trailing slash and an absolute path under the checkout are spelling.
+- Go's `dir/...` names `dir`.
+- A word that is one unquoted glob (`pkg/*.go`) names what it matches, and
+  `*` does not cross a directory.
+- Any word that starts with `-` and holds `=` names what follows the first
+  `=` (`--file=pkg/x.go`).
+- The checkout itself (`.`, `./...`, its absolute path) and a path outside it
+  name nothing.
+
+A read-only line names nothing, because it cannot have changed a file. A line
+is read-only when every command on it is a reader (`grep`, `cat`, `git log`,
+the set in `readerCommands`), a command inside `$(...)` included, and no
+redirection may write a Go file of the checkout, which is the only way a line
+of readers changes one:
+
+| Redirection target | Ends the exemption |
+|--------------------|--------------------|
+| Outside the checkout (`2>/dev/null`), or a descriptor (`2>&1`, `>&-`) | No |
+| A known file that does not end in `.go` (`> tmp/out.txt`, `2> tmp/err.log`) | No |
+| A file that ends in `.go`, or a glob | Yes |
+| Not known: an expansion (`> "$out"`), or a relative path that climbs with `..` (`> ../x.go`) | Yes |
+
+The exemption is all or nothing: `cd pkg && cat > x.go <<EOF` is not
+read-only, so the word of `cd` names the file, as it does in `cd pkg && sed
+-i ... x.go`.
+
+A command that does not parse names nothing, and the code-0 line says the
+command could not be read and how to check what it changed. So does a line
+whose tree names fewer commands than bash runs (`treeMisreadsLine`, read by
+`commandUnread` in `internal/le/hookruntime/postbash.go`): a comment that ends
+in a backslash, which the parser joins to the next line while bash runs that
+line, and a `$` followed by a backslash-newline. Such a tree would read
+`echo a # x \` then `gofmt -w x.go` as one read-only echo, so the check does
+not read it at all.
+
+The limits that remain. In each case the file is counted at code 0 and does
+not block:
+
+- A word bash expands other than as a plain glob names nothing: a parameter
+  (`pkg/$name/x.go`), a command substitution, arithmetic, a tilde, braces, or
+  a glob that also carries a quote or a backslash. The check cannot know what
+  bash passes for it.
+- A path inside a longer word is not seen: `dd of=x.go`, an attached short
+  option value (`-ox.go`), the script of `bash -c '...'`.
+- A path that arrives through a variable or `xargs` is not seen.
+- A relative word is read against the checkout root, not against the shell's
+  directory after an earlier `cd` on the line. Only the word of `cd` names,
+  and a relative word that climbs with `..` names nothing.
+- An absolute path is compared as it is spelled, so one that reaches the
+  checkout through a symlink is read as outside it.
+- A redirection target that starts with `-` and holds no `=` (`cat > -x.go`)
+  is read as an option word and names nothing, so such a line stays
+  read-only.
+- A glob that `path.Match` refuses (an unmatched `[`) is compared as it is
+  spelled, so a file it would reach by matching is not named.
+
+Some limits go the other way, and block for a file the command did not
+change:
+
+- A command that is not a reader blocks for another session's file under a
+  directory it names (`gofmt -l internal/le`).
+- A reader under an assignment is not taken for a reader (`LC_ALL=C grep -rn
+  x internal/le`, `GIT_PAGER=cat git log -- internal/le`). This is
+  deliberate: the check cannot know what the variable changes.
+- On a line that is not read-only, a word inside `${x:-word}`, `(( ))`,
+  `[[ ]]` or a case pattern is a candidate like any other.
 
 ### The slot a lint holds
 
@@ -766,15 +962,17 @@ Reproducing a load-dependent flake is
 
 | I want to... | Run |
 |--------------|-----|
-| Check my setup | `./le setup check`, then `./le job run label unit-pkg command go test ./internal/core/textbuf/` |
-| Run one Go test | `./le job run label one-test command go test ./pkg/... -run TestName` |
-| Run one functional test | `./le job run label plugin-42 command bin/le test bgp plugin 42` |
+| Check my setup | `./le setup check`, then `./le test unit pkg path ./internal/core/textbuf/` |
+| Test one package | `./le test unit pkg path ./internal/core/textbuf/`; add `vet` to vet it instead |
+| Run one Go test | `./le test unit pkg path ./internal/core/textbuf/ run TestName` |
+| Test the packages my change reaches | `./le test unit pkg changed` |
+| Run one functional test | `./le test bgp plugin 42` |
 | Run a component group | `./le test unit bgp` |
 | Judge my committed change set before a push | the scoped package tests and functional suites `./le repo changed scope print both` names; GitHub CI verifies the pushed commit, and no agent runs `./le verify` |
 | Have the release check run: GitHub CI runs it on a pushed commit, and Thomas runs it at his terminal | `./le verify current` |
 | Type-check every supported feature combination | `./le go staticcheck check` |
 | List native test actions | `./le help` |
-| List functional tests | `./le job run label encode-list command bin/le test bgp encode --list` |
+| List functional tests | `./le test bgp encode --list` |
 | Run one fuzz target | `FUZZ=FuzzName PKG=./path/... TIME=30s ./le test fuzz run` |
 | Run all fuzz targets | `./le test fuzz run` |
 | Check the commit compiles | `./le repo compiles check` |

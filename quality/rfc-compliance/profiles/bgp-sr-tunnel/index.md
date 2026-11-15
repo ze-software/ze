@@ -1,6 +1,6 @@
 # BGP segment routing and tunnels
 
-Technology aggregate. BGP segment routing, SRv6, and tunnel encapsulation. The RFCs whose summary names the bgp-sr-tunnel aggregate, with the MUST bar and the overview bar of the set and of each RFC.
+Technology profile. BGP segment routing, SRv6, and tunnel encapsulation. The RFCs grouped under bgp-sr-tunnel, showing mandatory requirement coverage and overall coverage for the group and each RFC.
 
 [All profiles](../) · [All RFCs](../../)
 
@@ -8,20 +8,23 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-sr-tunnel.json](.
 
 ## Figures
 
-- **MUST bar**: Ze proven 89, Ze correctness gap 154
-- **Overview bar**: Ze MUST proven 89, SHOULD proven 4, Not owed 1, SHOULD not decided 132, Ze correctness gap 154
+- **MUST bar**: Ze proven 89, Proof pending 48, Not built 106
+- **Overview bar**: Ze MUST proven 89, SHOULD proven 4, Not owed 1, Proof pending 48, Not assessed 131, Not built 107
 
 | Figure | Rows |
 |---|---|
 | RFCs | 5 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 244 |
 | MUST rows kept (the MUST bar) | 243 |
 | Ze proven | 89 |
 | OS verified | 0 |
+| Proof pending | 48 |
 | OS testing gap | 0 |
-| Ze correctness gap | 154 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 106 |
 | MUST rows not owed | 1 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -34,42 +37,43 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-sr-tunnel.json](.
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 132 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 131 |
+| SHOULD not built | 1 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 ## Tree
 
-Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each RFC carries the same two bars as the set above, from its own data file; an RFC that is not walked shows "not walked" and no bar.
+The RFCs are listed with the standards they build on first. An RFC appears one level after the highest level of its dependencies; RFCs that refer back to each other share a level. Each RFC has the same two coverage bars as the group above. An RFC whose requirement list has not been reviewed shows "requirements not reviewed" instead of a bar.
 
 ### Level 8
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 8669](../../rfc8669/) | Segment Routing Prefix Segment Identifier Extensions for BGP | Ze proven 13, Ze correctness gap 11 | Ze MUST proven 13, SHOULD proven 3, SHOULD not decided 18, Ze correctness gap 11 |
+| [RFC 8669](../../rfc8669/) | Segment Routing Prefix Segment Identifier Extensions for BGP | Ze proven 13, Proof pending 4, Not built 7 | Ze MUST proven 13, SHOULD proven 3, Proof pending 4, Not assessed 18, Not built 7 |
 
 ### Level 9
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 9012](../../rfc9012/) | The BGP Tunnel Encapsulation Attribute | Ze proven 25, Ze correctness gap 50 | Ze MUST proven 25, SHOULD proven 1, Not owed 1, SHOULD not decided 21, Ze correctness gap 50 |
+| [RFC 9012](../../rfc9012/) | The BGP Tunnel Encapsulation Attribute | Ze proven 25, Not built 50 | Ze MUST proven 25, SHOULD proven 1, Not owed 1, Not assessed 21, Not built 50 |
 
 ### Level 11
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 9252](../../rfc9252/) | BGP Overlay Services Based on Segment Routing over IPv6 (SRv6) | Ze proven 14, Ze correctness gap 11 | Ze MUST proven 14, SHOULD not decided 5, Ze correctness gap 11 |
+| [RFC 9252](../../rfc9252/) | BGP Overlay Services Based on Segment Routing over IPv6 (SRv6) | Ze proven 14, Proof pending 5, Not built 6 | Ze MUST proven 14, Proof pending 5, Not assessed 5, Not built 6 |
 
 ### Level 13
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 9256](../../rfc9256/) | Segment Routing Policy Architecture | Ze correctness gap 22 | SHOULD not decided 47, Ze correctness gap 22 |
+| [RFC 9256](../../rfc9256/) | Segment Routing Policy Architecture | Proof pending 3, Not built 19 | Proof pending 3, Not assessed 46, Not built 20 |
 
 ### Level 14
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 9830](../../rfc9830/) | BGP Extensions for the Advertisement of Segment Routing (SR) Policies | Ze proven 37, Ze correctness gap 60 | Ze MUST proven 37, SHOULD not decided 41, Ze correctness gap 60 |
+| [RFC 9830](../../rfc9830/) | BGP Extensions for the Advertisement of Segment Routing (SR) Policies | Ze proven 37, Proof pending 36, Not built 24 | Ze MUST proven 37, Proof pending 36, Not assessed 41, Not built 24 |

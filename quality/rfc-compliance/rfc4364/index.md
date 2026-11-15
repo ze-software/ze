@@ -1,6 +1,6 @@
 # RFC 4364 - BGP/MPLS IP Virtual Private Networks (VPNs)
 
-BGP/MPLS IP VPNs. Every requirement this repository extracted from RFC 4364, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+BGP/MPLS IP VPNs. Every requirement listed for RFC 4364, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,24 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 0 | of 8 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0 | of 8 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 8 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 8 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 0 | 0 of 0 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-
-### Neutral
-
-measures that are neither good news nor bad
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Gated MUSTs | 8 | of 13 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 8 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 8 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 8 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 8 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 8 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Tested both ways | 0 | of 8 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0 | of 8 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 8 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 8 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Tests shown to detect a fault | 0 | 0 of 0 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -35,54 +22,74 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 8 | of 8 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Declared gap or no test | 8 | of 8 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 
-The 9 counts marked as a part above are the whole of the 8 gated MUSTs: they add up to 8. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Neutral
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+measures that are neither good news nor bad
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Out of scope | 0 | of 8 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 8 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 8 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 8 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 8 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+
+### Totals
+
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 8 | of 13 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 8 mandatory requirements: they add up to 8. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | BGP/MPLS IP VPNs |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 13 |
-| Gated MUST-level | 8 |
+| Mandatory requirements (MUST level) | 8 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 8 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 0 |
-| Tagged units | 0 |
+| Tests linked to requirements | 0 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 0 |
+| Fault test records | 0 |
 | Summary | `rfc/short/rfc4364.md` |
-| Requirement shard | `rfc/requirements/rfc4364.md` |
+| Requirement table | `rfc/requirements/rfc4364.md` |
 | RFC text | `rfc/full/rfc4364.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: BGP/MPLS IP Virtual Private Networks (L3VPN): eight MUST-level requirements, all eight gaps: six the code does not meet and two gaps in proof, met but untested. ze fills the PE role on the control plane only: it originates VPN-IPv4 and VPN-IPv6 (SAFI 128) routes from configuration (internal/component/bgp/message/update_build_vpn.go::BuildVPN), decodes them with Route-Distinguisher, label and Route-Target (internal/component/bgp/plugins/nlri/vpn/vpn.go) and reflects them (internal/component/bgp/plugins/rr), but it has no VRF, no PE/CE protocol and no MPLS-VPN forwarding data path. The gated MUSTs (CE Route-Target authorization and filtering, customer-route to VPN-IPv4 conversion, Downstream on Demand label distribution on LC-ATM and LC-FR interfaces, backbone labeled-packet acceptance, and MPLS-in-IP/GRE tunneling with IPsec or egress-PE source validation) are PE data-plane, forwarding and VRF-policy duties of a role ze fills, and no owner decision declines them, so each is owed. LDP support (RFC4364-4.3.2-1) and Downstream Unsolicited mode on interfaces that are neither LC-ATM nor LC-FR (RFC4364-4.3.2-2) are met by ze's LDP, which runs Downstream Unsolicited on every session (internal/plugins/ldp/session.go, RFC 5036 Section 3.5.3); no test carries either RFC 4364 id, so both are gaps in proof.
+Included in automatic checks: BGP/MPLS IP Virtual Private Networks (L3VPN): eight MUST-level requirements, all eight gaps: six the code does not meet and two gaps in proof, met but untested. ze fills the PE role on the control plane only: it originates VPN-IPv4 and VPN-IPv6 (SAFI 128) routes from configuration (internal/component/bgp/message/update_build_vpn.go::BuildVPN), decodes them with Route-Distinguisher, label and Route-Target (internal/component/bgp/plugins/nlri/vpn/vpn.go) and reflects them (internal/component/bgp/plugins/rr), but it has no VRF, no PE/CE protocol and no MPLS-VPN forwarding data path. The gated MUSTs (CE Route-Target authorization and filtering, customer-route to VPN-IPv4 conversion, Downstream on Demand label distribution on LC-ATM and LC-FR interfaces, backbone labeled-packet acceptance, and MPLS-in-IP/GRE tunneling with IPsec or egress-PE source validation) are PE data-plane, forwarding and VRF-policy duties of a role ze fills, and no owner decision declines them, so each is owed. LDP support (RFC4364-4.3.2-1) and Downstream Unsolicited mode on interfaces that are neither LC-ATM nor LC-FR (RFC4364-4.3.2-2) are met by ze's LDP, which runs Downstream Unsolicited on every session (internal/plugins/ldp/session.go, RFC 5036 Section 3.5.3); no test carries either RFC 4364 id, so both are gaps in proof.
 
-## What the public ledger says
+## Published support status
 
 **Area:** BGP/MPLS IP VPNs
 
@@ -97,33 +104,36 @@ Enrolled: BGP/MPLS IP Virtual Private Networks (L3VPN): eight MUST-level require
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 0 | one part of the gated population |
-| Annotated (including scoped evidence) | 8 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **8** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 0 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 8 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **8** | every mandatory requirement appears in exactly one group above |
 
 **Annotated (including scoped evidence) (8):** [`RFC4364-4.3.1-1`](#rfc4364-4.3.1-1), [`RFC4364-4.3.1-2`](#rfc4364-4.3.1-2), [`RFC4364-4.3.2-1`](#rfc4364-4.3.2-1), [`RFC4364-4.3.2-2`](#rfc4364-4.3.2-2), [`RFC4364-4.3.2-3`](#rfc4364-4.3.2-3), [`RFC4364-6-1`](#rfc4364-6-1), [`RFC4364-13.1-1`](#rfc4364-13.1-1), [`RFC4364-13.1-2`](#rfc4364-13.1-2)
 
 ## Figures
 
-- **MUST bar**: Ze correctness gap 8
-- **Overview bar**: SHOULD not decided 5, Ze correctness gap 8
+- **MUST bar**: Not built 8
+- **Overview bar**: Not assessed 5, Not built 8
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 8 |
 | MUST rows kept (the MUST bar) | 8 |
 | Ze proven | 0 |
 | OS verified | 0 |
+| Proof pending | 0 |
 | OS testing gap | 0 |
-| Ze correctness gap | 8 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 8 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -136,11 +146,12 @@ Enrolled: BGP/MPLS IP Virtual Private Networks (L3VPN): eight MUST-level require
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 5 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 5 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc4364.json](../../../data/rfc/rfc4364.json).
 
@@ -177,73 +188,73 @@ Source: [data/rfc/rfc4364.json](../../../data/rfc/rfc4364.json).
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC4364-4.3.1-1`](#rfc4364-4.3.1-1)
 
 If the CE is allowed to attach RTs to its routes, the PE MUST filter out all routes that contain RTs that the customer is not allowed to use. (§4.3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4364-4.3.1-1, so no unit is bound to it.
+No test carries RFC4364-4.3.1-1, so there is no linked test.
 
 ### [`RFC4364-4.3.1-2`](#rfc4364-4.3.1-2)
 
 If the CE is not allowed to attach RTs to its routes, but does so anyway, the PE MUST remove the RT before converting the customer's route to a VPN- IPv4 route. (§4.3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4364-4.3.1-2, so no unit is bound to it.
+No test carries RFC4364-4.3.1-2, so there is no linked test.
 
 ### [`RFC4364-4.3.2-1`](#rfc4364-4.3.2-1)
 
 To ensure interoperability among systems that implement this VPN architecture using MPLS label switched paths as the tunneling technology, all such systems MUST support Label Distribution Protocol (LDP) [MPLS-LDP]. (§4.3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4364-4.3.2-1, so no unit is bound to it.
+No test carries RFC4364-4.3.2-1, so there is no linked test.
 
 ### [`RFC4364-4.3.2-2`](#rfc4364-4.3.2-2)
 
 In particular, Downstream Unsolicited mode MUST be supported on interfaces that are neither Label Controlled ATM (LC-ATM) [MPLS-ATM] nor Label Controlled Frame Relay (LC-FR) [MPLS-FR] interfaces (§4.3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4364-4.3.2-2, so no unit is bound to it.
+No test carries RFC4364-4.3.2-2, so there is no linked test.
 
 ### [`RFC4364-4.3.2-3`](#rfc4364-4.3.2-3)
 
 Downstream on Demand mode MUST be supported on LC-ATM interfaces and LC-FR interfaces. (§4.3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4364-4.3.2-3, so no unit is bound to it.
+No test carries RFC4364-4.3.2-3, so there is no linked test.
 
 ### [`RFC4364-6-1`](#rfc4364-6-1)
 
 If MPLS is being used as the tunneling technology, this means that a router in the backbone MUST NOT accept a labeled packet from any adjacent non-backbone device unless the following two conditions hold: 1. the label at the top of the label stack was actually distributed by that backbone router to that non-backbone device, and 2. the backbone router can determine that use of that label will cause the packet to leave the backbone before any labels lower in the stack will be inspected, and before the IP header will be inspected. (§6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4364-6-1, so no unit is bound to it.
+No test carries RFC4364-6-1, so there is no linked test.
 
 ### [`RFC4364-13.1-1`](#rfc4364-13.1-1)
 
 Any implementation of BGP/MPLS IP VPNs that allows VPN packets to be tunneled as described in that document MUST contain an implementation of IPsec that can be used as therein described. (§13.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4364-13.1-1, so no unit is bound to it.
+No test carries RFC4364-13.1-1, so there is no linked test.
 
 ### [`RFC4364-13.1-2`](#rfc4364-13.1-2)
 
 Any implementation that allows MPLS-in-IP and/or MPLS-in-GRE tunneling to be used without IPsec MUST allow the egress PE to validate in this manner the IP source address of any tunneled packet that it receives. (§13.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4364-13.1-2, so no unit is bound to it.
+No test carries RFC4364-13.1-2, so there is no linked test.
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -263,47 +274,47 @@ No test carries RFC4364-13.1-2, so no unit is bound to it.
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
 | `front` | not stated | 0 | skipped (front-matter) | Title block, Status of This Memo, Copyright Notice, Abstract and Table of Contents. The Abstract restates section 1: a Service Provider uses an IP backbone to offer IP VPNs under a peer model, CE routers send their routes to PE routers, and data packets are tunneled so the core routers need not know the VPN routes. No site and no directive. |
-| `1` | Introduction | 0 | walked | Introduction. Restates the peer model, records that BGP carries a VPN's routes among the PE routers attached to it, that each VPN route is assigned an MPLS label distributed with the route, and that the labeled packet is further encapsulated so it tunnels across the backbone. Indicative throughout and no site. |
-| `1.1` | Virtual Private Networks | 0 | walked | Virtual Private Networks. Defines a VPN as a subset of sites with the rule that two sites have IP connectivity over the backbone only if some VPN contains both, names the customers and the Service Providers, and states that the policies deciding what is a VPN are the customers'. Definitions and scope, no directive and no site. |
-| `1.2` | Customer Edge and Provider Edge | 2 | walked | Customer Edge and Provider Edge. Defines attachment circuit, CE, PE and P router, ingress and egress attachment circuit, and records that a CE router peers with its PEs and not with CE routers at other sites. Both of its sites are properties of that deployment model and are excluded below. |
-| `1.3` | VPNs with Overlapping Address Spaces | 1 | walked | VPNs with Overlapping Address Spaces. States that two VPNs with no site in common may use the same addresses for different systems, which is common with RFC 1918 space. Its one site is the addressing constraint inside each VPN and is excluded below. |
-| `1.4` | VPNs with Different Routes to the Same System | 0 | walked | VPNs with Different Routes to the Same System. Works an example where intranet traffic reaches a server directly while extranet traffic is routed through a firewall at another site, and shows two routes to the same server. Illustration, no directive and no site. |
-| `1.5` | SP Backbone Routers | 0 | walked | SP Backbone Routers. States the scalability property the architecture rests on: routing information about a VPN is needed only in the PE routers attached to that VPN, and the P routers need no per-VPN routing information at all. Indicative and no site. |
-| `1.6` | Security | 1 | walked | Security. States that the architecture gives security equivalent to a layer 2 backbone, that it does not encrypt data or detect tampering, and points at section 13. Its one site is the conditional about applying cryptography and is excluded below. |
-| `2` | Sites and CEs | 1 | walked | Sites and CEs. Defines a site topologically rather than geographically, records that a site may belong to several VPNs, that a PE may attach to CEs of many sites, and that a CE may attach to several PEs for robustness. Its one site is a false positive of the prose scan and is excluded below. |
-| `3` | VRFs: Multiple Forwarding Tables in PEs | 0 | walked | VRFs: Multiple Forwarding Tables in PEs. Three sentences: each PE maintains several forwarding tables, one is the default forwarding table, and the others are VPN Routing and Forwarding tables. Definitions, no directive and no site. |
-| `3.1` | VRFs and Attachment Circuits | 0 | walked | VRFs and Attachment Circuits. States that every PE/CE attachment circuit is associated by configuration with one or more VRFs, that a packet arriving on one is looked up in the associated VRF, that a packet on a non-VRF circuit uses the default forwarding table, and how restricting the route set in a VRF restricts connectivity. Indicative and no site. |
-| `3.2` | Associating IP Packets with VRFs | 4 | walked | Associating IP Packets with VRFs. How a PE decides which attachment circuit a packet arrived on and therefore which VRF to use, why a customer must not be able to forge that decision by writing layer 2 header fields, and how virtual sites are selected by VLAN tag or IP source address. All four sites bind the PE ingress classifier or the customer host and are excluded below. |
-| `3.3` | Populating the VRFs | 0 | walked | Populating the VRFs. Works the PE1/PE2/PE3 example: PE1 learns routes from CE1 and distributes them by BGP, and PE2 and PE3 use them to populate the VRFs for their own sites. Records that learning covers static configuration, and that two attachment circuits share a VRF only when their CEs are in exactly the same set of VPNs. Indicative and no site. |
-| `4` | VPN Route Distribution via BGP | 1 | walked | VPN Route Distribution via BGP. States why two routes to the same IPv4 prefix in different VPNs must not be comparable, and announces the new address family that meets the goal. Its one site is that design statement and is excluded below. |
-| `4.1` | The VPN-IPv4 Address Family | 0 | walked | The VPN-IPv4 Address Family. Defines a VPN-IPv4 address as an 8-byte Route Distinguisher followed by a 4-byte IPv4 address, states that BGP never compares a VPN-IPv4 address with an IPv4 address, that an RD carries no inherent information and exists only to create distinct routes to a common prefix, and that its structure is not meaningful to BGP. This is the layout ze implements, in internal/component/bgp/plugins/nlri/vpn.ParseVPN and internal/core/bgp/nlri.RouteDistinguisher, and the summary carries it in the Wire Formats tables. No directive and no site. |
-| `4.2` | Encoding of Route Distinguishers | 6 | walked | Encoding of Route Distinguishers. The RD's 2-byte Type field and 6-byte Value field, and the Administrator and Assigned Number subfields of types 0, 1 and 2. The layout is carried by the Route Distinguisher Format tables of rfc/short/rfc4364.md and is decoded by internal/core/bgp/nlri.ParseRouteDistinguisher, which reads the type field and keeps the six value octets, with RouteDistinguisher.String rendering each type. All six sites constrain the number the assigning authority puts in the Administrator subfield rather than the encoding, and are excluded below. |
-| `4.3` | Controlling Route Distribution | 0 | walked | Controlling Route Distribution. Describes the life of a route: learned from a CE into a VRF, converted to a VPN-IPv4 route and exported to BGP, best-path selected, distributed to the PEs that need it, imported back into VRFs and distributed to the associated CE routers. Indicative and no site. |
-| `4.3.1` | The Route Target Attribute | 3 | walked | The Route Target Attribute. Defines the Export Targets and Import Targets of a VRF, records that Route Targets are encoded as BGP Extended Community Route Targets of RFC 4360, and closes with the two capitalised MUSTs about a CE that attaches Route Targets to its own routes, mapped below to RFC4364-4.3.1-1 and RFC4364-4.3.1-2. Site 4.3.1:1 is the distribution rule for a route carrying Route Target T and is excluded. |
-| `4.3.2` | Route Distribution Among PEs by BGP | 6 | walked | Route Distribution Among PEs by BGP. How PEs distribute labeled VPN-IPv4 routes over IBGP or a route reflector, with the PE's own address as BGP next hop encoded as a VPN-IPv4 address with an RD of zero, and the three label allocation strategies. Sites 4.3.2:4 and 4.3.2:5 carry the capitalised MUSTs and are mapped below to RFC4364-4.3.2-1 and RFC4364-4.3.2-2. Five further declared rows are read from prose here and are the unsourced ids: RFC4364-4.3.2-3 is the second half of the sentence site 4.3.2:5 quotes, 'Downstream on Demand mode MUST be supported on LC-ATM interfaces and LC-FR interfaces', which the splitter keeps whole; RFC4364-4.3.2-4 and RFC4364-4.3.2-5 are the two lowercase 'should' sentences about not installing a VPN-IPv4 route without a matching Import Target and discarding the rest by inbound filtering; and RFC4364-4.3.2-6 and RFC4364-4.3.2-7 are the exact-or-aggregate choice and the per-VRF, per-attachment-circuit or per-route label strategies, both stated as a choice left to the implementation. |
-| `4.3.3` | Use of Route Reflectors | 1 | walked | Use of Route Reflectors. Two ways to partition VPN-IPv4 routes among route reflectors: preconfigure each with a list of Route Targets and derive inbound filters and ORFs from it, or let each learn the set of Route Targets its clients use. Its one site is the BGP Refresh obligation in the second method and is excluded below. |
-| `4.3.4` | How VPN-IPv4 NLRI Is Carried in BGP | 1 | walked | How VPN-IPv4 NLRI Is Carried in BGP. Assigns AFI 1 with SAFI 128 to MPLS-labeled VPN-IPv4 addresses, records that AFI 1 is used because the network layer protocol is still IP, that unlabeled VPN-IPv4 addresses need not be distributed, and that the NLRI is encoded as in RFC 3107 with an 8-byte RD before the IPv4 prefix. Those values are carried by the Constants and Wire Formats tables of rfc/short/rfc4364.md and are what internal/component/bgp/plugins/nlri/vpn registers and decodes. Its one site is the capability-advertisement requirement, which the sentence itself delegates to RFC 4760, and is excluded below. |
-| `4.3.5` | Building VPNs Using Route Targets | 0 | walked | Building VPNs Using Route Targets. Shows how Import and Export Targets build a fully meshed closed user group and a hub-and-spoke VPN. Illustration, no directive and no site. |
-| `4.3.6` | Route Distribution Among VRFs in a Single PE | 0 | walked | Route Distribution Among VRFs in a Single PE. States that a route can be distributed from one VRF to another inside one PE, and that the decision is the same one that would be made if the VRFs sat on different PEs. Indicative and no site. |
-| `5` | Forwarding | 4 | walked | Forwarding. The whole forwarding path: choosing the VRF from the ingress attachment circuit, sending directly on an egress attachment circuit of the same PE, or pushing the VPN route label and tunneling to the BGP Next Hop with a tunnel label, and what the egress PE does with the VPN route label. Its four sites are excluded below: two are statements about what necessarily follows, one restates the LDP obligation of section 4.3.2, and one qualifies a kind of tunnel. |
-| `6` | Maintaining Proper Isolation of VPNs | 2 | walked | Maintaining Proper Isolation of VPNs. The rule that no backbone router accepts a tunneled packet from outside the backbone unless both tunnel endpoints are outside it, stated for MPLS as the capitalised MUST NOT of site 6:1, mapped below to RFC4364-6-1, with its two conditions. Site 6:2 is the corresponding filtering rule when MPLS is not the tunneling technology and is excluded. |
-| `7` | How PEs Learn Routes from CEs | 4 | walked | How PEs Learn Routes from CEs. The four PE/CE route distribution techniques: static routing, RIP, OSPF and BGP, with the loop-prevention rules each needs and the Site of Origin attribute that identifies the routes learned from one site. All four sites bind the PE or the CE of a PE/CE session and are excluded below. |
-| `8` | How CEs Learn Routes from PEs | 1 | walked | How CEs Learn Routes from PEs. States that a PE may distribute a route in a CE's VRF to that CE when the PE/CE protocol permits, adds the Site of Origin restriction, and observes that distributing the default route is usually enough. Its one site is that restriction and is excluded below. |
-| `9` | Carriers' Carriers | 6 | walked | Carriers' Carriers. How a VPN that is itself an ISP or SP network takes backbone service from a carrier's carrier, with the CE routers supporting MPLS: the CEs distribute only internal routes, the PEs distribute labels for the routes they give the CEs, and BGP connections between the sites carry the external routes. All six sites bind the carrier's carrier PE or the customer's CE routers and are excluded below. |
-| `10` | Multi-AS Backbones | 3 | walked | Multi-AS Backbones. The three inter-AS procedures: VRF-to-VRF connections at the AS border routers, EBGP redistribution of labeled VPN-IPv4 routes between ASBRs, and multi-hop EBGP between the source and destination ASes with labeled IPv4 /32 routes between the ASBRs. All three sites bind the SPs or their ASBRs and are excluded below. |
-| `11` | Accessing the Internet from a VPN | 3 | walked | Accessing the Internet from a VPN. Four ways a VPN site reaches the public Internet: a non-VRF interface to an ISP, a VRF interface falling back to the default forwarding table, non-VPN routes held in the VRF, and Internet routes carried in the VRF itself. All three sites bind the ISP or the PE that joins a VRF to the Internet forwarding table and are excluded below. |
-| `12` | Management VPNs | 0 | walked | Management VPNs. How an SP-managed CE is reached: address the PE/CE sub-interface out of the SP's space, attach the network management system to a PE over a VRF interface, and use two Route Targets so the management system and the CEs can talk without the CEs reaching each other. Indicative and no site. |
-| `13` | Security Considerations | 0 | walked | Security Considerations. The heading for sections 13.1 to 13.3. |
-| `13.1` | Data Plane | 4 | walked | Data Plane. States what data plane security means here, the three conditions it rests on, and the precise rule for discarding a labeled packet from a neighbor. It closes on MPLS-in-IP and MPLS-in-GRE tunneling per RFC 4023: sites 13.1:2 and 13.1:3 carry the two capitalised MUST-level obligations and are mapped below to RFC4364-13.1-1 and RFC4364-13.1-2, while site 13.1:1 points at RFC 4023's own security considerations and site 13.1:4 states the LAN-interface conditions, both excluded. |
-| `13.2` | Control Plane | 0 | walked | Control Plane. States that data plane security depends on control plane security, that neither BGP nor LDP connections should be made with untrusted peers, and that the routing protocol inside the SP's network should be secured in the same way. The declared row RFC4364-13.2-1 is read from its lowercase 'should' sentence, 'The TCP/IP MD5 authentication option [TCP-MD5] should be used with both these protocols', and is the unsourced id here. No site. |
-| `13.3` | Security of P and PE Devices | 0 | walked | Security of P and PE Devices. States that compromising the physical security of these devices can compromise data plane security, and that the usual steps are taken so Internet traffic cannot reconfigure them or mount a denial of service. Advisory prose with no site. |
-| `14` | Quality of Service | 0 | walked | Quality of Service. Records that L3 QoS applies to labeled packets through the experimental bits of the shim header or through ATM QoS, that RSVP-TE traffic engineering applies, and that an SP may apply intserv or diffserv to a VPN. No directive and no site. |
-| `15` | Scalability | 2 | walked | Scalability. Summarises what each component holds: P routers hold no VPN route, a PE holds routes only for the VPNs it attaches to, route reflectors and ASBRs can be partitioned among VPNs. Both of its sites state that something is NOT required and are excluded below. |
+| `1` | Introduction | 0 | reviewed | Introduction. Restates the peer model, records that BGP carries a VPN's routes among the PE routers attached to it, that each VPN route is assigned an MPLS label distributed with the route, and that the labeled packet is further encapsulated so it tunnels across the backbone. Indicative throughout and no site. |
+| `1.1` | Virtual Private Networks | 0 | reviewed | Virtual Private Networks. Defines a VPN as a subset of sites with the rule that two sites have IP connectivity over the backbone only if some VPN contains both, names the customers and the Service Providers, and states that the policies deciding what is a VPN are the customers'. Definitions and scope, no directive and no site. |
+| `1.2` | Customer Edge and Provider Edge | 2 | reviewed | Customer Edge and Provider Edge. Defines attachment circuit, CE, PE and P router, ingress and egress attachment circuit, and records that a CE router peers with its PEs and not with CE routers at other sites. Both of its sites are properties of that deployment model and are excluded below. |
+| `1.3` | VPNs with Overlapping Address Spaces | 1 | reviewed | VPNs with Overlapping Address Spaces. States that two VPNs with no site in common may use the same addresses for different systems, which is common with RFC 1918 space. Its one site is the addressing constraint inside each VPN and is excluded below. |
+| `1.4` | VPNs with Different Routes to the Same System | 0 | reviewed | VPNs with Different Routes to the Same System. Works an example where intranet traffic reaches a server directly while extranet traffic is routed through a firewall at another site, and shows two routes to the same server. Illustration, no directive and no site. |
+| `1.5` | SP Backbone Routers | 0 | reviewed | SP Backbone Routers. States the scalability property the architecture rests on: routing information about a VPN is needed only in the PE routers attached to that VPN, and the P routers need no per-VPN routing information at all. Indicative and no site. |
+| `1.6` | Security | 1 | reviewed | Security. States that the architecture gives security equivalent to a layer 2 backbone, that it does not encrypt data or detect tampering, and points at section 13. Its one site is the conditional about applying cryptography and is excluded below. |
+| `2` | Sites and CEs | 1 | reviewed | Sites and CEs. Defines a site topologically rather than geographically, records that a site may belong to several VPNs, that a PE may attach to CEs of many sites, and that a CE may attach to several PEs for robustness. Its one site is a false positive of the prose scan and is excluded below. |
+| `3` | VRFs: Multiple Forwarding Tables in PEs | 0 | reviewed | VRFs: Multiple Forwarding Tables in PEs. Three sentences: each PE maintains several forwarding tables, one is the default forwarding table, and the others are VPN Routing and Forwarding tables. Definitions, no directive and no site. |
+| `3.1` | VRFs and Attachment Circuits | 0 | reviewed | VRFs and Attachment Circuits. States that every PE/CE attachment circuit is associated by configuration with one or more VRFs, that a packet arriving on one is looked up in the associated VRF, that a packet on a non-VRF circuit uses the default forwarding table, and how restricting the route set in a VRF restricts connectivity. Indicative and no site. |
+| `3.2` | Associating IP Packets with VRFs | 4 | reviewed | Associating IP Packets with VRFs. How a PE decides which attachment circuit a packet arrived on and therefore which VRF to use, why a customer must not be able to forge that decision by writing layer 2 header fields, and how virtual sites are selected by VLAN tag or IP source address. All four sites bind the PE ingress classifier or the customer host and are excluded below. |
+| `3.3` | Populating the VRFs | 0 | reviewed | Populating the VRFs. Works the PE1/PE2/PE3 example: PE1 learns routes from CE1 and distributes them by BGP, and PE2 and PE3 use them to populate the VRFs for their own sites. Records that learning covers static configuration, and that two attachment circuits share a VRF only when their CEs are in exactly the same set of VPNs. Indicative and no site. |
+| `4` | VPN Route Distribution via BGP | 1 | reviewed | VPN Route Distribution via BGP. States why two routes to the same IPv4 prefix in different VPNs must not be comparable, and announces the new address family that meets the goal. Its one site is that design statement and is excluded below. |
+| `4.1` | The VPN-IPv4 Address Family | 0 | reviewed | The VPN-IPv4 Address Family. Defines a VPN-IPv4 address as an 8-byte Route Distinguisher followed by a 4-byte IPv4 address, states that BGP never compares a VPN-IPv4 address with an IPv4 address, that an RD carries no inherent information and exists only to create distinct routes to a common prefix, and that its structure is not meaningful to BGP. This is the layout ze implements, in internal/component/bgp/plugins/nlri/vpn.ParseVPN and internal/core/bgp/nlri.RouteDistinguisher, and the summary carries it in the Wire Formats tables. No directive and no site. |
+| `4.2` | Encoding of Route Distinguishers | 6 | reviewed | Encoding of Route Distinguishers. The RD's 2-byte Type field and 6-byte Value field, and the Administrator and Assigned Number subfields of types 0, 1 and 2. The layout is carried by the Route Distinguisher Format tables of rfc/short/rfc4364.md and is decoded by internal/core/bgp/nlri.ParseRouteDistinguisher, which reads the type field and keeps the six value octets, with RouteDistinguisher.String rendering each type. All six sites constrain the number the assigning authority puts in the Administrator subfield rather than the encoding, and are excluded below. |
+| `4.3` | Controlling Route Distribution | 0 | reviewed | Controlling Route Distribution. Describes the life of a route: learned from a CE into a VRF, converted to a VPN-IPv4 route and exported to BGP, best-path selected, distributed to the PEs that need it, imported back into VRFs and distributed to the associated CE routers. Indicative and no site. |
+| `4.3.1` | The Route Target Attribute | 3 | reviewed | The Route Target Attribute. Defines the Export Targets and Import Targets of a VRF, records that Route Targets are encoded as BGP Extended Community Route Targets of RFC 4360, and closes with the two capitalised MUSTs about a CE that attaches Route Targets to its own routes, mapped below to RFC4364-4.3.1-1 and RFC4364-4.3.1-2. Site 4.3.1:1 is the distribution rule for a route carrying Route Target T and is excluded. |
+| `4.3.2` | Route Distribution Among PEs by BGP | 6 | reviewed | Route Distribution Among PEs by BGP. How PEs distribute labeled VPN-IPv4 routes over IBGP or a route reflector, with the PE's own address as BGP next hop encoded as a VPN-IPv4 address with an RD of zero, and the three label allocation strategies. Sites 4.3.2:4 and 4.3.2:5 carry the capitalised MUSTs and are mapped below to RFC4364-4.3.2-1 and RFC4364-4.3.2-2. Five further declared rows are read from prose here and are the unsourced ids: RFC4364-4.3.2-3 is the second half of the sentence site 4.3.2:5 quotes, 'Downstream on Demand mode MUST be supported on LC-ATM interfaces and LC-FR interfaces', which the splitter keeps whole; RFC4364-4.3.2-4 and RFC4364-4.3.2-5 are the two lowercase 'should' sentences about not installing a VPN-IPv4 route without a matching Import Target and discarding the rest by inbound filtering; and RFC4364-4.3.2-6 and RFC4364-4.3.2-7 are the exact-or-aggregate choice and the per-VRF, per-attachment-circuit or per-route label strategies, both stated as a choice left to the implementation. |
+| `4.3.3` | Use of Route Reflectors | 1 | reviewed | Use of Route Reflectors. Two ways to partition VPN-IPv4 routes among route reflectors: preconfigure each with a list of Route Targets and derive inbound filters and ORFs from it, or let each learn the set of Route Targets its clients use. Its one site is the BGP Refresh obligation in the second method and is excluded below. |
+| `4.3.4` | How VPN-IPv4 NLRI Is Carried in BGP | 1 | reviewed | How VPN-IPv4 NLRI Is Carried in BGP. Assigns AFI 1 with SAFI 128 to MPLS-labeled VPN-IPv4 addresses, records that AFI 1 is used because the network layer protocol is still IP, that unlabeled VPN-IPv4 addresses need not be distributed, and that the NLRI is encoded as in RFC 3107 with an 8-byte RD before the IPv4 prefix. Those values are carried by the Constants and Wire Formats tables of rfc/short/rfc4364.md and are what internal/component/bgp/plugins/nlri/vpn registers and decodes. Its one site is the capability-advertisement requirement, which the sentence itself delegates to RFC 4760, and is excluded below. |
+| `4.3.5` | Building VPNs Using Route Targets | 0 | reviewed | Building VPNs Using Route Targets. Shows how Import and Export Targets build a fully meshed closed user group and a hub-and-spoke VPN. Illustration, no directive and no site. |
+| `4.3.6` | Route Distribution Among VRFs in a Single PE | 0 | reviewed | Route Distribution Among VRFs in a Single PE. States that a route can be distributed from one VRF to another inside one PE, and that the decision is the same one that would be made if the VRFs sat on different PEs. Indicative and no site. |
+| `5` | Forwarding | 4 | reviewed | Forwarding. The whole forwarding path: choosing the VRF from the ingress attachment circuit, sending directly on an egress attachment circuit of the same PE, or pushing the VPN route label and tunneling to the BGP Next Hop with a tunnel label, and what the egress PE does with the VPN route label. Its four sites are excluded below: two are statements about what necessarily follows, one restates the LDP obligation of section 4.3.2, and one qualifies a kind of tunnel. |
+| `6` | Maintaining Proper Isolation of VPNs | 2 | reviewed | Maintaining Proper Isolation of VPNs. The rule that no backbone router accepts a tunneled packet from outside the backbone unless both tunnel endpoints are outside it, stated for MPLS as the capitalised MUST NOT of site 6:1, mapped below to RFC4364-6-1, with its two conditions. Site 6:2 is the corresponding filtering rule when MPLS is not the tunneling technology and is excluded. |
+| `7` | How PEs Learn Routes from CEs | 4 | reviewed | How PEs Learn Routes from CEs. The four PE/CE route distribution techniques: static routing, RIP, OSPF and BGP, with the loop-prevention rules each needs and the Site of Origin attribute that identifies the routes learned from one site. All four sites bind the PE or the CE of a PE/CE session and are excluded below. |
+| `8` | How CEs Learn Routes from PEs | 1 | reviewed | How CEs Learn Routes from PEs. States that a PE may distribute a route in a CE's VRF to that CE when the PE/CE protocol permits, adds the Site of Origin restriction, and observes that distributing the default route is usually enough. Its one site is that restriction and is excluded below. |
+| `9` | Carriers' Carriers | 6 | reviewed | Carriers' Carriers. How a VPN that is itself an ISP or SP network takes backbone service from a carrier's carrier, with the CE routers supporting MPLS: the CEs distribute only internal routes, the PEs distribute labels for the routes they give the CEs, and BGP connections between the sites carry the external routes. All six sites bind the carrier's carrier PE or the customer's CE routers and are excluded below. |
+| `10` | Multi-AS Backbones | 3 | reviewed | Multi-AS Backbones. The three inter-AS procedures: VRF-to-VRF connections at the AS border routers, EBGP redistribution of labeled VPN-IPv4 routes between ASBRs, and multi-hop EBGP between the source and destination ASes with labeled IPv4 /32 routes between the ASBRs. All three sites bind the SPs or their ASBRs and are excluded below. |
+| `11` | Accessing the Internet from a VPN | 3 | reviewed | Accessing the Internet from a VPN. Four ways a VPN site reaches the public Internet: a non-VRF interface to an ISP, a VRF interface falling back to the default forwarding table, non-VPN routes held in the VRF, and Internet routes carried in the VRF itself. All three sites bind the ISP or the PE that joins a VRF to the Internet forwarding table and are excluded below. |
+| `12` | Management VPNs | 0 | reviewed | Management VPNs. How an SP-managed CE is reached: address the PE/CE sub-interface out of the SP's space, attach the network management system to a PE over a VRF interface, and use two Route Targets so the management system and the CEs can talk without the CEs reaching each other. Indicative and no site. |
+| `13` | Security Considerations | 0 | reviewed | Security Considerations. The heading for sections 13.1 to 13.3. |
+| `13.1` | Data Plane | 4 | reviewed | Data Plane. States what data plane security means here, the three conditions it rests on, and the precise rule for discarding a labeled packet from a neighbor. It closes on MPLS-in-IP and MPLS-in-GRE tunneling per RFC 4023: sites 13.1:2 and 13.1:3 carry the two capitalised MUST-level obligations and are mapped below to RFC4364-13.1-1 and RFC4364-13.1-2, while site 13.1:1 points at RFC 4023's own security considerations and site 13.1:4 states the LAN-interface conditions, both excluded. |
+| `13.2` | Control Plane | 0 | reviewed | Control Plane. States that data plane security depends on control plane security, that neither BGP nor LDP connections should be made with untrusted peers, and that the routing protocol inside the SP's network should be secured in the same way. The declared row RFC4364-13.2-1 is read from its lowercase 'should' sentence, 'The TCP/IP MD5 authentication option [TCP-MD5] should be used with both these protocols', and is the unsourced id here. No site. |
+| `13.3` | Security of P and PE Devices | 0 | reviewed | Security of P and PE Devices. States that compromising the physical security of these devices can compromise data plane security, and that the usual steps are taken so Internet traffic cannot reconfigure them or mount a denial of service. Advisory prose with no site. |
+| `14` | Quality of Service | 0 | reviewed | Quality of Service. Records that L3 QoS applies to labeled packets through the experimental bits of the shim header or through ATM QoS, that RSVP-TE traffic engineering applies, and that an SP may apply intserv or diffserv to a VPN. No directive and no site. |
+| `15` | Scalability | 2 | reviewed | Scalability. Summarises what each component holds: P routers hold no VPN route, a PE holds routes only for the VPNs it attaches to, route reflectors and ASBRs can be partitioned among VPNs. Both of its sites state that something is NOT required and are excluded below. |
 | `16` | IANA Considerations | 0 | skipped (iana) | IANA Considerations. Records the new Route Distinguisher Type Field registry with types 0, 1 and 2 defined here, the First Come First Served and IETF consensus ranges, and the change of SAFI 128 from private use to MPLS-labeled VPN address. Binds IANA, not a speaker. |
 | `17` | Acknowledgements | 0 | skipped (acknowledgements) | Acknowledgements. |
 | `18` | Contributors | 0 | skipped (acknowledgements) | Contributors. The postal and electronic addresses of the contributors listed for the document. |
 | `19` | not stated | 0 | skipped (references) | Normative References: RFC 4271, RFC 4760, RFC 4023, RFC 3107, RFC 3031, RFC 3032, RFC 5036, RFC 4360, RFC 2385, RFC 4456, RFC 2918, RFC 5291 and the ATM and Frame Relay label switching documents. |
-| `20` | Informative References | 1 | walked | Informative References. Because no numbered heading follows it, the derived span also carries the Authors' Addresses, the Full Copyright Statement, the Intellectual Property boilerplate and the RFC Editor funding note. Walked rather than skipped because the prose scan attributes one site here; that site is IPR boilerplate and is excluded below. Nothing in the span states an obligation on an implementation. |
+| `20` | Informative References | 1 | reviewed | Informative References. Because no numbered heading follows it, the derived span also carries the Authors' Addresses, the Full Copyright Statement, the Intellectual Property boilerplate and the RFC Editor funding note. Walked rather than skipped because the prose scan attributes one site here; that site is IPR boilerplate and is excluded below. Nothing in the span states an obligation on an implementation. |
 
 ### Excluded sentences
 

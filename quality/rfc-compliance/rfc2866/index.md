@@ -1,6 +1,6 @@
 # RFC 2866 - RADIUS Accounting
 
-RADIUS accounting. Every requirement this repository extracted from RFC 2866, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+RADIUS accounting. Every requirement listed for RFC 2866, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,12 +10,12 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 15 | of 15 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0 | of 15 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 15 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 15 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| No test at all | 0 | of 15 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 30 | 30 of 48 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 15 | of 15 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0 | of 15 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 15 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 15 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Declared gap or no test | 0 | of 15 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Tests shown to detect a fault | 30 | 30 of 48 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Neutral
 
@@ -23,59 +23,66 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 15 | of 16 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 15 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 15 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 15 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 15 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 15 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Out of scope | 0 | of 15 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 15 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 15 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 15 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 15 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
 
-The 9 counts marked as a part above are the whole of the 15 gated MUSTs: they add up to 15. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Totals
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 15 | of 16 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 15 mandatory requirements: they add up to 15. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | ok | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | RADIUS accounting |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 16 |
-| Gated MUST-level | 15 |
+| Mandatory requirements (MUST level) | 15 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 48 |
-| Tagged units | 48 |
+| Tests linked to requirements | 48 |
 | Recorded audit verdicts | 12 |
-| Discrimination records | 30 |
+| Fault test records | 30 |
 | Summary | `rfc/short/rfc2866.md` |
-| Requirement shard | `rfc/requirements/rfc2866.md` |
+| Requirement table | `rfc/requirements/rfc2866.md` |
 | RFC text | `rfc/full/rfc2866.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: ze is a RADIUS accounting client (NAS); the four gated MUST requirements the checklist held before 2026-08-31 are tested with positive+negative pairs. A fifth, that an accounting failure must not tear a session down, was retired on 2026-09-27 because RFC 2866 states no such rule (rfc/corrections/rfc2866.md). RFC2866-3-2 (authenticator = MD5(Code+ID+Length+16 zero octets+Attributes+Secret)): TestRFC2866AccountingRequestAuthFormula positive (equals an independent MD5 reference; producer radius/packet.go:252 AccountingRequestAuth, applied radius/client.go:127-132), TestRFC2866AccountingRequestAuthRejectsTampering negative (authenticator changes when secret/attribute/Code changes). RFC2866-3-3 (a retransmission whose contents are identical reuses the Identifier, and one whose Acct-Delay-Time was updated takes a new one): TestRFC2866AccountingRetransmitTakesANewIdentifier positive (ze stamps Acct-Delay-Time on an Accounting-Request by default, so its attributes move on every attempt and each attempt carries a distinct Identifier; producer radius/client.go Exchange, encodeRequest and setAcctDelayTime), TestRFC2866AccountingDistinctRequestsDifferIdentifier negative. The identical-contents half is proven on the Access-Request path by TestAccessRequestRetransmitIsByteIdentical, and on the accounting path by TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier, which is the record of an operator who wrote `attributes exclude acct-delay-time`: producer radius/client.go stampsAcctDelayTime, whose false branch re-sends the first buffer under its original Identifier. The delay value itself is proven by TestAcctDelayTimeUpdatesOnRetransmit. RFC2866-5-1 (the §5.13 legend line for 1: exactly one Acct-Status-Type and one Acct-Session-Id; until 2026-09-30 the row quoted the whole table): TestRFC2866AcctStatusTypePresent and TestRFC2866EveryRecordCarriesOneOfEachOneMarkedAttribute positive (each lifecycle event yields exactly one of each on the wire; producer authradius/acct.go buildAcctPacket), TestRFC2866AcctStatusTypeNeverOmitted and TestRFC2866ExclusionsCannotRemoveAOneMarkedAttribute negative (the `attributes exclude` container refuses both names, and excluding every accepted name leaves both present exactly once; producer authradius/exclude.go parseAttributeExclusions). RFC2866-5.13-1 (the legend line for 0: User-Password, CHAP-Password, Reply-Message, State and CHAP-Challenge never present, split out of RFC2866-5-1 on 2026-09-30): TestRFC2866AccountingRequestOnTheWireCarriesNoZeroMarkedAttribute positive, TestRFC2866SubscriberTextNeverBecomesAZeroMarkedAttribute negative (attribute-shaped relayed text stays inside its own attribute). RFC2866-5.5-1 (Acct-Session-Id unique across the NAS): TestRFC2866AcctSessionIDUnique positive (1600 concurrent ids all distinct; producer authradius/acct.go genSessionID, an atomic counter), TestRFC2866AcctSessionIDNoCollisionOnReusedKey negative. Across a restart, which resets the counter, the id carries a boot tag minted at the accountant's first genSessionID (authradius/acct.go mintBootTag: the Unix seconds then 64 random bits): TestRFC2866AcctSessionIDUniqueAcrossRestart and TestRFC2866AcctSessionIDUniqueWhenClockRepeats positive (two accountants built in turn, the second at the same clock second, give the same tunnel and session two different ids). No SHOULD/MAY requirements are gated. The extraction walk of 2026-08-31 (rfc/extraction/rfc2866.json) added ten obligations the checklist never declared, each with a positive+negative pair. One of them, RFC2866-4.2-1, was retired on 2026-09-29 because it binds the accounting server (rfc/corrections/rfc2866.md); the other nine: RFC2866-3-4 and RFC2866-3-5 (octets outside the Length are padding, a datagram shorter than its Length is discarded; producers radius/packet.go Decode and radius/client.go readLoop), RFC2866-4.1-2 (User-Password, CHAP-Password, Reply-Message and State never present), RFC2866-4.1-3 (either NAS-IP-Address or NAS-Identifier present; producer authradius/nasidentity.go appendNASIdentity, which fixed a config setting neither leaf), RFC2866-4.1-4 (a new request takes a new Identifier; producer radius/client.go SendToServers), RFC2866-5-2 (embedded nulls survive an attribute value), RFC2866-5-3 (text of length zero omitted; producer authradius/acct.go buildAcctPacket, which fixed an empty User-Name reaching the wire), RFC2866-5.5-2 and RFC2866-5.5-3 (every record carries an Acct-Session-Id, and the records of one session carry the same one).
+Included in automatic checks: ze is a RADIUS accounting client (NAS); the four gated MUST requirements the checklist held before 2026-08-31 are tested with positive+negative pairs. A fifth, that an accounting failure must not tear a session down, was retired on 2026-09-27 because RFC 2866 states no such rule (rfc/corrections/rfc2866.md). RFC2866-3-2 (authenticator = MD5(Code+ID+Length+16 zero octets+Attributes+Secret)): TestRFC2866AccountingRequestAuthFormula positive (equals an independent MD5 reference; producer radius/packet.go:252 AccountingRequestAuth, applied radius/client.go:127-132), TestRFC2866AccountingRequestAuthRejectsTampering negative (authenticator changes when secret/attribute/Code changes). RFC2866-3-3 (a retransmission whose contents are identical reuses the Identifier, and one whose Acct-Delay-Time was updated takes a new one): TestRFC2866AccountingRetransmitTakesANewIdentifier positive (ze stamps Acct-Delay-Time on an Accounting-Request by default, so its attributes move on every attempt and each attempt carries a distinct Identifier; producer radius/client.go Exchange, encodeRequest and setAcctDelayTime), TestRFC2866AccountingDistinctRequestsDifferIdentifier negative. The identical-contents half is proven on the Access-Request path by TestAccessRequestRetransmitIsByteIdentical, and on the accounting path by TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier, which is the record of an operator who wrote `attributes exclude acct-delay-time`: producer radius/client.go stampsAcctDelayTime, whose false branch re-sends the first buffer under its original Identifier. The delay value itself is proven by TestAcctDelayTimeUpdatesOnRetransmit. RFC2866-5-1 (the §5.13 legend line for 1: exactly one Acct-Status-Type and one Acct-Session-Id; until 2026-09-30 the row quoted the whole table): TestRFC2866AcctStatusTypePresent and TestRFC2866EveryRecordCarriesOneOfEachOneMarkedAttribute positive (each lifecycle event yields exactly one of each on the wire; producer authradius/acct.go buildAcctPacket), TestRFC2866AcctStatusTypeNeverOmitted and TestRFC2866ExclusionsCannotRemoveAOneMarkedAttribute negative (the `attributes exclude` container refuses both names, and excluding every accepted name leaves both present exactly once; producer authradius/exclude.go parseAttributeExclusions). RFC2866-5.13-1 (the legend line for 0: User-Password, CHAP-Password, Reply-Message, State and CHAP-Challenge never present, split out of RFC2866-5-1 on 2026-09-30): TestRFC2866AccountingRequestOnTheWireCarriesNoZeroMarkedAttribute positive, TestRFC2866SubscriberTextNeverBecomesAZeroMarkedAttribute negative (attribute-shaped relayed text stays inside its own attribute). RFC2866-5.5-1 (Acct-Session-Id unique across the NAS): TestRFC2866AcctSessionIDUnique positive (1600 concurrent ids all distinct; producer authradius/acct.go genSessionID, an atomic counter), TestRFC2866AcctSessionIDNoCollisionOnReusedKey negative. Across a restart, which resets the counter, the id carries a boot tag minted at the accountant's first genSessionID (authradius/acct.go mintBootTag: the Unix seconds then 64 random bits): TestRFC2866AcctSessionIDUniqueAcrossRestart and TestRFC2866AcctSessionIDUniqueWhenClockRepeats positive (two accountants built in turn, the second at the same clock second, give the same tunnel and session two different ids). No SHOULD/MAY requirements are gated. The extraction walk of 2026-08-31 (rfc/extraction/rfc2866.json) added ten obligations the checklist never declared, each with a positive+negative pair. One of them, RFC2866-4.2-1, was retired on 2026-09-29 because it binds the accounting server (rfc/corrections/rfc2866.md); the other nine: RFC2866-3-4 and RFC2866-3-5 (octets outside the Length are padding, a datagram shorter than its Length is discarded; producers radius/packet.go Decode and radius/client.go readLoop), RFC2866-4.1-2 (User-Password, CHAP-Password, Reply-Message and State never present), RFC2866-4.1-3 (either NAS-IP-Address or NAS-Identifier present; producer authradius/nasidentity.go appendNASIdentity, which fixed a config setting neither leaf), RFC2866-4.1-4 (a new request takes a new Identifier; producer radius/client.go SendToServers), RFC2866-5-2 (embedded nulls survive an attribute value), RFC2866-5-3 (text of length zero omitted; producer authradius/acct.go buildAcctPacket, which fixed an empty User-Name reaching the wire), RFC2866-5.5-2 and RFC2866-5.5-3 (every record carries an Acct-Session-Id, and the records of one session carry the same one).
 
-## What the public ledger says
+## Published support status
 
 **Area:** RADIUS accounting
 
@@ -90,33 +97,36 @@ Enrolled: ze is a RADIUS accounting client (NAS); the four gated MUST requiremen
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 15 | one part of the gated population |
-| Annotated (including scoped evidence) | 0 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **15** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 15 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 0 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **15** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (15):** [`RFC2866-3-2`](#rfc2866-3-2), [`RFC2866-5.5-1`](#rfc2866-5.5-1), [`RFC2866-4.1-1`](#rfc2866-4.1-1), [`RFC2866-5-1`](#rfc2866-5-1), [`RFC2866-5.13-1`](#rfc2866-5.13-1), [`RFC2866-3-3`](#rfc2866-3-3), [`RFC2866-3-4`](#rfc2866-3-4), [`RFC2866-3-5`](#rfc2866-3-5), [`RFC2866-4.1-2`](#rfc2866-4.1-2), [`RFC2866-4.1-3`](#rfc2866-4.1-3), [`RFC2866-4.1-4`](#rfc2866-4.1-4), [`RFC2866-5-2`](#rfc2866-5-2), [`RFC2866-5-3`](#rfc2866-5-3), [`RFC2866-5.5-2`](#rfc2866-5.5-2), [`RFC2866-5.5-3`](#rfc2866-5.5-3)
 
 ## Figures
 
-- **MUST bar**: Ze proven 8, Ze correctness gap 7
-- **Overview bar**: Ze MUST proven 8, SHOULD not decided 1, Ze correctness gap 7
+- **MUST bar**: Ze proven 8, Proof pending 7
+- **Overview bar**: Ze MUST proven 8, Proof pending 7, Not assessed 1
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 15 |
 | MUST rows kept (the MUST bar) | 15 |
 | Ze proven | 8 |
 | OS verified | 0 |
+| Proof pending | 7 |
 | OS testing gap | 0 |
-| Ze correctness gap | 7 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 0 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -129,11 +139,12 @@ Enrolled: ze is a RADIUS accounting client (NAS); the four gated MUST requiremen
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 1 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 1 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc2866.json](../../../data/rfc/rfc2866.json).
 
@@ -160,11 +171,11 @@ Source: [data/rfc/rfc2866.json](../../../data/rfc/rfc2866.json).
 
 ## Gaps and untested MUSTs
 
-RFC 2866 declares no gap, and every gated MUST it carries has a test bound to it.
+RFC 2866 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC2866-3-2`](#rfc2866-3-2)
 
@@ -251,7 +262,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 Octets outside the range of the Length field MUST be treated as padding and ignored on reception (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -330,7 +341,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 The start and stop records for a given session MUST have the same Acct-Session-Id (§5.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -342,14 +353,14 @@ Audit verdict: not audited: no reader has judged these tests
 
 An Accounting-Request packet MUST have an Acct-Session-Id (§5.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC2866AcctSessionIDNeverEmpty`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L236) | unit/verify | unproven |
 | positive | [`TestRFC2866AcctSessionIDPresentOnEveryRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L216) | unit/verify | unproven |
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -369,31 +380,31 @@ Audit verdict: not audited: no reader has judged these tests
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
 | `front` | not stated | 0 | skipped (front-matter) | Title block, Status of this Memo, copyright notice, Abstract, the Implementation Note on UDP port 1646 against 1813, and the table of contents. The Implementation Note records deployment history and binds no speaker. |
-| `1` | Introduction | 0 | walked | Introduction. Names the problem RADIUS Accounting answers, and lists the key features: the client/server model, the shared secret that is never sent over the network, and the variable-length Attribute-Length-Value 3-tuples. No obligation. |
-| `1.1` | Specification of Requirements | 0 | walked | Specification of Requirements. The RFC 2119 key-words paragraph, plus one sentence of its own: 'These key words mean the same thing whether capitalized or not.' That sentence is why this walk reads a lowercase modal as normative wherever it binds a speaker, and it is why site 2.1:1 counts although the source writes 'MUST not'. |
-| `1.2` | Terminology | 0 | walked | Terminology. Defines service, session and 'silently discard'. The 'silently discard' entry carries two SHOULD clauses, on logging the error and on counting the event; neither is gated and neither is declared in rfc/short/rfc2866.md. |
-| `2` | Operation | 1 | walked | Operation. Describes the Start and Stop exchange, recommends that the client retry with some form of backoff and can fall back to an alternate server, and states that retry and fallback algorithms are not specified in detail in this document. One capitalised site, binding the accounting server. RFC 2866 nowhere states that an accounting failure must not tear a session down; the row that said so was retired on 2026-09-27 (rfc/corrections/rfc2866.md). |
-| `2.1` | Proxy | 1 | walked | Proxy. Walks the four steps of a forwarding server and a remote server, and states one obligation binding the forwarding server. The rest is advice to whoever implements a proxy that takes responsibility for retransmissions. |
-| `3` | Packet Format | 2 | walked | Packet Format. States the encapsulation, UDP port 1813, the field layout, and both authenticator computations in RFC 2866's own voice; it does not defer to RFC 2865. The two capitalised sites are the Length rules. The Request Authenticator formula is stated in indicative prose ('contains a one-way MD5 hash calculated over a stream of octets consisting of the Code + Identifier + Length + 16 zero octets + request attributes + shared secret'), so the site scan sees no keyword there and RFC2866-3-2 is declared unsourced. The Response Authenticator paragraph is indicative in the same way; RFC2866-4.2-1 is instead read from the capitalised sentence in Section 4.2. The section closes with one SHOULD on preserving the order of attributes of the same type. |
-| `4` | Packet Types | 0 | walked | Packet Types. One sentence: the Code field in the first octet decides the packet type. |
-| `4.1` | Accounting-Request | 7 | walked | Accounting-Request. The description, the packet diagram, and the field notes for Code, Identifier, Request Authenticator and Attributes. Seven capitalised sites: one binds the accounting server, and six bind the client that builds the record, which is the role ze plays. |
-| `4.2` | Accounting-Response | 2 | walked | Accounting-Response. Two capitalised sites: the server transmits the response when it recorded the request, and the Response Authenticator holds the correct response for the pending Accounting-Request, which the client checks on reception. |
-| `5` | Attributes | 4 | walked | Attributes. The attribute format, the type list for 40 to 51, the Length rule, and the five data types. RFC 2866 states this section in its own voice: unlike RFC 2869 Section 5, it carries no sentence saying the format is included from RFC 2865 for ease of reference, so its four capitalised sites are read as RFC 2866's own obligations rather than as citations. |
-| `5.1` | Acct-Status-Type | 0 | walked | Acct-Status-Type. Defines type 40 and its values: Start, Stop, Interim-Update, Accounting-On, Accounting-Off, the tunnel range and Failed. One MAY, on marking the start and the end of accounting with Accounting-On and Accounting-Off; ze sends neither, and the option is the owner's to take (ai/rules/rfc-compliance.md). No capitalised MUST-level keyword. |
-| `5.2` | Acct-Delay-Time | 0 | walked | Acct-Delay-Time. Defines type 41, and notes that changing it changes the Attributes field and so requires a new Identifier and Request Authenticator. ze sends no Acct-Delay-Time. |
-| `5.3` | Acct-Input-Octets | 0 | walked | Acct-Input-Octets. Defines type 42 and says it can only be present where Acct-Status-Type is Stop. Indicative prose, no capitalised keyword. |
-| `5.4` | Acct-Output-Octets | 0 | walked | Acct-Output-Octets. Defines type 43 in the wording of Section 5.3 with the direction reversed. Indicative prose, no capitalised keyword. |
-| `5.5` | Acct-Session-Id | 3 | walked | Acct-Session-Id. Defines type 44, states three capitalised obligations, and adds two SHOULDs on UTF-8 encoding. RFC2866-5.5-1 is declared unsourced here: 'unique across all active sessions on the NAS' is the summary's rendering of the indicative opening sentence, 'This attribute is a unique Accounting ID to make it easy to match start and stop records in a log file', which carries no keyword for the site scan to see. genSessionID (authradius/acct.go) is its producer. |
-| `5.6` | Acct-Authentic | 0 | walked | Acct-Authentic. Defines type 45, how the user was authenticated. Carries one MAY on including it and one SHOULD NOT: 'Users who are delivered service without being authenticated SHOULD NOT generate Accounting records.' Neither is gated and ze sends no Acct-Authentic. The SHOULD NOT is the RFC's own acknowledgement that an unauthenticated session reaches accounting, which is the session whose empty User-Name site 5:3 governs. |
-| `5.7` | Acct-Session-Time | 0 | walked | Acct-Session-Time. Defines type 46. Indicative prose, no capitalised keyword. |
-| `5.8` | Acct-Input-Packets | 0 | walked | Acct-Input-Packets. Defines type 47. Indicative prose, no capitalised keyword. |
-| `5.9` | Acct-Output-Packets | 0 | walked | Acct-Output-Packets. Defines type 48. Indicative prose, no capitalised keyword. |
-| `5.10` | Acct-Terminate-Cause | 0 | walked | Acct-Terminate-Cause. Defines type 49 and its eighteen values, each with a one-line meaning. ze sends no Acct-Terminate-Cause. No obligation. |
-| `5.11` | Acct-Multi-Session-Id | 0 | walked | Acct-Multi-Session-Id. Defines type 50 for linking the sessions of one multilink bundle. 'It is strongly recommended that' the value is UTF-8, which is advice and not a keyword. ze sends no Acct-Multi-Session-Id. |
-| `5.12` | Acct-Link-Count | 0 | walked | Acct-Link-Count. Defines type 51, carries one MAY on including it in an Accounting-Request that might have multiple links, and works an eight-record example. ze runs no multilink bundle and sends no Acct-Link-Count. |
-| `5.13` | Table of Attributes | 2 | walked | Table of Attributes. The table itself, Note 1, and the legend that defines the 0, 0+, 0-1 and 1 symbols. The two capitalised sites are Note 1 and the legend. The legend's 1 line is RFC2866-5-1 (site 5.13:2); its 0 line states a second obligation in the same site and is RFC2866-5.13-1, declared here as unsourced because a site maps to one row. |
+| `1` | Introduction | 0 | reviewed | Introduction. Names the problem RADIUS Accounting answers, and lists the key features: the client/server model, the shared secret that is never sent over the network, and the variable-length Attribute-Length-Value 3-tuples. No obligation. |
+| `1.1` | Specification of Requirements | 0 | reviewed | Specification of Requirements. The RFC 2119 key-words paragraph, plus one sentence of its own: 'These key words mean the same thing whether capitalized or not.' That sentence is why this walk reads a lowercase modal as normative wherever it binds a speaker, and it is why site 2.1:1 counts although the source writes 'MUST not'. |
+| `1.2` | Terminology | 0 | reviewed | Terminology. Defines service, session and 'silently discard'. The 'silently discard' entry carries two SHOULD clauses, on logging the error and on counting the event; neither is gated and neither is declared in rfc/short/rfc2866.md. |
+| `2` | Operation | 1 | reviewed | Operation. Describes the Start and Stop exchange, recommends that the client retry with some form of backoff and can fall back to an alternate server, and states that retry and fallback algorithms are not specified in detail in this document. One capitalised site, binding the accounting server. RFC 2866 nowhere states that an accounting failure must not tear a session down; the row that said so was retired on 2026-09-27 (rfc/corrections/rfc2866.md). |
+| `2.1` | Proxy | 1 | reviewed | Proxy. Walks the four steps of a forwarding server and a remote server, and states one obligation binding the forwarding server. The rest is advice to whoever implements a proxy that takes responsibility for retransmissions. |
+| `3` | Packet Format | 2 | reviewed | Packet Format. States the encapsulation, UDP port 1813, the field layout, and both authenticator computations in RFC 2866's own voice; it does not defer to RFC 2865. The two capitalised sites are the Length rules. The Request Authenticator formula is stated in indicative prose ('contains a one-way MD5 hash calculated over a stream of octets consisting of the Code + Identifier + Length + 16 zero octets + request attributes + shared secret'), so the site scan sees no keyword there and RFC2866-3-2 is declared unsourced. The Response Authenticator paragraph is indicative in the same way; RFC2866-4.2-1 is instead read from the capitalised sentence in Section 4.2. The section closes with one SHOULD on preserving the order of attributes of the same type. |
+| `4` | Packet Types | 0 | reviewed | Packet Types. One sentence: the Code field in the first octet decides the packet type. |
+| `4.1` | Accounting-Request | 7 | reviewed | Accounting-Request. The description, the packet diagram, and the field notes for Code, Identifier, Request Authenticator and Attributes. Seven capitalised sites: one binds the accounting server, and six bind the client that builds the record, which is the role ze plays. |
+| `4.2` | Accounting-Response | 2 | reviewed | Accounting-Response. Two capitalised sites: the server transmits the response when it recorded the request, and the Response Authenticator holds the correct response for the pending Accounting-Request, which the client checks on reception. |
+| `5` | Attributes | 4 | reviewed | Attributes. The attribute format, the type list for 40 to 51, the Length rule, and the five data types. RFC 2866 states this section in its own voice: unlike RFC 2869 Section 5, it carries no sentence saying the format is included from RFC 2865 for ease of reference, so its four capitalised sites are read as RFC 2866's own obligations rather than as citations. |
+| `5.1` | Acct-Status-Type | 0 | reviewed | Acct-Status-Type. Defines type 40 and its values: Start, Stop, Interim-Update, Accounting-On, Accounting-Off, the tunnel range and Failed. One MAY, on marking the start and the end of accounting with Accounting-On and Accounting-Off; ze sends neither, and the option is the owner's to take (ai/rules/rfc-compliance.md). No capitalised MUST-level keyword. |
+| `5.2` | Acct-Delay-Time | 0 | reviewed | Acct-Delay-Time. Defines type 41, and notes that changing it changes the Attributes field and so requires a new Identifier and Request Authenticator. ze sends no Acct-Delay-Time. |
+| `5.3` | Acct-Input-Octets | 0 | reviewed | Acct-Input-Octets. Defines type 42 and says it can only be present where Acct-Status-Type is Stop. Indicative prose, no capitalised keyword. |
+| `5.4` | Acct-Output-Octets | 0 | reviewed | Acct-Output-Octets. Defines type 43 in the wording of Section 5.3 with the direction reversed. Indicative prose, no capitalised keyword. |
+| `5.5` | Acct-Session-Id | 3 | reviewed | Acct-Session-Id. Defines type 44, states three capitalised obligations, and adds two SHOULDs on UTF-8 encoding. RFC2866-5.5-1 is declared unsourced here: 'unique across all active sessions on the NAS' is the summary's rendering of the indicative opening sentence, 'This attribute is a unique Accounting ID to make it easy to match start and stop records in a log file', which carries no keyword for the site scan to see. genSessionID (authradius/acct.go) is its producer. |
+| `5.6` | Acct-Authentic | 0 | reviewed | Acct-Authentic. Defines type 45, how the user was authenticated. Carries one MAY on including it and one SHOULD NOT: 'Users who are delivered service without being authenticated SHOULD NOT generate Accounting records.' Neither is gated and ze sends no Acct-Authentic. The SHOULD NOT is the RFC's own acknowledgement that an unauthenticated session reaches accounting, which is the session whose empty User-Name site 5:3 governs. |
+| `5.7` | Acct-Session-Time | 0 | reviewed | Acct-Session-Time. Defines type 46. Indicative prose, no capitalised keyword. |
+| `5.8` | Acct-Input-Packets | 0 | reviewed | Acct-Input-Packets. Defines type 47. Indicative prose, no capitalised keyword. |
+| `5.9` | Acct-Output-Packets | 0 | reviewed | Acct-Output-Packets. Defines type 48. Indicative prose, no capitalised keyword. |
+| `5.10` | Acct-Terminate-Cause | 0 | reviewed | Acct-Terminate-Cause. Defines type 49 and its eighteen values, each with a one-line meaning. ze sends no Acct-Terminate-Cause. No obligation. |
+| `5.11` | Acct-Multi-Session-Id | 0 | reviewed | Acct-Multi-Session-Id. Defines type 50 for linking the sessions of one multilink bundle. 'It is strongly recommended that' the value is UTF-8, which is advice and not a keyword. ze sends no Acct-Multi-Session-Id. |
+| `5.12` | Acct-Link-Count | 0 | reviewed | Acct-Link-Count. Defines type 51, carries one MAY on including it in an Accounting-Request that might have multiple links, and works an eight-record example. ze runs no multilink bundle and sends no Acct-Link-Count. |
+| `5.13` | Table of Attributes | 2 | reviewed | Table of Attributes. The table itself, Note 1, and the legend that defines the 0, 0+, 0-1 and 1 symbols. The two capitalised sites are Note 1 and the legend. The legend's 1 line is RFC2866-5-1 (site 5.13:2); its 0 line states a second obligation in the same site and is RFC2866-5.13-1, declared here as unsourced because a site maps to one row. |
 | `6` | IANA Considerations | 0 | skipped (iana) | IANA Considerations. Registers the packet type codes, attribute types and attribute values from the RADIUS name spaces of RFC 2865, under BCP 26. Binds IANA, not a speaker. |
-| `7` | Security Considerations | 0 | walked | Security Considerations. One sentence: the security issues are discussed in the sections about the authenticator and the shared secret. No obligation of its own. |
+| `7` | Security Considerations | 0 | reviewed | Security Considerations. One sentence: the security issues are discussed in the sections about the authenticator and the shared secret. No obligation of its own. |
 | `8` | Change Log | 0 | skipped (appendix-non-normative) | Change Log. Section 1 calls it an appendix: it lists what changed against RFC 2139, in the past tense. Its 'must' in 'it must be used in the accounting-request for that session' is a report of the change site 5.5:3 carries, not a second obligation. |
 | `9` | not stated | 0 | skipped (references) | References: RFC 2139, RFC 2865, RFC 2119, RFC 768, RFC 1321, RFC 1700, RFC 2279 and RFC 2434. |
 | `10` | Acknowledgements | 0 | skipped (acknowledgements) | Acknowledgements. Credits Livingston Enterprises for the original RADIUS Accounting work. |

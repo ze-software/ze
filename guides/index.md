@@ -2,11 +2,16 @@
 
 Use these pages to install Ze, configure a network role, operate the system, and diagnose problems. Feature pages explain what Ze can do. Guides explain how to do it.
 
+To test Ze with an AI coding agent, start with [Use Ze with an AI agent](ai-agent/): `ze create agent skill` sets up Claude Code or Codex with the guide your installed `ze` serves.
+
 ## Start and install
 
-- [Quickstart](quickstart/): bring up two BGP peers quickly.
+- [Quickstart](quickstart/): run two local BGP peers and verify a received route.
 - [Install Ze](ze-install/): install the daemon or provision an appliance.
 - [Build and install on Ubuntu](ubuntu-build-install/): compile, install, initialize the store, and start SSH.
+- [Docker](docker/): build the image, keep state across recreation, and manage it with Compose.
+- [VM and gokrazy appliance](appliance/): build and boot a disk image or installer ISO.
+- [containerlab and netlab](netlab/): run the supplied topology with the lab image.
 - [CLI tour](cli/): use interactive, one-shot, pipe, and runtime commands.
 - [Configuration](configuration-model/): understand the hierarchical configuration format.
 - [Lifecycle and rollback](lifecycle/): reload, restart, archive, update, and recover.
@@ -30,6 +35,7 @@ Use these pages to install Ze, configure a network role, operate the system, and
 
 ## Interfaces and automation
 
+- [Use Ze with an AI agent](ai-agent/): set up Claude Code, Codex, OpenCode or Pi with `ze create agent skill`.
 - [REST and gRPC](api/): use authenticated management APIs.
 - [gNMI](gnmi/): use Capabilities, Get, Set, and Subscribe.
 - [Web interface](web-interface/): edit configuration and run commands in the browser.

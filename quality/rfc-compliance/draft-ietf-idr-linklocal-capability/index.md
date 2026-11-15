@@ -1,6 +1,6 @@
 # DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY - Link-Local Next Hop Capability for BGP
 
-Link-local next-hop capability code 77. Every requirement this repository extracted from DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+Link-local next-hop capability code 77. Every requirement listed for DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,24 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 13 | of 15 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0 | of 15 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 15 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 15 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 51 | 51 of 51 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-
-### Neutral
-
-measures that are neither good news nor bad
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Gated MUSTs | 15 | of 27 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 15 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 15 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 15 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 15 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 15 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Tested both ways | 13 | of 15 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0 | of 15 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 15 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 15 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Tests shown to detect a fault | 51 | 51 of 51 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -35,55 +22,75 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 2 | of 15 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 15 | of 15 gated MUSTs judged | 2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+| Declared gap or no test | 2 | of 15 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Audit verdicts | 15 | of 15 mandatory requirements reviewed | 2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
-The 9 counts marked as a part above are the whole of the 15 gated MUSTs: they add up to 15. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Neutral
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+measures that are neither good news nor bad
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Out of scope | 0 | of 15 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 15 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 15 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 15 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 15 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+
+### Totals
+
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 15 | of 27 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 15 mandatory requirements: they add up to 15. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | Link-local next-hop capability code 77 |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 27 |
-| Gated MUST-level | 15 |
+| Mandatory requirements (MUST level) | 15 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 2 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 51 |
-| Tagged units | 51 |
+| Tests linked to requirements | 51 |
 | Recorded audit verdicts | 15 |
-| Discrimination records | 51 |
+| Fault test records | 51 |
 | Summary | `rfc/short/draft-ietf-idr-linklocal-capability.md` |
-| Requirement shard | `rfc/requirements/draft-ietf-idr-linklocal-capability.md` |
+| Requirement table | `rfc/requirements/draft-ietf-idr-linklocal-capability.md` |
 | RFC text | `rfc/drafts/draft-ietf-idr-linklocal-capability.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: Link-Local Next Hop capability for BGP (code 77): fifteen MUST-level requirements; those of Sections 3 to 6 are conditioned by Section 2 on the capability being negotiated. Ze advertises the capability (extractLLNHCapabilities, internal/component/bgp/plugins/llnh/llnh.go), parses it back as a typed capability (parseCapability, internal/core/bgp/capability/capability.go) and records what it negotiated to (Negotiate, internal/core/bgp/capability/negotiated.go), which is the Section 2 condition every other procedure reads. 3-1 and 5-1 are met on the send side: Peer.linkLocalOnlyNextHopPermitted (internal/component/bgp/reactor/peer.go) admits a link-local next hop only where the session may carry the 16-octet form, and buildMPReach (internal/component/bgp/message/update_build.go) writes that address alone in 16 octets, or the global-then-link-local pair in 32. 4-5 and 4-6 are met on the reflection path: egressNextHopIsLinkLocalOnly (internal/component/bgp/reactor/forward_next_hop.go) classifies the field about to be written and sameLinkLayerSegment (internal/component/bgp/reactor/link_scope.go) answers the segment half, so forwardUpdateCore either sends the rewrite applyFactsNextHop recorded or withholds the announcement. 3-2 is met by the RFC 2545 32-octet path; 4-2 and 4-8 are met because a link-local is appended only when the peer shares a connected subnet. 4-1, 4-4, 4-7 and 4-9 are met because a route whose next hop has no wire form is refused rather than encoded, and 4-3 because a route reachable through the speaker carries the speaker's own link-local toward a one-hop peer. 6-1 is met on the receive side: on a session that negotiated the capability, validateLinkLocalNextHopPair (internal/component/bgp/message/rfc7606_linklocal.go), called from the RFC 7606 attribute walk, makes a 32-octet Next Hop field that is not a Global (or ::) followed by a Link-Local, nor two Link-Locals, treat-as-withdraw. One MUST-level requirement stays outstanding and carries a `{gap}` on its checklist line: 1-2, the Section 1 interface association (row added 2026-10-01, rfc/corrections/draft-ietf-idr-linklocal-capability.md). 4-15, the second condition of the 4-3 sentence (split 2026-10-01, rfc/corrections/draft-ietf-idr-linklocal-capability.md), is a gap in proof: RFC 4271 Section 5.1.3 forbids the route it would apply to, ze withholds it on every rail, and no test carries the requirement.
+Included in automatic checks: Link-Local Next Hop capability for BGP (code 77): fifteen MUST-level requirements; those of Sections 3 to 6 are conditioned by Section 2 on the capability being negotiated. Ze advertises the capability (extractLLNHCapabilities, internal/component/bgp/plugins/llnh/llnh.go), parses it back as a typed capability (parseCapability, internal/core/bgp/capability/capability.go) and records what it negotiated to (Negotiate, internal/core/bgp/capability/negotiated.go), which is the Section 2 condition every other procedure reads. 3-1 and 5-1 are met on the send side: Peer.linkLocalOnlyNextHopPermitted (internal/component/bgp/reactor/peer.go) admits a link-local next hop only where the session may carry the 16-octet form, and buildMPReach (internal/component/bgp/message/update_build.go) writes that address alone in 16 octets, or the global-then-link-local pair in 32. 4-5 and 4-6 are met on the reflection path: egressNextHopIsLinkLocalOnly (internal/component/bgp/reactor/forward_next_hop.go) classifies the field about to be written and sameLinkLayerSegment (internal/component/bgp/reactor/link_scope.go) answers the segment half, so forwardUpdateCore either sends the rewrite applyFactsNextHop recorded or withholds the announcement. 3-2 is met by the RFC 2545 32-octet path; 4-2 and 4-8 are met because a link-local is appended only when the peer shares a connected subnet. 4-1, 4-4, 4-7 and 4-9 are met because a route whose next hop has no wire form is refused rather than encoded, and 4-3 because a route reachable through the speaker carries the speaker's own link-local toward a one-hop peer. 6-1 is met on the receive side: on a session that negotiated the capability, validateLinkLocalNextHopPair (internal/component/bgp/message/rfc7606_linklocal.go), called from the RFC 7606 attribute walk, makes a 32-octet Next Hop field that is not a Global (or ::) followed by a Link-Local, nor two Link-Locals, treat-as-withdraw. One MUST-level requirement stays outstanding and carries a `{gap}` on its checklist line: 1-2, the Section 1 interface association (row added 2026-10-01, rfc/corrections/draft-ietf-idr-linklocal-capability.md). 4-15, the second condition of the 4-3 sentence (split 2026-10-01, rfc/corrections/draft-ietf-idr-linklocal-capability.md), is a gap in proof: RFC 4271 Section 5.1.3 forbids the route it would apply to, ze withholds it on every rail, and no test carries the requirement.
 
-## What the public ledger says
+## Published support status
 
 **Area:** Link-local next-hop capability code 77
 
@@ -98,14 +105,14 @@ Enrolled: Link-Local Next Hop capability for BGP (code 77): fifteen MUST-level r
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 13 | one part of the gated population |
-| Annotated (including scoped evidence) | 2 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **15** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 13 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 2 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **15** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (13):** [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-1`](#draft-ietf-idr-linklocal-capability-3-1), [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-2`](#draft-ietf-idr-linklocal-capability-3-2), [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-1`](#draft-ietf-idr-linklocal-capability-4-1), [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-2`](#draft-ietf-idr-linklocal-capability-4-2), [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3`](#draft-ietf-idr-linklocal-capability-4-3), [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-4`](#draft-ietf-idr-linklocal-capability-4-4), [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-5`](#draft-ietf-idr-linklocal-capability-4-5), [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-6`](#draft-ietf-idr-linklocal-capability-4-6), [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-7`](#draft-ietf-idr-linklocal-capability-4-7), [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8`](#draft-ietf-idr-linklocal-capability-4-8), [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-9`](#draft-ietf-idr-linklocal-capability-4-9), [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-5-1`](#draft-ietf-idr-linklocal-capability-5-1), [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1`](#draft-ietf-idr-linklocal-capability-6-1)
 
@@ -113,20 +120,23 @@ Enrolled: Link-Local Next Hop capability for BGP (code 77): fifteen MUST-level r
 
 ## Figures
 
-- **MUST bar**: Ze proven 13, Ze correctness gap 2
-- **Overview bar**: Ze MUST proven 13, SHOULD not decided 12, Ze correctness gap 2
+- **MUST bar**: Ze proven 13, Not built 2
+- **Overview bar**: Ze MUST proven 13, Not assessed 12, Not built 2
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 15 |
 | MUST rows kept (the MUST bar) | 15 |
 | Ze proven | 13 |
 | OS verified | 0 |
+| Proof pending | 0 |
 | OS testing gap | 0 |
-| Ze correctness gap | 2 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 2 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -139,11 +149,12 @@ Enrolled: Link-Local Next Hop capability for BGP (code 77): fifteen MUST-level r
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 12 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 12 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/draft-ietf-idr-linklocal-capability.json](../../../data/rfc/draft-ietf-idr-linklocal-capability.json).
 
@@ -188,7 +199,7 @@ Source: [data/rfc/draft-ietf-idr-linklocal-capability.json](../../../data/rfc/dr
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-1-2`](#draft-ietf-idr-linklocal-capability-1-2)
 
@@ -196,7 +207,7 @@ Since IPv6 Link-Local addresses are not required to be globally unique, implemen
 
 Audit verdict: unimplemented (no code path enforces the requirement), fresh. Judged 2026-10-01 (BGP c20 judge, R58(c)). Row text is a verbatim span of draft -06 Section 1 (lowercase must, ruled to bind the implementation). Gap confirmed at the producers: mpNextHopAddr (rib_bestchange.go) turns the received Next Hop octets into a bare netip.Addr with no zone and no interface, and nothing in the BGP best-change path sets one (no WithZone on that path); on the send side applyLinkLocal (config_nexthop_form.go) parses session link-local as a plain address with no tie to the session's interface. The {gap} annotation states both halves.
 
-No test carries DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-1-2, so no unit is bound to it.
+No test carries DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-1-2, so there is no linked test.
 
 ### [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-1`](#draft-ietf-idr-linklocal-capability-3-1)
 
@@ -345,7 +356,7 @@ if the interface address of the router through which the announced network is re
 
 Audit verdict: unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-30 (independent judge, part-B backfill review) after the row's annotation moved from {not-applicable} to {gap: gap in proof}. Draft Section 4, second condition: 'if the interface address of the router through which the announced network is reachable for the speaker is the internal peer's address, the next hop MUST include its own Link- Local IPv6 address.' The obligation binds Ze as a BGP speaker announcing to an internal peer, so not-applicable no longer stands: the earlier verdict rested on an unevidenced exclusion that the ratchet now refuses. Read both producers: internal/component/bgp/reactor/forward_next_hop.go::egressNextHopIsPeerOwn compares the (possibly modified) relayed next hop to the peer's address and withholds the route, and originatedNextHopIsPeerOwn reads the built UPDATE body at the write boundary (Session.writeUpdateGated, Session.SendAnnounce) and withholds it there, as RFC 4271 Section 5.1.3 requires ('A route originated by a BGP speaker SHALL NOT be advertised to a peer using an address of that peer as NEXT_HOP.'). So the antecedent never reaches the wire and the code meets the row vacuously, but no tagged unit carries the row: the untagged TestLinkLocalSecondConditionNeverReachesTheWire (draft_ietf_idr_linklocal_capability_announce_test.go) shows the route withheld while a sibling ::99 route on the same fixture is written, and it is not bound to this id. With no test enforcing the row the honest audit word is unimplemented over the producers named in code; tagging that test with a discrimination record would move the row to met.
 
-No test carries DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-15, so no unit is bound to it.
+No test carries DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-15, so there is no linked test.
 
 ### [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-5-1`](#draft-ietf-idr-linklocal-capability-5-1)
 
@@ -374,7 +385,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | positive | [`TestRFC2545ReceivedPairFirstAddressValidated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L628) | unit/verify | revert, verified |
 | positive | [`TestRFC2545ReceivedPairSecondAddressValidated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L232) | unit/verify | revert, verified |
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -393,17 +404,17 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
-| `front` | not stated | 1 | walked | Walked 2026-10-01 (R58(c)): the -06 text yields one derived site here, the Copyright Notice sentence front:1, excluded below as IETF Trust boilerplate. The section holds the Title block, Abstract, Status of This Memo, Copyright Notice and Table of Contents. The Abstract says the document updates RFC 2545 to clarify the next-hop encoding when only an IPv6 Link-Local address is available, and defines a capability signalling support for it. It directs no speaker. Its one site is the Copyright Notice, excluded below. |
-| `1` | Walked 2026-10-01 (R58(c)) | 3 | walked | Walked 2026-10-01 (R58(c)). Three derived sites: 1:2 binds Ze and maps to DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-1-2 (a recorded gap); 1:1 and 1:3 state what a deployment or an address does not need and direct no implementation, so both are excluded. DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-1-1 quotes an uppercase SHOULD NOT sentence the lowercase site scan does not split out, so it stays unsourced. |
-| `2` | not stated | 0 | walked | not stated |
-| `3` | not stated | 2 | walked | not stated |
-| `4` | not stated | 9 | walked | DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-15 (2026-10-01, rfc/corrections/draft-ietf-idr-linklocal-capability.md) is split from DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3 and quotes the second condition of site 4:3's sentence: it is annotated not-applicable, so it is listed here as unsourced rather than given a second site. |
-| `5` | not stated | 1 | walked | not stated |
-| `6` | not stated | 1 | walked | not stated |
-| `7` | not stated | 0 | walked | not stated |
+| `front` | not stated | 1 | reviewed | Walked 2026-10-01 (R58(c)): the -06 text yields one derived site here, the Copyright Notice sentence front:1, excluded below as IETF Trust boilerplate. The section holds the Title block, Abstract, Status of This Memo, Copyright Notice and Table of Contents. The Abstract says the document updates RFC 2545 to clarify the next-hop encoding when only an IPv6 Link-Local address is available, and defines a capability signalling support for it. It directs no speaker. Its one site is the Copyright Notice, excluded below. |
+| `1` | Walked 2026-10-01 (R58(c)) | 3 | reviewed | Walked 2026-10-01 (R58(c)). Three derived sites: 1:2 binds Ze and maps to DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-1-2 (a recorded gap); 1:1 and 1:3 state what a deployment or an address does not need and direct no implementation, so both are excluded. DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-1-1 quotes an uppercase SHOULD NOT sentence the lowercase site scan does not split out, so it stays unsourced. |
+| `2` | not stated | 0 | reviewed | not stated |
+| `3` | not stated | 2 | reviewed | not stated |
+| `4` | not stated | 9 | reviewed | DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-15 (2026-10-01, rfc/corrections/draft-ietf-idr-linklocal-capability.md) is split from DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3 and quotes the second condition of site 4:3's sentence: it is annotated not-applicable, so it is listed here as unsourced rather than given a second site. |
+| `5` | not stated | 1 | reviewed | not stated |
+| `6` | not stated | 1 | reviewed | not stated |
+| `7` | not stated | 0 | reviewed | not stated |
 | `8` | Acknowledgements | 0 | skipped (acknowledgements) | Acknowledgements. Thanks, plus the note that the work builds on draft-kumar-idr-link-local-nexthop and draft-kato-bgp-ipv6-link-local. |
 | `9` | IANA Considerations | 0 | skipped (iana) | IANA Considerations. Records that IANA has assigned capability number 77 in the BGP Capability Codes registry, with the one-row table naming it. Binds IANA, not a speaker. |
-| `10` | not stated | 0 | walked | not stated |
+| `10` | not stated | 0 | reviewed | not stated |
 | `11` | References | 0 | skipped (references) | References. The heading over sections 11.1 and 11.2. |
 | `11.1` | Normative References | 0 | skipped (references) | Normative References. |
 | `11.2` | Informative References | 0 | skipped (references) | Informative References. |

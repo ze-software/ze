@@ -4,18 +4,18 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
-        <title>RFC 3882 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 3882: Configuring BGP to Block Denial-of-Service Attacks. 0 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
-        <meta property="og:title" content="RFC 3882 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 3882: Configuring BGP to Block Denial-of-Service Attacks. 0 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <title>RFC 3882 requirements and tests - Ze</title>
+        <meta name="description" content="RFC 3882: Configuring BGP to Block Denial-of-Service Attacks. 0 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:title" content="RFC 3882 requirements and tests - Ze" />
+        <meta property="og:description" content="RFC 3882: Configuring BGP to Block Denial-of-Service Attacks. 0 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="RFC 3882 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 3882: Configuring BGP to Block Denial-of-Service Attacks. 0 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:title" content="RFC 3882 requirements and tests - Ze" />
+        <meta name="twitter:description" content="RFC 3882: Configuring BGP to Block Denial-of-Service Attacks. 0 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -45,9 +45,9 @@
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
 <div class="journey-hero reveal">
-    <span class="journey-eyebrow">No row in the public ledger</span>
+    <span class="journey-eyebrow">No entry in the public support list</span>
     <h1 id="rfc-detail-title">RFC 3882 - Configuring BGP to Block Denial-of-Service Attacks</h1>
-    <p>Every requirement this repository extracted from RFC 3882, the tests bound to it, and what a reader has verified about them. This summary is not enrolled.</p>
+    <p>Every requirement listed for RFC 3882, the tests linked to it, and their recorded reviews. This summary is excluded from automatic compliance checks.</p>
 </div>
 <style>
 .rfc-table-wrap { overflow-x: auto; }
@@ -57,16 +57,25 @@
 .rfc-verdict p:last-child { margin-bottom: 0; }
 .rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
-.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
-.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: block; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
 .rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
-.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
-.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-card b { display: block; margin: 0; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: .5rem 0 0; color: var(--muted); font-size: .92rem; line-height: 1.6; }
+.rfc-card.rfc-total-card { grid-column: 1 / -1; display: grid; grid-template-columns: 15rem minmax(0, 1fr); column-gap: 1.5rem; align-items: start; }
+.rfc-card.rfc-total-card span, .rfc-card.rfc-total-card strong, .rfc-card.rfc-total-card b { grid-column: 1; }
+.rfc-card.rfc-total-card p { grid-column: 2; grid-row: 1 / span 3; margin: 0; }
+@media (max-width: 760px) {
+  .rfc-card-grid { grid-template-columns: minmax(0, 1fr); }
+  .rfc-card.rfc-total-card { display: block; }
+  .rfc-card.rfc-total-card p { margin: .5rem 0 0; }
+}
 .rfc-ok { border-left: 7px solid var(--green); }
 .rfc-neutral { border-left: 7px solid var(--line-strong); }
 .rfc-warn { border-left: 7px solid var(--amber); }
 .rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-card.rfc-total-card { background: var(--bg-soft); border: 1px solid var(--line-strong); box-shadow: none; }
 .rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
 .rfc-tape span { width: var(--w); min-width: 0; display: block; }
 .rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
@@ -87,6 +96,7 @@
 .rfc-swatch.rfc-neutral { background: var(--line-strong); }
 .rfc-swatch.rfc-warn { background: var(--amber); }
 .rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-swatch.rfc-total-card { background: var(--bg-soft); }
 .rfc-total td { border-top: 2px solid var(--line-strong); }
 .rfc-prose { max-width: 46rem; }
 ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
@@ -118,35 +128,35 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>0</strong><b>of 0 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0</strong><b>of 0 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 0 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 0 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0</strong><b>of 0 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0</strong><b>0 of 0 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
-<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>0</strong><b>of 0 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>0</strong><b>of 0 mandatory requirements</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0</strong><b>of 0 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 0 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 0 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 0 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>0</strong><b>0 of 0 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>0</strong><b>of 0 mandatory requirements reviewed</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>MUSTs declared</span><strong>0</strong><b>of 0 this summary declares</b><p>MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (non-normative), so every count below reads what the summary records rather than what the gate enforces</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 0 gated MUSTs</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 0 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 0 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 0 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 0 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 0 mandatory requirements</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 0 mandatory requirements</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 0 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 0 mandatory requirements</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 0 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit</p></article>
+</div>
+<h3>Totals</h3>
+<p>what the cards above are counted against</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-total-card"><span>Mandatory requirements (MUST level), not checked</span><strong>0</strong><b>of 0 requirements this summary lists, at all levels</b><p>The RFC&#39;s MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements listed in this summary. This RFC is excluded from automatic checks (non-normative), so these requirements are not checked. The counts above show what the summary records.</p></article>
 </div>
 <p>No card above is a part of a population, so there is nothing to add up.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
-<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
 <tbody>
-<tr><td>MUSTs declared</td>
-<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
-</tr>
 <tr><td>Out of scope</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
 <td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
@@ -167,9 +177,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
-<tr><td>No test at all</td>
+<tr><td>Declared gap or no test</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+<td>green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
@@ -187,13 +197,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
 <td>neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption</td>
 </tr>
-<tr><td>Proven by a recorded break</td>
+<tr><td>Tests shown to detect a fault</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above</td>
+<td>green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current</td>
+</tr>
+<tr><td>Mandatory requirements (MUST level), not checked</td>
+<td><span class="rfc-swatch rfc-total-card"></span> outlined</td>
+<td>outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad</td>
 </tr>
 </tbody>
 </table>
@@ -206,15 +220,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
 <tbody>
 <tr><td>Public row</td>
-<td>No row in the public ledger</td>
+<td>No entry in the public support list</td>
 </tr>
-<tr><td>Enrolment</td>
-<td>Not enrolled (non-normative)</td>
+<tr><td>Automatic checks</td>
+<td>Excluded (non-normative)</td>
 </tr>
 <tr><td>Requirements</td>
 <td>0</td>
 </tr>
-<tr><td>Gated MUST-level</td>
+<tr><td>Mandatory requirements (MUST level), not checked</td>
 <td>0</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
@@ -226,7 +240,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
 </tr>
-<tr><td>Gated with no test</td>
+<tr><td>Mandatory requirements with no test and no annotation</td>
 <td>0</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
@@ -235,20 +249,20 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Test tags</td>
 <td>0</td>
 </tr>
-<tr><td>Tagged units</td>
+<tr><td>Tests linked to requirements</td>
 <td>0</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
 </tr>
-<tr><td>Discrimination records</td>
+<tr><td>Fault test records</td>
 <td>0</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc3882.md</code></td>
 </tr>
-<tr><td>Requirement shard</td>
-<td>no requirement declared, so no shard is generated</td>
+<tr><td>Requirement table</td>
+<td>no requirements are listed, so no table is generated</td>
 </tr>
 <tr><td>RFC text</td>
 <td><code>rfc/full/rfc3882.txt</code></td>
@@ -257,14 +271,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 </section>
-<section><h2>Enrolment</h2>
-<p>Not enrolled (non-normative, the document imposes no MUST-level obligation on an implementation, so there is nothing to gate): Configuring BGP to Block Denial-of-Service Attacks, IETF category Informational. A capitalised MUST / MUST NOT / SHALL / SHALL NOT / REQUIRED / SHOULD / MAY scan over rfc/full/rfc3882.txt hits zero keywords, and the document invokes neither RFC 2119 nor BCP 14 anywhere, so it declares no key-words machinery for a reader to read its prose by. It describes an operator configuration recipe: per-border-router BGP communities that rewrite the next hop of an attacked prefix to a null or sinkhole tunnel interface. The four lower-case modal sentences the prose inventory finds are steps of that recipe (&#34;R1 and R2 must be configured with the following&#34;, &#34;The advertisement must contain the community value&#34;), a description (&#34;It might also be required&#34;), and copyright boilerplate. The summary captures no requirement. The walk is recorded in rfc/extraction/rfc3882.json at register prose, all 4 sites excluded as not-a-requirement.</p>
+<section><h2>Automatic checks</h2>
+<p>Excluded from automatic checks (non-normative, the document imposes no MUST-level obligation on an implementation, so there is nothing to gate): Configuring BGP to Block Denial-of-Service Attacks, IETF category Informational. A capitalised MUST / MUST NOT / SHALL / SHALL NOT / REQUIRED / SHOULD / MAY scan over rfc/full/rfc3882.txt hits zero keywords, and the document invokes neither RFC 2119 nor BCP 14 anywhere, so it declares no key-words machinery for a reader to read its prose by. It describes an operator configuration recipe: per-border-router BGP communities that rewrite the next hop of an attacked prefix to a null or sinkhole tunnel interface. The four lower-case modal sentences the prose inventory finds are steps of that recipe (&#34;R1 and R2 must be configured with the following&#34;, &#34;The advertisement must contain the community value&#34;), a description (&#34;It might also be required&#34;), and copyright boilerplate. The summary captures no requirement. The walk is recorded in rfc/extraction/rfc3882.json at register prose, all 4 sites excluded as not-a-requirement.</p>
 </section>
-<section><h2>What the public ledger says</h2>
-<p>No row in the public ledger, so its summary declares `| Support | - |` and docs/features/rfc-status.md carries no row for RFC 3882.</p>
+<section><h2>Published support status</h2>
+<p>No entry in the public support list, so its summary declares `| Support | - |` and docs/features/rfc-status.md carries no row for RFC 3882.</p>
 </section>
 <section><h2>Coverage</h2>
-<p>RFC 3882 declares no MUST-level requirement, so the gate counts nothing here.</p>
+<p>RFC 3882 lists no mandatory requirements for these checks, so nothing is counted here.</p>
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
@@ -278,10 +292,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>RFCs</td>
 <td><span data-ze-rfc="rfc3882:rfcs">1</span></td>
 </tr>
-<tr><td>Not walked</td>
+<tr><td>Requirements not reviewed</td>
 <td><span data-ze-rfc="rfc3882:not-walked">0</span></td>
 </tr>
-<tr><td>Mandatory register</td>
+<tr><td>Mandatory requirements complete</td>
 <td><span data-ze-rfc="rfc3882:register">complete</span></td>
 </tr>
 <tr><td>MUST rows</td>
@@ -296,11 +310,20 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc3882:must.os-verified">0</span></td>
 </tr>
+<tr><td>Proof pending</td>
+<td><span data-ze-rfc="rfc3882:must.proof-pending">0</span></td>
+</tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc3882:must.os-gap">0</span></td>
 </tr>
-<tr><td>Ze correctness gap</td>
-<td><span data-ze-rfc="rfc3882:must.ze-gap">0</span></td>
+<tr><td>Exclusion unchecked</td>
+<td><span data-ze-rfc="rfc3882:must.exclusion-unchecked">0</span></td>
+</tr>
+<tr><td>Not assessed</td>
+<td><span data-ze-rfc="rfc3882:must.not-assessed">0</span></td>
+</tr>
+<tr><td>Not built</td>
+<td><span data-ze-rfc="rfc3882:must.not-built">0</span></td>
 </tr>
 <tr><td>MUST rows not owed</td>
 <td><span data-ze-rfc="rfc3882:must.not-owed">0</span></td>
@@ -338,31 +361,34 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD not owed: not-applicable</td>
 <td><span data-ze-rfc="rfc3882:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
-<tr><td>SHOULD not ever</td>
-<td><span data-ze-rfc="rfc3882:should.not-ever">0</span></td>
+<tr><td>SHOULD proof pending</td>
+<td><span data-ze-rfc="rfc3882:should.proof-pending">0</span></td>
 </tr>
-<tr><td>SHOULD not yet</td>
-<td><span data-ze-rfc="rfc3882:should.not-yet">0</span></td>
+<tr><td>SHOULD exclusion unchecked</td>
+<td><span data-ze-rfc="rfc3882:should.exclusion-unchecked">0</span></td>
 </tr>
-<tr><td>SHOULD not decided</td>
-<td><span data-ze-rfc="rfc3882:should.not-decided">0</span></td>
+<tr><td>SHOULD not assessed</td>
+<td><span data-ze-rfc="rfc3882:should.not-assessed">0</span></td>
+</tr>
+<tr><td>SHOULD not built</td>
+<td><span data-ze-rfc="rfc3882:should.not-built">0</span></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.</p>
+<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
 
 </section>
 <section><h2>Requirements</h2>
-<p>RFC 3882 declares no requirement, so this summary generates no shard.</p>
+<p>RFC 3882 lists no requirements, so no requirement table is generated.</p>
 </section>
 <section><h2>Gaps and untested MUSTs</h2>
-<p>RFC 3882 declares no gap, and every gated MUST it carries has a test bound to it.</p>
+<p>RFC 3882 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.</p>
 </section>
 <section><h2>Proof state</h2>
-<p>RFC 3882 carries no gated, tagged or audited requirement, so there is no proof state to state.</p>
+<p>RFC 3882 has no requirements included in automatic checks, linked to tests, or reviewed, so there is no test evidence to show.</p>
 </section>
-<section><h2>Extraction sign-off</h2>
+<section><h2>Requirement list review</h2>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
@@ -414,25 +440,25 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td><code>1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>2</code></td>
 <td>not stated</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>3</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>4</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>5</code></td>
@@ -450,13 +476,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td><code>7</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>8</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 </tbody>
@@ -507,7 +533,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     </a>
                     <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
                         <span class="page-sidebar-link-label">Verify debugging</span>
-                        <small>How failed checks route to evidence.</small>
+                        <small>How to investigate failed checks using their logs.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -526,7 +552,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 01:56 UTC</span>
                 </div>
             </div>
         </footer>

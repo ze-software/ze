@@ -1,6 +1,6 @@
 # DNS
 
-Technology aggregate. DNS, DNSSEC, encrypted DNS transports, and AS112. The RFCs whose summary names the dns aggregate, with the MUST bar and the overview bar of the set and of each RFC.
+Technology profile. DNS, DNSSEC, encrypted DNS transports, and AS112. The RFCs grouped under dns, showing mandatory requirement coverage and overall coverage for the group and each RFC.
 
 [All profiles](../) · [All RFCs](../../)
 
@@ -10,20 +10,23 @@ Figures as of the last build, read from [data/rfc/profiles/dns.json](../../../..
 
 ## Figures
 
-- **MUST bar**: Ze proven 46, Ze correctness gap 262
-- **Overview bar**: Ze MUST proven 46, SHOULD proven 1, Not owed 3, SHOULD not decided 225, Ze correctness gap 262
+- **MUST bar**: Ze proven 46, Proof pending 44, Not assessed 61, Not built 157
+- **Overview bar**: Ze MUST proven 46, SHOULD proven 1, Not owed 3, Proof pending 44, Not assessed 286, Not built 157
 
 | Figure | Rows |
 |---|---|
 | RFCs | 12 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 311 |
 | MUST rows kept (the MUST bar) | 308 |
 | Ze proven | 46 |
 | OS verified | 0 |
+| Proof pending | 44 |
 | OS testing gap | 0 |
-| Ze correctness gap | 262 |
+| Exclusion unchecked | 0 |
+| Not assessed | 61 |
+| Not built | 157 |
 | MUST rows not owed | 3 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -36,59 +39,60 @@ Figures as of the last build, read from [data/rfc/profiles/dns.json](../../../..
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 225 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 225 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 ## Tree
 
-Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each RFC carries the same two bars as the set above, from its own data file; an RFC that is not walked shows "not walked" and no bar.
+The RFCs are listed with the standards they build on first. An RFC appears one level after the highest level of its dependencies; RFCs that refer back to each other share a level. Each RFC has the same two coverage bars as the group above. An RFC whose requirement list has not been reviewed shows "requirements not reviewed" instead of a bar.
 
 ### Level 2
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 1035](../../rfc1035/) (cycle with rfc1034, rfc1122, rfc1123, rfc1191, rfc1195, rfc1332, rfc1350, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | Domain Names - Implementation and Specification | Ze proven 12, Ze correctness gap 15 | Ze MUST proven 12, SHOULD not decided 6, Ze correctness gap 15 |
+| [RFC 1035](../../rfc1035/) (cycle with rfc1034, rfc1122, rfc1123, rfc1191, rfc1195, rfc1332, rfc1350, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | Domain Names - Implementation and Specification | Ze proven 12, Proof pending 13, Not assessed 2 | Ze MUST proven 12, Proof pending 13, Not assessed 8 |
 
 ### Level 3
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 2181](../../rfc2181/) | Clarifications to the DNS Specification | Ze proven 12, Ze correctness gap 11 | Ze MUST proven 12, SHOULD proven 1, SHOULD not decided 46, Ze correctness gap 11 |
+| [RFC 2181](../../rfc2181/) | Clarifications to the DNS Specification | Ze proven 12, Proof pending 6, Not built 5 | Ze MUST proven 12, SHOULD proven 1, Proof pending 6, Not assessed 46, Not built 5 |
 
 ### Level 4
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 2782](../../rfc2782/) | A DNS RR for specifying the location of services (DNS SRV) | Ze correctness gap 5 | Not owed 2, SHOULD not decided 7, Ze correctness gap 5 |
+| [RFC 2782](../../rfc2782/) | A DNS RR for specifying the location of services (DNS SRV) | Not built 5 | Not owed 2, Not assessed 7, Not built 5 |
 
 ### Level 5
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
 | [RFC 4033](../../rfc4033/) (cycle with rfc4034, rfc4035) | DNS Security Introduction and Requirements | no rows | no rows |
-| [RFC 4034](../../rfc4034/) (cycle with rfc4033, rfc4035) | Resource Records for the DNS Security Extensions | Ze correctness gap 59 | Ze correctness gap 59 |
-| [RFC 4035](../../rfc4035/) (cycle with rfc4033, rfc4034) | Protocol Modifications for the DNS Security Extensions | Ze proven 4, Ze correctness gap 104 | Ze MUST proven 4, SHOULD not decided 50, Ze correctness gap 104 |
-| [RFC 8484](../../rfc8484/) | DNS Queries over HTTPS (DoH) | Ze proven 1, Ze correctness gap 14 | Ze MUST proven 1, Not owed 1, SHOULD not decided 11, Ze correctness gap 14 |
+| [RFC 4034](../../rfc4034/) (cycle with rfc4033, rfc4035) | Resource Records for the DNS Security Extensions | Not assessed 59 | Not assessed 59 |
+| [RFC 4035](../../rfc4035/) (cycle with rfc4033, rfc4034) | Protocol Modifications for the DNS Security Extensions | Ze proven 4, Proof pending 10, Not built 94 | Ze MUST proven 4, Proof pending 10, Not assessed 50, Not built 94 |
+| [RFC 8484](../../rfc8484/) | DNS Queries over HTTPS (DoH) | Ze proven 1, Proof pending 8, Not built 6 | Ze MUST proven 1, Not owed 1, Proof pending 8, Not assessed 11, Not built 6 |
 
 ### Level 6
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 7534](../../rfc7534/) (cycle with rfc7535) | AS112 Nameserver Operations | Ze proven 2, Ze correctness gap 1 | Ze MUST proven 2, SHOULD not decided 13, Ze correctness gap 1 |
-| [RFC 7535](../../rfc7535/) (cycle with rfc7534) | AS112 Redirection Using DNAME | Ze correctness gap 1 | SHOULD not decided 6, Ze correctness gap 1 |
-| [RFC 7871](../../rfc7871/) | Client Subnet in DNS Queries | Ze correctness gap 36 | SHOULD not decided 52, Ze correctness gap 36 |
+| [RFC 7534](../../rfc7534/) (cycle with rfc7535) | AS112 Nameserver Operations | Ze proven 2, Proof pending 1 | Ze MUST proven 2, Proof pending 1, Not assessed 13 |
+| [RFC 7535](../../rfc7535/) (cycle with rfc7534) | AS112 Redirection Using DNAME | Not built 1 | Not assessed 6, Not built 1 |
+| [RFC 7871](../../rfc7871/) | Client Subnet in DNS Queries | Proof pending 2, Not built 34 | Proof pending 2, Not assessed 52, Not built 34 |
 
 ### Level 7
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 5625](../../rfc5625/) | DNS Proxy Implementation Guidelines | Ze proven 12 | Ze MUST proven 12, SHOULD not decided 15 |
+| [RFC 5625](../../rfc5625/) | DNS Proxy Implementation Guidelines | Ze proven 12 | Ze MUST proven 12, Not assessed 15 |
 
 ### Level 8
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 7858](../../rfc7858/) | Specification for DNS over Transport Layer Security (TLS) | Ze proven 3, Ze correctness gap 16 | Ze MUST proven 3, SHOULD not decided 19, Ze correctness gap 16 |
+| [RFC 7858](../../rfc7858/) | Specification for DNS over Transport Layer Security (TLS) | Ze proven 3, Proof pending 4, Not built 12 | Ze MUST proven 3, Proof pending 4, Not assessed 19, Not built 12 |

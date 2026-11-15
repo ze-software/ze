@@ -1,6 +1,6 @@
 # RFC 8484 - DNS Queries over HTTPS (DoH)
 
-DNS Queries over HTTPS (DoH). Every requirement this repository extracted from RFC 8484, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+DNS Queries over HTTPS (DoH). Every requirement listed for RFC 8484, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,24 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 5 | of 16 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 4 | of 16 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 16 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 16 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 4 | 4 of 16 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-
-### Neutral
-
-measures that are neither good news nor bad
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Gated MUSTs | 16 | of 27 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 16 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 1 | of 16 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 16 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 16 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 16 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Tested both ways | 5 | of 16 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 4 | of 16 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 16 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 16 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Tests shown to detect a fault | 4 | 4 of 16 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -35,54 +22,74 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 6 | of 16 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Declared gap or no test | 6 | of 16 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 
-The 9 counts marked as a part above are the whole of the 16 gated MUSTs: they add up to 16. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Neutral
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+measures that are neither good news nor bad
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Out of scope | 0 | of 16 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 1 | of 16 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 16 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 16 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 16 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+
+### Totals
+
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 16 | of 27 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 16 mandatory requirements: they add up to 16. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | DNS Queries over HTTPS (DoH) |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 27 |
-| Gated MUST-level | 16 |
+| Mandatory requirements (MUST level) | 16 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 6 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 16 |
-| Tagged units | 16 |
+| Tests linked to requirements | 16 |
 | Recorded audit verdicts | 1 |
-| Discrimination records | 4 |
+| Fault test records | 4 |
 | Summary | `rfc/short/rfc8484.md` |
-| Requirement shard | `rfc/requirements/rfc8484.md` |
+| Requirement table | `rfc/requirements/rfc8484.md` |
 | RFC text | `rfc/full/rfc8484.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: DNS Queries over HTTPS / DoH (RFC 8484): ze is a DoH server and a DNS client that speaks no DoH (the dnsresolver forwarder, UDP and TCP upstream, and the resolve/dns stub, UDP). 5 MET (POST+GET, process application/dns-message, media type, base64url dns var, no padding) + 4 single-polarity positive (https-only, freshness<=smallest-TTL, ignore EDNS UDP size, POST body used directly) + 6 gaps (NODATA freshness not capped at SOA MINIMUM; four DoH client MUSTs binding ze's DNS clients, which implement no DoH; the other-media-type rule, which holds by construction with no test) + 1 not-applicable (4.1-1 binds the authors of future media-type specifications)
+Included in automatic checks: DNS Queries over HTTPS / DoH (RFC 8484): ze is a DoH server and a DNS client that speaks no DoH (the dnsresolver forwarder, UDP and TCP upstream, and the resolve/dns stub, UDP). 5 MET (POST+GET, process application/dns-message, media type, base64url dns var, no padding) + 4 single-polarity positive (https-only, freshness<=smallest-TTL, ignore EDNS UDP size, POST body used directly) + 6 gaps (NODATA freshness not capped at SOA MINIMUM; four DoH client MUSTs binding ze's DNS clients, which implement no DoH; the other-media-type rule, which holds by construction with no test) + 1 not-applicable (4.1-1 binds the authors of future media-type specifications)
 
-## What the public ledger says
+## Published support status
 
 **Area:** DNS Queries over HTTPS (DoH)
 
@@ -97,14 +104,14 @@ Enrolled: DNS Queries over HTTPS / DoH (RFC 8484): ze is a DoH server and a DNS 
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 5 | one part of the gated population |
-| Annotated (including scoped evidence) | 11 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **16** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 5 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 11 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **16** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (5):** [`RFC8484-4.1-2`](#rfc8484-4.1-2), [`RFC8484-4.2-1`](#rfc8484-4.2-1), [`RFC8484-5.4-1`](#rfc8484-5.4-1), [`RFC8484-6-2`](#rfc8484-6-2), [`RFC8484-6-3`](#rfc8484-6-3)
 
@@ -112,20 +119,23 @@ Enrolled: DNS Queries over HTTPS / DoH (RFC 8484): ze is a DoH server and a DNS 
 
 ## Figures
 
-- **MUST bar**: Ze proven 1, Ze correctness gap 14
-- **Overview bar**: Ze MUST proven 1, Not owed 1, SHOULD not decided 11, Ze correctness gap 14
+- **MUST bar**: Ze proven 1, Proof pending 8, Not built 6
+- **Overview bar**: Ze MUST proven 1, Not owed 1, Proof pending 8, Not assessed 11, Not built 6
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 16 |
 | MUST rows kept (the MUST bar) | 15 |
 | Ze proven | 1 |
 | OS verified | 0 |
+| Proof pending | 8 |
 | OS testing gap | 0 |
-| Ze correctness gap | 14 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 6 |
 | MUST rows not owed | 1 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -138,11 +148,12 @@ Enrolled: DNS Queries over HTTPS / DoH (RFC 8484): ze is a DoH server and a DNS 
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 11 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 11 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc8484.json](../../../data/rfc/rfc8484.json).
 
@@ -192,29 +203,29 @@ Source: [data/rfc/rfc8484.json](../../../data/rfc/rfc8484.json).
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC8484-3-1`](#rfc8484-3-1)
 
 A DoH client MUST NOT use a different URI simply because it was discovered outside of the client's configuration (such as through HTTP/2 server push) or because a server offers an unsolicited response that appears to be a valid answer to a DNS query. (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC8484-3-1, so no unit is bound to it.
+No test carries RFC8484-3-1, so there is no linked test.
 
 ### [`RFC8484-4.1-1`](#rfc8484-4.1-1)
 
 Future specifications for new media types for DoH MUST define the variables used for URI Template processing with this protocol. (§4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC8484-4.1-1, so no unit is bound to it.
+No test carries RFC8484-4.1-1, so there is no linked test.
 
 ### [`RFC8484-4.1-2`](#rfc8484-4.1-2)
 
 DoH servers MUST implement both the POST and GET methods (§4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -225,15 +236,15 @@ Audit verdict: not audited: no reader has judged these tests
 
 Irrespective of the value of the Accept request header field, the client MUST be prepared to process "application/dns-message" (as described in Section 6) responses (§4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC8484-4.1-3, so no unit is bound to it.
+No test carries RFC8484-4.1-3, so there is no linked test.
 
 ### [`RFC8484-4.2-1`](#rfc8484-4.2-1)
 
 A DoH server MUST be able to process "application/dns-message" request messages (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -244,7 +255,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 This protocol MUST be used with the https URI scheme (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -254,7 +265,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The assigned freshness lifetime of a DoH HTTP response MUST be less than or equal to the smallest TTL in the Answer section of the DNS response (§5.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -264,31 +275,31 @@ Audit verdict: not audited: no reader has judged these tests
 
 If the DNS response has no records in the Answer section, and the DNS response has an SOA record in the Authority section, the response freshness lifetime MUST NOT be greater than the MINIMUM field from that SOA record (see [RFC2308]). (§5.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC8484-5.1-2, so no unit is bound to it.
+No test carries RFC8484-5.1-2, so there is no linked test.
 
 ### [`RFC8484-5.1-3`](#rfc8484-5.1-3)
 
 DoH clients MUST account for the Age response header field's value [RFC7234] when calculating the DNS TTL of a response. (§5.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC8484-5.1-3, so no unit is bound to it.
+No test carries RFC8484-5.1-3, so there is no linked test.
 
 ### [`RFC8484-5.3-1`](#rfc8484-5.3-1)
 
 Before using DoH response data for DNS resolution, the client MUST establish that the HTTP request URI can be used for the DoH query (§5.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC8484-5.3-1, so no unit is bound to it.
+No test carries RFC8484-5.3-1, so there is no linked test.
 
 ### [`RFC8484-5.4-1`](#rfc8484-5.4-1)
 
 DoH clients and DoH servers MUST support the "application/dns-message" media type (§5.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -299,15 +310,15 @@ Audit verdict: not audited: no reader has judged these tests
 
 Those media types MUST be flexible enough to express every DNS query that would normally be sent in DNS over UDP (including queries and responses that use DNS extensions, but not those that require multiple responses). (§5.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC8484-5.4-2, so no unit is bound to it.
+No test carries RFC8484-5.4-2, so there is no linked test.
 
 ### [`RFC8484-6-1`](#rfc8484-6-1)
 
 DoH servers using this media type MUST ignore the value given for the EDNS UDP payload size in DNS requests (§6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -330,7 +341,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 Padding characters for base64url MUST NOT be included (§6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -341,13 +352,13 @@ Audit verdict: not audited: no reader has judged these tests
 
 When using the POST method, the data payload for this media type MUST NOT be encoded and is used directly as the HTTP message body (§6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | positive | [`TestDoHListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L141) | unit/verify | unproven |
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -366,38 +377,38 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
-| `front` | not stated | 0 | walked | not stated |
-| `1` | not stated | 0 | walked | not stated |
-| `2` | not stated | 0 | walked | not stated |
-| `3` | not stated | 1 | walked | The MAY that a DoH server support more than one URI Template is advisory and the MUST-level scan does not raise it. |
-| `4` | not stated | 0 | walked | not stated |
-| `4.1` | not stated | 3 | walked | Three advisory directives carry no site: the SHOULD to send an Accept header, the SHOULD to use DNS ID 0, and the MAY to process other DNS-related media types (the second clause of site 4.1:3). |
-| `4.1.1` | not stated | 0 | walked | not stated |
-| `4.2` | not stated | 1 | walked | not stated |
-| `4.2.1` | not stated | 0 | walked | not stated |
-| `4.2.2` | not stated | 0 | walked | not stated |
-| `5` | not stated | 1 | walked | not stated |
-| `5.1` | not stated | 3 | walked | Two advisory directives carry no site: the SHOULD to assign an explicit freshness lifetime, and the RECOMMENDED freshness equal to the smallest Answer-section TTL. |
-| `5.2` | not stated | 0 | walked | One advisory directive and no MUST-level site: "HTTP/2 [RFC7540] is the minimum RECOMMENDED version of HTTP for use with DoH". |
-| `5.3` | not stated | 1 | walked | not stated |
-| `5.4` | not stated | 2 | walked | The MAY that other media types be used as defined by HTTP Content Negotiation is advisory. |
-| `6` | not stated | 4 | walked | The MAY that a DoH client include EDNS options in the request is advisory. |
-| `7` | not stated | 0 | walked | not stated |
-| `7.1` | not stated | 0 | walked | not stated |
-| `8` | not stated | 0 | walked | not stated |
-| `8.1` | not stated | 0 | walked | not stated |
-| `8.2` | not stated | 0 | walked | The SHOULD NOT that DoH clients accept HTTP cookies is advisory. |
-| `9` | not stated | 0 | walked | not stated |
-| `10` | not stated | 0 | walked | The SHOULD NOT that DoH server authentication rely on DNS-based references in the TLS handshake is advisory. |
-| `11` | not stated | 0 | walked | not stated |
-| `11.1` | not stated | 0 | walked | not stated |
-| `11.2` | not stated | 0 | walked | not stated |
-| `A` | not stated | 0 | walked | not stated |
-| `B` | not stated | 0 | walked | not stated |
+| `front` | not stated | 0 | reviewed | not stated |
+| `1` | not stated | 0 | reviewed | not stated |
+| `2` | not stated | 0 | reviewed | not stated |
+| `3` | not stated | 1 | reviewed | The MAY that a DoH server support more than one URI Template is advisory and the MUST-level scan does not raise it. |
+| `4` | not stated | 0 | reviewed | not stated |
+| `4.1` | not stated | 3 | reviewed | Three advisory directives carry no site: the SHOULD to send an Accept header, the SHOULD to use DNS ID 0, and the MAY to process other DNS-related media types (the second clause of site 4.1:3). |
+| `4.1.1` | not stated | 0 | reviewed | not stated |
+| `4.2` | not stated | 1 | reviewed | not stated |
+| `4.2.1` | not stated | 0 | reviewed | not stated |
+| `4.2.2` | not stated | 0 | reviewed | not stated |
+| `5` | not stated | 1 | reviewed | not stated |
+| `5.1` | not stated | 3 | reviewed | Two advisory directives carry no site: the SHOULD to assign an explicit freshness lifetime, and the RECOMMENDED freshness equal to the smallest Answer-section TTL. |
+| `5.2` | not stated | 0 | reviewed | One advisory directive and no MUST-level site: "HTTP/2 [RFC7540] is the minimum RECOMMENDED version of HTTP for use with DoH". |
+| `5.3` | not stated | 1 | reviewed | not stated |
+| `5.4` | not stated | 2 | reviewed | The MAY that other media types be used as defined by HTTP Content Negotiation is advisory. |
+| `6` | not stated | 4 | reviewed | The MAY that a DoH client include EDNS options in the request is advisory. |
+| `7` | not stated | 0 | reviewed | not stated |
+| `7.1` | not stated | 0 | reviewed | not stated |
+| `8` | not stated | 0 | reviewed | not stated |
+| `8.1` | not stated | 0 | reviewed | not stated |
+| `8.2` | not stated | 0 | reviewed | The SHOULD NOT that DoH clients accept HTTP cookies is advisory. |
+| `9` | not stated | 0 | reviewed | not stated |
+| `10` | not stated | 0 | reviewed | The SHOULD NOT that DoH server authentication rely on DNS-based references in the TLS handshake is advisory. |
+| `11` | not stated | 0 | reviewed | not stated |
+| `11.1` | not stated | 0 | reviewed | not stated |
+| `11.2` | not stated | 0 | reviewed | not stated |
+| `A` | not stated | 0 | reviewed | not stated |
+| `B` | not stated | 0 | reviewed | not stated |
 
 ### Excluded sentences
 
-The walk over RFC 8484 declined no sentence: every site it found is mapped to a requirement.
+The review of RFC 8484 excluded no sentences: every sentence identified as an obligation is linked to a requirement.
 
 ## Superseded
 

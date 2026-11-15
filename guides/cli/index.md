@@ -173,7 +173,12 @@ itself.
 
 In `ze cli` interactive mode:
 
-- **Tab completion** for commands, peer names, address families, and log levels
+- **Tab completion** for commands, peer names, address families, and log levels.
+  A command whose argument only the running daemon knows asks the daemon at
+  each Tab: `request plugin restart` offers every configured plugin, each
+  marked as running or not running
+  <!-- source: internal/component/cli/client/inject.go -- wireDaemonArgCompletion -->
+
 - **Pipe operators** with per-command availability. `match <text>` keeps rows
   containing the text, while a match after a line format reads rendered lines.
   It reads the payload numbers as written, so a 64-bit counter matches on its

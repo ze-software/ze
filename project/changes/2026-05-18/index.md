@@ -48,4 +48,4 @@ A focused pass on BGP's hot path: attributes are parsed once per UPDATE instead 
 
 ## 🛠️ Under the hood
 
-ZeFS, Ze's internal storage layer, gained per-record CRC32c checksums, in-place writes, and a check/repair CLI. Remote fleet management got easier with per-service SSH credential storage and a `ze remote` CLI for targeting other instances. DNS resolver cache management (list, selective delete, flush, stats reset), firewall masquerade port mapping, additional conntrack helpers (NFS, SQL*Net), and per-interface rate tracking (CLI, Prometheus, web) also landed.
+ZeFS, Ze's internal storage layer, gained per-record CRC32c checksums, in-place writes, and a check/repair CLI. Remote fleet management got easier with per-service SSH credential storage and a `ze remote` CLI for targeting other instances. Other additions include DNS resolver cache management (list, selective delete, flush, stats reset), firewall masquerade port mapping, additional conntrack helpers (NFS, SQL*Net), and per-interface rate tracking (CLI, Prometheus, web).

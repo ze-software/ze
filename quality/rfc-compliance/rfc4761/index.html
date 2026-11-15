@@ -4,18 +4,18 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
-        <title>RFC 4761 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 4761: Virtual Private LAN Service (VPLS) Using BGP for Auto-Discovery and Signaling. 18 gated MUST-level requirements, 18 declared gaps (0 demonstrated by a test), 0 with no test." />
-        <meta property="og:title" content="RFC 4761 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 4761: Virtual Private LAN Service (VPLS) Using BGP for Auto-Discovery and Signaling. 18 gated MUST-level requirements, 18 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <title>RFC 4761 requirements and tests - Ze</title>
+        <meta name="description" content="RFC 4761: Virtual Private LAN Service (VPLS) Using BGP for Auto-Discovery and Signaling. 18 mandatory requirements included in automatic checks, 18 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:title" content="RFC 4761 requirements and tests - Ze" />
+        <meta property="og:description" content="RFC 4761: Virtual Private LAN Service (VPLS) Using BGP for Auto-Discovery and Signaling. 18 mandatory requirements included in automatic checks, 18 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="RFC 4761 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 4761: Virtual Private LAN Service (VPLS) Using BGP for Auto-Discovery and Signaling. 18 gated MUST-level requirements, 18 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:title" content="RFC 4761 requirements and tests - Ze" />
+        <meta name="twitter:description" content="RFC 4761: Virtual Private LAN Service (VPLS) Using BGP for Auto-Discovery and Signaling. 18 mandatory requirements included in automatic checks, 18 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -47,7 +47,7 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">VPLS NLRI</span>
     <h1 id="rfc-detail-title">RFC 4761 - Virtual Private LAN Service (VPLS) Using BGP for Auto-Discovery and Signaling</h1>
-    <p>Every requirement this repository extracted from RFC 4761, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
+    <p>Every requirement listed for RFC 4761, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.</p>
 </div>
 <style>
 .rfc-table-wrap { overflow-x: auto; }
@@ -57,16 +57,25 @@
 .rfc-verdict p:last-child { margin-bottom: 0; }
 .rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
-.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
-.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: block; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
 .rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
-.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
-.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-card b { display: block; margin: 0; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: .5rem 0 0; color: var(--muted); font-size: .92rem; line-height: 1.6; }
+.rfc-card.rfc-total-card { grid-column: 1 / -1; display: grid; grid-template-columns: 15rem minmax(0, 1fr); column-gap: 1.5rem; align-items: start; }
+.rfc-card.rfc-total-card span, .rfc-card.rfc-total-card strong, .rfc-card.rfc-total-card b { grid-column: 1; }
+.rfc-card.rfc-total-card p { grid-column: 2; grid-row: 1 / span 3; margin: 0; }
+@media (max-width: 760px) {
+  .rfc-card-grid { grid-template-columns: minmax(0, 1fr); }
+  .rfc-card.rfc-total-card { display: block; }
+  .rfc-card.rfc-total-card p { margin: .5rem 0 0; }
+}
 .rfc-ok { border-left: 7px solid var(--green); }
 .rfc-neutral { border-left: 7px solid var(--line-strong); }
 .rfc-warn { border-left: 7px solid var(--amber); }
 .rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-card.rfc-total-card { background: var(--bg-soft); border: 1px solid var(--line-strong); box-shadow: none; }
 .rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
 .rfc-tape span { width: var(--w); min-width: 0; display: block; }
 .rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
@@ -87,6 +96,7 @@
 .rfc-swatch.rfc-neutral { background: var(--line-strong); }
 .rfc-swatch.rfc-warn { background: var(--amber); }
 .rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-swatch.rfc-total-card { background: var(--bg-soft); }
 .rfc-total td { border-top: 2px solid var(--line-strong); }
 .rfc-prose { max-width: 46rem; }
 ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
@@ -118,38 +128,38 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>0</strong><b>of 18 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0</strong><b>of 18 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 18 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 18 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0</strong><b>0 of 0 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
-</div>
-<h3>Neutral</h3>
-<p>measures that are neither good news nor bad</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>18</strong><b>of 27 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 18 gated MUSTs</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 18 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 18 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 18 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 18 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>0</strong><b>of 18 mandatory requirements</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0</strong><b>of 18 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 18 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 18 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>0</strong><b>0 of 0 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>18</strong><b>of 18 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Declared gap or no test</span><strong>18</strong><b>of 18 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
 </div>
-<p>The 9 counts marked as a part above are the whole of the 18 gated MUSTs: they add up to 18. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.</p>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 18 mandatory requirements</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 18 mandatory requirements</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 18 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 18 mandatory requirements</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 18 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit</p></article>
+</div>
+<h3>Totals</h3>
+<p>what the cards above are counted against</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-total-card"><span>Mandatory requirements (MUST level)</span><strong>18</strong><b>of 27 requirements this summary lists, at all levels</b><p>The RFC&#39;s MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements.</p></article>
+</div>
+<p>The 9 counts marked as a part above are the whole of the 18 mandatory requirements: they add up to 18. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
-<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
 <tbody>
-<tr><td>Gated MUSTs</td>
-<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
-</tr>
 <tr><td>Out of scope</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
 <td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
@@ -170,9 +180,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
-<tr><td>No test at all</td>
+<tr><td>Declared gap or no test</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
-<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+<td>green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
@@ -190,13 +200,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
 <td>neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption</td>
 </tr>
-<tr><td>Proven by a recorded break</td>
+<tr><td>Tests shown to detect a fault</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above</td>
+<td>green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
 <td><span class="rfc-swatch rfc-warn"></span> warn</td>
-<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current</td>
+</tr>
+<tr><td>Mandatory requirements (MUST level)</td>
+<td><span class="rfc-swatch rfc-total-card"></span> outlined</td>
+<td>outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad</td>
 </tr>
 </tbody>
 </table>
@@ -211,13 +225,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Public row</td>
 <td>VPLS NLRI</td>
 </tr>
-<tr><td>Enrolment</td>
-<td>Enrolled</td>
+<tr><td>Automatic checks</td>
+<td>Included</td>
 </tr>
 <tr><td>Requirements</td>
 <td>27</td>
 </tr>
-<tr><td>Gated MUST-level</td>
+<tr><td>Mandatory requirements (MUST level)</td>
 <td>18</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
@@ -229,7 +243,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
 </tr>
-<tr><td>Gated with no test</td>
+<tr><td>Mandatory requirements with no test and no annotation</td>
 <td>0</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
@@ -238,19 +252,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Test tags</td>
 <td>0</td>
 </tr>
-<tr><td>Tagged units</td>
+<tr><td>Tests linked to requirements</td>
 <td>0</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
 </tr>
-<tr><td>Discrimination records</td>
+<tr><td>Fault test records</td>
 <td>0</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc4761.md</code></td>
 </tr>
-<tr><td>Requirement shard</td>
+<tr><td>Requirement table</td>
 <td><code>rfc/requirements/rfc4761.md</code></td>
 </tr>
 <tr><td>RFC text</td>
@@ -260,10 +274,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 </section>
-<section><h2>Enrolment</h2>
-<p>Enrolled: Virtual Private LAN Service / VPLS Using BGP (RFC 4761). Ze fills the VPLS PE role on the control plane only: it registers the L2VPN/VPLS family (AFI 25, SAFI 65), decodes and encodes the VPLS NLRI (internal/component/bgp/plugins/nlri/vpls/), originates VPLS routes from configuration (config.go::parseConfigRoute, encode.go::EncodeRoute) with an operator-supplied Layer2 Info extended community, and keys received routes by RD, VE ID and VE Block Offset for path selection (internal/core/bgp/nlri/nlrisplit/vpls_key.go::keyVPLS). It has no VSI, pseudowire signalling, MAC FIB or VPLS data plane. No owner decision declines any PE procedure, so the 15 MUSTs ze does not meet are gaps, each disclosed by its own annotation, which the derived ledger lists under Unmet; three more (3.2.4-2, 3.4.2-1, 3.5-1) are gaps in proof: ze&#39;s code appears to meet them (keyVPLS for 3.5-1, a receive path that decides nothing on a control-flag bit for 3.2.4-2, re-advertising NLRI wire bytes for 3.4.2-1) and no test proves it</p>
+<section><h2>Automatic checks</h2>
+<p>Included in automatic checks: Virtual Private LAN Service / VPLS Using BGP (RFC 4761). Ze fills the VPLS PE role on the control plane only: it registers the L2VPN/VPLS family (AFI 25, SAFI 65), decodes and encodes the VPLS NLRI (internal/component/bgp/plugins/nlri/vpls/), originates VPLS routes from configuration (config.go::parseConfigRoute, encode.go::EncodeRoute) with an operator-supplied Layer2 Info extended community, and keys received routes by RD, VE ID and VE Block Offset for path selection (internal/core/bgp/nlri/nlrisplit/vpls_key.go::keyVPLS). It has no VSI, pseudowire signalling, MAC FIB or VPLS data plane. No owner decision declines any PE procedure, so the 15 MUSTs ze does not meet are gaps, each disclosed by its own annotation, which the derived ledger lists under Unmet; three more (3.2.4-2, 3.4.2-1, 3.5-1) are gaps in proof: ze&#39;s code appears to meet them (keyVPLS for 3.5-1, a receive path that decides nothing on a control-flag bit for 3.2.4-2, re-advertising NLRI wire bytes for 3.4.2-1) and no test proves it</p>
 </section>
-<section><h2>What the public ledger says</h2>
+<section><h2>Published support status</h2>
 <p><strong>Area:</strong> VPLS NLRI</p>
 <p><strong>Proof:</strong> 0 of 18 MUST proven</p>
 <p><strong>Evidence:</strong> -</p>
@@ -277,33 +291,33 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td>Positive and negative tests</td>
 <td><strong>0</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
 <td><strong>18</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
-<tr><td>One polarity only</td>
+<tr><td>Only a positive or negative test</td>
 <td><strong>0</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
 <td><strong>0</strong></td>
-<td>an overlay: each of these is also counted by the part it falls in</td>
+<td>also counted in one of the groups above</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
-<td>an overlay: each of these is also counted by the part it falls in</td>
+<td>also counted in one of the groups above</td>
 </tr>
 <tr><td>Derived from other rows</td>
 <td><strong>0</strong></td>
-<td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
+<td>excluded from the total: each summarizes the status of other requirements, which are already counted above</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>18</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Mandatory requirements (MUST level)</strong></td><td><strong>18</strong></td><td>every mandatory requirement appears in exactly one group above</td></tr>
 </tbody>
 </table>
 </div>
@@ -311,9 +325,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc4761:must">Ze correctness gap 18</div>
+<div data-ze-rfc-bar="rfc4761:must">Not built 18</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc4761:overview">SHOULD not decided 9, Ze correctness gap 18</div>
+<div data-ze-rfc-bar="rfc4761:overview">Not assessed 9, Not built 18</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -321,10 +335,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>RFCs</td>
 <td><span data-ze-rfc="rfc4761:rfcs">1</span></td>
 </tr>
-<tr><td>Not walked</td>
+<tr><td>Requirements not reviewed</td>
 <td><span data-ze-rfc="rfc4761:not-walked">0</span></td>
 </tr>
-<tr><td>Mandatory register</td>
+<tr><td>Mandatory requirements complete</td>
 <td><span data-ze-rfc="rfc4761:register">not complete</span></td>
 </tr>
 <tr><td>MUST rows</td>
@@ -339,11 +353,20 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc4761:must.os-verified">0</span></td>
 </tr>
+<tr><td>Proof pending</td>
+<td><span data-ze-rfc="rfc4761:must.proof-pending">0</span></td>
+</tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc4761:must.os-gap">0</span></td>
 </tr>
-<tr><td>Ze correctness gap</td>
-<td><span data-ze-rfc="rfc4761:must.ze-gap">18</span></td>
+<tr><td>Exclusion unchecked</td>
+<td><span data-ze-rfc="rfc4761:must.exclusion-unchecked">0</span></td>
+</tr>
+<tr><td>Not assessed</td>
+<td><span data-ze-rfc="rfc4761:must.not-assessed">0</span></td>
+</tr>
+<tr><td>Not built</td>
+<td><span data-ze-rfc="rfc4761:must.not-built">18</span></td>
 </tr>
 <tr><td>MUST rows not owed</td>
 <td><span data-ze-rfc="rfc4761:must.not-owed">0</span></td>
@@ -381,19 +404,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD not owed: not-applicable</td>
 <td><span data-ze-rfc="rfc4761:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
-<tr><td>SHOULD not ever</td>
-<td><span data-ze-rfc="rfc4761:should.not-ever">0</span></td>
+<tr><td>SHOULD proof pending</td>
+<td><span data-ze-rfc="rfc4761:should.proof-pending">0</span></td>
 </tr>
-<tr><td>SHOULD not yet</td>
-<td><span data-ze-rfc="rfc4761:should.not-yet">0</span></td>
+<tr><td>SHOULD exclusion unchecked</td>
+<td><span data-ze-rfc="rfc4761:should.exclusion-unchecked">0</span></td>
 </tr>
-<tr><td>SHOULD not decided</td>
-<td><span data-ze-rfc="rfc4761:should.not-decided">9</span></td>
+<tr><td>SHOULD not assessed</td>
+<td><span data-ze-rfc="rfc4761:should.not-assessed">9</span></td>
+</tr>
+<tr><td>SHOULD not built</td>
+<td><span data-ze-rfc="rfc4761:should.not-built">0</span></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.</p>
+<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
 
 </section>
 <section><h2>Requirements</h2>
@@ -730,81 +756,81 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Proof state</h2>
-<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<p>A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.</p>
 <h3><a href="#rfc4761-2.3-1"><code>RFC4761-2.3-1</code></a></h3>
 <p>Consequently, an implementation MUST maintain a separate routing storage for each service. (Section 2.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC4761-2.3-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC4761-2.3-1, so there is no linked test.</p>
 <h3><a href="#rfc4761-3.2.4-1"><code>RFC4761-3.2.4-1</code></a></h3>
 <p>the remaining bits, designated MBZ, MUST be set to zero when sending (Section 3.2.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC4761-3.2.4-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC4761-3.2.4-1, so there is no linked test.</p>
 <h3><a href="#rfc4761-3.2.4-2"><code>RFC4761-3.2.4-2</code></a></h3>
 <p>the remaining bits, designated MBZ, MUST be set to zero when sending and MUST be ignored when receiving this community. (Section 3.2.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC4761-3.2.4-2, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC4761-3.2.4-2, so there is no linked test.</p>
 <h3><a href="#rfc4761-3.2.4-3"><code>RFC4761-3.2.4-3</code></a></h3>
 <p>A Control word [7] MUST or MUST NOT be present when sending VPLS packets to this PE, depending on whether C is 1 or 0, respectively (Section 3.2.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC4761-3.2.4-3, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC4761-3.2.4-3, so there is no linked test.</p>
 <h3><a href="#rfc4761-3.2.4-4"><code>RFC4761-3.2.4-4</code></a></h3>
 <p>A Control word [7] MUST or MUST NOT be present when sending VPLS packets to this PE, depending on whether C is 1 or 0, respectively (Section 3.2.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC4761-3.2.4-4, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC4761-3.2.4-4, so there is no linked test.</p>
 <h3><a href="#rfc4761-3.2.4-5"><code>RFC4761-3.2.4-5</code></a></h3>
 <p>Sequenced delivery of frames MUST or MUST NOT be used when sending VPLS packets to this PE, depending on whether S is 1 or 0, respectively (Section 3.2.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC4761-3.2.4-5, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC4761-3.2.4-5, so there is no linked test.</p>
 <h3><a href="#rfc4761-3.2.4-6"><code>RFC4761-3.2.4-6</code></a></h3>
 <p>Sequenced delivery of frames MUST or MUST NOT be used when sending VPLS packets to this PE, depending on whether S is 1 or 0, respectively (Section 3.2.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC4761-3.2.4-6, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC4761-3.2.4-6, so there is no linked test.</p>
 <h3><a href="#rfc4761-3.2.3-1"><code>RFC4761-3.2.3-1</code></a></h3>
 <p>checks if V is part of any &#39;remote VE set&#39; that PE-b announced, i.e., PE-b checks if V belongs to some remote VE set that PE-b announced, say with VE Block Offset VBO&#39;, VE Block Size VBS&#39;, and label base LB&#39;. If not, PE-b MUST make a new announcement as described in Section 3.3. (Section 3.2.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC4761-3.2.3-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC4761-3.2.3-1, so there is no linked test.</p>
 <h3><a href="#rfc4761-3.2.3-2"><code>RFC4761-3.2.3-2</code></a></h3>
 <p>If Y withdraws an NLRI for V that X was using, then X MUST tear down its ends of the pseudowire between X and Y. (Section 3.2.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC4761-3.2.3-2, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC4761-3.2.3-2, so there is no linked test.</p>
 <h3><a href="#rfc4761-3.3-1"><code>RFC4761-3.3-1</code></a></h3>
 <p>If PE-a&#39;s configuration is changed to remove VE ID V from VPLS foo, then PE-a MUST withdraw all its announcements for VPLS foo that contain VE ID V. (Section 3.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC4761-3.3-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC4761-3.3-1, so there is no linked test.</p>
 <h3><a href="#rfc4761-3.4.2-1"><code>RFC4761-3.4.2-1</code></a></h3>
 <p>To be precise, the Length, the Route Distinguisher, the VE ID, the VE Block Offset, and the VE Block Size MUST be the same; the Label Base may be different. (Section 3.4.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC4761-3.4.2-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC4761-3.4.2-1, so there is no linked test.</p>
 <h3><a href="#rfc4761-3.5-1"><code>RFC4761-3.5-1</code></a></h3>
 <p>When a BGP speaker receives two equivalent NLRIs (see below for the definition), it applies standard path selection criteria such as Local Preference and AS Path Length to determine which NLRI to choose; it MUST pick only one. (Section 3.5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC4761-3.5-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC4761-3.5-1, so there is no linked test.</p>
 <h3><a href="#rfc4761-3.5-2"><code>RFC4761-3.5-2</code></a></h3>
 <p>If two PEs are assigned the same VE ID in a given VPLS, they MUST use the same Route Distinguisher (Section 3.5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC4761-3.5-2, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC4761-3.5-2, so there is no linked test.</p>
 <h3><a href="#rfc4761-4.2.1-1"><code>RFC4761-4.2.1-1</code></a></h3>
 <p>If a VE learns a source MAC address S on logical port P, then later sees S on a different port P&#39;, then the VE MUST update its FIB to reflect the new port P&#39;. (Section 4.2.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC4761-4.2.1-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC4761-4.2.1-1, so there is no linked test.</p>
 <h3><a href="#rfc4761-4.2.2-1"><code>RFC4761-4.2.2-1</code></a></h3>
 <p>If the age exceeds the aging time T, S MUST be flushed from the FIB. (Section 4.2.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC4761-4.2.2-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC4761-4.2.2-1, so there is no linked test.</p>
 <h3><a href="#rfc4761-4.2.5-1"><code>RFC4761-4.2.5-1</code></a></h3>
 <p>If, on the other hand, the frame arrived from another PE (say PEy), PEx must send a copy of the packet only to attached CEs. PEx MUST NOT send the frame to other PEs, since PEy would have already done so. (Section 4.2.5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC4761-4.2.5-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC4761-4.2.5-1, so there is no linked test.</p>
 <h3><a href="#rfc4761-6-1"><code>RFC4761-6-1</code></a></h3>
 <p>Any implementation of VPLS that allows VPLS packets to be tunneled as described in that document MUST contain an implementation of IPsec that can be used as therein described. (Section 6)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC4761-6-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC4761-6-1, so there is no linked test.</p>
 <h3><a href="#rfc4761-6-2"><code>RFC4761-6-2</code></a></h3>
 <p>Any implementation that allows MPLS-in-IP and/or MPLS-in-GRE tunneling to be used without IPsec MUST allow the egress PE to validate in this manner the IP source address of any tunneled packet that it receives. (Section 6)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC4761-6-2, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC4761-6-2, so there is no linked test.</p>
 </section>
-<section><h2>Extraction sign-off</h2>
+<section><h2>Requirement list review</h2>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
@@ -850,223 +876,223 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td><code>front</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Title block, Status of This Memo, Copyright Notice, IESG Note, Abstract and Table of Contents. Walked rather than skipped because the site scan attributes one site here, the Abstract&#39;s statement of what the document describes, excluded below. The IESG Note records that RFC 4762 and this document both perform VPLS in different, incompatible manners.</td>
 </tr>
 <tr><td><code>1</code></td>
 <td>Introduction</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Introduction. Indicative prose: what a VPLS is, that it glues individual LANs across a packet switched network by MAC learning, flooding and forwarding over pseudowires, what this document adds (auto-discovery and signaling over BGP, and transport of VPLS frames over tunnels), and which alternatives exist, RFC 4762&#39;s LDP-signaled VPLS among them. No directive and no site.</td>
 </tr>
 <tr><td><code>1.1</code></td>
 <td>Scope of This Document</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Scope of This Document. A roadmap: the functional model in section 2, the BGP control plane in section 3, the forwarding plane in section 4, the deployment options in section 5. Its one site is the roadmap sentence pointing at section 4 and is excluded below.</td>
 </tr>
 <tr><td><code>1.2</code></td>
 <td>Conventions Used in This Document</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Conventions Used in This Document. The RFC 2119 key-words paragraph. It tells a reader how to read the other sections and binds no speaker, which is why the derivation excludes it from the site inventory.</td>
 </tr>
 <tr><td><code>2</code></td>
 <td>Functional Model</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Functional Model. One sentence introducing Figure 1, the example VPLS with CEs, PEs, a u-PE and five customer sites. No directive and no site.</td>
 </tr>
 <tr><td><code>2.1</code></td>
 <td>Terminology</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Terminology. Defines SP, P, PE, CE, u-PE, VE and demultiplexor, records that PE and u-PE devices are VPLS-aware while a CE is not, and that the demultiplexor in this document is an MPLS label. Definitions, not directives, and no site.</td>
 </tr>
 <tr><td><code>2.2</code></td>
 <td>Assumptions</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Assumptions. States the assumptions the rest of the document rests on: a packet switched SP network, PEs logically fully meshed with tunnels established outside this document, flooding and learning private to each SP device, and a bidirectional pseudowire between every pair of PEs in a VPLS. Indicative throughout and no site.</td>
 </tr>
 <tr><td><code>2.3</code></td>
 <td>Interactions</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Interactions. States what makes VPLS a LAN service, private and virtual, that PE interactions are control-driven rather than data-driven, and that a PE can run VPLS and IP VPNs at once because the two use different AFI/SAFI pairs. Its one capitalised MUST-level site is the separate-routing-storage obligation that follows from that, mapped below to RFC4761-2.3-1.</td>
 </tr>
 <tr><td><code>3</code></td>
 <td>Control Plane</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Control Plane. One paragraph naming the two control-plane functions, auto-discovery and signaling, and pointing at sections 3.1 to 3.5. No directive and no site.</td>
 </tr>
 <tr><td><code>3.1</code></td>
 <td>Auto-Discovery</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Auto-Discovery. Contrasts configuring every PE by hand with discovering them by protocol. Both sites belong to the description of the manual alternative and are excluded below; the paragraph on auto-discovery that follows states what BGP buys and directs nobody.</td>
 </tr>
 <tr><td><code>3.1.1</code></td>
 <td>Functions</td>
 <td>3</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Functions. States what the discovery function has to provide: a PE must be able to tell the others it is a member of a VPLS, to declare that it no longer participates, and so to have a means of identifying a VPLS and of communicating with all other PEs. All three sites bind the VPLS PE performing auto-discovery and are excluded below.</td>
 </tr>
 <tr><td><code>3.1.2</code></td>
 <td>Protocol Specification</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Protocol Specification. States that the mechanism uses the Route Target extended community of RFC 4360 to identify VPLS members with RFC 4364&#39;s semantics, that one RT suffices for a fully meshed VPLS, and how a PE announces membership by annotating its NLRIs with that RT and withdraws it by withdrawing them. Indicative throughout and no site.</td>
 </tr>
 <tr><td><code>3.2</code></td>
 <td>Signaling</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Signaling. States what signaling is (each pair of PEs establishing and tearing down pseudowires, that is exchanging and withdrawing demultiplexors), what a demultiplexor carries, and why one common Update carrying demultiplexors for every remote PE beats N individual messages. Its one site is the pseudowire-establishment sentence, which binds the VPLS PE and is excluded below.</td>
 </tr>
 <tr><td><code>3.2.1</code></td>
 <td>Label Blocks</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Label Blocks. Defines a label block as the contiguous set {LB, ..., LB+VBS-1}, extends it with the VE block offset so a block is {LB+VBO, ..., LB+VBO+VBS-1}, and explains how each receiving PE infers its own demultiplexor by adding its VE ID to the label base. Definitions, not directives, and no site.</td>
 </tr>
 <tr><td><code>3.2.2</code></td>
 <td>VPLS BGP NLRI</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>VPLS BGP NLRI. The document&#39;s wire-format section: AFI 25, SAFI 65, and the NLRI&#39;s Length, Route Distinguisher, VE ID, VE Block Offset, VE Block Size and 3-octet Label Base, with the one-to-one correspondence between the remote VE set and the label block. The layout is carried by the Wire Formats tables of rfc/short/rfc4761.md, and it is the part of this RFC ze does implement: internal/component/bgp/plugins/nlri/vpls.ParseVPLS decodes exactly these fields and EncodeRoute builds them. Its one site is the VE ID provisioning sentence, which binds the VPLS PE and is excluded below.</td>
 </tr>
 <tr><td><code>3.2.3</code></td>
 <td>PW Setup and Teardown</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>PW Setup and Teardown. The four-step procedure PE-b runs on an announcement from PE-a, and the teardown rule when an NLRI in use is withdrawn. Its two capitalised MUST-level sites are mapped below to RFC4761-3.2.3-1 and RFC4761-3.2.3-2; steps 1, 2 and 4 are stated in the indicative and the site scan sees nothing in them.</td>
 </tr>
 <tr><td><code>3.2.4</code></td>
 <td>Signaling PE Capabilities</td>
 <td>4</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Signaling PE Capabilities. Defines the Layer2 Info Extended Community (0x800A) carrying Encaps Type, Control Flags and Layer-2 MTU, with Encaps Type 19 for VPLS, and the C and S Control Flags. Three of its four sites carry the section&#39;s obligations and are mapped below to RFC4761-3.2.4-1, -3 and -5. The other half of each of those three sentences is a second declared row, listed here as an unsourced id, because the splitter keeps one sentence as one site: RFC4761-3.2.4-2 is &#39;MUST be ignored when receiving this community&#39;, RFC4761-3.2.4-4 is the C=0 &#39;MUST NOT be present&#39; half, and RFC4761-3.2.4-6 is the S=0 &#39;MUST NOT be used&#39; half. Site 3.2.4:1 is the Figure 4 bit vector and its legend and is excluded below.</td>
 </tr>
 <tr><td><code>3.3</code></td>
 <td>BGP VPLS Operation</td>
 <td>4</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>BGP VPLS Operation. Walks the whole life of a BGP VPLS announcement: the administrator picks an RT, the PE is configured with a VE ID and possibly an RD, it generates a label block and a remote VE set, builds the NLRI, attaches the Layer2 Info community and the RT, sets itself as Next Hop and announces. Site 3.3:4 carries the withdrawal obligation and is mapped below to RFC4761-3.3-1; sites 3.3:1, 3.3:2 and 3.3:3 are excluded. The SHOULD listed as an unsourced id is the CE-links-down rule: &#39;If all of PE-a&#39;s links to its CEs in VPLS foo go down, then PE-a SHOULD either withdraw all its NLRIs for VPLS foo or let other PEs in the VPLS foo know in some way that PE-a is no longer connected to its CEs.&#39;</td>
 </tr>
 <tr><td><code>3.4</code></td>
 <td>Multi-AS VPLS</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Multi-AS VPLS. States the problem when the sites of a VPLS attach to PEs in different ASes, introduces Figure 5 and the three methods of sections 3.4.1 to 3.4.3 in order of increasing scalability. No directive and no site.</td>
 </tr>
 <tr><td><code>3.4.1</code></td>
 <td>Method (a): VPLS-to-VPLS Connections at the ASBRs</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Method (a): VPLS-to-VPLS Connections at the ASBRs. Each ASBR acts as a PE for the VPLSs spanning the two ASes and views the other ASBR as a CE, which requires Ethernet on the interconnect and full PE operation on the ASBR. Its one site is the loop-prevention rule for redundant inter-AS connections and is excluded below.</td>
 </tr>
 <tr><td><code>3.4.2</code></td>
 <td>not stated</td>
 <td>3</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Method (b): EBGP Redistribution of VPLS Information between ASBRs. The ASBRs re-advertise the VPLS NLRI with new labels and themselves as next hop, and swap labels in the forwarding path. Site 3.4.2:1 carries the obligation that everything but the Label Base stay identical and is mapped below to RFC4761-3.4.2-1; sites 3.4.2:2 and 3.4.2:3 are the ASBR forwarding-path installations and are excluded.</td>
 </tr>
 <tr><td><code>3.4.3</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Method (c): Multi-Hop EBGP Redistribution of VPLS Information between ASes. A multi-hop E-BGP peering between the PEs or their route reflectors, with a tunnel LSP from PE1 to PE2 and no VPLS state on the ASBRs. Indicative throughout and no site.</td>
 </tr>
 <tr><td><code>3.4.4</code></td>
 <td>Allocation of VE IDs across Multiple ASes</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Allocation of VE IDs across Multiple ASes. Suggests allocating a VE ID range per AS to keep VE IDs unique while minimising the number of NLRIs, with no overlap between ranges except for multi-homing. Advisory prose with no site.</td>
 </tr>
 <tr><td><code>3.5</code></td>
 <td>Multi-homing and Path Selection</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Multi-homing and Path Selection. When the PEs attached to one site carry the same VE ID, BGP path selection builds the loop-free topology, and two VPLS NLRIs are equivalent when their Route Distinguisher, VE ID and VE Block Offset match. Its two capitalised MUST-level sites are mapped below to RFC4761-3.5-1 and RFC4761-3.5-2. The unsourced id is the SHOULD that closes the second of those sentences, &#39;they SHOULD announce the same VE Block Size for a given VE Offset&#39;, which the splitter keeps in site 3.5:2.</td>
 </tr>
 <tr><td><code>3.6</code></td>
 <td>Hierarchical BGP VPLS</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Hierarchical BGP VPLS. How BGP route reflectors scale the VPLS control plane, that RRs introduce no data plane state, that no MAC addresses are exchanged over BGP, and when BGP processing for VPLS happens. Its one site states that something is NOT required and is excluded below.</td>
 </tr>
 <tr><td><code>4</code></td>
 <td>Data Plane</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Data Plane. One sentence naming the two aspects sections 4.1 and 4.2 cover, encapsulation and forwarding. No directive and no site.</td>
 </tr>
 <tr><td><code>4.1</code></td>
 <td>Encapsulation</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Encapsulation. One sentence: Ethernet frames from CE devices are encapsulated for transmission over the packet switched network as in RFC 4448. No obligation of its own and no site.</td>
 </tr>
 <tr><td><code>4.2</code></td>
 <td>Forwarding</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Forwarding. States that a VPLS packet is classified into a service instance by the interface it arrived on, and forwarded within that instance on the destination MAC address. Indicative and no site.</td>
 </tr>
 <tr><td><code>4.2.1</code></td>
 <td>MAC Address Learning</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>MAC Address Learning. The SP network appears as one logical learning bridge per VPLS, learning associates a source MAC with the logical port it arrived on, and that association is the FIB. Site 4.2.1:2 carries the MAC-move obligation and is mapped below to RFC4761-4.2.1-1; site 4.2.1:1 is the learning-bridge analogy and is excluded. The unsourced id is the MAY that closes the section, &#39;A VE MAY implement a mechanism to damp flapping of source ports for a given MAC address.&#39;</td>
 </tr>
 <tr><td><code>4.2.2</code></td>
 <td>Aging</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Aging. Site 4.2.2:2 carries the capitalised MUST, mapped below to RFC4761-4.2.2-1, and site 4.2.2:1 is the rationale sentence inside the section&#39;s opening SHOULD and is excluded. Three declared rows are read from prose here and are the unsourced ids: RFC4761-4.2.2-2 is &#39;VPLS PEs SHOULD have an aging mechanism to remove a MAC address associated with a logical port&#39;, RFC4761-4.2.2-3 is &#39;An implementation SHOULD provide a configurable knob to set the aging time T on a per-VPLS basis&#39;, and RFC4761-4.2.2-4 is the MAY to accelerate aging of every MAC address in a VPLS on a Spanning Tree topology change.</td>
 </tr>
 <tr><td><code>4.2.3</code></td>
 <td>Flooding</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Flooding. Describes flooding a frame whose destination is not in the FIB to every other VE in the VPLS, and works the Figure 1 example through PE2, PE1 and a u-PE, including a PE that announces whether it is capable of flooding. Indicative throughout and no site.</td>
 </tr>
 <tr><td><code>4.2.4</code></td>
 <td>Broadcast and Multicast</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Broadcast and Multicast. Its one site is the broadcast-delivery rule and is excluded below. The unsourced id is the MAY that follows, &#39;a VE MAY also use certain techniques to restrict transmission of multicast frames to a smaller set of receivers&#39;, whose discussion the section puts out of scope.</td>
 </tr>
 <tr><td><code>4.2.5</code></td>
 <td>&#39;Split Horizon&#39; Forwarding</td>
 <td>4</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>&#39;Split Horizon&#39; Forwarding. Four sites: three describe what a flooding PE sends where, and the fourth is the capitalised split-horizon prohibition mapped below to RFC4761-4.2.5-1. The other three bind the VPLS PE forwarding path and are excluded. The closing sentence extends the rule to broadcast and multicast packets as well as unknown MAC addresses.</td>
 </tr>
 <tr><td><code>4.2.6</code></td>
 <td>Qualified and Unqualified Learning</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Qualified and Unqualified Learning. Defines the two learning keys, the MAC address alone or the customer VLAN tag with it, and weighs one global broadcast domain against one per VLAN. Definitions and trade-offs, no directive and no site.</td>
 </tr>
 <tr><td><code>4.2.7</code></td>
 <td>Class of Service</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Class of Service. Its one site is the SHOULD that the mapping function be per-VPLS, mapped below to RFC4761-4.2.7-1. The unsourced id is the MAY that opens the section, &#39;an implementation MAY choose to map 802.1p bits in a customer Ethernet frame with a VLAN tag to an appropriate setting of EXP bits in the pseudowire and/or tunnel label&#39;.</td>
 </tr>
 <tr><td><code>5</code></td>
 <td>Deployment Options</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Deployment Options. Defines &#39;decoupled&#39; operation: the VE closest to the customer can be the PE itself or a u-PE that does the Layer 2 functions and a limited set of Layer 3 functions, and PEs of both kinds mix in one network because discovery and signaling are unchanged. Its one site is the SP&#39;s deployment decision and is excluded below.</td>
 </tr>
 <tr><td><code>6</code></td>
 <td>Security Considerations</td>
 <td>3</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Security Considerations. States that VPLS offers no confidentiality, integrity or authentication, that both the control plane and the forwarding path have to be protected, that RFC 2385 authenticates the BGP exchanges, and that VPLS labels must be accepted only from valid interfaces. It closes on MPLS-in-IP and MPLS-in-GRE tunneling per RFC 4023: sites 6:2 and 6:3 carry the two capitalised MUST-level obligations and are mapped below to RFC4761-6-1 and RFC4761-6-2, and site 6:1 points at RFC 4023&#39;s own security considerations and is excluded.</td>
 </tr>
 <tr><td><code>7</code></td>
@@ -1102,7 +1128,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td><code>B</code></td>
 <td>Appendix B, Acknowledgements</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Appendix B, Acknowledgements. Because no numbered heading follows it, the derived span also carries the Editors&#39; Addresses, the Full Copyright Statement, the Intellectual Property boilerplate and the RFC Editor funding note. Walked rather than skipped because the prose scan attributes one site here; that site is IPR boilerplate and is excluded below. Nothing in the span states an obligation on an implementation.</td>
 </tr>
 </tbody>
@@ -1263,7 +1289,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     </a>
                     <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
                         <span class="page-sidebar-link-label">Verify debugging</span>
-                        <small>How failed checks route to evidence.</small>
+                        <small>How to investigate failed checks using their logs.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -1282,7 +1308,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 01:56 UTC</span>
                 </div>
             </div>
         </footer>

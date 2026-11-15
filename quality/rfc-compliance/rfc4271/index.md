@@ -1,6 +1,6 @@
 # RFC 4271 - A Border Gateway Protocol 4 (BGP-4)
 
-BGP-4 base protocol. Every requirement this repository extracted from RFC 4271, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+BGP-4 base protocol. Every requirement listed for RFC 4271, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,24 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 112 | of 133 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 2 | of 133 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 133 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 133 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 247 | 247 of 454 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-
-### Neutral
-
-measures that are neither good news nor bad
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Gated MUSTs | 133 | of 167 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 133 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 133 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 133 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 133 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 133 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Tested both ways | 112 | of 133 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 2 | of 133 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 133 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 133 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Tests shown to detect a fault | 251 | 251 of 458 tests linked to requirements, 0 without a fault test and 1 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -35,55 +22,75 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 19 | of 133 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 95 | of 133 gated MUSTs judged | 4 weak, wrong or unimplemented, 4 no longer current. Each is named below under its own requirement id |
+| Declared gap or no test | 19 | of 133 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Audit verdicts | 95 | of 133 mandatory requirements reviewed | 4 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
-The 9 counts marked as a part above are the whole of the 133 gated MUSTs: they add up to 133. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Neutral
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+measures that are neither good news nor bad
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Out of scope | 0 | of 133 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 133 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 133 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 133 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 133 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+
+### Totals
+
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 133 | of 167 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 133 mandatory requirements: they add up to 133. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | BGP-4 base protocol |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 167 |
-| Gated MUST-level | 133 |
+| Mandatory requirements (MUST level) | 133 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 19 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 454 |
-| Tagged units | 454 |
+| Test tags | 458 |
+| Tests linked to requirements | 458 |
 | Recorded audit verdicts | 95 |
-| Discrimination records | 247 |
+| Fault test records | 252 |
 | Summary | `rfc/short/rfc4271.md` |
-| Requirement shard | `rfc/requirements/rfc4271.md` |
+| Requirement table | `rfc/requirements/rfc4271.md` |
 | RFC text | `rfc/full/rfc4271.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: A Border Gateway Protocol 4 (BGP-4): Section 5.1.4 requires a local-configuration mechanism that removes MULTI_EXIT_DISC from a route. Ze exposes the full obligation as `modify NAME { del { med; } }` on an import chain, before Decision Process phases 1 and 2.
+Included in automatic checks: A Border Gateway Protocol 4 (BGP-4): Section 5.1.4 requires a local-configuration mechanism that removes MULTI_EXIT_DISC from a route. Ze exposes the full obligation as `modify NAME { del { med; } }` on an import chain, before Decision Process phases 1 and 2.
 
-## What the public ledger says
+## Published support status
 
 **Area:** BGP-4 base protocol
 
@@ -98,14 +105,14 @@ Enrolled: A Border Gateway Protocol 4 (BGP-4): Section 5.1.4 requires a local-co
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 112 | one part of the gated population |
-| Annotated (including scoped evidence) | 21 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **133** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 112 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 21 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **133** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (112):** [`RFC4271-4.1-1`](#rfc4271-4.1-1), [`RFC4271-4.1-2`](#rfc4271-4.1-2), [`RFC4271-4.1-3`](#rfc4271-4.1-3), [`RFC4271-4.3-1`](#rfc4271-4.3-1), [`RFC4271-4.3-2`](#rfc4271-4.3-2), [`RFC4271-4.3-3`](#rfc4271-4.3-3), [`RFC4271-4.3-4`](#rfc4271-4.3-4), [`RFC4271-4.4-1`](#rfc4271-4.4-1), [`RFC4271-4.4-2`](#rfc4271-4.4-2), [`RFC4271-6-1`](#rfc4271-6-1), [`RFC4271-4.2-1`](#rfc4271-4.2-1), [`RFC4271-4.2-2`](#rfc4271-4.2-2), [`RFC4271-6.2-1`](#rfc4271-6.2-1), [`RFC4271-6.2-2`](#rfc4271-6.2-2), [`RFC4271-5-1`](#rfc4271-5-1), [`RFC4271-5-2`](#rfc4271-5-2), [`RFC4271-5-3`](#rfc4271-5-3), [`RFC4271-5-4`](#rfc4271-5-4), [`RFC4271-5-5`](#rfc4271-5-5), [`RFC4271-5-6`](#rfc4271-5-6), [`RFC4271-5.1.3-1`](#rfc4271-5.1.3-1), [`RFC4271-5.1.3-2`](#rfc4271-5.1.3-2), [`RFC4271-5.1.3-3`](#rfc4271-5.1.3-3), [`RFC4271-5.1.4-1`](#rfc4271-5.1.4-1), [`RFC4271-5.1.4-4`](#rfc4271-5.1.4-4), [`RFC4271-5.1.4-2`](#rfc4271-5.1.4-2), [`RFC4271-5.1.5-1`](#rfc4271-5.1.5-1), [`RFC4271-5.1.5-2`](#rfc4271-5.1.5-2), [`RFC4271-5.1.5-3`](#rfc4271-5.1.5-3), [`RFC4271-5.1.5-4`](#rfc4271-5.1.5-4), [`RFC4271-6.1-1`](#rfc4271-6.1-1), [`RFC4271-6.1-2`](#rfc4271-6.1-2), [`RFC4271-6.1-3`](#rfc4271-6.1-3), [`RFC4271-6.1-4`](#rfc4271-6.1-4), [`RFC4271-6.3-1`](#rfc4271-6.3-1), [`RFC4271-6.7-1`](#rfc4271-6.7-1), [`RFC4271-8.2.1-1`](#rfc4271-8.2.1-1), [`RFC4271-8.2.1-2`](#rfc4271-8.2.1-2), [`RFC4271-8.2.2-1`](#rfc4271-8.2.2-1), [`RFC4271-8.2.2-2`](#rfc4271-8.2.2-2), [`RFC4271-8.2.2-3`](#rfc4271-8.2.2-3), [`RFC4271-8.2.2-4`](#rfc4271-8.2.2-4), [`RFC4271-8.2.2-5`](#rfc4271-8.2.2-5), [`RFC4271-8.2.2-7`](#rfc4271-8.2.2-7), [`RFC4271-8.2.2-20`](#rfc4271-8.2.2-20), [`RFC4271-8.2.2-8`](#rfc4271-8.2.2-8), [`RFC4271-8.2.2-9`](#rfc4271-8.2.2-9), [`RFC4271-8.2.2-10`](#rfc4271-8.2.2-10), [`RFC4271-8.2.2-11`](#rfc4271-8.2.2-11), [`RFC4271-8.2.2-12`](#rfc4271-8.2.2-12), [`RFC4271-8.2.2-14`](#rfc4271-8.2.2-14), [`RFC4271-8.2.2-15`](#rfc4271-8.2.2-15), [`RFC4271-8.2.2-21`](#rfc4271-8.2.2-21), [`RFC4271-8.2.2-22`](#rfc4271-8.2.2-22), [`RFC4271-8.2.2-23`](#rfc4271-8.2.2-23), [`RFC4271-8.2.2-24`](#rfc4271-8.2.2-24), [`RFC4271-8.2.2-25`](#rfc4271-8.2.2-25), [`RFC4271-8.2.2-26`](#rfc4271-8.2.2-26), [`RFC4271-8.2.2-27`](#rfc4271-8.2.2-27), [`RFC4271-8.2.2-28`](#rfc4271-8.2.2-28), [`RFC4271-8.2.2-16`](#rfc4271-8.2.2-16), [`RFC4271-8.2.2-17`](#rfc4271-8.2.2-17), [`RFC4271-10-1`](#rfc4271-10-1), [`RFC4271-5.1.2-2`](#rfc4271-5.1.2-2), [`RFC4271-5.1.2-3`](#rfc4271-5.1.2-3), [`RFC4271-5.1.5-5`](#rfc4271-5.1.5-5), [`RFC4271-6.7-4`](#rfc4271-6.7-4), [`RFC4271-6.8-1`](#rfc4271-6.8-1), [`RFC4271-6.8-2`](#rfc4271-6.8-2), [`RFC4271-9-1`](#rfc4271-9-1), [`RFC4271-9-2`](#rfc4271-9-2), [`RFC4271-9-3`](#rfc4271-9-3), [`RFC4271-9.1.1-1`](#rfc4271-9.1.1-1), [`RFC4271-9.1.1-2`](#rfc4271-9.1.1-2), [`RFC4271-9.1.2-2`](#rfc4271-9.1.2-2), [`RFC4271-9.1.2-3`](#rfc4271-9.1.2-3), [`RFC4271-9.1.2.1-1`](#rfc4271-9.1.2.1-1), [`RFC4271-9.1.2.2-1`](#rfc4271-9.1.2.2-1), [`RFC4271-9.1.2.2-3`](#rfc4271-9.1.2.2-3), [`RFC4271-9.1.2.2-4`](#rfc4271-9.1.2.2-4), [`RFC4271-9.2-4`](#rfc4271-9.2-4), [`RFC4271-9.2-5`](#rfc4271-9.2-5), [`RFC4271-Security-1`](#rfc4271-security-1), [`RFC4271-9.2-6`](#rfc4271-9.2-6), [`RFC4271-9.2-7`](#rfc4271-9.2-7), [`RFC4271-9.2-8`](#rfc4271-9.2-8), [`RFC4271-9.2-9`](#rfc4271-9.2-9), [`RFC4271-9.2-10`](#rfc4271-9.2-10), [`RFC4271-5-8`](#rfc4271-5-8), [`RFC4271-6.2-5`](#rfc4271-6.2-5), [`RFC4271-6.2-6`](#rfc4271-6.2-6), [`RFC4271-6.2-7`](#rfc4271-6.2-7), [`RFC4271-6.2-8`](#rfc4271-6.2-8), [`RFC4271-6.2-9`](#rfc4271-6.2-9), [`RFC4271-6.2-10`](#rfc4271-6.2-10), [`RFC4271-6.3-4`](#rfc4271-6.3-4), [`RFC4271-6.3-5`](#rfc4271-6.3-5), [`RFC4271-6.3-6`](#rfc4271-6.3-6), [`RFC4271-6.3-7`](#rfc4271-6.3-7), [`RFC4271-6.3-8`](#rfc4271-6.3-8), [`RFC4271-6.3-9`](#rfc4271-6.3-9), [`RFC4271-6.3-10`](#rfc4271-6.3-10), [`RFC4271-6.3-11`](#rfc4271-6.3-11), [`RFC4271-6.3-12`](#rfc4271-6.3-12), [`RFC4271-6.3-13`](#rfc4271-6.3-13), [`RFC4271-6.3-14`](#rfc4271-6.3-14), [`RFC4271-6.3-15`](#rfc4271-6.3-15), [`RFC4271-6.3-16`](#rfc4271-6.3-16), [`RFC4271-6.3-17`](#rfc4271-6.3-17), [`RFC4271-8.2.2-19`](#rfc4271-8.2.2-19), [`RFC4271-9-4`](#rfc4271-9-4), [`RFC4271-10-4`](#rfc4271-10-4)
 
@@ -113,20 +120,23 @@ Enrolled: A Border Gateway Protocol 4 (BGP-4): Section 5.1.4 requires a local-co
 
 ## Figures
 
-- **MUST bar**: Ze proven 85, Ze correctness gap 48
-- **Overview bar**: Ze MUST proven 85, SHOULD proven 3, SHOULD not decided 31, Ze correctness gap 48
+- **MUST bar**: Ze proven 85, Proof pending 29, Not built 19
+- **Overview bar**: Ze MUST proven 85, SHOULD proven 3, Proof pending 30, Not assessed 30, Not built 19
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 133 |
 | MUST rows kept (the MUST bar) | 133 |
 | Ze proven | 85 |
 | OS verified | 0 |
+| Proof pending | 29 |
 | OS testing gap | 0 |
-| Ze correctness gap | 48 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 19 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -139,11 +149,12 @@ Enrolled: A Border Gateway Protocol 4 (BGP-4): Section 5.1.4 requires a local-co
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 31 |
+| SHOULD proof pending | 1 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 30 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc4271.json](../../../data/rfc/rfc4271.json).
 
@@ -172,14 +183,14 @@ Source: [data/rfc/rfc4271.json](../../../data/rfc/rfc4271.json).
 | `RFC4271-5-5` | Unrecognized non-transitive optional attributes MUST be quietly ignored (§5) | MUST | 5 | **positive:** `unit/verify` [`TestRFC4271UnrecognizedNonTransitiveIsNotPassedAlong`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1217). **negative:** `unit/verify` [`TestRFC4271TheNonTransitiveDropSparesEveryOtherClass`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1258) |
 | `RFC4271-5-6` | The receiver of an UPDATE message MUST be prepared to handle path attributes within UPDATE messages that are out of order. (§5) | MUST | 5 | **positive:** `unit/verify` [`TestRFC4271AttributesOutOfOrderAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L294). **positive:** `unit/verify` [`TestRFC4271OutOfOrderAttributesReachTheReceivePathIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_out_of_order_receive_test.go#L26). **negative:** `unit/verify` [`TestRFC4271OutOfOrderAttributesReachTheReceivePathIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_out_of_order_receive_test.go#L29). **negative:** `unit/verify` [`TestRFC4271OutOfOrderDoesNotMaskMalformation`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L324) |
 | `RFC4271-4.3-5` | However, a BGP speaker MUST be able to process UPDATE messages in this form. (§4.3) | MUST | 4.3 | **positive:** `unit/verify` [`TestRIBInjectSamePrefixInWithdrawnAndNLRIInstallsTheRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go#L119). **positive:** `unit/verify` [`TestRIBPoolPathSamePrefixInWithdrawnAndNLRIInstallsTheRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go#L85). **positive:** `unit/verify` [`TestRIBSamePrefixInWithdrawnAndNLRIInstallsTheRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go#L39). **negative:** no negative test. **{single-polarity}:** the obligation is to ACCEPT a message shape, so there is no non-conformant input to reject -- every UPDATE of this form must be processed, and a negative case would have to assert the absence of an error, which proves nothing (ai/rules/testing.md). The consequence the same paragraph asks for, treating the UPDATE as though WITHDRAWN did not contain the prefix, is RFC4271-4.3-7 and is proven by the same test |
-| `RFC4271-5.1.3-1` | A route originated by a BGP speaker SHALL NOT be advertised to a peer using an address of that peer as NEXT_HOP. (§5.1.3) | SHALL NOT | 5.1.3 | **positive:** `unit/verify` [`TestEgressNextHopIsPeerOwnReadsTheRewrittenAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L294). **positive:** `unit/verify` [`TestForwardRSWithholdsRouteWhoseNextHopIsTheClientsOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L260). **positive:** `unit/verify` [`TestForwardWithdrawsFromDestinationWhoseNextHopIsItsOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L225). **positive:** `unit/verify` [`TestForwardWithholdsRouteWhoseNextHopIsTheDestinationsOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L185). **positive:** `unit/verify` [`TestSendAnnounceWithholdsRouteWithPeerOwnNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L476). **positive:** `unit/verify` [`TestSendUpdateWithholdsOriginatedRouteWithPeerOwnNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L437). **negative:** `unit/verify` [`TestEgressNextHopIsPeerOwnReadsTheRewrittenAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L298). **negative:** `unit/verify` [`TestForwardRSWithholdsRouteWhoseNextHopIsTheClientsOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L263). **negative:** `unit/verify` [`TestForwardWithholdsRouteWhoseNextHopIsTheDestinationsOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L190). **negative:** `unit/verify` [`TestSendAnnounceWithholdsRouteWithPeerOwnNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L478). **negative:** `unit/verify` [`TestSendUpdateWithholdsOriginatedRouteWithPeerOwnNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L441). **positive:** `functional/verify` [`originated-nexthop-peer-own.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/originated-nexthop-peer-own.ci#L7). **negative:** `functional/verify` [`originated-nexthop-peer-own.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/originated-nexthop-peer-own.ci#L10). **positive:** `interop/nightly` [`checkSelfNextHopWithheld`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1000). **negative:** `interop/nightly` [`checkSelfNextHopWithheld`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1001) |
+| `RFC4271-5.1.3-1` | A route originated by a BGP speaker SHALL NOT be advertised to a peer using an address of that peer as NEXT_HOP. (§5.1.3) | SHALL NOT | 5.1.3 | **positive:** `unit/verify` [`TestEgressNextHopIsPeerOwnReadsTheRewrittenAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L294). **positive:** `unit/verify` [`TestForwardRSWithholdsRouteWhoseNextHopIsTheClientsOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L260). **positive:** `unit/verify` [`TestForwardWithdrawsFromDestinationWhoseNextHopIsItsOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L225). **positive:** `unit/verify` [`TestForwardWithholdsRouteWhoseNextHopIsTheDestinationsOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L185). **positive:** `unit/verify` [`TestQueuedDefaultNextHopDrains`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/default_next_hop_controls_test.go#L28). **positive:** `unit/verify` [`TestSendAnnounceWithholdsRouteWithPeerOwnNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L476). **positive:** `unit/verify` [`TestSendUpdateWithholdsOriginatedRouteWithPeerOwnNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L437). **negative:** `unit/verify` [`TestEgressNextHopIsPeerOwnReadsTheRewrittenAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L298). **negative:** `unit/verify` [`TestForwardRSWithholdsRouteWhoseNextHopIsTheClientsOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L263). **negative:** `unit/verify` [`TestForwardWithholdsRouteWhoseNextHopIsTheDestinationsOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L190). **negative:** `unit/verify` [`TestQueuedDefaultNextHopDrains`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/default_next_hop_controls_test.go#L31). **negative:** `unit/verify` [`TestSendAnnounceWithholdsRouteWithPeerOwnNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L478). **negative:** `unit/verify` [`TestSendUpdateWithholdsOriginatedRouteWithPeerOwnNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L441). **positive:** `functional/verify` [`originated-nexthop-peer-own.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/originated-nexthop-peer-own.ci#L7). **negative:** `functional/verify` [`originated-nexthop-peer-own.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/originated-nexthop-peer-own.ci#L10). **positive:** `interop/nightly` [`checkSelfNextHopWithheld`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1041). **negative:** `interop/nightly` [`checkSelfNextHopWithheld`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1042) |
 | `RFC4271-5.1.3-2` | A BGP speaker SHALL NOT install a route with itself as the next hop (§5.1.3) | SHALL NOT | 5.1.3 | **positive:** `unit/verify` [`TestRFC4271SelfNextHopRouteIsNotInstalled`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_self_nexthop_test.go#L43). **positive:** `unit/verify` [`TestRFC4271SelfNextHopSetComesFromPeerEvents`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_self_nexthop_test.go#L122). **negative:** `unit/verify` [`TestRFC4271SelfNextHopDoesNotShadowASoundAlternative`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_self_nexthop_test.go#L89). **negative:** `unit/verify` [`TestRFC4271SelfNextHopRouteIsNotInstalled`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_self_nexthop_test.go#L47). **negative:** `unit/verify` [`TestRFC4271SelfNextHopSetComesFromPeerEvents`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_self_nexthop_test.go#L126) |
 | `RFC4271-5.1.3-3` | A BGP speaker MUST be able to support the disabling advertisement of third party NEXT_HOP attributes in order to handle imperfectly bridged media. (§5.1.3) | MUST | 5.1.3 | **positive:** `unit/verify` [`TestRFC4271NextHopSelfDisablesThirdPartyNextHopOnTheWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_third_party_nexthop_test.go#L41). **positive:** `unit/verify` [`TestRFC4271NextHopSelfWithAutoLocalAddressSendsTheConnectedEndpoint`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_third_party_nexthop_test.go#L106). **positive:** `unit/verify` [`TestRFC4271ThirdPartyNextHopCanBeDisabled`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L339). **negative:** `unit/verify` [`TestRFC4271NextHopSelfWithNoLocalAddressWithholdsTheRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_third_party_nexthop_test.go#L147). **negative:** `unit/verify` [`TestRFC4271ThirdPartyNextHopDisableFailsClosed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L373) |
-| `RFC4271-5.1.4-1` | The MULTI_EXIT_DISC attribute received from a neighboring AS MUST NOT be propagated to other neighboring ASes. (§5.1.4) | MUST NOT | 5.1.4 | **positive:** `unit/verify` [`TestForwardSuppressesReceivedMEDToAnotherAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L198). **negative:** `unit/verify` [`TestForwardKeepsFilterSetMED`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L299). **negative:** `unit/verify` [`TestForwardSuppressesReceivedMEDToAnotherAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L203). **negative:** `unit/verify` [`TestForwardWritesLocallySetMED`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L266). **negative:** `unit/verify` [`TestMEDPropagationAllowedTo`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L403). **positive:** `functional/verify` [`med-not-propagated-across-as.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-not-propagated-across-as.ci#L4). **negative:** `functional/verify` [`med-locally-set-reaches-peer.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-locally-set-reaches-peer.ci#L4). **negative:** `functional/verify` [`med-not-propagated-across-as.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-not-propagated-across-as.ci#L8). **positive:** `interop/nightly` [`checkMEDAcrossAS`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L197). **negative:** `interop/nightly` [`checkMEDAcrossAS`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L201) |
-| `RFC4271-5.1.4-4` | A BGP speaker MUST implement a mechanism (based on local configuration) that allows the MULTI_EXIT_DISC attribute to be removed from a route (§5.1.4) | MUST | 5.1.4 | **positive:** `unit/verify` [`TestParseModifyDefsMEDRemove`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/rfc4271_modify_test.go#L314). **negative:** `unit/verify` [`TestParseModifyDefsMEDRemove`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/rfc4271_modify_test.go#L320). **positive:** `functional/verify` [`med-removal-configured.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-removal-configured.ci#L4). **positive:** `interop/nightly` [`checkMEDRemovalConfiguration`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L319). **negative:** `interop/nightly` [`checkMEDRemovalConfiguration`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L323) |
+| `RFC4271-5.1.4-1` | The MULTI_EXIT_DISC attribute received from a neighboring AS MUST NOT be propagated to other neighboring ASes. (§5.1.4) | MUST NOT | 5.1.4 | **positive:** `unit/verify` [`TestForwardSuppressesReceivedMEDToAnotherAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L198). **negative:** `unit/verify` [`TestForwardKeepsFilterSetMED`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L299). **negative:** `unit/verify` [`TestForwardSuppressesReceivedMEDToAnotherAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L203). **negative:** `unit/verify` [`TestForwardWritesLocallySetMED`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L266). **negative:** `unit/verify` [`TestMEDPropagationAllowedTo`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L403). **positive:** `functional/verify` [`med-not-propagated-across-as.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-not-propagated-across-as.ci#L4). **negative:** `functional/verify` [`med-locally-set-reaches-peer.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-locally-set-reaches-peer.ci#L4). **negative:** `functional/verify` [`med-not-propagated-across-as.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-not-propagated-across-as.ci#L8). **positive:** `interop/nightly` [`checkMEDAcrossAS`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L238). **negative:** `interop/nightly` [`checkMEDAcrossAS`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L242) |
+| `RFC4271-5.1.4-4` | A BGP speaker MUST implement a mechanism (based on local configuration) that allows the MULTI_EXIT_DISC attribute to be removed from a route (§5.1.4) | MUST | 5.1.4 | **positive:** `unit/verify` [`TestParseModifyDefsMEDRemove`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/rfc4271_modify_test.go#L314). **negative:** `unit/verify` [`TestParseModifyDefsMEDRemove`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/rfc4271_modify_test.go#L320). **positive:** `functional/verify` [`med-removal-configured.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-removal-configured.ci#L4). **positive:** `interop/nightly` [`checkMEDRemovalConfiguration`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L360). **negative:** `interop/nightly` [`checkMEDRemovalConfiguration`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L364) |
 | `RFC4271-5.1.4-2` | If a BGP speaker is configured to remove the MULTI_EXIT_DISC attribute from a route, then this removal MUST be done prior to determining the degree of preference of the route and prior to performing route selection (Decision Process phases 1 and 2). (§5.1.4) | MUST | 5.1.4 | **positive:** `unit/verify` [`TestHandleFilterUpdateMEDRemoveIsImportOnly`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/rfc4271_modify_test.go#L389). **negative:** `unit/verify` [`TestHandleFilterUpdateMEDRemoveIsImportOnly`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/rfc4271_modify_test.go#L396). **positive:** `functional/verify` [`med-removal-before-decision.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-removal-before-decision.ci#L4). **positive:** `functional/verify` [`med-removal-configured.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-removal-configured.ci#L8). **negative:** `functional/verify` [`med-removal-before-decision.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-removal-before-decision.ci#L10). **negative:** `functional/verify` [`med-removal-export-refused.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-removal-export-refused.ci#L4) |
 | `RFC4271-5.1.5-1` | LOCAL_PREF is a well-known attribute that SHALL be included in all UPDATE messages that a given BGP speaker sends to other internal peers. (§5.1.5) | SHALL | 5.1.5 | **positive:** `unit/verify` [`TestRFC4271ForwardAddsLocalPrefTowardInternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go#L50). **positive:** `unit/verify` [`TestRFC4271LocalPrefIncludedForInternalPeers`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L81). **negative:** `unit/verify` [`TestAnnounceStripsLocalPrefTowardExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_api_origin_test.go#L307). **negative:** `unit/verify` [`TestForwardLocalPrefStrippedToExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_local_pref_test.go#L45). **negative:** `unit/verify` [`TestRFC4271ForwardAddsLocalPrefTowardInternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go#L51). **negative:** `unit/verify` [`TestRFC4271LocalPrefOmittedForExternalPeers`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L107) |
-| `RFC4271-5.1.5-2` | A BGP speaker MUST NOT include this attribute in UPDATE messages it sends to external peers, except in the case of BGP Confederations [RFC3065]. (§5.1.5) | MUST NOT | 5.1.5 | **positive:** `unit/verify` [`TestAnnounceStripsLocalPrefTowardExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_api_origin_test.go#L305). **positive:** `unit/verify` [`TestForwardLocalPrefStripBeatsAFilterSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_local_pref_test.go#L113). **positive:** `unit/verify` [`TestForwardLocalPrefStrippedToExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_local_pref_test.go#L41). **positive:** `unit/verify` [`TestRFC4271LocalPrefOmittedForExternalPeers`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L104). **negative:** `unit/verify` [`TestLocalPrefAllowedToIsTheOnlyAnswer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_local_pref_test.go#L146). **negative:** `unit/verify` [`TestRFC4271LocalPrefIncludedForInternalPeers`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L83). **positive:** `functional/verify` [`local-pref-strip-ebgp.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/local-pref-strip-ebgp.ci#L14). **negative:** `functional/verify` [`local-pref-strip-ebgp.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/local-pref-strip-ebgp.ci#L19). **positive:** `interop/nightly` [`checkLocalPrefStrip`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L95) |
+| `RFC4271-5.1.5-2` | A BGP speaker MUST NOT include this attribute in UPDATE messages it sends to external peers, except in the case of BGP Confederations [RFC3065]. (§5.1.5) | MUST NOT | 5.1.5 | **positive:** `unit/verify` [`TestAnnounceStripsLocalPrefTowardExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_api_origin_test.go#L305). **positive:** `unit/verify` [`TestForwardLocalPrefStripBeatsAFilterSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_local_pref_test.go#L113). **positive:** `unit/verify` [`TestForwardLocalPrefStrippedToExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_local_pref_test.go#L41). **positive:** `unit/verify` [`TestRFC4271LocalPrefOmittedForExternalPeers`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L104). **negative:** `unit/verify` [`TestLocalPrefAllowedToIsTheOnlyAnswer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_local_pref_test.go#L146). **negative:** `unit/verify` [`TestLocalPrefExternalWireViolationRefused`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_local_pref_negative_test.go#L20). **negative:** `unit/verify` [`TestRFC4271LocalPrefIncludedForInternalPeers`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L83). **positive:** `functional/verify` [`local-pref-strip-ebgp.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/local-pref-strip-ebgp.ci#L14). **negative:** `functional/verify` [`local-pref-strip-ebgp.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/local-pref-strip-ebgp.ci#L19). **positive:** `interop/nightly` [`checkLocalPrefStrip`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L95) |
 | `RFC4271-5.1.5-3` | If it is contained in an UPDATE message that is received from an external peer, then this attribute MUST be ignored by the receiving speaker, except in the case of BGP Confederations [RFC3065]. (§5.1.5) | MUST | 5.1.5 | **positive:** `unit/verify` [`TestRFC4271LocalPrefFromExternalPeerNeverReachesTheRIB`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go#L177). **positive:** `unit/verify` [`TestRFC4271LocalPrefKeptOnInternalSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L567). **negative:** `unit/verify` [`TestRFC4271LocalPrefFromExternalPeerNeverReachesTheRIB`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go#L179). **negative:** `unit/verify` [`TestRFC4271LocalPrefIgnoredOnExternalSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L590) |
 | `RFC4271-5.1.5-4` | The higher degree of preference MUST be preferred. (§5.1.5) | MUST | 5.1.5 | **positive:** `unit/verify` [`TestBestPath_LocalPref`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L207). **negative:** `unit/verify` [`TestBestPath_LocalPref`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L209) |
 | `RFC4271-5.1.6-1` | A BGP speaker that receives a route with the ATOMIC_AGGREGATE attribute MUST NOT make any NLRI of that route more specific (as defined in 9.1.4) when advertising this route to other BGP speakers. (§5.1.6) | MUST NOT | 5.1.6 | **positive:** no positive test. **negative:** no negative test. **{gap}:** gap in proof: ze meets it, because readvertisement writes the route's stored NLRI bytes unchanged (internal/component/bgp/reactor/peer_rib_routes.go::buildRIBRouteUpdate) and no code makes a received prefix more specific or splits it; no test asserts it |
@@ -196,11 +207,11 @@ Source: [data/rfc/rfc4271.json](../../../data/rfc/rfc4271.json).
 | `RFC4271-8.2.2-1` | If the HoldTimer_Expires event occurs (Event 10), the local system: - sends a NOTIFICATION message with the Error Code Hold Timer Expired (§8.2.2) | MUST | 8.2.2 | **positive:** `unit/verify` [`TestRFC4271HoldTimerExpirySendsNotification`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L813). **negative:** `unit/verify` [`TestRFC4271HoldTimerNotYetExpiredSendsNoNotification`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L842). **positive:** `functional/verify` [`deadpeer-holddown.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/deadpeer-holddown.ci#L3) |
 | `RFC4271-8.2.2-2` | If the HoldTimer_Expires event occurs (Event 10), the local system: - sends a NOTIFICATION message with the Error Code Hold Timer Expired, - sets the ConnectRetryTimer to zero (§8.2.2) | MUST | 8.2.2 | **positive:** `unit/verify` [`TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go#L235). **positive:** `unit/verify` [`TestRFC4271HoldExpiryRunsTheEvent10ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L935). **negative:** `unit/verify` [`TestRFC4271EstablishedHoldTimerFedByKeepalivesNeverExpires`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go#L260). **negative:** `unit/verify` [`TestRFC4271NoHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1007) |
 | `RFC4271-8.2.2-3` | If the HoldTimer_Expires event occurs (Event 10), the local system: - sends a NOTIFICATION message with the Error Code Hold Timer Expired, - sets the ConnectRetryTimer to zero, - releases all BGP resources (§8.2.2) | MUST | 8.2.2 | **positive:** `unit/verify` [`TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go#L236). **positive:** `unit/verify` [`TestRFC4271HoldExpiryRunsTheEvent10ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L938). **negative:** `unit/verify` [`TestRFC4271EstablishedHoldTimerFedByKeepalivesNeverExpires`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go#L261). **negative:** `unit/verify` [`TestRFC4271NoHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1009) |
-| `RFC4271-8.2.2-4` | If the HoldTimer_Expires event occurs (Event 10), the local system: - sends a NOTIFICATION message with the Error Code Hold Timer Expired, - sets the ConnectRetryTimer to zero, - releases all BGP resources, - drops the TCP connection (§8.2.2) | MUST | 8.2.2 | **positive:** `unit/verify` [`TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go#L237). **positive:** `unit/verify` [`TestRFC4271HoldExpiryRunsTheEvent10ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L941). **negative:** `unit/verify` [`TestRFC4271EstablishedHoldTimerFedByKeepalivesNeverExpires`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go#L262). **negative:** `unit/verify` [`TestRFC4271NoHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1012) |
+| `RFC4271-8.2.2-4` | If the HoldTimer_Expires event occurs (Event 10), the local system: - sends a NOTIFICATION message with the Error Code Hold Timer Expired, - sets the ConnectRetryTimer to zero, - releases all BGP resources, - drops the TCP connection (§8.2.2) | MUST | 8.2.2 | **positive:** `unit/verify` [`TestHoldExpiryClosesBehindStuckWriter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_wedge_test.go#L188). **positive:** `unit/verify` [`TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go#L237). **positive:** `unit/verify` [`TestRFC4271HoldExpiryRunsTheEvent10ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L941). **negative:** `unit/verify` [`TestRFC4271EstablishedHoldTimerFedByKeepalivesNeverExpires`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go#L262). **negative:** `unit/verify` [`TestRFC4271NoHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1012) |
 | `RFC4271-8.2.2-5` | If the HoldTimer_Expires event occurs (Event 10), the local system: - sends a NOTIFICATION message with the Error Code Hold Timer Expired, - sets the ConnectRetryTimer to zero, - releases all BGP resources, - drops the TCP connection, - increments the ConnectRetryCounter by 1, - (optionally) performs peer oscillation damping if the DampPeerOscillations attribute is set to TRUE, and - changes its state to Idle. (§8.2.2) | MUST | 8.2.2 | **positive:** `unit/verify` [`TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go#L238). **positive:** `unit/verify` [`TestRFC4271HoldExpiryRunsTheEvent10ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L944). **negative:** `unit/verify` [`TestRFC4271EstablishedHoldTimerFedByKeepalivesNeverExpires`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go#L263). **negative:** `unit/verify` [`TestRFC4271NoHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1014) |
 | `RFC4271-8.2.2-6` | If the HoldTimer_Expires event occurs (Event 10), the local system: - sends a NOTIFICATION message with the Error Code Hold Timer Expired, - sets the ConnectRetryTimer to zero, - releases all BGP resources, - drops the TCP connection, - increments the ConnectRetryCounter by 1, - (optionally) performs peer oscillation damping if the DampPeerOscillations attribute is set to TRUE (§8.2.2) | MAY | 8.2.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC4271-8.2.2-7` | In response to a ManualStart event (Event 1) or an AutomaticStart event (Event 3), the local system: - initializes all BGP resources for the peer connection, - sets ConnectRetryCounter to zero (§8.2.2) | MUST | 8.2.2 | **positive:** `unit/verify` [`TestRFC4271ConnectRetryCounterZeroedOnManualStart`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L42). **positive:** `unit/verify` [`TestRFC4271ManualStartZeroesTheCounterAndDials`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go#L296). **negative:** `unit/verify` [`TestRFC4271ConnectRetryCounterSurvivesDampedStart`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L75) |
-| `RFC4271-8.2.2-20` | or an AutomaticStart event (Event 3), the local system: - initializes all BGP resources for the peer connection, - sets ConnectRetryCounter to zero (§8.2.2) | MUST | 8.2.2 | **positive:** `unit/verify` [`TestRFC4271AutomaticStartEvent3ZeroesCounter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go#L141). **positive:** `unit/verify` [`TestRFC4271AutomaticStartZeroesConnectRetryCounter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L672). **positive:** `unit/verify` [`TestRFC4271HoldExpiryInboundShortenedBackoffZeroesCounter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go#L497). **positive:** `unit/verify` [`TestRFC4271PassiveAutomaticStartReconnectZeroesCounter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go#L518). **negative:** `unit/verify` [`TestRFC4271AutomaticStartZeroesOnlyFromIdle`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L701). **negative:** `unit/verify` [`TestRFC4271FailedCycleAfterEstablishedKeepsCounter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go#L244). **negative:** `unit/verify` [`TestRFC4271FailedCycleInboundShortenedBackoffKeepsCounter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go#L479). **negative:** `unit/verify` [`TestRFC4271FailedCycleRestartKeepsCounter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go#L191) |
+| `RFC4271-8.2.2-20` | or an AutomaticStart event (Event 3), the local system: - initializes all BGP resources for the peer connection, - sets ConnectRetryCounter to zero (§8.2.2) | MUST | 8.2.2 | **positive:** `unit/verify` [`TestRFC4271AutomaticStartEvent3ZeroesCounter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go#L141). **positive:** `unit/verify` [`TestRFC4271AutomaticStartZeroesConnectRetryCounter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L672). **positive:** `unit/verify` [`TestRFC4271HoldExpiryInboundShortenedBackoffZeroesCounter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go#L503). **positive:** `unit/verify` [`TestRFC4271PassiveAutomaticStartReconnectZeroesCounter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go#L524). **negative:** `unit/verify` [`TestRFC4271AutomaticStartZeroesOnlyFromIdle`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L701). **negative:** `unit/verify` [`TestRFC4271FailedCycleAfterEstablishedKeepsCounter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go#L244). **negative:** `unit/verify` [`TestRFC4271FailedCycleInboundShortenedBackoffKeepsCounter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go#L485). **negative:** `unit/verify` [`TestRFC4271FailedCycleRestartKeepsCounter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go#L191) |
 | `RFC4271-8.2.2-8` | If a ManualStop event (Event 2) is issued in the OpenSent state, the local system: - sends the NOTIFICATION with a Cease, - sets the ConnectRetryTimer to zero, - releases all BGP resources, - drops the TCP connection, - sets the ConnectRetryCounter to zero (§8.2.2) | MUST | 8.2.2 | **positive:** `unit/verify` [`TestRFC4271ConnectRetryCounterZeroedOnManualStop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L108). **positive:** `unit/verify` [`TestRFC4271OpenSentManualStopReleasesTheConnection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go#L54). **positive:** `unit/verify` [`TestShutdownNotifySendsCeaseFromEveryConnectedState`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_shutdown_notify_test.go#L175). **negative:** `unit/verify` [`TestRFC4271ConnectRetryCounterNotZeroedByIdleManualStop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L130). **negative:** `unit/verify` [`TestRFC4271OpenSentWellFormedOpenKeepsTheConnection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go#L198). **positive:** `functional/verify` [`signal-stop-cease.ci`](https://github.com/ze-software/ze/blob/main/test/reload/signal-stop-cease.ci#L3) |
 | `RFC4271-8.2.2-9` | If the HoldTimer_Expires event occurs (Event 10), the local system: - sends a NOTIFICATION message with the Error Code Hold Timer Expired, - sets the ConnectRetryTimer to zero, - releases all BGP resources, - drops the TCP connection, - increments the ConnectRetryCounter by 1 (§8.2.2) | MUST | 8.2.2 | **positive:** `unit/verify` [`TestRFC4271ConnectRetryCounterIncrementsOnHoldTimerExpiry`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L151). **positive:** `unit/verify` [`TestRFC4271OpenSentHoldTimerExpiryReleasesTheConnection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go#L115). **negative:** `unit/verify` [`TestRFC4271ConnectRetryCounterQuietOnHealthyEstablishedTraffic`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L174). **negative:** `unit/verify` [`TestRFC4271OpenSentWellFormedOpenKeepsTheConnection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go#L199) |
 | `RFC4271-8.2.2-10` | If the BGP message header checking (Event 21) or OPEN message checking detects an error (Event 22)(see Section 6.2), the local system: - sends a NOTIFICATION message with the appropriate error code, - sets the ConnectRetryTimer to zero, - releases all BGP resources, - drops the TCP connection, - increments the ConnectRetryCounter by 1 (§8.2.2) | MUST | 8.2.2 | **positive:** `unit/verify` [`TestRFC4271ConnectRetryCounterIncrementsOnHeaderAndOpenErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L210). **positive:** `unit/verify` [`TestRFC4271OpenSentErrorReleasesTheConnection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go#L125). **negative:** `unit/verify` [`TestRFC4271ConnectRetryCounterNotIncrementedByIdleErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L236). **negative:** `unit/verify` [`TestRFC4271OpenSentWellFormedOpenKeepsTheConnection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go#L197) |
@@ -239,7 +250,7 @@ Source: [data/rfc/rfc4271.json](../../../data/rfc/rfc4271.json).
 | `RFC4271-6.7-3` | The speaker MAY also log this locally. (§6.7) | MAY | 6.7 | **positive:** no positive test. **negative:** no negative test |
 | `RFC4271-3.1-2` | The next hop for each of these routes MUST be resolvable via the local BGP speaker's Routing Table. (§3.2) | MUST | 3.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the BGP Loc-RIB install performs no reachability check on the route's next hop. mirrorToLocRIB inserts the winning path with whatever next-hop address the attribute carried (internal/component/bgp/plugins/rib/rib_bestchange.go:797-830), and the candidate gather step filters only on SRv6 ineligibility (internal/component/bgp/plugins/rib/rib_commands.go:1039-1057). Resolvability is enforced downstream at FIB-install time, which removes the route from the routing table but leaves it in the Loc-RIB |
 | `RFC4271-5.1.2-2` | a) When a given BGP speaker advertises the route to an internal peer, the advertising speaker SHALL NOT modify the AS_PATH attribute associated with the route. (§5.1.2) | SHALL NOT | 5.1.2 | **positive:** `unit/verify` [`TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_batch_test.go#L569). **positive:** `unit/verify` [`TestRFC4271ASPathUnmodifiedTowardInternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L129). **positive:** `unit/verify` [`TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go#L93). **negative:** `unit/verify` [`TestRFC4271ASPathPrependedTowardExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L146). **negative:** `unit/verify` [`TestRFC4271ExportASPathEditsFollowTheMigrationAwareInternalVerdict`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go#L167). **negative:** `unit/verify` [`TestRFC4271ExportPrependNeverModifiesAnInternalPeersASPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go#L92). **negative:** `unit/verify` [`TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go#L94). **negative:** `unit/verify` [`TestRFC4271ForwardExportASPathEditsSkipInternalPeers`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go#L312). **negative:** `unit/verify` [`TestRFC4271PolicyDryRunAgreesNoASPathEditTowardAnInternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go#L234). **negative:** `unit/verify` [`TestRFC4271StaleReadvertiseASPathEditsSkipInternalPeers`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_stale_aspath_export_test.go#L77) |
-| `RFC4271-5.1.2-3` | When a given BGP speaker advertises the route to an external peer, the advertising speaker updates the AS_PATH attribute as follows: 1) if the first path segment of the AS_PATH is of type AS_SEQUENCE, the local system prepends its own AS number as the last element of the sequence (put it in the leftmost position with respect to the position of octets in the protocol message). If the act of prepending will cause an overflow in the AS_PATH segment (i.e., more than 255 ASes), it SHOULD prepend a new segment of type AS_SEQUENCE and prepend its own AS number to this new segment. 2) if the first path segment of the AS_PATH is of type AS_SET, the local system prepends a new path segment of type AS_SEQUENCE to the AS_PATH, including its own AS number in that segment. 3) if the AS_PATH is empty, the local system creates a path segment of type AS_SEQUENCE, places its own AS into that segment, and places that segment into the AS_PATH. (§5.1.2) | SHALL | 5.1.2 | **positive:** `unit/verify` [`TestASPathSlotPrependOnlyWhenAdvertising`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc4271_advertise_test.go#L97). **positive:** `unit/verify` [`TestASPathSlotPrependsBeforeALeadingASSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc4271_aspath_slot_test.go#L358). **positive:** `unit/verify` [`TestASPathSlotStartsANewSegmentWhenTheLeadingOneIsFull`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc4271_aspath_slot_test.go#L392). **positive:** `unit/verify` [`TestEstablishedAnnounce_ExplicitASPath_PrependsLocalAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_batch_test.go#L543). **positive:** `unit/verify` [`TestForwardPresentEmptyASPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_aspath_empty_test.go#L23). **negative:** `unit/verify` [`TestASPathSlotPrependOnlyWhenAdvertising`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc4271_advertise_test.go#L99). **negative:** `unit/verify` [`TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_batch_test.go#L567). **negative:** `unit/verify` [`TestForwardWithdrawalDoesNotCreateASPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_withdraw_aspath_pair_test.go#L24). **positive:** `interop/nightly` [`checkRelayWithdrawalShape`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L432). **negative:** `interop/nightly` [`checkRelayWithdrawalShape`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L433) |
+| `RFC4271-5.1.2-3` | When a given BGP speaker advertises the route to an external peer, the advertising speaker updates the AS_PATH attribute as follows: 1) if the first path segment of the AS_PATH is of type AS_SEQUENCE, the local system prepends its own AS number as the last element of the sequence (put it in the leftmost position with respect to the position of octets in the protocol message). If the act of prepending will cause an overflow in the AS_PATH segment (i.e., more than 255 ASes), it SHOULD prepend a new segment of type AS_SEQUENCE and prepend its own AS number to this new segment. 2) if the first path segment of the AS_PATH is of type AS_SET, the local system prepends a new path segment of type AS_SEQUENCE to the AS_PATH, including its own AS number in that segment. 3) if the AS_PATH is empty, the local system creates a path segment of type AS_SEQUENCE, places its own AS into that segment, and places that segment into the AS_PATH. (§5.1.2) | SHALL | 5.1.2 | **positive:** `unit/verify` [`TestASPathSlotPrependOnlyWhenAdvertising`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc4271_advertise_test.go#L97). **positive:** `unit/verify` [`TestASPathSlotPrependsBeforeALeadingASSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc4271_aspath_slot_test.go#L358). **positive:** `unit/verify` [`TestASPathSlotStartsANewSegmentWhenTheLeadingOneIsFull`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc4271_aspath_slot_test.go#L392). **positive:** `unit/verify` [`TestEstablishedAnnounce_ExplicitASPath_PrependsLocalAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_batch_test.go#L543). **positive:** `unit/verify` [`TestForwardPresentEmptyASPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_aspath_empty_test.go#L23). **negative:** `unit/verify` [`TestASPathSlotPrependOnlyWhenAdvertising`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc4271_advertise_test.go#L99). **negative:** `unit/verify` [`TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_batch_test.go#L567). **negative:** `unit/verify` [`TestForwardWithdrawalDoesNotCreateASPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_withdraw_aspath_pair_test.go#L24). **positive:** `interop/nightly` [`checkRelayWithdrawalShape`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L473). **negative:** `interop/nightly` [`checkRelayWithdrawalShape`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L474) |
 | `RFC4271-5.1.4-3` | If a BGP speaker is configured to alter the value of the MULTI_EXIT_DISC attribute received over EBGP, then altering the value MUST be done prior to determining the degree of preference of the route and prior to performing route selection (Decision Process phases 1 and 2). (§5.1.4) | MUST | 5.1.4 | **positive:** `unit/verify` [`TestRFC4271MEDAlterationHappensAtIngress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L455). **positive:** `unit/verify` [`TestRFC4271ReceivedMEDAlteredBeforeTheDecisionProcess`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_med_ingress_test.go#L42). **negative:** no negative test. **{single-polarity}:** the requirement constrains only the ORDER of an alteration that a speaker chooses to make, so there is no non-conformant input a receiver could reject. ze's only place to alter a received MULTI_EXIT_DISC is the ingress filter chain, whose rewritten payload replaces the WireUpdate before the UPDATE is dispatched to the RIB plugin that runs phases 1 and 2 (internal/component/bgp/reactor/reactor_notify.go:427-466) |
 | `RFC4271-5.1.5-5` | A BGP speaker SHALL calculate the degree of preference for each external route based on the locally-configured policy, and include the degree of preference when advertising a route to its internal peers. (§5.1.5) | SHALL | 5.1.5 | **positive:** `unit/verify` [`TestRFC4271ExternalRouteDegreeOfPreferenceFromLocalPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_test.go#L164). **positive:** `unit/verify` [`TestRFC4271ExternalRoutePreferenceFromPolicyReachesRIBAndInternalPeers`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_degree_of_preference_test.go#L94). **negative:** `unit/verify` [`TestRFC4271DegreeOfPreferenceNotAHardcodedConstant`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_test.go#L191). **negative:** `unit/verify` [`TestRFC4271ExternalRouteWithoutPolicyStillAdvertisesAPreferenceInternally`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_degree_of_preference_test.go#L126) |
 | `RFC4271-5.1.7-1` | A BGP speaker that performs route aggregation MAY add the AGGREGATOR attribute, which SHALL contain its own AS number and IP address. (§5.1.7) | SHALL | 5.1.7 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze performs no route aggregation, so it forms no AGGREGATOR of its own. The aggregator leaf of a static route (internal/component/bgp/yang/ze-bgp-conf.yang, read in internal/component/bgp/config/bgp_routes.go) sends any AS:IP the operator writes with no check against the local AS or address, so the knob can emit an AGGREGATOR that is not the speaker's own. No owner decision declines aggregation, so this is owed with it |
@@ -255,7 +266,7 @@ Source: [data/rfc/rfc4271.json](../../../data/rfc/rfc4271.json).
 | `RFC4271-9.1.2-2` | The local speaker SHALL then install that route in the Loc-RIB, replacing any route to the same destination that is currently being held in the Loc-RIB. (§9.1.2) | SHALL | 9.1.2 | **positive:** `unit/verify` [`TestLocRIBMirror`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go#L1611). **positive:** `unit/verify` [`TestRFC4271SelectedRouteReplacesTheLocRIBRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go#L239). **negative:** `unit/verify` [`TestRFC4271LocRIBHoldsOnlyTheReplacingRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go#L263) |
 | `RFC4271-9.1.2-3` | The local speaker MUST determine the immediate next-hop address from the NEXT_HOP attribute (§9.1.2) | MUST | 9.1.2 | **positive:** `unit/verify` [`TestLocRIBMirror`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go#L1613). **negative:** `unit/verify` [`TestRFC4271LocRIBNextHopComesFromNextHopAttribute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_test.go#L121) |
 | `RFC4271-9.1.2-4` | If either the immediate next-hop or the IGP cost to the NEXT_HOP (where the NEXT_HOP is resolved through an IGP route) changes, Phase 2 Route Selection MUST be performed again. (§9.1.2) | MUST | 9.1.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** nothing re-runs Phase 2 when the immediate next-hop or the IGP cost to the NEXT_HOP changes. The only entry points to checkBestPathChange are the UPDATE ingest path and the peer-state paths (internal/component/bgp/plugins/rib/rib_structured.go:271-286), and the IGP cost function is a passive lookup registered once with no invalidation callback (internal/component/bgp/plugins/rib/bestpath.go:30-43) |
-| `RFC4271-9.1.2.1-1` | Notice that even though BGP routes do not have to be installed in the Routing Table with the immediate next-hop(s), implementations MUST take care that, before any packets are forwarded along a BGP route, its associated NEXT_HOP address is resolved to the immediate (directly connected) next-hop address, and that this address (or multiple addresses) is finally used for actual packet forwarding. (§9.1.2) | MUST | 9.1.2 | **positive:** `unit/verify` [`TestRFC4271BGPNextHopResolvedToTheImmediateNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/sysrib/rfc4271_nexthop_resolution_test.go#L107). **negative:** `unit/verify` [`TestRFC4271BGPRouteWithAnUnresolvedNextHopLeavesTheFIB`](https://github.com/ze-software/ze/blob/main/internal/component/sysrib/rfc4271_nexthop_resolution_test.go#L145) |
+| `RFC4271-9.1.2.1-1` | Notice that even though BGP routes do not have to be installed in the Routing Table with the immediate next-hop(s), implementations MUST take care that, before any packets are forwarded along a BGP route, its associated NEXT_HOP address is resolved to the immediate (directly connected) next-hop address, and that this address (or multiple addresses) is finally used for actual packet forwarding. (§9.1.2) | MUST | 9.1.2 | **positive:** `unit/verify` [`TestRFC4271BGPNextHopResolvedToTheImmediateNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/sysrib/rfc4271_nexthop_resolution_test.go#L99). **negative:** `unit/verify` [`TestRFC4271BGPRouteWithAnUnresolvedNextHopLeavesTheFIB`](https://github.com/ze-software/ze/blob/main/internal/component/sysrib/rfc4271_nexthop_resolution_test.go#L137) |
 | `RFC4271-9.1.2.1-2` | Unresolvable routes SHALL be removed from the Loc-RIB and the routing table. (§9.1.2) | SHALL | 9.1.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** an unresolvable route is not removed from the Loc-RIB. The only Loc-RIB removal in the BGP plugin is the no-candidate-remains branch of checkBestPathChange (internal/component/bgp/plugins/rib/rib_bestchange.go:766-782), which is driven by the Adj-RIB-In losing its last path and never by next-hop resolvability; nothing in the plugin consults a resolver |
 | `RFC4271-9.1.2.2-1` | The criteria MUST be applied in the order specified. (§9.1.2.2) | MUST | 9.1.2.2 | **positive:** `unit/verify` [`TestBestPathStepFComparesThePeerBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_test.go#L88). **positive:** `unit/verify` [`TestBestPathStepFComparesThePeerBGPIdentifierOnTheJSONRail`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_json_test.go#L79). **positive:** `unit/verify` [`TestBestPath_FullTiebreak`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L540). **positive:** `unit/verify` [`TestRFC4271AdjacentCriteriaApplyInTheOrderSpecified`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_criteria_order_test.go#L44). **positive:** `unit/verify` [`TestRFC4271WholeSetMEDBeforeLaterCriteria`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_whole_set_med_test.go#L44). **positive:** `unit/verify` [`TestRFC4271WholeSetMEDRIBBestChange`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_whole_set_med_test.go#L188). **negative:** `unit/verify` [`TestBestPathEqualBGPIdentifiersFallThroughToPeerAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_test.go#L116). **negative:** `unit/verify` [`TestBestPathEqualBGPIdentifiersOnTheJSONRailFallThroughToPeerAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_json_test.go#L107). **negative:** `unit/verify` [`TestBestPath_MED_SameNeighborAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L325). **negative:** `unit/verify` [`TestRFC4271WholeSetMEDEarlierCriteria`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_whole_set_med_test.go#L104) |
 | `RFC4271-9.1.2.2-2` | If an implementation chooses to remove MULTI_EXIT_DISC, then the optional comparison on MULTI_EXIT_DISC, if performed, MUST be performed only among EBGP-learned routes. (§9.1.2.2) | MUST | 9.1.2.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the common egress guard is implemented, but normal BGP selected-route readvertisement has no runnable producer and no discriminating proof. `bgp-rib` records selected Loc-RIB state (internal/component/bgp/plugins/rib/rib_bestchange.go:738-790), route-server and route-reflector plugins forward cached UPDATEs instead (internal/component/bgp/plugins/rs/server.go:433-434 and internal/component/bgp/plugins/rr/rr.go:188-195), and BGP-to-BGP redistribution is rejected as same-protocol redistribution (internal/core/redistevents/registry.go:144-146) |
@@ -345,7 +356,7 @@ Source: [data/rfc/rfc4271.json](../../../data/rfc/rfc4271.json).
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC4271-4.1-1`](#rfc4271-4.1-1)
 
@@ -390,7 +401,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 
 
 For well-known attributes, the Transitive bit MUST be set to 1 (§4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -443,7 +454,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 KEEPALIVE messages MUST NOT be sent more frequently than one per second (§4.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -478,7 +489,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 Hold Time MUST be either zero or at least three seconds (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -501,7 +512,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. posi
 
 An implementation MUST reject Hold Time values of one or two seconds (§6.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -512,7 +523,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 An implementation that accepts a Hold Time MUST use the negotiated value (§6.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -523,7 +534,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 BGP implementations MUST recognize all well-known attributes (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -575,7 +586,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. rece
 
 Unrecognized non-transitive optional attributes MUST be quietly ignored (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -611,31 +622,33 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. sing
 
 A route originated by a BGP speaker SHALL NOT be advertised to a peer using an address of that peer as NEXT_HOP. (§5.1.3)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/le/interoplab/bgp/check_rfc.go::checkSelfNextHopWithheld, internal/le/interoplab/bgp/check_rfc.go::checkSelfNextHopWithheld#2 moved. Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc4271): "A route originated by a BGP speaker SHALL NOT be advertised to a peer using an address of that peer as NEXT_HOP." The only edit to test/plugin/originated-nexthop-peer-own.ci since the last judgement is f8f7628bdf, which adds a bgp-level filter { import { final accept; } export { final accept; } } with no filter refs, because RFC 8212 Section 3 now makes an EBGP direction with no explicit policy reject. No expect, reject, input or requirement-tag line changed. policy.ConcatChains keeps every peer-level ref and takes the final from the most specific configured level, so a peer-level chain still decides where one exists. An accepting final with no refs neither refuses nor rewrites a route: a withheld, stripped or discarded outcome the file asserts can still come only from the producer under test, and a delivered outcome is the eligibility the test was written under before RFC 8212; without the block the positives would fail for the wrong reason. What the unit proves is unchanged. Verdict unchanged: enforced. Earlier judgements are in this file's git history.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-13 against the current complete tagged population, including the new TestQueuedDefaultNextHopDrains positive and negative claims. RFC 4271 Section 5.1.3: "A route originated by a BGP speaker SHALL NOT be advertised to a peer using an address of that peer as NEXT_HOP." Q1: yes, the tests judge the address advertised, rather than requiring a particular implementation: the new Auto peer-is-gateway case must emit the session endpoint with the useful prefix; the other internal gateway must still be advertised unchanged. Existing SendUpdate and SendAnnounce tests withhold the prohibited peer address and preserve a third-party control; general and RS tests preserve eligible destinations and withdrawals; the functional carrier observes the wire between useful preceding/following routes, and the FRR checker reads UPDATE decode logs as well as the positive installed control. Q2: yes, exact address, prefix, delivery and withdrawal assertions reject forbidden advertisements or blanket refusal. The current new mutant records and ROOT's retained native outputs show clean GREEN followed by actual NEXT_HOP mismatches on both initial-drain and closing-drain: the positive cut produces 10.0.0.2 instead of 192.0.2.1 in internal-peer-is-gateway; the negative cut produces 10.0.0.2 instead of 10.1.0.2 in internal. These are post-guard wire-byte cuts, not a build failure or a resolver-only error change. Existing revert records remain producer-reach evidence with their disclosed whole-producer halt scope. Q3: yes, these are valid classic IPv4 announcements with a negotiated family and useful prefix; both drain controls retain Default and its candidate until actual drain. The permitted next hop and peer are distinct. The existing functional export final accept removes the independent RFC 8212 refusal without bypassing next-hop admission, and the FRR checker validates its raw injected network before examining decode logs. Q4: the collective population continues to enforce this single advertising prohibition across originated writers, default queue drains and the existing forward guards; no new claim is made for all configured overrides, installation/reachability, confederations or SHOULD default selection. Producer review: defaultOriginationNextHop replaces an Auto gateway equal to the peer, resolveQueuedNextHop uses already-locked settings, and writeUpdateGated checks the final post-policy nextHop against the destination before ordinary output; egressNextHopIsPeerOwn checks rewritten or retained addresses on forwarding. Verdict unchanged. This auditor authored the original untagged queue controls; this is a requirement rejudgment, not an independent weakening approval. ROOT owns audit-stamp and the final check.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
+| negative | [`TestQueuedDefaultNextHopDrains`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/default_next_hop_controls_test.go#L31) | unit/verify | mutant, verified |
 | negative | [`TestEgressNextHopIsPeerOwnReadsTheRewrittenAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L298) | unit/verify | unproven |
 | negative | [`TestForwardRSWithholdsRouteWhoseNextHopIsTheClientsOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L263) | unit/verify | revert, verified |
 | negative | [`TestForwardWithholdsRouteWhoseNextHopIsTheDestinationsOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L190) | unit/verify | revert, verified |
 | negative | [`TestSendAnnounceWithholdsRouteWithPeerOwnNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L478) | unit/verify | unproven |
 | negative | [`TestSendUpdateWithholdsOriginatedRouteWithPeerOwnNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L441) | unit/verify | unproven |
-| negative | [`checkSelfNextHopWithheld`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1001) | interop/nightly | unproven |
+| negative | [`checkSelfNextHopWithheld`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1042) | interop/nightly | unproven |
 | negative | [`originated-nexthop-peer-own.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/originated-nexthop-peer-own.ci#L10) | functional/verify | unproven |
+| positive | [`TestQueuedDefaultNextHopDrains`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/default_next_hop_controls_test.go#L28) | unit/verify | mutant, verified |
 | positive | [`TestEgressNextHopIsPeerOwnReadsTheRewrittenAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L294) | unit/verify | unproven |
 | positive | [`TestForwardRSWithholdsRouteWhoseNextHopIsTheClientsOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L260) | unit/verify | revert, verified |
 | positive | [`TestForwardWithdrawsFromDestinationWhoseNextHopIsItsOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L225) | unit/verify | revert, verified |
 | positive | [`TestForwardWithholdsRouteWhoseNextHopIsTheDestinationsOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L185) | unit/verify | revert, verified |
 | positive | [`TestSendAnnounceWithholdsRouteWithPeerOwnNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L476) | unit/verify | unproven |
 | positive | [`TestSendUpdateWithholdsOriginatedRouteWithPeerOwnNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L437) | unit/verify | unproven |
-| positive | [`checkSelfNextHopWithheld`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1000) | interop/nightly | unproven |
+| positive | [`checkSelfNextHopWithheld`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1041) | interop/nightly | unproven |
 | positive | [`originated-nexthop-peer-own.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/originated-nexthop-peer-own.ci#L7) | functional/verify | unproven |
 
 ### [`RFC4271-5.1.3-2`](#rfc4271-5.1.3-2)
 
 A BGP speaker SHALL NOT install a route with itself as the next hop (§5.1.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -663,7 +676,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 The MULTI_EXIT_DISC attribute received from a neighboring AS MUST NOT be propagated to other neighboring ASes. (§5.1.4)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/le/interoplab/bgp/check_rfc.go::checkMEDAcrossAS, internal/le/interoplab/bgp/check_rfc.go::checkMEDAcrossAS#2 moved. Independent source rejudgment of RFC 4271 Section 5.1.4: "The MULTI_EXIT_DISC attribute received from a neighboring AS MUST NOT be propagated to other neighboring ASes." Read all tagged Go units, both functional files, native checker and relevant producer/fixture. applyFactsMED strips a received unchanged metric for ordinary eBGP, but retains iBGP/route-server-client propagation and locally created or policy-replaced metrics. Go positives compare exact rebuilt attributes for metrics zero/100/max; controls retain the distinct allowed provenance. med-not-propagated-across-as compares full frames toward the RS client and ordinary external peer. The moved med-locally-set-reaches-peer still expects an exact MED=100 frame and the external fixture originates it through UpdateRoute; its accepting policy does not manufacture MED. This control's source/header naming should not be inflated to every established-session rail: the prior audit located it on queued initial replay, not writeAnnounceUpdate. checkMEDAcrossAS independently requires genuine source AS/NEXT_HOP blocks plus absent received MED and present locally originated MED=42. Verdict enforced with those precise controls, not a blanket ban on attribute 4. No execution or discrimination replay was performed.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent source rejudgment of RFC 4271 Section 5.1.4: "The MULTI_EXIT_DISC attribute received from a neighboring AS MUST NOT be propagated to other neighboring ASes." Read all tagged Go units, both functional files, native checker and relevant producer/fixture. applyFactsMED strips a received unchanged metric for ordinary eBGP, but retains iBGP/route-server-client propagation and locally created or policy-replaced metrics. Go positives compare exact rebuilt attributes for metrics zero/100/max; controls retain the distinct allowed provenance. med-not-propagated-across-as compares full frames toward the RS client and ordinary external peer. The moved med-locally-set-reaches-peer still expects an exact MED=100 frame and the external fixture originates it through UpdateRoute; its accepting policy does not manufacture MED. This control's source/header naming should not be inflated to every established-session rail: the prior audit located it on queued initial replay, not writeAnnounceUpdate. checkMEDAcrossAS independently requires genuine source AS/NEXT_HOP blocks plus absent received MED and present locally originated MED=42. Verdict enforced with those precise controls, not a blanket ban on attribute 4. No execution or discrimination replay was performed.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -671,25 +684,25 @@ Audit verdict: enforced (the tests do what the requirement demands), shifted: in
 | negative | [`TestForwardSuppressesReceivedMEDToAnotherAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L203) | unit/verify | unproven |
 | negative | [`TestForwardWritesLocallySetMED`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L266) | unit/verify | unproven |
 | negative | [`TestMEDPropagationAllowedTo`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L403) | unit/verify | unproven |
-| negative | [`checkMEDAcrossAS`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L201) | interop/nightly | unproven |
+| negative | [`checkMEDAcrossAS`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L242) | interop/nightly | unproven |
 | negative | [`med-locally-set-reaches-peer.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-locally-set-reaches-peer.ci#L4) | functional/verify | unproven |
 | negative | [`med-not-propagated-across-as.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-not-propagated-across-as.ci#L8) | functional/verify | unproven |
 | positive | [`TestForwardSuppressesReceivedMEDToAnotherAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L198) | unit/verify | unproven |
-| positive | [`checkMEDAcrossAS`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L197) | interop/nightly | unproven |
+| positive | [`checkMEDAcrossAS`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L238) | interop/nightly | unproven |
 | positive | [`med-not-propagated-across-as.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-not-propagated-across-as.ci#L4) | functional/verify | unproven |
 
 ### [`RFC4271-5.1.4-4`](#rfc4271-5.1.4-4)
 
 A BGP speaker MUST implement a mechanism (based on local configuration) that allows the MULTI_EXIT_DISC attribute to be removed from a route (§5.1.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestParseModifyDefsMEDRemove`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/rfc4271_modify_test.go#L320) | unit/verify | revert, verified |
-| negative | [`checkMEDRemovalConfiguration`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L323) | interop/nightly | unproven |
+| negative | [`checkMEDRemovalConfiguration`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L364) | interop/nightly | unproven |
 | positive | [`TestParseModifyDefsMEDRemove`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/rfc4271_modify_test.go#L314) | unit/verify | revert, verified |
-| positive | [`checkMEDRemovalConfiguration`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L319) | interop/nightly | mutant, verified |
+| positive | [`checkMEDRemovalConfiguration`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L360) | interop/nightly | mutant, verified |
 | positive | [`med-removal-configured.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-removal-configured.ci#L4) | functional/verify | unproven |
 
 ### [`RFC4271-5.1.4-2`](#rfc4271-5.1.4-2)
@@ -726,18 +739,19 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 A BGP speaker MUST NOT include this attribute in UPDATE messages it sends to external peers, except in the case of BGP Confederations [RFC3065]. (§5.1.5)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/le/interoplab/bgp/check_rfc.go::checkLocalPrefStrip moved. Re-judged 2026-11-06 by an independent auditor who authored none of the change; no test, record or lab ran for this judgement. RFC 4271 Section 5.1.5: "A BGP speaker MUST NOT include this attribute in UPDATE messages it sends to external peers, except in the case of BGP Confederations [RFC3065]." rfc4271_test.go changed in doc comments only and its citations are true (reactor_wire.go:536-542, the gate through localPrefAllowedTo). checkLocalPrefStrip, uncommitted in the working tree, drops requireGoBGPAttributeAbsent for waitLocalPrefWire, a stronger proof: the speaker relays the original Ze to GoBGP connection and requireLocalPrefInterval reads each frame, so code 5 on any subject UPDATE through the FIFO fence is a semantic failure at assertion 13, with session identity, all three subjects and the reverse KEEPALIVE barrier required. The old assertion could not have gone red: GoBGP v4.11.0 ProcessMessage (read from upstream) holds case *bgp.PathAttributeLocalPref ... if !external, with external true for this non-RS-client peer, so the RIB never showed a leak, as the checker's comment says. The scenario's injector is internal and sends LOCAL_PREF 200, so a strip is owed. TestLocalPrefStripChecksDestinationWire reddens leaked200, leaked0, truncated, wrong connection and missing fence with an unchanged RIB, by its own words checker-boundary evidence and no native run. Bound: no native run of the rewritten checker was seen here and it carries no discrimination record. The unit proofs stand without it: TestRFC4271LocalPrefOmittedForExternalPeers, TestForwardLocalPrefStrippedToExternalPeer, TestForwardLocalPrefStripBeatsAFilterSet. Confederation exception: localPrefAllowedTo holds it constantly false and no YANG module configures a member AS, so it cannot apply. Verdict unchanged: enforced. Earlier judgements are in this file's git history.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent scoped rejudgment on 2026-11-11. Read RFC 4271 section 5.1.5, short and derived rows, prior verdict, every currently tagged unit including new TestLocalPrefExternalWireViolationRefused, egress producers, current checker and discrimination records. RFC: A BGP speaker MUST NOT include this attribute in UPDATE messages it sends to external peers, except in the case of BGP Confederations [RFC3065]. Q1: assertions target emitted code 5, not the adjacent receiver-ignore obligation. TestRFC4271LocalPrefOmittedForExternalPeers checks absence while mandatory attributes survive. TestAnnounceStripsLocalPrefTowardExternalPeer covers packed and Builder inputs, queued/batch equality, and retained internal value. TestForwardLocalPrefStrippedToExternalPeer checks exact rebuilt bytes, while TestForwardLocalPrefStripBeatsAFilterSet covers filter-created zero. The functional file expects the complete external UPDATE. checkLocalPrefStrip reads the original external connection rather than normalized receiver RIB. Q2: removing suppression exposes an attribute these assertions reject; existing positive mutant record removes applyFactsLocalPref's Suppress and names assertion 13. The buildRIBRouteUpdate panic record only proves dependence on that function. New negative record targets requireLocalPrefInterval's final semantic-error return, replacing it with nil after complete structural validation; the native recorder first observed all three clean cases pass, then both leaked200/leaked0 cases fail under its per-run overlay while the stripped control still passed. The checkout source remained unchanged. The independent hand-written-break judge approved exactly that semantic break. Q3: source attributes and other output attributes remain controlled, all three arrivals and original session identity/fence/reverse KEEPALIVE are required. The new negative test holds normalized RIB answers and framing fixed, requires one release and both direction reads, and checks assertion 13 plus the exact wrapped localPrefWireSemanticError; setup or framing refusal cannot satisfy it. Q4: positive units cover originating and forwarding, source and filter supplied values including zero. localPrefAllowedTo gates batch, stored-RIB and wire builders; applyFactsLocalPref runs after filtering in both general and RS forwarding. Confederation configuration is absent, so the RFC exception has no reachable configured case. Polarity: internal-peer predicate/inclusion units and the functional source-arrival tag remain useful controls but are not relied on as violating inputs; the newly enrolled negative unit supplies forbidden external-wire LOCAL_PREF and requires its precise rejection, resolving the earlier independent polarity finding. checkLocalPrefStrip's later change 684b9f41f9 belongs to tooling-one-off-defects and adds assertion 16 to wait for Ze to hold both destinations Established before injector release, preserving prior checks. Carrier repair correctly labels the new Go test unit/verify rather than interop; its proof is checker-boundary evidence, not a new live daemon exchange. This auditor executed no tests, builds, lint, reports, stamp or replay; main owns the observed runs and native discrimination record. Verdict enforced on the reviewed population; no claim of additional live exchange.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestLocalPrefAllowedToIsTheOnlyAnswer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_local_pref_test.go#L146) | unit/verify | unproven |
 | negative | [`TestRFC4271LocalPrefIncludedForInternalPeers`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L83) | unit/verify | unproven |
+| negative | [`TestLocalPrefExternalWireViolationRefused`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_local_pref_negative_test.go#L20) | unit/verify | mutant, verified |
 | negative | [`local-pref-strip-ebgp.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/local-pref-strip-ebgp.ci#L19) | functional/verify | unproven |
 | positive | [`TestForwardLocalPrefStripBeatsAFilterSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_local_pref_test.go#L113) | unit/verify | unproven |
 | positive | [`TestForwardLocalPrefStrippedToExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_local_pref_test.go#L41) | unit/verify | unproven |
 | positive | [`TestAnnounceStripsLocalPrefTowardExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_api_origin_test.go#L305) | unit/verify | revert, verified |
 | positive | [`TestRFC4271LocalPrefOmittedForExternalPeers`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L104) | unit/verify | unproven |
-| positive | [`checkLocalPrefStrip`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L95) | interop/nightly | unproven |
+| positive | [`checkLocalPrefStrip`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L95) | interop/nightly | mutant, verified |
 | positive | [`local-pref-strip-ebgp.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/local-pref-strip-ebgp.ci#L14) | functional/verify | unproven |
 
 ### [`RFC4271-5.1.5-3`](#rfc4271-5.1.5-3)
@@ -770,9 +784,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Sele
 
 A BGP speaker that receives a route with the ATOMIC_AGGREGATE attribute MUST NOT make any NLRI of that route more specific (as defined in 9.1.4) when advertising this route to other BGP speakers. (§5.1.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4271-5.1.6-1, so no unit is bound to it.
+No test carries RFC4271-5.1.6-1, so there is no linked test.
 
 ### [`RFC4271-6.1-1`](#rfc4271-6.1-1)
 
@@ -828,9 +842,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Prev
 
 All errors detected while processing the OPEN message MUST be indicated by sending the NOTIFICATION message with the Error Code OPEN Message Error. (§6.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4271-6.2-3, so no unit is bound to it.
+No test carries RFC4271-6.2-3, so there is no linked test.
 
 ### [`RFC4271-6.3-1`](#rfc4271-6.3-1)
 
@@ -869,7 +883,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 BGP MUST maintain a separate FSM for each configured peer (§8.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -880,7 +894,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 A BGP implementation MUST connect to and listen on TCP port 179 (§8.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -891,9 +905,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 For each incoming connection, a state machine MUST be instantiated (§8.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4271-8.2.1-3, so no unit is bound to it.
+No test carries RFC4271-8.2.1-3, so there is no linked test.
 
 ### [`RFC4271-8.2.2-1`](#rfc4271-8.2.2-1)
 
@@ -937,7 +951,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Read
 
 If the HoldTimer_Expires event occurs (Event 10), the local system: - sends a NOTIFICATION message with the Error Code Hold Timer Expired, - sets the ConnectRetryTimer to zero, - releases all BGP resources, - drops the TCP connection (§8.2.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 4271 Section 8.2.2 Event 10 cumulatively requires code-4 NOTIFICATION, ConnectRetryTimer zero, resource release and dropped TCP. Re-read HoldExpiryRunsTheEvent10ActionList, NoHoldExpiryLeavesTheSessionIntact, EstablishedHoldTimerExpiryRunsTheEvent10List and EstablishedHoldTimerFedByKeepalivesNeverExpires. The Session positive now pins ErrHoldTimerExpired, checks all three timer stops and Idle, requires EOF/closed-pipe rather than timeout via requireConnClosed, and reads code 4 from that same connection before closure. The running-Peer positive strengthens notification identity to exactly one 4/0, checks session release and all timers, and observes EOF; the fed negative keeps the socket/session/timers alive with no NOTIFICATION, while the Session negative rejects a premature close and retains the explicitly armed ConnectRetryTimer. NewSession's expiry callback sends the notification; Run's closeConn/retireSessionTimers and the common connection-close path produce retirement. No proof was replaced by joining the error: the exact expiry sentinel is additional isolation. Native commands were not run.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-14 by an independent auditor who authored none of 178cffd97d, 1c6795e9e4, 43cfa9af6e, after session_wedge_test.go::TestHoldExpiryClosesBehindStuckWriter joined the row as a third positive. RFC 4271 Section 8.2.2 (Established) read at rfc/full/rfc4271.txt:3988-4006: "If the HoldTimer_Expires event occurs (Event 10), the local system: - sends a NOTIFICATION message with the Error Code Hold Timer Expired, - sets the ConnectRetryTimer to zero, - releases all BGP resources, - drops the TCP connection,". The new unit drives a real Session to Established over net.Pipe with Run executing (wedgeEstablished), stops the keepalive timer so the hold expiry is the only callback the fake-clock advance runs, takes writeMu as a writer blocked in a socket write holds it, fires the production hold expiry, and requires the peer end to read io.EOF (errors.Is, a timeout is t.Fatal) within holdExpiryNotifyDeadline (1s) plus 2s slack; after the release Run must return ErrHoldTimerExpired and the FSM be Idle. Q1: it asserts the RFC clause "drops the TCP connection" as the peer observes it, not an internal flag. Q2: a close that waits for the write path leaves the pipe open and the select times out; rfc/discrimination/rfc4271/RFC4271-8.2.2-4.json records the red under a disabled dropConn (session_connection.go). Q3: EOF can only come from ze closing its end (the fixture's own close yields io.ErrClosedPipe, which the assertion refuses), and ErrHoldTimerExpired pins the hold expiry as the cause. Q4: the unit proves the drop clause alone, in the one state where the NOTIFICATION cannot be written; its claim says exactly that (EOF within the bound, write path held) and claims neither the NOTIFICATION, the timer nor the release. Those clauses stay with the four earlier units, whose fingerprints did not move: HoldExpiryRunsTheEvent10ActionList and EstablishedHoldTimerExpiryRunsTheEvent10List pin code 4 read from the connection before closure, the timer stops, session release and EOF; NoHoldExpiryLeavesTheSessionIntact and EstablishedHoldTimerFedByKeepalivesNeverExpires are the negatives. Whole requirement enforced across the five. Observation, not a finding against the row: with the write path held no NOTIFICATION reaches the wire, which RFC 4271 cannot require of a socket that accepts no write; the connection drop is what remains owed and is what the unit proves. Native commands were not run by the auditor.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -945,6 +959,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 
 | negative | [`TestRFC4271NoHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1012) | unit/verify | unproven |
 | positive | [`TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go#L237) | unit/verify | revert, verified |
 | positive | [`TestRFC4271HoldExpiryRunsTheEvent10ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L941) | unit/verify | unproven |
+| positive | [`TestHoldExpiryClosesBehindStuckWriter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_wedge_test.go#L188) | unit/verify | revert, verified |
 
 ### [`RFC4271-8.2.2-5`](#rfc4271-8.2.2-5)
 
@@ -975,18 +990,18 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Afte
 
 or an AutomaticStart event (Event 3), the local system: - initializes all BGP resources for the peer connection, - sets ConnectRetryCounter to zero (§8.2.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-06 by an independent auditor who authored none of the changes named; no test or record ran for this judgement. RFC 4271 Section 8.2.2 (Idle): "In response to a ManualStart event (Event 1) or an AutomaticStart event (Event 3), the local system: - initializes all BGP resources for the peer connection, - sets ConnectRetryCounter to zero". runOnce changed in 1e65b6d4bb: its only hunk replaces the egressRouteFilter closure with p.egressGate(session), which touches neither cycleReachedEstablished, operatorStarted nor the start selection and moves that selection up two lines (peer_run.go:438 and :441). The tagged test files and fsm.go show no diff since the verdict's commit. Peer units read: exactly 0 once the next connection dials after an Established session, by Cease and by real HoldTimer expiry, and exactly 1 kept after a cycle that never reached Established, including one following an earlier Established cycle, so a start event fired on every cycle, on none, or from an uncleared flag goes red. The record file is retaken: mutants at lines 438 and 441 match the current source, and the runOnce whole-body revert proves reach only. Bound on question 4: the row also holds "initializes all BGP resources", which the RFC does not enumerate; no unit lists resources, and its only observation here is that the next cycle dials or accepts. Sibling RFC4271-8.2.2-7 judges the same clause for Event 1. Verdict unchanged: enforced.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-14 by an independent auditor who authored neither 08fe903803 nor the uncommitted phase 2 of spec-single-owner-lifecycle-2-bgp-session. RFC 4271 Section 8.2.2 (Idle) read: "In response to a ManualStart event (Event 1) or an AutomaticStart event (Event 3), the local system: - initializes all BGP resources for the peer connection, - sets ConnectRetryCounter to zero". Only the cited producer peer_run.go::runOnce changed (08fe903803): its teardown defer now joins the session's initial sync (session.endInitialSync) and clears establishedSession instead of resetting Peer flags, and enterEstablished and startInitialRoutes take the session. The start selection is byte-identical (reachedEstablished := p.cycleReachedEstablished.Swap(false); start := session.startDamped; start = session.startAutomatic on a reached-Established cycle; session.Start on the first operator start), now at peer_run.go:488-495, so the event fired per cycle is unchanged. The tagged units and fsm.go handleIdle are byte-identical; their shared helper automaticStartInitialEOR now waits for the current session's sync gate to open (nil session keeps polling) where it read the Peer flag, the same wait on the state's new owner. The two mutant records move from lines 438/441 to 489/492 and are retaken with the same sealed text. Verdict unchanged: enforced. Earlier judgement follows. Re-judged 2026-11-06 by an independent auditor who authored none of the changes named; no test or record ran for this judgement. RFC 4271 Section 8.2.2 (Idle): "In response to a ManualStart event (Event 1) or an AutomaticStart event (Event 3), the local system: - initializes all BGP resources for the peer connection, - sets ConnectRetryCounter to zero". runOnce changed in 1e65b6d4bb: its only hunk replaces the egressRouteFilter closure with p.egressGate(session), which touches neither cycleReachedEstablished, operatorStarted nor the start selection and moves that selection up two lines (peer_run.go:438 and :441). The tagged test files and fsm.go show no diff since the verdict's commit. Peer units read: exactly 0 once the next connection dials after an Established session, by Cease and by real HoldTimer expiry, and exactly 1 kept after a cycle that never reached Established, including one following an earlier Established cycle, so a start event fired on every cycle, on none, or from an uncleared flag goes red. The record file is retaken: mutants at lines 438 and 441 match the current source, and the runOnce whole-body revert proves reach only. Bound on question 4: the row also holds "initializes all BGP resources", which the RFC does not enumerate; no unit lists resources, and its only observation here is that the next cycle dials or accepts. Sibling RFC4271-8.2.2-7 judges the same clause for Event 1. Verdict unchanged: enforced.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC4271AutomaticStartZeroesOnlyFromIdle`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L701) | unit/verify | revert, verified |
 | negative | [`TestRFC4271FailedCycleAfterEstablishedKeepsCounter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go#L244) | unit/verify | revert, verified |
-| negative | [`TestRFC4271FailedCycleInboundShortenedBackoffKeepsCounter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go#L479) | unit/verify | mutant, verified |
+| negative | [`TestRFC4271FailedCycleInboundShortenedBackoffKeepsCounter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go#L485) | unit/verify | mutant, verified |
 | negative | [`TestRFC4271FailedCycleRestartKeepsCounter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go#L191) | unit/verify | revert, verified |
 | positive | [`TestRFC4271AutomaticStartZeroesConnectRetryCounter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L672) | unit/verify | revert, verified |
 | positive | [`TestRFC4271AutomaticStartEvent3ZeroesCounter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go#L141) | unit/verify | revert, verified |
-| positive | [`TestRFC4271HoldExpiryInboundShortenedBackoffZeroesCounter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go#L497) | unit/verify | mutant, verified |
-| positive | [`TestRFC4271PassiveAutomaticStartReconnectZeroesCounter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go#L518) | unit/verify | mutant, verified |
+| positive | [`TestRFC4271HoldExpiryInboundShortenedBackoffZeroesCounter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go#L503) | unit/verify | mutant, verified |
+| positive | [`TestRFC4271PassiveAutomaticStartReconnectZeroesCounter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go#L524) | unit/verify | mutant, verified |
 
 ### [`RFC4271-8.2.2-8`](#rfc4271-8.2.2-8)
 
@@ -1060,9 +1075,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 If the local system receives a TcpConnectionFails event (Event 18), the local system: - restarts the ConnectRetryTimer (with the initial value), - stops and clears the DelayOpenTimer (sets the value to zero), - releases all BGP resource, - increments the ConnectRetryCounter by 1 (§8.2.2)
 
-Audit verdict: unimplemented (no code path enforces the requirement), fresh. Independent source rejudgment against the complete RFC 4271 Section 8.2.2 Active Event 18 list (rfc/full/rfc4271.txt:3355-3376): restart ConnectRetryTimer with its initial value, stop/clear DelayOpenTimer, release resources, increment ConnectRetryCounter, optional damping, and Idle. DelayOpen is implemented: handleActive first consults handleDelayOpen, Event 17 can retain the connection in Active, Event 18 starts retry and increments the counter, and FSM.change preserves that retry at its Idle transition while clearing DelayOpen. The corrected gap annotation names the actual remaining producer defect: Session.handleConnectionCloseLocked delivers Event 18 and then immediately calls timers.StopAll, cancelling the newly restarted ConnectRetryTimer; Peer.run uses its separate exponential reconnect backoff rather than preserving the initial-value retry. No test tags this row. Untagged TestRFC4271ActiveEvent18WithDelayOpen reaches the real passive Peer, checking Idle, counter increment, nil connection and stopped DelayOpen, but never checks live retry; the FSM-only DelayOpenEventsActive test checks the retry before Session teardown. Thus the full producer's restart clause is unmet, not merely an absent tag and not an absent optional feature. Verdict unimplemented. Existing owner is spec-bgp-fsm-delayopen-and-automatic-start AC-1e; the mechanism-specific open finding is recorded in plan/journal/lifetime-ends-before-its-last-reader.md dated 2026-11-04 and its owned journal rows table. This source finding has not been runtime reproduced here.
+Audit verdict: unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-11-14 by an independent auditor who authored none of 178cffd97d, 1c6795e9e4, 43cfa9af6e, after the cited producer Session.handleConnectionCloseLocked (session_read.go:778) changed: it delivered fsm.EventTCPConnectionFails and now delivers s.endEvent() (session_connection.go:620). RFC 4271 Section 8.2.2 (Active) read at rfc/full/rfc4271.txt:3355-3376: "If the local system receives a TcpConnectionFails event (Event 18), the local system: - restarts the ConnectRetryTimer (with the initial value), - stops and clears the DelayOpenTimer (sets the value to zero), - releases all BGP resource, - increments the ConnectRetryCounter by 1,". endEvent returns the stop event beginTeardown recorded, and Event 18 when none was recorded; Session.stopEvent has one writer, beginTeardown's CompareAndSwap. So a transport failure with no local teardown in progress still delivers Event 18 to the FSM with the same action list, and the Active path of this row is unchanged by the edit. When a local teardown began, the FSM receives that teardown's stop event from whichever goroutine reaches it first; that event's own action list ends in Idle, where RFC 4271 Section 8.2.2 says "Any other event (Events 9-12, 15-28) received in the Idle state does not cause change in the state of the local system.", so replacing the consequent Event 18 with the stop event that caused the close loses no required action. The gap the verdict records is untouched: handleConnectionCloseLocked still calls timers.StopAll directly after the event, cancelling the ConnectRetryTimer FSM.handleActive restarted, and Peer.run still substitutes its exponential reconnect backoff for the initial-value retry. The row's gap annotation still describes the transport-failure path correctly. No test tags the row and it has no discrimination record, so nothing tagged for this requirement would go red if the transport-failure path stopped delivering Event 18; the untagged TestCloseCauseReachesTheStateEvent and TestRFC4271ActiveEvent18WithDelayOpen are the only guards and neither checks a live retry. Verdict unchanged: unimplemented, owned by plan/post-release/features/spec-bgp-fsm-delayopen-and-automatic-start.md AC-1e. Native commands were not run by the auditor.
 
-No test carries RFC4271-8.2.2-13, so no unit is bound to it.
+No test carries RFC4271-8.2.2-13, so there is no linked test.
 
 ### [`RFC4271-8.2.2-14`](#rfc4271-8.2.2-14)
 
@@ -1259,9 +1274,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 The next hop for each of these routes MUST be resolvable via the local BGP speaker's Routing Table. (§3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4271-3.1-2, so no unit is bound to it.
+No test carries RFC4271-3.1-2, so there is no linked test.
 
 ### [`RFC4271-5.1.2-2`](#rfc4271-5.1.2-2)
 
@@ -1286,20 +1301,20 @@ Audit verdict: weak (the tests pass over code that does not enforce the requirem
 
 When a given BGP speaker advertises the route to an external peer, the advertising speaker updates the AS_PATH attribute as follows: 1) if the first path segment of the AS_PATH is of type AS_SEQUENCE, the local system prepends its own AS number as the last element of the sequence (put it in the leftmost position with respect to the position of octets in the protocol message). If the act of prepending will cause an overflow in the AS_PATH segment (i.e., more than 255 ASes), it SHOULD prepend a new segment of type AS_SEQUENCE and prepend its own AS number to this new segment. 2) if the first path segment of the AS_PATH is of type AS_SET, the local system prepends a new path segment of type AS_SEQUENCE to the AS_PATH, including its own AS number in that segment. 3) if the AS_PATH is empty, the local system creates a path segment of type AS_SEQUENCE, places its own AS into that segment, and places that segment into the AS_PATH. (§5.1.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/le/interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape, internal/le/interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape#2 moved. Independent source rejudgment against committed source b4215935acd576856c4ddfb9160d1d67a6860fd8 after concurrent commit cd0b42213c added TestForwardWithdrawalDoesNotCreateASPath and its native discrimination record. No unrelated working-tree checker edits were included. RFC 4271 Section 5.1.2(b): "When a given BGP speaker advertises the route to an external peer, the advertising speaker updates the AS_PATH attribute as follows:" The following three cases require a local-AS prepend to a leading AS_SEQUENCE, a new leading AS_SEQUENCE before AS_SET, or creation of an AS_SEQUENCE for an empty path, with a new segment recommended on overflow. Section 4.3 separately states: "An UPDATE message might advertise only routes that are to be withdrawn from service, in which case the message will not include path attributes or Network Layer Reachability Information." The existing positive tests cover the actual established announce path with an explicit leading sequence; the ASPathEdit leading-AS_SET and full-255-member sequence branches; and present zero-length AS_PATH through cached and route-server forwarding at both negotiated ASN widths. TestForwardPresentEmptyASPath requires exactly one output, unchanged NLRI and the exact one-member local-AS sequence for an ordinary external recipient, with internal/route-server controls and received-input immutability. TestASPathSlotPrependOnlyWhenAdvertising uses the same prepend intent for advertisement and withdrawal, requires the precise prepended AS-number sequence for the former and no AS_PATH operation for attribute-free withdrawal or MP_UNREACH-only input. The established iBGP control keeps the decoded AS-number list unchanged. Existing limits remain: that iBGP control compares decoded numbers rather than exact TLV bytes, and the overflow test checks the new local-AS segment and retained-segment member count rather than every retained member value. The unchanged checkRelayWithdrawalShape adds independent FRR decoded-path, withdrawal-decode, no-attribute-error and live-session observations, with prior route arrival preceding absence; no fresh interop run is claimed here. The added cd0b42213c test strengthens the negative at actual ForwardUpdate dispatch: forwardOneBody captures exactly one rebuilt raw body from one selected destination; the withdrawal subtest requires absent AS_PATH, complete byte equality and unchanged source input. Its paired advertisement control compares the complete expected UPDATE body, including local AS65000 before source AS65001, next-hop-self192.0.2.1 and unchanged NLRI, and independently checks source immutability. A blanket disabled prepend or next-hop rewrite therefore cannot satisfy that control. The test inspects the dispatched body; this judgment does not extend it into an additional socket-delivery claim. Producing paths were read: ASPathEdit.Record sends non-advertising input to recordWithdrawOnly; recordPrepend/tryShift and ASPath.Prepend implement the sequence, set and empty-path rewrites; forward_build.planAttr independently refuses creation of an absent attribute when advertiseGate is false. The new paired mutation names exactly the two guards that would otherwise mask each other, while each standalone guard can protect the withdrawal. cd0b42213c changes no production source or previous assertion: it adds the bounded negative carrier and proof metadata. The row remains enforced with the stated existing limits. This is source rejudgment only; no new test, guest, paired-mutation, solo-mutation or interop observation is claimed.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent source rejudgment against committed source b4215935acd576856c4ddfb9160d1d67a6860fd8 after concurrent commit cd0b42213c added TestForwardWithdrawalDoesNotCreateASPath and its native discrimination record. No unrelated working-tree checker edits were included. RFC 4271 Section 5.1.2(b): "When a given BGP speaker advertises the route to an external peer, the advertising speaker updates the AS_PATH attribute as follows:" The following three cases require a local-AS prepend to a leading AS_SEQUENCE, a new leading AS_SEQUENCE before AS_SET, or creation of an AS_SEQUENCE for an empty path, with a new segment recommended on overflow. Section 4.3 separately states: "An UPDATE message might advertise only routes that are to be withdrawn from service, in which case the message will not include path attributes or Network Layer Reachability Information." The existing positive tests cover the actual established announce path with an explicit leading sequence; the ASPathEdit leading-AS_SET and full-255-member sequence branches; and present zero-length AS_PATH through cached and route-server forwarding at both negotiated ASN widths. TestForwardPresentEmptyASPath requires exactly one output, unchanged NLRI and the exact one-member local-AS sequence for an ordinary external recipient, with internal/route-server controls and received-input immutability. TestASPathSlotPrependOnlyWhenAdvertising uses the same prepend intent for advertisement and withdrawal, requires the precise prepended AS-number sequence for the former and no AS_PATH operation for attribute-free withdrawal or MP_UNREACH-only input. The established iBGP control keeps the decoded AS-number list unchanged. Existing limits remain: that iBGP control compares decoded numbers rather than exact TLV bytes, and the overflow test checks the new local-AS segment and retained-segment member count rather than every retained member value. The unchanged checkRelayWithdrawalShape adds independent FRR decoded-path, withdrawal-decode, no-attribute-error and live-session observations, with prior route arrival preceding absence; no fresh interop run is claimed here. The added cd0b42213c test strengthens the negative at actual ForwardUpdate dispatch: forwardOneBody captures exactly one rebuilt raw body from one selected destination; the withdrawal subtest requires absent AS_PATH, complete byte equality and unchanged source input. Its paired advertisement control compares the complete expected UPDATE body, including local AS65000 before source AS65001, next-hop-self192.0.2.1 and unchanged NLRI, and independently checks source immutability. A blanket disabled prepend or next-hop rewrite therefore cannot satisfy that control. The test inspects the dispatched body; this judgment does not extend it into an additional socket-delivery claim. Producing paths were read: ASPathEdit.Record sends non-advertising input to recordWithdrawOnly; recordPrepend/tryShift and ASPath.Prepend implement the sequence, set and empty-path rewrites; forward_build.planAttr independently refuses creation of an absent attribute when advertiseGate is false. The new paired mutation names exactly the two guards that would otherwise mask each other, while each standalone guard can protect the withdrawal. cd0b42213c changes no production source or previous assertion: it adds the bounded negative carrier and proof metadata. The row remains enforced with the stated existing limits. This is source rejudgment only; no new test, guest, paired-mutation, solo-mutation or interop observation is claimed.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_batch_test.go#L567) | unit/verify | unproven |
 | negative | [`TestForwardWithdrawalDoesNotCreateASPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_withdraw_aspath_pair_test.go#L24) | unit/verify | mutant, verified |
 | negative | [`TestASPathSlotPrependOnlyWhenAdvertising`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc4271_advertise_test.go#L99) | unit/verify | unproven |
-| negative | [`checkRelayWithdrawalShape`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L433) | interop/nightly | mutant, verified |
+| negative | [`checkRelayWithdrawalShape`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L474) | interop/nightly | mutant, verified |
 | positive | [`TestForwardPresentEmptyASPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_aspath_empty_test.go#L23) | unit/verify | revert, verified |
 | positive | [`TestEstablishedAnnounce_ExplicitASPath_PrependsLocalAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_batch_test.go#L543) | unit/verify | unproven |
 | positive | [`TestASPathSlotPrependOnlyWhenAdvertising`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc4271_advertise_test.go#L97) | unit/verify | unproven |
 | positive | [`TestASPathSlotPrependsBeforeALeadingASSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc4271_aspath_slot_test.go#L358) | unit/verify | revert, verified |
 | positive | [`TestASPathSlotStartsANewSegmentWhenTheLeadingOneIsFull`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc4271_aspath_slot_test.go#L392) | unit/verify | revert, verified |
-| positive | [`checkRelayWithdrawalShape`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L432) | interop/nightly | revert, verified |
+| positive | [`checkRelayWithdrawalShape`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L473) | interop/nightly | revert, verified |
 
 ### [`RFC4271-5.1.4-3`](#rfc4271-5.1.4-3)
 
@@ -1329,9 +1344,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 A BGP speaker that performs route aggregation MAY add the AGGREGATOR attribute, which SHALL contain its own AS number and IP address. (§5.1.7)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4271-5.1.7-1, so no unit is bound to it.
+No test carries RFC4271-5.1.7-1, so there is no linked test.
 
 ### [`RFC4271-6.7-4`](#rfc4271-6.7-4)
 
@@ -1350,7 +1365,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Peer
 
 In the event of connection collision, one of the connections MUST be closed (§6.8)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1434,9 +1449,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 If the NEXT_HOP attribute of a BGP route depicts an address that is not resolvable, or if it would become unresolvable if the route was installed in the routing table, the BGP route MUST be excluded from the Phase 2 decision function. (§9.1.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4271-9.1.2-1, so no unit is bound to it.
+No test carries RFC4271-9.1.2-1, so there is no linked test.
 
 ### [`RFC4271-9.1.2-2`](#rfc4271-9.1.2-2)
 
@@ -1454,7 +1469,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 
 
 The local speaker MUST determine the immediate next-hop address from the NEXT_HOP attribute (§9.1.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1465,9 +1480,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 If either the immediate next-hop or the IGP cost to the NEXT_HOP (where the NEXT_HOP is resolved through an IGP route) changes, Phase 2 Route Selection MUST be performed again. (§9.1.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4271-9.1.2-4, so no unit is bound to it.
+No test carries RFC4271-9.1.2-4, so there is no linked test.
 
 ### [`RFC4271-9.1.2.1-1`](#rfc4271-9.1.2.1-1)
 
@@ -1477,16 +1492,16 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC4271BGPRouteWithAnUnresolvedNextHopLeavesTheFIB`](https://github.com/ze-software/ze/blob/main/internal/component/sysrib/rfc4271_nexthop_resolution_test.go#L145) | unit/verify | revert, verified |
-| positive | [`TestRFC4271BGPNextHopResolvedToTheImmediateNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/sysrib/rfc4271_nexthop_resolution_test.go#L107) | unit/verify | revert, verified |
+| negative | [`TestRFC4271BGPRouteWithAnUnresolvedNextHopLeavesTheFIB`](https://github.com/ze-software/ze/blob/main/internal/component/sysrib/rfc4271_nexthop_resolution_test.go#L137) | unit/verify | revert, verified |
+| positive | [`TestRFC4271BGPNextHopResolvedToTheImmediateNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/sysrib/rfc4271_nexthop_resolution_test.go#L99) | unit/verify | revert, verified |
 
 ### [`RFC4271-9.1.2.1-2`](#rfc4271-9.1.2.1-2)
 
 Unresolvable routes SHALL be removed from the Loc-RIB and the routing table. (§9.1.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4271-9.1.2.1-2, so no unit is bound to it.
+No test carries RFC4271-9.1.2.1-2, so there is no linked test.
 
 ### [`RFC4271-9.1.2.2-1`](#rfc4271-9.1.2.2-1)
 
@@ -1511,9 +1526,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 
 If an implementation chooses to remove MULTI_EXIT_DISC, then the optional comparison on MULTI_EXIT_DISC, if performed, MUST be performed only among EBGP-learned routes. (§9.1.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4271-9.1.2.2-2, so no unit is bound to it.
+No test carries RFC4271-9.1.2.2-2, so there is no linked test.
 
 ### [`RFC4271-9.1.2.2-3`](#rfc4271-9.1.2.2-3)
 
@@ -1534,7 +1549,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 Routes that do not have the MULTI_EXIT_DISC attribute are considered to have the lowest possible MULTI_EXIT_DISC value (§9.1.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1545,17 +1560,17 @@ Audit verdict: not audited: no reader has judged these tests
 
 A route SHALL NOT be installed in the Adj-Rib-Out unless the destination, and NEXT_HOP described by this route, may be forwarded appropriately by the Routing Table. (§9.1.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4271-9.2-2, so no unit is bound to it.
+No test carries RFC4271-9.2-2, so there is no linked test.
 
 ### [`RFC4271-9.2-3`](#rfc4271-9.2-3)
 
 If a route in Loc-RIB is excluded from a particular Adj-RIB-Out, the previously advertised route in that Adj-RIB-Out MUST be withdrawn from service by means of an UPDATE message (§9.1.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4271-9.2-3, so no unit is bound to it.
+No test carries RFC4271-9.2-3, so there is no linked test.
 
 ### [`RFC4271-9.2-4`](#rfc4271-9.2-4)
 
@@ -1585,17 +1600,17 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Posi
 
 Two UPDATE messages sent by a BGP speaker to a peer that advertise feasible routes and/or withdrawal of unfeasible routes to some common set of destinations MUST be separated by at least MinRouteAdvertisementIntervalTimer. (§9.2.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4271-9.2.1.1-2, so no unit is bound to it.
+No test carries RFC4271-9.2.1.1-2, so there is no linked test.
 
 ### [`RFC4271-9.2.2.2-1`](#rfc4271-9.2.2.2-1)
 
 Routes that have different MULTI_EXIT_DISC attributes SHALL NOT be aggregated. (§9.2.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4271-9.2.2.2-1, so no unit is bound to it.
+No test carries RFC4271-9.2.2.2-1, so there is no linked test.
 
 ### [`RFC4271-9.2.2.2-2`](#rfc4271-9.2.2.2-2)
 
@@ -1603,31 +1618,31 @@ ORIGIN attribute: If at least one route among routes that are aggregated has ORI
 
 Audit verdict: unimplemented (no code path enforces the requirement), fresh. Re-judged by an independent judge after the row's annotation moved from {not-applicable} to {gap}. RFC 4271 Section 9.2.2.2 reads 'ORIGIN attribute: If at least one route among routes that are aggregated has ORIGIN with the value INCOMPLETE, then the aggregated route MUST have the ORIGIN attribute with the value INCOMPLETE.' and 'Otherwise, if at least one route among routes that are aggregated has ORIGIN with the value EGP, then the aggregated route MUST have the ORIGIN attribute with the value EGP.' Ze is the BGP speaker this binds once it aggregates. Aggregation is optional in Section 9.2.2.1, but no owner decision declines it or places it out of scope, so under the rule that an annotation proving less than a gap is written only for a role or feature the owner named, the absent feature is a conformance gap and the earlier not-applicable verdict no longer stands. Ze forms no aggregate: internal/component/bgp/message/update_build_grouped.go::BuildGroupedUnicast packs independent prefixes that share one attribute set into one UPDATE, and packGroupedAttributes copies the ORIGIN the caller supplied; no code derives an aggregate's ORIGIN from contributing routes. A configured covering static prefix takes whatever ORIGIN the operator writes, related to no contributing route.
 
-No test carries RFC4271-9.2.2.2-2, so no unit is bound to it.
+No test carries RFC4271-9.2.2.2-2, so there is no linked test.
 
 ### [`RFC4271-9.2.2.2-3`](#rfc4271-9.2.2.2-3)
 
 NEXT_HOP: When aggregating routes that have different NEXT_HOP attributes, the NEXT_HOP attribute of the aggregated route SHALL identify an interface on the BGP speaker that performs the aggregation. (§9.2.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4271-9.2.2.2-3, so no unit is bound to it.
+No test carries RFC4271-9.2.2.2-3, so there is no linked test.
 
 ### [`RFC4271-9.2.2.2-4`](#rfc4271-9.2.2.2-4)
 
 ATOMIC_AGGREGATE: If at least one of the routes to be aggregated has ATOMIC_AGGREGATE path attribute, then the aggregated route SHALL have this attribute as well. (§9.2.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4271-9.2.2.2-4, so no unit is bound to it.
+No test carries RFC4271-9.2.2.2-4, so there is no linked test.
 
 ### [`RFC4271-9.2.2.2-5`](#rfc4271-9.2.2.2-5)
 
 AGGREGATOR: Any AGGREGATOR attributes from the routes to be aggregated MUST NOT be included in the aggregated route. (§9.2.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4271-9.2.2.2-5, so no unit is bound to it.
+No test carries RFC4271-9.2.2.2-5, so there is no linked test.
 
 ### [`RFC4271-Security-1`](#rfc4271-security-1)
 
@@ -1647,9 +1662,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Coll
 
 If new routes are selected multiple times while awaiting the expiration of MinRouteAdvertisementIntervalTimer, the last route selected SHALL be advertised at the end of MinRouteAdvertisementIntervalTimer. (§9.2.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4271-9.2.1.1-3, so no unit is bound to it.
+No test carries RFC4271-9.2.1.1-3, so there is no linked test.
 
 ### [`RFC4271-9.2-6`](#rfc4271-9.2-6)
 
@@ -1696,7 +1711,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 |---|---|---|---|
 | negative | [`TestRFC4271OwnASDestinationBecomingUnreachableIsSentToPeers`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_own_as_change_test.go#L128) | unit/verify | revert, verified |
 | negative | [`TestRFC4271OwnASUnreachabilityChangeAdvertised`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L429) | unit/verify | unproven |
-| positive | [`TestRFC4271OwnASDestinationBecomingReachableIsSentToPeers`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_own_as_change_test.go#L102) | unit/verify | revert, verified |
+| positive | [`TestRFC4271OwnASDestinationBecomingReachableIsSentToPeers`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_own_as_change_test.go#L102) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestRFC4271OwnASReachabilityChangeAdvertised`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L401) | unit/verify | unproven |
 
 ### [`RFC4271-9.2-10`](#rfc4271-9.2-10)
@@ -1716,7 +1731,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 
 
 If the AS_PATH attribute of a BGP route contains an AS loop, the BGP route should be excluded from the Phase 2 decision function (§9.1.2). Detection scans the full AS path and checks that the local autonomous system number does not appear in it. RFC 4271 writes this keyword in lower case, so the level is a recommendation and not a capitalized RFC 2119 SHOULD. The same paragraph places a speaker configured to accept routes with its own autonomous system number in the AS path outside the scope of the document. That out-of-scope case is what the allow-own-as setting selects, so a non-zero allow-own-as is not a deviation from this line.
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1742,7 +1757,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. HEAD
 
 Once a BGP peer has updated any well-known attributes, it MUST pass these attributes to its peers in any updates it transmits (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1753,7 +1768,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If the version number in the Version field of the received OPEN message is not supported, then the Error Subcode MUST be set to Unsupported Version Number (§6.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1764,7 +1779,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If the Autonomous System field of the OPEN message is unacceptable, then the Error Subcode MUST be set to Bad Peer AS (§6.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1775,7 +1790,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If the Hold Time field of the OPEN message is unacceptable, then the Error Subcode MUST be set to Unacceptable Hold Time (§6.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1786,7 +1801,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If the BGP Identifier field of the OPEN message is syntactically incorrect, then the Error Subcode MUST be set to Bad BGP Identifier (§6.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1797,7 +1812,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If one of the Optional Parameters in the OPEN message is not recognized, then the Error Subcode MUST be set to Unsupported Optional Parameters (§6.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1808,7 +1823,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If one of the Optional Parameters in the OPEN message is recognized, but is malformed, then the Error Subcode MUST be set to 0 (Unspecific) (§6.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1977,7 +1992,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. impo
 
 An UPDATE message that contains correct path attributes, but no NLRI, SHALL be treated as a valid UPDATE message (§6.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1988,7 +2003,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 In response to an indication that the TCP connection is successfully established (Event 16 or Event 17), the second connection SHALL be tracked until it sends an OPEN message (§8.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -2010,14 +2025,14 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 The suggested default amount of jitter SHALL be determined by multiplying the base value of the appropriate timer by a random factor, which is uniformly distributed in the range from 0.75 to 1.0 (§10)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestTimersRFC4271Jitter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_timer_jitter_test.go#L12) | unit/verify | unproven |
 | positive | [`TestTimersRFC4271Jitter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_timer_jitter_test.go#L11) | unit/verify | unproven |
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -2036,84 +2051,84 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
-| `front` | not stated | 0 | walked | not stated |
-| `1` | not stated | 0 | walked | not stated |
-| `1.1` | not stated | 0 | walked | not stated |
-| `1.2` | not stated | 0 | walked | not stated |
-| `2` | not stated | 0 | walked | not stated |
-| `3` | not stated | 0 | walked | not stated |
-| `3.1` | not stated | 0 | walked | not stated |
-| `3.2` | not stated | 1 | walked | not stated |
-| `4` | not stated | 0 | walked | not stated |
-| `4.1` | not stated | 3 | walked | not stated |
-| `4.2` | not stated | 2 | walked | not stated |
-| `4.3` | not stated | 4 | walked | not stated |
-| `4.4` | not stated | 2 | walked | not stated |
-| `4.5` | not stated | 0 | walked | not stated |
-| `5` | not stated | 8 | walked | not stated |
-| `5.1` | not stated | 0 | walked | not stated |
-| `5.1.1` | not stated | 0 | walked | not stated |
-| `5.1.2` | not stated | 1 | walked | not stated |
-| `5.1.3` | not stated | 3 | walked | not stated |
-| `5.1.4` | not stated | 4 | walked | not stated |
-| `5.1.5` | not stated | 5 | walked | not stated |
-| `5.1.6` | not stated | 1 | walked | not stated |
-| `5.1.7` | not stated | 1 | walked | not stated |
-| `6` | not stated | 1 | walked | not stated |
-| `6.1` | not stated | 6 | walked | not stated |
-| `6.2` | not stated | 9 | walked | not stated |
-| `6.3` | not stated | 25 | walked | not stated |
-| `6.4` | not stated | 0 | walked | not stated |
-| `6.5` | not stated | 0 | walked | not stated |
-| `6.6` | not stated | 0 | walked | not stated |
-| `6.7` | not stated | 2 | walked | not stated |
-| `6.8` | not stated | 2 | walked | not stated |
-| `7` | not stated | 1 | walked | not stated |
-| `8` | not stated | 0 | walked | not stated |
-| `8.1` | not stated | 0 | walked | not stated |
-| `8.1.1` | not stated | 0 | walked | not stated |
-| `8.1.2` | not stated | 0 | walked | not stated |
-| `8.1.3` | not stated | 0 | walked | not stated |
-| `8.1.4` | not stated | 0 | walked | not stated |
-| `8.1.5` | not stated | 0 | walked | not stated |
-| `8.2` | not stated | 0 | walked | not stated |
-| `8.2.1` | not stated | 3 | walked | not stated |
-| `8.2.1.1` | not stated | 0 | walked | not stated |
-| `8.2.1.2` | not stated | 0 | walked | not stated |
-| `8.2.1.3` | not stated | 0 | walked | not stated |
-| `8.2.1.4` | not stated | 0 | walked | not stated |
-| `8.2.1.5` | not stated | 0 | walked | not stated |
-| `8.2.2` | not stated | 1 | walked | not stated |
-| `9` | not stated | 5 | walked | not stated |
-| `9.1` | not stated | 1 | walked | not stated |
-| `9.1.1` | not stated | 1 | walked | not stated |
-| `9.1.2` | not stated | 6 | walked | not stated |
-| `9.1.2.1` | not stated | 0 | walked | not stated |
-| `9.1.2.2` | not stated | 3 | walked | not stated |
-| `9.1.3` | not stated | 2 | walked | not stated |
-| `9.1.4` | not stated | 3 | walked | not stated |
-| `9.2` | not stated | 5 | walked | not stated |
-| `9.2.1` | not stated | 0 | walked | not stated |
-| `9.2.1.1` | not stated | 2 | walked | not stated |
-| `9.2.1.2` | not stated | 0 | walked | not stated |
-| `9.2.2` | not stated | 0 | walked | not stated |
-| `9.2.2.1` | not stated | 0 | walked | not stated |
-| `9.2.2.2` | not stated | 11 | walked | not stated |
-| `9.3` | not stated | 0 | walked | not stated |
-| `9.4` | not stated | 0 | walked | not stated |
-| `10` | not stated | 2 | walked | not stated |
-| `A` | not stated | 1 | walked | not stated |
-| `B` | not stated | 0 | walked | not stated |
-| `C` | not stated | 0 | walked | not stated |
-| `D` | not stated | 0 | walked | not stated |
-| `E` | not stated | 1 | walked | not stated |
-| `F` | not stated | 0 | walked | not stated |
-| `F.1` | not stated | 0 | walked | not stated |
-| `F.2` | not stated | 0 | walked | not stated |
-| `F.3` | not stated | 0 | walked | not stated |
-| `F.4` | not stated | 0 | walked | not stated |
-| `F.5` | not stated | 0 | walked | not stated |
-| `F.6` | not stated | 1 | walked | not stated |
+| `front` | not stated | 0 | reviewed | not stated |
+| `1` | not stated | 0 | reviewed | not stated |
+| `1.1` | not stated | 0 | reviewed | not stated |
+| `1.2` | not stated | 0 | reviewed | not stated |
+| `2` | not stated | 0 | reviewed | not stated |
+| `3` | not stated | 0 | reviewed | not stated |
+| `3.1` | not stated | 0 | reviewed | not stated |
+| `3.2` | not stated | 1 | reviewed | not stated |
+| `4` | not stated | 0 | reviewed | not stated |
+| `4.1` | not stated | 3 | reviewed | not stated |
+| `4.2` | not stated | 2 | reviewed | not stated |
+| `4.3` | not stated | 4 | reviewed | not stated |
+| `4.4` | not stated | 2 | reviewed | not stated |
+| `4.5` | not stated | 0 | reviewed | not stated |
+| `5` | not stated | 8 | reviewed | not stated |
+| `5.1` | not stated | 0 | reviewed | not stated |
+| `5.1.1` | not stated | 0 | reviewed | not stated |
+| `5.1.2` | not stated | 1 | reviewed | not stated |
+| `5.1.3` | not stated | 3 | reviewed | not stated |
+| `5.1.4` | not stated | 4 | reviewed | not stated |
+| `5.1.5` | not stated | 5 | reviewed | not stated |
+| `5.1.6` | not stated | 1 | reviewed | not stated |
+| `5.1.7` | not stated | 1 | reviewed | not stated |
+| `6` | not stated | 1 | reviewed | not stated |
+| `6.1` | not stated | 6 | reviewed | not stated |
+| `6.2` | not stated | 9 | reviewed | not stated |
+| `6.3` | not stated | 25 | reviewed | not stated |
+| `6.4` | not stated | 0 | reviewed | not stated |
+| `6.5` | not stated | 0 | reviewed | not stated |
+| `6.6` | not stated | 0 | reviewed | not stated |
+| `6.7` | not stated | 2 | reviewed | not stated |
+| `6.8` | not stated | 2 | reviewed | not stated |
+| `7` | not stated | 1 | reviewed | not stated |
+| `8` | not stated | 0 | reviewed | not stated |
+| `8.1` | not stated | 0 | reviewed | not stated |
+| `8.1.1` | not stated | 0 | reviewed | not stated |
+| `8.1.2` | not stated | 0 | reviewed | not stated |
+| `8.1.3` | not stated | 0 | reviewed | not stated |
+| `8.1.4` | not stated | 0 | reviewed | not stated |
+| `8.1.5` | not stated | 0 | reviewed | not stated |
+| `8.2` | not stated | 0 | reviewed | not stated |
+| `8.2.1` | not stated | 3 | reviewed | not stated |
+| `8.2.1.1` | not stated | 0 | reviewed | not stated |
+| `8.2.1.2` | not stated | 0 | reviewed | not stated |
+| `8.2.1.3` | not stated | 0 | reviewed | not stated |
+| `8.2.1.4` | not stated | 0 | reviewed | not stated |
+| `8.2.1.5` | not stated | 0 | reviewed | not stated |
+| `8.2.2` | not stated | 1 | reviewed | not stated |
+| `9` | not stated | 5 | reviewed | not stated |
+| `9.1` | not stated | 1 | reviewed | not stated |
+| `9.1.1` | not stated | 1 | reviewed | not stated |
+| `9.1.2` | not stated | 6 | reviewed | not stated |
+| `9.1.2.1` | not stated | 0 | reviewed | not stated |
+| `9.1.2.2` | not stated | 3 | reviewed | not stated |
+| `9.1.3` | not stated | 2 | reviewed | not stated |
+| `9.1.4` | not stated | 3 | reviewed | not stated |
+| `9.2` | not stated | 5 | reviewed | not stated |
+| `9.2.1` | not stated | 0 | reviewed | not stated |
+| `9.2.1.1` | not stated | 2 | reviewed | not stated |
+| `9.2.1.2` | not stated | 0 | reviewed | not stated |
+| `9.2.2` | not stated | 0 | reviewed | not stated |
+| `9.2.2.1` | not stated | 0 | reviewed | not stated |
+| `9.2.2.2` | not stated | 11 | reviewed | not stated |
+| `9.3` | not stated | 0 | reviewed | not stated |
+| `9.4` | not stated | 0 | reviewed | not stated |
+| `10` | not stated | 2 | reviewed | not stated |
+| `A` | not stated | 1 | reviewed | not stated |
+| `B` | not stated | 0 | reviewed | not stated |
+| `C` | not stated | 0 | reviewed | not stated |
+| `D` | not stated | 0 | reviewed | not stated |
+| `E` | not stated | 1 | reviewed | not stated |
+| `F` | not stated | 0 | reviewed | not stated |
+| `F.1` | not stated | 0 | reviewed | not stated |
+| `F.2` | not stated | 0 | reviewed | not stated |
+| `F.3` | not stated | 0 | reviewed | not stated |
+| `F.4` | not stated | 0 | reviewed | not stated |
+| `F.5` | not stated | 0 | reviewed | not stated |
+| `F.6` | not stated | 1 | reviewed | not stated |
 
 ### Excluded sentences
 

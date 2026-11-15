@@ -1,6 +1,6 @@
 # RFC 3948 - UDP Encapsulation of IPsec ESP Packets
 
-UDP encapsulation of ESP. Every requirement this repository extracted from RFC 3948, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+UDP encapsulation of ESP. Every requirement listed for RFC 3948, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,24 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 8 | of 11 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 2 | of 11 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 11 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 11 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 73 | 73 of 84 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-
-### Neutral
-
-measures that are neither good news nor bad
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Gated MUSTs | 11 | of 16 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 11 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 11 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 11 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 11 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 11 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Tested both ways | 8 | of 11 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 2 | of 11 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 11 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 11 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Tests shown to detect a fault | 73 | 73 of 84 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -35,54 +22,74 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 1 | of 11 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Declared gap or no test | 1 | of 11 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 
-The 9 counts marked as a part above are the whole of the 11 gated MUSTs: they add up to 11. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Neutral
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+measures that are neither good news nor bad
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Out of scope | 0 | of 11 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 11 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 11 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 11 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 11 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+
+### Totals
+
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 11 | of 16 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 11 mandatory requirements: they add up to 11. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | UDP encapsulation of ESP |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 16 |
-| Gated MUST-level | 11 |
+| Mandatory requirements (MUST level) | 11 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 1 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 2 |
 | Test tags | 84 |
-| Tagged units | 84 |
+| Tests linked to requirements | 84 |
 | Recorded audit verdicts | 9 |
-| Discrimination records | 73 |
+| Fault test records | 73 |
 | Summary | `rfc/short/rfc3948.md` |
-| Requirement shard | `rfc/requirements/rfc3948.md` |
+| Requirement table | `rfc/requirements/rfc3948.md` |
 | RFC text | `rfc/full/rfc3948.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: UDP Encapsulation of IPsec ESP Packets (NAT-Traversal): eleven MUST-level requirements. Eight are met with tags in internal/component/ike: 2.1-1 (the ESP SPI is never zero), 2.1-3 (demultiplex on port 4500 -- a four-zero-byte marker is IKE, a single 0xFF byte is a NAT keepalive, otherwise ESP), 2.2-1 (the non-ESP marker of four zero bytes is prepended to IKE), 1-1 (a tunnel-mode client supports tunnel mode: every Child SA that negotiated no USE_TRANSPORT_MODE installs as tunnel, and a peer request the operator did not configure cannot change that), and 4-3 (a received NAT-keepalive reaches no SA, so it is never read as evidence the connection is live) carry positive+negative tags; 2.1-2 (the ESP SA's UDP-encapsulation ports are the ports the IKE SA uses: the peer's authenticated IKE port and this node's NAT-T socket port), 4-1 (NAT keepalives are sent at a conservative sub-binding-timeout interval) and 2.3-2 (the keepalive payload is one octet of 0xFF) are {single-polarity: positive} with new tests. The last three ids were extracted by the 2026-08-31 extraction sign-off, which found their sites unmapped. 3.1.2-1 (ESP-in-UDP encapsulation and transport-mode checksum fixup) and 3.1.2-2 (inner checksum handling on decapsulation) are performed by the kernel via XFRM_ENCAP_ESPINUDP. 2.1-4 (do not depend on a zero UDP checksum) is a gap: ze's IKE never inspects the UDP checksum and Linux verifies a nonzero one, with no test over the socket ze opens, and UDP-encapsulated ESP receipt is unverified on the VPP IPsec backend.
+Included in automatic checks: UDP Encapsulation of IPsec ESP Packets (NAT-Traversal): eleven MUST-level requirements. Eight are met with tags in internal/component/ike: 2.1-1 (the ESP SPI is never zero), 2.1-3 (demultiplex on port 4500 -- a four-zero-byte marker is IKE, a single 0xFF byte is a NAT keepalive, otherwise ESP), 2.2-1 (the non-ESP marker of four zero bytes is prepended to IKE), 1-1 (a tunnel-mode client supports tunnel mode: every Child SA that negotiated no USE_TRANSPORT_MODE installs as tunnel, and a peer request the operator did not configure cannot change that), and 4-3 (a received NAT-keepalive reaches no SA, so it is never read as evidence the connection is live) carry positive+negative tags; 2.1-2 (the ESP SA's UDP-encapsulation ports are the ports the IKE SA uses: the peer's authenticated IKE port and this node's NAT-T socket port), 4-1 (NAT keepalives are sent at a conservative sub-binding-timeout interval) and 2.3-2 (the keepalive payload is one octet of 0xFF) are {single-polarity: positive} with new tests. The last three ids were extracted by the 2026-08-31 extraction sign-off, which found their sites unmapped. 3.1.2-1 (ESP-in-UDP encapsulation and transport-mode checksum fixup) and 3.1.2-2 (inner checksum handling on decapsulation) are performed by the kernel via XFRM_ENCAP_ESPINUDP. 2.1-4 (do not depend on a zero UDP checksum) is a gap: ze's IKE never inspects the UDP checksum and Linux verifies a nonzero one, with no test over the socket ze opens, and UDP-encapsulated ESP receipt is unverified on the VPP IPsec backend.
 
-## What the public ledger says
+## Published support status
 
 **Area:** UDP encapsulation of ESP
 
@@ -97,14 +104,14 @@ Enrolled: UDP Encapsulation of IPsec ESP Packets (NAT-Traversal): eleven MUST-le
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 8 | one part of the gated population |
-| Annotated (including scoped evidence) | 3 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 2 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **11** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 8 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 3 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 2 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **11** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (8):** [`RFC3948-2.1-1`](#rfc3948-2.1-1), [`RFC3948-2.1-2`](#rfc3948-2.1-2), [`RFC3948-3.1.2-1`](#rfc3948-3.1.2-1), [`RFC3948-3.1.2-2`](#rfc3948-3.1.2-2), [`RFC3948-1-1`](#rfc3948-1-1), [`RFC3948-4-3`](#rfc3948-4-3), [`RFC3948-5.1-1`](#rfc3948-5.1-1), [`RFC3948-5.2-1`](#rfc3948-5.2-1)
 
@@ -114,20 +121,23 @@ Enrolled: UDP Encapsulation of IPsec ESP Packets (NAT-Traversal): eleven MUST-le
 
 ## Figures
 
-- **MUST bar**: Ze proven 6, Ze correctness gap 5
-- **Overview bar**: Ze MUST proven 6, SHOULD proven 2, SHOULD not decided 3, Ze correctness gap 5
+- **MUST bar**: Ze proven 6, Proof pending 4, Not built 1
+- **Overview bar**: Ze MUST proven 6, SHOULD proven 2, Proof pending 4, Not assessed 3, Not built 1
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 11 |
 | MUST rows kept (the MUST bar) | 11 |
 | Ze proven | 6 |
 | OS verified | 0 |
+| Proof pending | 4 |
 | OS testing gap | 0 |
-| Ze correctness gap | 5 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 1 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -140,11 +150,12 @@ Enrolled: UDP Encapsulation of IPsec ESP Packets (NAT-Traversal): eleven MUST-le
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 3 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 3 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc3948.json](../../../data/rfc/rfc3948.json).
 
@@ -154,8 +165,8 @@ Source: [data/rfc/rfc3948.json](../../../data/rfc/rfc3948.json).
 |---|---|---|---|---|
 | `RFC3948-2.1-1` | The SPI field in the ESP header MUST NOT be a zero value. (S2.1) | MUST NOT | 2.1 - UDP-Encapsulated ESP Header Format | **positive:** `unit/verify` [`TestChildRekeyRequestUsesPeerSPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L318). **positive:** `unit/verify` [`TestChildRekeyResponseUsesPeerSPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L374). **positive:** `unit/verify` [`TestGenerateESPSPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L255). **positive:** `unit/verify` [`TestRFC3948GeneratedESPSPIIsNeverZero`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_spi_test.go#L28). **positive:** `unit/verify` [`TestRFC3948OutboundESPSPIIsNeverZero`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_spi_test.go#L72). **positive:** `unit/verify` [`TestResponderUsesPeerSPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L228). **negative:** `unit/verify` [`TestChildRekeyRequestRefusesPeerSPIZero`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L292). **negative:** `unit/verify` [`TestChildRekeyResponseRefusesPeerSPIZero`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L346). **negative:** `unit/verify` [`TestGenerateESPSPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L269). **negative:** `unit/verify` [`TestRFC3948GeneratedESPSPIIsNeverZero`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_spi_test.go#L29). **negative:** `unit/verify` [`TestRFC3948OutboundESPSPIIsNeverZero`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_spi_test.go#L73). **negative:** `unit/verify` [`TestResponderRefusesPeerSPIZero`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L192) |
 | `RFC3948-2.1-2` | the Source Port and Destination Port MUST be the same as that used by IKE traffic (S2.1) | MUST | 2.1 - UDP-Encapsulated ESP Header Format | **positive:** `unit/verify` [`TestChildSANATTEncapPorts`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L292). **positive:** `unit/verify` [`TestRFC3948ChildSAFollowsANATMappedPeerPort500`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_encap_port_test.go#L110). **positive:** `unit/verify` [`TestRFC3948EAPResponderChildSAEncapsulatesToTheIKEPeerPort`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_encap_port_test.go#L326). **positive:** `unit/verify` [`TestRFC3948RebindMigratesTunnelChildSAs`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_rebind_test.go#L231). **positive:** `unit/verify` [`TestRFC3948RebindRekeysTransportChildSA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_rebind_test.go#L297). **positive:** `unit/verify` [`TestRFC3948RebindRekeysWithoutAMigrator`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_rebind_test.go#L274). **positive:** `unit/verify` [`TestRFC3948ResponderChildSAEncapsulatesToTheIKEPeerPort`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_encap_port_test.go#L302). **negative:** `unit/verify` [`TestRFC3948ChildSARefusesEncapWithoutAnIKEPort`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_encap_port_test.go#L173). **negative:** `unit/verify` [`TestRFC3948RebindNotRunWithoutAnAdoptedMove`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_rebind_test.go#L368) |
-| `RFC3948-3.1.2-1` | Depending on local policy, one of the following MUST be done: 1. If the protocol header after the ESP header is a TCP/UDP header and the peer's real source and destination IP address have been received according to [RFC3947], incrementally recompute the TCP/UDP checksum: * Subtract the IP source address in the received packet from the checksum. * Add the real IP source address received via IKE to the checksum (obtained from the NAT-OA) * Subtract the IP destination address in the received packet from the checksum. * Add the real IP destination address received via IKE to the checksum (obtained from the NAT-OA). Note: If the received and real address are the same for a given address (e.g., say the source address), the operations cancel and don't need to be performed. 2. If the protocol header after the ESP header is a TCP/UDP header, recompute the checksum field in the TCP/UDP header. 3. If the protocol header after the ESP header is a UDP header, set the checksum field to zero in the UDP header. If the protocol after the ESP header is a TCP header, and if there is an option to flag to the stack that the TCP checksum does not need to be computed, then that flag MAY be used. (S3.1.2) | MUST | 3.1.2 - Transport Mode Decapsulation NAT Procedure | **positive:** `interop/nightly` [`checkNATTTransportInnerChecksum`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1701). **negative:** `interop/nightly` [`checkNATTTunnelInnerChecksum`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1740). **nightly-only:** every test bound to this requirement runs in the scheduled workflow alone, so nothing here is proven on the merge path |
-| `RFC3948-3.1.2-2` | Tunnel mode TCP checksums MUST be verified (S3.1.2) | MUST | 3.1.2 - Transport Mode Decapsulation NAT Procedure | **positive:** `interop/nightly` [`checkNATTTunnelInnerChecksum`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1737). **negative:** `interop/nightly` [`checkNATTTransportInnerChecksum`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1704). **nightly-only:** every test bound to this requirement runs in the scheduled workflow alone, so nothing here is proven on the merge path |
+| `RFC3948-3.1.2-1` | Depending on local policy, one of the following MUST be done: 1. If the protocol header after the ESP header is a TCP/UDP header and the peer's real source and destination IP address have been received according to [RFC3947], incrementally recompute the TCP/UDP checksum: * Subtract the IP source address in the received packet from the checksum. * Add the real IP source address received via IKE to the checksum (obtained from the NAT-OA) * Subtract the IP destination address in the received packet from the checksum. * Add the real IP destination address received via IKE to the checksum (obtained from the NAT-OA). Note: If the received and real address are the same for a given address (e.g., say the source address), the operations cancel and don't need to be performed. 2. If the protocol header after the ESP header is a TCP/UDP header, recompute the checksum field in the TCP/UDP header. 3. If the protocol header after the ESP header is a UDP header, set the checksum field to zero in the UDP header. If the protocol after the ESP header is a TCP header, and if there is an option to flag to the stack that the TCP checksum does not need to be computed, then that flag MAY be used. (S3.1.2) | MUST | 3.1.2 - Transport Mode Decapsulation NAT Procedure | **positive:** `interop/nightly` [`checkNATTTransportInnerChecksum`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1722). **negative:** `interop/nightly` [`checkNATTTunnelInnerChecksum`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1761). **nightly-only:** every test bound to this requirement runs in the scheduled workflow alone, so these tests are not run as part of the checks before integration |
+| `RFC3948-3.1.2-2` | Tunnel mode TCP checksums MUST be verified (S3.1.2) | MUST | 3.1.2 - Transport Mode Decapsulation NAT Procedure | **positive:** `interop/nightly` [`checkNATTTunnelInnerChecksum`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1758). **negative:** `interop/nightly` [`checkNATTTransportInnerChecksum`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1725). **nightly-only:** every test bound to this requirement runs in the scheduled workflow alone, so these tests are not run as part of the checks before integration |
 | `RFC3948-2.1-4` | receivers MUST NOT depend on the UDP checksum being a zero value (S2.1) | MUST NOT | 2.1 - UDP-Encapsulated ESP Header Format | **positive:** no positive test. **negative:** no negative test. **{gap}:** two halves. ze's IKE reads port 4500 through the OS UDP socket (internal/component/ike/engine/register.go::runEngine) and never inspects the UDP checksum, and on Linux the kernel's ESP-in-UDP decapsulation verifies a nonzero checksum without depending on zero, but no test over the socket ze opens asserts it; on the VPP IPsec backend (internal/component/ike/dataplane/vpp.go) UDP-encapsulated ESP receipt is unverified |
 | `RFC3948-4-1` | A peer SHOULD send a NAT-keepalive packet if a need for it is detected according to [RFC3947] and if no other packet to the peer has been sent in M seconds. (S4) | SHOULD | 4 - NAT Keepalive Procedure | **positive:** `unit/verify` [`TestNATKeepalive`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/rfc3948_keepalive_test.go#L13). **positive:** `unit/verify` [`TestRFC3948KeepaliveIdleWindowNeverExceedsM`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/rfc3948_keepalive_window_test.go#L13). **positive:** `unit/verify` [`TestRFC3948KeepaliveStartsWhenNATDetected`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_keepalive_need_test.go#L76). **positive:** `unit/verify` [`TestRFC3948MobikeKeepaliveWhenNATDetected`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_keepalive_need_test.go#L120). **negative:** `unit/verify` [`TestRFC3948MobikeNoKeepaliveWithoutDetectedNAT`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_keepalive_need_test.go#L137). **negative:** `unit/verify` [`TestRFC3948NoKeepaliveWithoutDetectedNAT`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_keepalive_need_test.go#L99). **negative:** `unit/verify` [`TestRFC3948UnsetKeepaliveIntervalFallsBackToM`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/rfc3948_keepalive_window_test.go#L68) |
 | `RFC3948-1-1` | IPsec tunnel mode clients MUST support tunnel mode (S1) | MUST | 1 - Introduction | **positive:** `unit/verify` [`TestChildSAInstallsInDataplane`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L195). **positive:** `unit/verify` [`TestTunnelModeIsTheChildSADefault`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L478). **negative:** `unit/verify` [`TestTunnelModeIsTheChildSADefault`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L519) |
@@ -177,7 +188,7 @@ Source: [data/rfc/rfc3948.json](../../../data/rfc/rfc3948.json).
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC3948-2.1-1`](#rfc3948-2.1-1)
 
@@ -222,31 +233,31 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 Depending on local policy, one of the following MUST be done: 1. If the protocol header after the ESP header is a TCP/UDP header and the peer's real source and destination IP address have been received according to [RFC3947], incrementally recompute the TCP/UDP checksum: * Subtract the IP source address in the received packet from the checksum. * Add the real IP source address received via IKE to the checksum (obtained from the NAT-OA) * Subtract the IP destination address in the received packet from the checksum. * Add the real IP destination address received via IKE to the checksum (obtained from the NAT-OA). Note: If the received and real address are the same for a given address (e.g., say the source address), the operations cancel and don't need to be performed. 2. If the protocol header after the ESP header is a TCP/UDP header, recompute the checksum field in the TCP/UDP header. 3. If the protocol header after the ESP header is a UDP header, set the checksum field to zero in the UDP header. If the protocol after the ESP header is a TCP header, and if there is an option to flag to the stack that the TCP checksum does not need to be computed, then that flag MAY be used. (S3.1.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Independently re-judged against committed a617f53893dab242be088ea985b9baae7e66c430. RFC 3948 Section 3.1.2 states: "When a transport mode has been used to transmit packets, contained TCP or UDP headers will have incorrect checksums due to the change of parts of the IP header during transit." The section requires one local-policy checksum-handling alternative. checkNATTTransportInnerChecksum requires inbound transport-mode ESP-in-UDP state, successful TCP and UDP delivery, and acceptance of correct and deliberately corrupt inner-checksum probes without checksum-error increments. checkNATTTunnelInnerChecksum requires correct probes to succeed and corrupt probes to increment checksum-error counters without acceptance. craftedProbe uses rawprobe -b through a raw IP socket, not nping. createFirstChildSA/installChildSA and xfrmStateFromParams select and install the mode and encapsulation consumed by Linux XFRM. This covers the selected transport receive outcome and tunnel boundary, not NAT-OA or a real address-translating middlebox. Both scenario names dispatch to the examined checkers. Verdict retained from source review; no new execution result is claimed by this rejudgment.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/le/interoplab/ipsec/checkers.go::checkNATTTransportInnerChecksum, internal/le/interoplab/ipsec/checkers.go::checkNATTTunnelInnerChecksum moved. Independently re-judged against committed a617f53893dab242be088ea985b9baae7e66c430. RFC 3948 Section 3.1.2 states: "When a transport mode has been used to transmit packets, contained TCP or UDP headers will have incorrect checksums due to the change of parts of the IP header during transit." The section requires one local-policy checksum-handling alternative. checkNATTTransportInnerChecksum requires inbound transport-mode ESP-in-UDP state, successful TCP and UDP delivery, and acceptance of correct and deliberately corrupt inner-checksum probes without checksum-error increments. checkNATTTunnelInnerChecksum requires correct probes to succeed and corrupt probes to increment checksum-error counters without acceptance. craftedProbe uses rawprobe -b through a raw IP socket, not nping. createFirstChildSA/installChildSA and xfrmStateFromParams select and install the mode and encapsulation consumed by Linux XFRM. This covers the selected transport receive outcome and tunnel boundary, not NAT-OA or a real address-translating middlebox. Both scenario names dispatch to the examined checkers. Verdict retained from source review; no new execution result is claimed by this rejudgment.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`checkNATTTunnelInnerChecksum`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1740) | interop/nightly | unproven |
-| positive | [`checkNATTTransportInnerChecksum`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1701) | interop/nightly | unproven |
+| negative | [`checkNATTTunnelInnerChecksum`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1761) | interop/nightly | unproven |
+| positive | [`checkNATTTransportInnerChecksum`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1722) | interop/nightly | unproven |
 
 ### [`RFC3948-3.1.2-2`](#rfc3948-3.1.2-2)
 
 Tunnel mode TCP checksums MUST be verified (S3.1.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`checkNATTTransportInnerChecksum`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1704) | interop/nightly | unproven |
-| positive | [`checkNATTTunnelInnerChecksum`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1737) | interop/nightly | unproven |
+| negative | [`checkNATTTransportInnerChecksum`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1725) | interop/nightly | unproven |
+| positive | [`checkNATTTunnelInnerChecksum`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1758) | interop/nightly | unproven |
 
 ### [`RFC3948-2.1-4`](#rfc3948-2.1-4)
 
 receivers MUST NOT depend on the UDP checksum being a zero value (S2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3948-2.1-4, so no unit is bound to it.
+No test carries RFC3948-2.1-4, so there is no linked test.
 
 ### [`RFC3948-4-1`](#rfc3948-4-1)
 
@@ -268,7 +279,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Clos
 
 IPsec tunnel mode clients MUST support tunnel mode (S1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -290,7 +301,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 Reception of NAT-keepalive packets MUST NOT be used to detect whether a connection is live (S4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -379,7 +390,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 | positive | [`TestIsNATKeepalive`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L122) | unit/verify | revert, verified |
 | positive | [`TestRFC3948KeepaliveAheadOfIKEIsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/rfc3948_keepalive_receive_test.go#L45) | unit/verify | revert, verified |
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -399,29 +410,29 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
 | `front` | not stated | 0 | skipped (front-matter) | Title block, Status of this Memo, Copyright Notice, Abstract and Table of Contents. The Abstract says what the document defines and binds no speaker. |
-| `1` | Introduction | 3 | walked | Introduction. Scope, the shared-port rationale, the two mode-support sentences, the zero-SPI ban, the IPv6 note, the exclusion of AH and of manual keying, and the RFC 2119 key-words paragraph. Its three sites are classified below. |
-| `2` | Packet Formats | 0 | walked | Packet Formats. A heading with no text of its own; every sentence belongs to 2.1, 2.2 or 2.3. |
-| `2.1` | UDP-Encapsulated ESP Header Format | 2 | walked | UDP-Encapsulated ESP Header Format. The wire diagram, the three UDP-header bullets and the zero-SPI ban. The splitter fuses the three bullets into one site, so only the first of them has a site of its own. The other two are listed below. The demultiplexing rule once filed here is RFC 7296 Section 2.23, and lives in that summary. |
-| `2.2` | IKE Header Format for Port 4500 | 0 | walked | IKE Header Format for Port 4500. The marker is stated in the indicative, 'A Non-ESP Marker is 4 zero-valued bytes aligning with the SPI field of an ESP packet', so the keyword scan sees no site. The obligation to prepend it is stated by RFC 7296 Section 2.23, whose own row RFC7296-2.23-3 carries it, so no row of this summary claims it. The section states no checksum rule of its own and defers the checksum to RFC 3947. |
-| `2.3` | NAT-Keepalive Packet Format | 2 | walked | NAT-Keepalive Packet Format. The diagram, the three UDP-header bullets repeated from 2.1, the sender payload rule and the receiver's SHOULD. The SHOULD sentence carries no MUST-level keyword, so it makes no site and is listed below as RFC3948-2.3-1, which is advisory and gates nothing. |
-| `3` | Encapsulation and Decapsulation Procedures | 0 | walked | Encapsulation and Decapsulation Procedures. A heading with no text of its own. |
-| `3.1` | Auxiliary Procedures | 0 | walked | Auxiliary Procedures. A heading with no text of its own. |
-| `3.1.1` | Tunnel Mode Decapsulation NAT Procedure | 1 | walked | Tunnel Mode Decapsulation NAT Procedure. One MUST opening a three-way choice about the inner packet's addresses. Its site is mapped below to RFC3948-3.1.1-1: ze takes the first choice by defining the valid source address space in the inbound Security Policy it installs, and the kernel checks each decapsulated packet against it. |
-| `3.1.2` | Transport Mode Decapsulation NAT Procedure | 2 | walked | Transport Mode Decapsulation NAT Procedure. Two sites, both mapped. The third choice carries a MAY about skipping the TCP checksum, and the section closes with 'an implementation MAY fix any contained protocols'. Both are advisory, make no site, and are listed below as RFC3948-3.1.2-3. |
-| `3.2` | Transport Mode ESP Encapsulation | 0 | walked | Transport Mode ESP Encapsulation. A before-and-after diagram and three numbered steps written in the indicative (ordinary ESP, insert the UDP header, edit Total Length, Protocol and Header Checksum). No keyword, and no obligation the mapped sections do not already carry. |
-| `3.3` | Transport Mode ESP Decapsulation | 0 | walked | Transport Mode ESP Decapsulation. Four numbered steps in the indicative, the last of which invokes the Section 3.1.2 procedure. No keyword, and no requirement id is read from it. |
-| `3.4` | Tunnel Mode ESP Encapsulation | 0 | walked | Tunnel Mode ESP Encapsulation. A before-and-after diagram and three numbered steps in the indicative, the same shape as Section 3.2 with a new outer header. No keyword, and no requirement id is read from it. |
-| `3.5` | Tunnel Mode ESP Decapsulation | 0 | walked | Tunnel Mode ESP Decapsulation. Four numbered steps in the indicative, the last of which invokes the Section 3.1.1 procedure. No keyword, and no requirement id is read from it. |
-| `4` | NAT Keepalive Procedure | 1 | walked | NAT Keepalive Procedure. One MUST NOT site, mapped below. The sending rules are a MAY over N minutes and a SHOULD over M seconds, with locally configurable defaults of 5 minutes and 20 seconds, neither of which makes a site, so the two interval rows the summary reads from them are listed below: RFC3948-4-2 carries the intervals, and RFC3948-4-1 is read from the section's indicative opening. |
-| `5` | Security Considerations | 0 | walked | Security Considerations. A heading with no text of its own. |
-| `5.1` | Tunnel Mode Conflict | 1 | walked | Tunnel Mode Conflict. The overlapping-inner-address hazard at a security gateway, one MUST and one RECOMMENDED remedy. Its site is mapped below to RFC3948-5.1-1, which the summary carries as partial: ze is the security gateway of the diagram, it prevents the overlap for a peer bound to a virtual-IP pool, and nothing it holds prevents it for a tunnel-mode peer bound to no pool. |
-| `5.2` | Transport Mode Conflict | 2 | walked | Transport Mode Conflict. The same hazard for two transport-mode clients behind one NAT, with a worked policy example. Two sites, both excluded below. |
-| `6` | IAB Considerations | 0 | walked | IAB Considerations. One sentence handing the UNSAF questions of RFC 3424 to RFC 3715. It directs no implementation. |
+| `1` | Introduction | 3 | reviewed | Introduction. Scope, the shared-port rationale, the two mode-support sentences, the zero-SPI ban, the IPv6 note, the exclusion of AH and of manual keying, and the RFC 2119 key-words paragraph. Its three sites are classified below. |
+| `2` | Packet Formats | 0 | reviewed | Packet Formats. A heading with no text of its own; every sentence belongs to 2.1, 2.2 or 2.3. |
+| `2.1` | UDP-Encapsulated ESP Header Format | 2 | reviewed | UDP-Encapsulated ESP Header Format. The wire diagram, the three UDP-header bullets and the zero-SPI ban. The splitter fuses the three bullets into one site, so only the first of them has a site of its own. The other two are listed below. The demultiplexing rule once filed here is RFC 7296 Section 2.23, and lives in that summary. |
+| `2.2` | IKE Header Format for Port 4500 | 0 | reviewed | IKE Header Format for Port 4500. The marker is stated in the indicative, 'A Non-ESP Marker is 4 zero-valued bytes aligning with the SPI field of an ESP packet', so the keyword scan sees no site. The obligation to prepend it is stated by RFC 7296 Section 2.23, whose own row RFC7296-2.23-3 carries it, so no row of this summary claims it. The section states no checksum rule of its own and defers the checksum to RFC 3947. |
+| `2.3` | NAT-Keepalive Packet Format | 2 | reviewed | NAT-Keepalive Packet Format. The diagram, the three UDP-header bullets repeated from 2.1, the sender payload rule and the receiver's SHOULD. The SHOULD sentence carries no MUST-level keyword, so it makes no site and is listed below as RFC3948-2.3-1, which is advisory and gates nothing. |
+| `3` | Encapsulation and Decapsulation Procedures | 0 | reviewed | Encapsulation and Decapsulation Procedures. A heading with no text of its own. |
+| `3.1` | Auxiliary Procedures | 0 | reviewed | Auxiliary Procedures. A heading with no text of its own. |
+| `3.1.1` | Tunnel Mode Decapsulation NAT Procedure | 1 | reviewed | Tunnel Mode Decapsulation NAT Procedure. One MUST opening a three-way choice about the inner packet's addresses. Its site is mapped below to RFC3948-3.1.1-1: ze takes the first choice by defining the valid source address space in the inbound Security Policy it installs, and the kernel checks each decapsulated packet against it. |
+| `3.1.2` | Transport Mode Decapsulation NAT Procedure | 2 | reviewed | Transport Mode Decapsulation NAT Procedure. Two sites, both mapped. The third choice carries a MAY about skipping the TCP checksum, and the section closes with 'an implementation MAY fix any contained protocols'. Both are advisory, make no site, and are listed below as RFC3948-3.1.2-3. |
+| `3.2` | Transport Mode ESP Encapsulation | 0 | reviewed | Transport Mode ESP Encapsulation. A before-and-after diagram and three numbered steps written in the indicative (ordinary ESP, insert the UDP header, edit Total Length, Protocol and Header Checksum). No keyword, and no obligation the mapped sections do not already carry. |
+| `3.3` | Transport Mode ESP Decapsulation | 0 | reviewed | Transport Mode ESP Decapsulation. Four numbered steps in the indicative, the last of which invokes the Section 3.1.2 procedure. No keyword, and no requirement id is read from it. |
+| `3.4` | Tunnel Mode ESP Encapsulation | 0 | reviewed | Tunnel Mode ESP Encapsulation. A before-and-after diagram and three numbered steps in the indicative, the same shape as Section 3.2 with a new outer header. No keyword, and no requirement id is read from it. |
+| `3.5` | Tunnel Mode ESP Decapsulation | 0 | reviewed | Tunnel Mode ESP Decapsulation. Four numbered steps in the indicative, the last of which invokes the Section 3.1.1 procedure. No keyword, and no requirement id is read from it. |
+| `4` | NAT Keepalive Procedure | 1 | reviewed | NAT Keepalive Procedure. One MUST NOT site, mapped below. The sending rules are a MAY over N minutes and a SHOULD over M seconds, with locally configurable defaults of 5 minutes and 20 seconds, neither of which makes a site, so the two interval rows the summary reads from them are listed below: RFC3948-4-2 carries the intervals, and RFC3948-4-1 is read from the section's indicative opening. |
+| `5` | Security Considerations | 0 | reviewed | Security Considerations. A heading with no text of its own. |
+| `5.1` | Tunnel Mode Conflict | 1 | reviewed | Tunnel Mode Conflict. The overlapping-inner-address hazard at a security gateway, one MUST and one RECOMMENDED remedy. Its site is mapped below to RFC3948-5.1-1, which the summary carries as partial: ze is the security gateway of the diagram, it prevents the overlap for a peer bound to a virtual-IP pool, and nothing it holds prevents it for a tunnel-mode peer bound to no pool. |
+| `5.2` | Transport Mode Conflict | 2 | reviewed | Transport Mode Conflict. The same hazard for two transport-mode clients behind one NAT, with a worked policy example. Two sites, both excluded below. |
+| `6` | IAB Considerations | 0 | reviewed | IAB Considerations. One sentence handing the UNSAF questions of RFC 3424 to RFC 3715. It directs no implementation. |
 | `7` | Acknowledgments | 0 | skipped (acknowledgements) | Acknowledgments. |
 | `8` | References heading | 0 | skipped (references) | References heading. |
 | `8.1` | not stated | 0 | skipped (references) | Normative References: RFC 768, RFC 2119, RFC 2401, RFC 2406, RFC 2409, RFC 3947. |
 | `8.2` | not stated | 0 | skipped (references) | Informative References: RFC 1122, RFC 3193, RFC 3424, RFC 3715 and the IKEv2 draft. |
-| `A` | not stated | 1 | walked | Appendix A, Clarification of Potential NAT Multiple Client Solutions. Non-normative by its own statement: the subject is 'not a matter of wire protocol, but a matter local implementation' and the mechanisms 'do not belong in the protocol specification itself'. It lists implementation options Tr1 to Tr5 and Tn1 to Tn4. It is walked rather than skipped because its one site is classified below. |
+| `A` | not stated | 1 | reviewed | Appendix A, Clarification of Potential NAT Multiple Client Solutions. Non-normative by its own statement: the subject is 'not a matter of wire protocol, but a matter local implementation' and the mechanisms 'do not belong in the protocol specification itself'. It lists implementation options Tr1 to Tr5 and Tn1 to Tn4. It is walked rather than skipped because its one site is classified below. |
 
 ### Excluded sentences
 

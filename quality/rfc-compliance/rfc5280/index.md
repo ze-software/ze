@@ -1,6 +1,6 @@
 # RFC 5280 - Internet X.509 Public Key Infrastructure Certificate and Certificate Revocation List (CRL) Profile
 
-X.509 certificates and CRLs. Every requirement this repository extracted from RFC 5280, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+X.509 certificates and CRLs. Every requirement listed for RFC 5280, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,24 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 8 | of 102 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 18 | of 102 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 102 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 102 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 34 | 34 of 34 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-
-### Neutral
-
-measures that are neither good news nor bad
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Gated MUSTs | 102 | of 210 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 102 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 102 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 50 | of 102 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 102 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 102 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Tested both ways | 14 | of 102 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 18 | of 102 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 102 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 102 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Tests shown to detect a fault | 46 | 46 of 46 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -35,97 +22,120 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 26 | of 102 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Declared gap or no test | 20 | of 102 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 
-The 9 counts marked as a part above are the whole of the 102 gated MUSTs: they add up to 102. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Neutral
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+measures that are neither good news nor bad
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Out of scope | 0 | of 102 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 102 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 50 | of 102 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 102 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 102 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+
+### Totals
+
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 102 | of 210 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 102 mandatory requirements: they add up to 102. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | X.509 certificates and CRLs |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 210 |
-| Gated MUST-level | 102 |
+| Mandatory requirements (MUST level) | 102 |
 | Not applicable, so out of scope | 0 |
-| Declared gaps | 26 |
+| Declared gaps | 20 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 34 |
-| Tagged units | 34 |
+| Test tags | 47 |
+| Tests linked to requirements | 46 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 34 |
+| Fault test records | 46 |
 | Summary | `rfc/short/rfc5280.md` |
-| Requirement shard | `rfc/requirements/rfc5280.md` |
+| Requirement table | `rfc/requirements/rfc5280.md` |
 | RFC text | `rfc/full/rfc5280.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: The X.509 profile behind every certificate IKEv2, EAP-TLS and Ze's own TLS listeners use. The 2026-10-26 walk classified all 280 normative sites: 102 MUST-level rows, of which 26 are {gap}, 50 are {lower-layer} (Go crypto/x509 encodes, parses and validates), and 26 are met by Ze's own code and owe tagged tests. CRL issuance binds a role Ze does not fill (it issues no CRL), and the extensions Ze's CA never issues are feature-out-of-scope in the extraction.
+Included in automatic checks: The X.509 profile behind every certificate IKEv2, EAP-TLS and Ze's own TLS listeners use. The 2026-10-26 walk classified all 280 normative sites: 102 MUST-level rows, of which 26 are {gap}, 50 are {lower-layer} (Go crypto/x509 encodes, parses and validates), and 26 are met by Ze's own code and owe tagged tests. CRL issuance binds a role Ze does not fill (it issues no CRL), and the extensions Ze's CA never issues are feature-out-of-scope in the extraction.
 
-## What the public ledger says
+## Published support status
 
 **Area:** X.509 certificates and CRLs
 
-**Proof:** 26 of 102 MUST proven
+**Proof:** 32 of 102 MUST proven
 
-**Evidence:** unit 26
+**Evidence:** unit 32
 
-**Unmet:** RFC5280-4.1.2.4-1, RFC5280-4.1.2.5-3, RFC5280-4.2-1, RFC5280-4.2-2, RFC5280-4.2-4, RFC5280-4.2.1.10-1, RFC5280-4.2.1.10-3, RFC5280-4.2.1.10-5, RFC5280-4.2.1.12-1, RFC5280-4.2.1.12-2, RFC5280-4.2.1.4-1, RFC5280-4.2.1.4-2, RFC5280-4.2.1.4-3, RFC5280-4.2.1.4-4, RFC5280-4.2.1.6-11, RFC5280-4.2.1.6-8, RFC5280-4.2.1.6-9, RFC5280-5-1, RFC5280-5.2-1, RFC5280-5.2.5-1, RFC5280-5.3-1, RFC5280-6.1-1, RFC5280-6.1.3-1, RFC5280-6.3-1, RFC5280-7.1-2, RFC5280-7.2-1
+**Unmet:** RFC5280-4.1.2.4-1, RFC5280-4.1.2.5-3, RFC5280-4.2-1, RFC5280-4.2-2, RFC5280-4.2-4, RFC5280-4.2.1.10-1, RFC5280-4.2.1.10-3, RFC5280-4.2.1.10-5, RFC5280-4.2.1.4-1, RFC5280-4.2.1.4-2, RFC5280-4.2.1.4-3, RFC5280-4.2.1.4-4, RFC5280-4.2.1.6-11, RFC5280-4.2.1.6-8, RFC5280-4.2.1.6-9, RFC5280-5-1, RFC5280-6.1-1, RFC5280-6.3-1, RFC5280-7.1-2, RFC5280-7.2-1
 
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 8 | one part of the gated population |
-| Annotated (including scoped evidence) | 94 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **102** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 14 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 88 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **102** | every mandatory requirement appears in exactly one group above |
 
-**Positive and negative tests (8):** [`RFC5280-4.1.2.6-5`](#rfc5280-4.1.2.6-5), [`RFC5280-4.2.1.6-7`](#rfc5280-4.2.1.6-7), [`RFC5280-4.2.1.6-10`](#rfc5280-4.2.1.6-10), [`RFC5280-4.2.1.9-1`](#rfc5280-4.2.1.9-1), [`RFC5280-4.2.1.9-5`](#rfc5280-4.2.1.9-5), [`RFC5280-5.1.1.3-1`](#rfc5280-5.1.1.3-1), [`RFC5280-6.3.3-1`](#rfc5280-6.3.3-1), [`RFC5280-7.2-2`](#rfc5280-7.2-2)
+**Positive and negative tests (14):** [`RFC5280-4.1.2.6-5`](#rfc5280-4.1.2.6-5), [`RFC5280-4.2.1.6-7`](#rfc5280-4.2.1.6-7), [`RFC5280-4.2.1.6-10`](#rfc5280-4.2.1.6-10), [`RFC5280-4.2.1.9-1`](#rfc5280-4.2.1.9-1), [`RFC5280-4.2.1.9-5`](#rfc5280-4.2.1.9-5), [`RFC5280-4.2.1.12-1`](#rfc5280-4.2.1.12-1), [`RFC5280-4.2.1.12-2`](#rfc5280-4.2.1.12-2), [`RFC5280-5.1.1.3-1`](#rfc5280-5.1.1.3-1), [`RFC5280-5.2-1`](#rfc5280-5.2-1), [`RFC5280-5.2.5-1`](#rfc5280-5.2.5-1), [`RFC5280-5.3-1`](#rfc5280-5.3-1), [`RFC5280-6.1.3-1`](#rfc5280-6.1.3-1), [`RFC5280-6.3.3-1`](#rfc5280-6.3.3-1), [`RFC5280-7.2-2`](#rfc5280-7.2-2)
 
-**Annotated (including scoped evidence) (94):** [`RFC5280-4.1.1.2-1`](#rfc5280-4.1.1.2-1), [`RFC5280-4.1.2.1-1`](#rfc5280-4.1.2.1-1), [`RFC5280-4.1.2.1-2`](#rfc5280-4.1.2.1-2), [`RFC5280-4.1.2.2-1`](#rfc5280-4.1.2.2-1), [`RFC5280-4.1.2.2-2`](#rfc5280-4.1.2.2-2), [`RFC5280-4.1.2.2-3`](#rfc5280-4.1.2.2-3), [`RFC5280-4.1.2.2-4`](#rfc5280-4.1.2.2-4), [`RFC5280-4.1.2.2-5`](#rfc5280-4.1.2.2-5), [`RFC5280-4.1.2.4-1`](#rfc5280-4.1.2.4-1), [`RFC5280-4.1.2.4-2`](#rfc5280-4.1.2.4-2), [`RFC5280-4.1.2.4-3`](#rfc5280-4.1.2.4-3), [`RFC5280-4.1.2.4-4`](#rfc5280-4.1.2.4-4), [`RFC5280-4.1.2.4-5`](#rfc5280-4.1.2.4-5), [`RFC5280-4.1.2.5-1`](#rfc5280-4.1.2.5-1), [`RFC5280-4.1.2.5-2`](#rfc5280-4.1.2.5-2), [`RFC5280-4.1.2.5-3`](#rfc5280-4.1.2.5-3), [`RFC5280-4.1.2.5.1-1`](#rfc5280-4.1.2.5.1-1), [`RFC5280-4.1.2.5.1-2`](#rfc5280-4.1.2.5.1-2), [`RFC5280-4.1.2.5.1-3`](#rfc5280-4.1.2.5.1-3), [`RFC5280-4.1.2.5.2-1`](#rfc5280-4.1.2.5.2-1), [`RFC5280-4.1.2.5.2-2`](#rfc5280-4.1.2.5.2-2), [`RFC5280-4.1.2.6-1`](#rfc5280-4.1.2.6-1), [`RFC5280-4.1.2.6-2`](#rfc5280-4.1.2.6-2), [`RFC5280-4.1.2.6-3`](#rfc5280-4.1.2.6-3), [`RFC5280-4.1.2.6-4`](#rfc5280-4.1.2.6-4), [`RFC5280-4.1.2.6-6`](#rfc5280-4.1.2.6-6), [`RFC5280-4.1.2.8-1`](#rfc5280-4.1.2.8-1), [`RFC5280-4.1.2.8-2`](#rfc5280-4.1.2.8-2), [`RFC5280-4.1.2.9-1`](#rfc5280-4.1.2.9-1), [`RFC5280-4.2-1`](#rfc5280-4.2-1), [`RFC5280-4.2-2`](#rfc5280-4.2-2), [`RFC5280-4.2-3`](#rfc5280-4.2-3), [`RFC5280-4.2-4`](#rfc5280-4.2-4), [`RFC5280-4.2-5`](#rfc5280-4.2-5), [`RFC5280-4.2-6`](#rfc5280-4.2-6), [`RFC5280-4.2.1.1-1`](#rfc5280-4.2.1.1-1), [`RFC5280-4.2.1.1-2`](#rfc5280-4.2.1.1-2), [`RFC5280-4.2.1.2-1`](#rfc5280-4.2.1.2-1), [`RFC5280-4.2.1.2-2`](#rfc5280-4.2.1.2-2), [`RFC5280-4.2.1.2-3`](#rfc5280-4.2.1.2-3), [`RFC5280-4.2.1.3-1`](#rfc5280-4.2.1.3-1), [`RFC5280-4.2.1.3-2`](#rfc5280-4.2.1.3-2), [`RFC5280-4.2.1.3-3`](#rfc5280-4.2.1.3-3), [`RFC5280-4.2.1.3-4`](#rfc5280-4.2.1.3-4), [`RFC5280-4.2.1.4-1`](#rfc5280-4.2.1.4-1), [`RFC5280-4.2.1.4-2`](#rfc5280-4.2.1.4-2), [`RFC5280-4.2.1.4-3`](#rfc5280-4.2.1.4-3), [`RFC5280-4.2.1.4-4`](#rfc5280-4.2.1.4-4), [`RFC5280-4.2.1.6-1`](#rfc5280-4.2.1.6-1), [`RFC5280-4.2.1.6-2`](#rfc5280-4.2.1.6-2), [`RFC5280-4.2.1.6-3`](#rfc5280-4.2.1.6-3), [`RFC5280-4.2.1.6-4`](#rfc5280-4.2.1.6-4), [`RFC5280-4.2.1.6-5`](#rfc5280-4.2.1.6-5), [`RFC5280-4.2.1.6-6`](#rfc5280-4.2.1.6-6), [`RFC5280-4.2.1.6-8`](#rfc5280-4.2.1.6-8), [`RFC5280-4.2.1.6-9`](#rfc5280-4.2.1.6-9), [`RFC5280-4.2.1.6-11`](#rfc5280-4.2.1.6-11), [`RFC5280-4.2.1.9-2`](#rfc5280-4.2.1.9-2), [`RFC5280-4.2.1.9-3`](#rfc5280-4.2.1.9-3), [`RFC5280-4.2.1.9-4`](#rfc5280-4.2.1.9-4), [`RFC5280-4.2.1.10-1`](#rfc5280-4.2.1.10-1), [`RFC5280-4.2.1.10-2`](#rfc5280-4.2.1.10-2), [`RFC5280-4.2.1.10-3`](#rfc5280-4.2.1.10-3), [`RFC5280-4.2.1.10-4`](#rfc5280-4.2.1.10-4), [`RFC5280-4.2.1.10-5`](#rfc5280-4.2.1.10-5), [`RFC5280-4.2.1.11-1`](#rfc5280-4.2.1.11-1), [`RFC5280-4.2.1.11-2`](#rfc5280-4.2.1.11-2), [`RFC5280-4.2.1.11-3`](#rfc5280-4.2.1.11-3), [`RFC5280-4.2.1.12-1`](#rfc5280-4.2.1.12-1), [`RFC5280-4.2.1.12-2`](#rfc5280-4.2.1.12-2), [`RFC5280-4.2.2.1-1`](#rfc5280-4.2.2.1-1), [`RFC5280-5-1`](#rfc5280-5-1), [`RFC5280-5.1.2.4-1`](#rfc5280-5.1.2.4-1), [`RFC5280-5.2-1`](#rfc5280-5.2-1), [`RFC5280-5.2.3-1`](#rfc5280-5.2.3-1), [`RFC5280-5.2.5-1`](#rfc5280-5.2.5-1), [`RFC5280-5.3-1`](#rfc5280-5.3-1), [`RFC5280-6.1-1`](#rfc5280-6.1-1), [`RFC5280-6.1-2`](#rfc5280-6.1-2), [`RFC5280-6.1.3-1`](#rfc5280-6.1.3-1), [`RFC5280-6.1.4-1`](#rfc5280-6.1.4-1), [`RFC5280-6.3-1`](#rfc5280-6.3-1), [`RFC5280-7.1-1`](#rfc5280-7.1-1), [`RFC5280-7.1-2`](#rfc5280-7.1-2), [`RFC5280-7.2-1`](#rfc5280-7.2-1), [`RFC5280-7.2-3`](#rfc5280-7.2-3), [`RFC5280-7.2-4`](#rfc5280-7.2-4), [`RFC5280-8-1`](#rfc5280-8-1), [`RFC5280-A.2-1`](#rfc5280-a.2-1), [`RFC5280-B-1`](#rfc5280-b-1), [`RFC5280-B-2`](#rfc5280-b-2), [`RFC5280-B-3`](#rfc5280-b-3), [`RFC5280-B-4`](#rfc5280-b-4), [`RFC5280-B-5`](#rfc5280-b-5)
+**Annotated (including scoped evidence) (88):** [`RFC5280-4.1.1.2-1`](#rfc5280-4.1.1.2-1), [`RFC5280-4.1.2.1-1`](#rfc5280-4.1.2.1-1), [`RFC5280-4.1.2.1-2`](#rfc5280-4.1.2.1-2), [`RFC5280-4.1.2.2-1`](#rfc5280-4.1.2.2-1), [`RFC5280-4.1.2.2-2`](#rfc5280-4.1.2.2-2), [`RFC5280-4.1.2.2-3`](#rfc5280-4.1.2.2-3), [`RFC5280-4.1.2.2-4`](#rfc5280-4.1.2.2-4), [`RFC5280-4.1.2.2-5`](#rfc5280-4.1.2.2-5), [`RFC5280-4.1.2.4-1`](#rfc5280-4.1.2.4-1), [`RFC5280-4.1.2.4-2`](#rfc5280-4.1.2.4-2), [`RFC5280-4.1.2.4-3`](#rfc5280-4.1.2.4-3), [`RFC5280-4.1.2.4-4`](#rfc5280-4.1.2.4-4), [`RFC5280-4.1.2.4-5`](#rfc5280-4.1.2.4-5), [`RFC5280-4.1.2.5-1`](#rfc5280-4.1.2.5-1), [`RFC5280-4.1.2.5-2`](#rfc5280-4.1.2.5-2), [`RFC5280-4.1.2.5-3`](#rfc5280-4.1.2.5-3), [`RFC5280-4.1.2.5.1-1`](#rfc5280-4.1.2.5.1-1), [`RFC5280-4.1.2.5.1-2`](#rfc5280-4.1.2.5.1-2), [`RFC5280-4.1.2.5.1-3`](#rfc5280-4.1.2.5.1-3), [`RFC5280-4.1.2.5.2-1`](#rfc5280-4.1.2.5.2-1), [`RFC5280-4.1.2.5.2-2`](#rfc5280-4.1.2.5.2-2), [`RFC5280-4.1.2.6-1`](#rfc5280-4.1.2.6-1), [`RFC5280-4.1.2.6-2`](#rfc5280-4.1.2.6-2), [`RFC5280-4.1.2.6-3`](#rfc5280-4.1.2.6-3), [`RFC5280-4.1.2.6-4`](#rfc5280-4.1.2.6-4), [`RFC5280-4.1.2.6-6`](#rfc5280-4.1.2.6-6), [`RFC5280-4.1.2.8-1`](#rfc5280-4.1.2.8-1), [`RFC5280-4.1.2.8-2`](#rfc5280-4.1.2.8-2), [`RFC5280-4.1.2.9-1`](#rfc5280-4.1.2.9-1), [`RFC5280-4.2-1`](#rfc5280-4.2-1), [`RFC5280-4.2-2`](#rfc5280-4.2-2), [`RFC5280-4.2-3`](#rfc5280-4.2-3), [`RFC5280-4.2-4`](#rfc5280-4.2-4), [`RFC5280-4.2-5`](#rfc5280-4.2-5), [`RFC5280-4.2-6`](#rfc5280-4.2-6), [`RFC5280-4.2.1.1-1`](#rfc5280-4.2.1.1-1), [`RFC5280-4.2.1.1-2`](#rfc5280-4.2.1.1-2), [`RFC5280-4.2.1.2-1`](#rfc5280-4.2.1.2-1), [`RFC5280-4.2.1.2-2`](#rfc5280-4.2.1.2-2), [`RFC5280-4.2.1.2-3`](#rfc5280-4.2.1.2-3), [`RFC5280-4.2.1.3-1`](#rfc5280-4.2.1.3-1), [`RFC5280-4.2.1.3-2`](#rfc5280-4.2.1.3-2), [`RFC5280-4.2.1.3-3`](#rfc5280-4.2.1.3-3), [`RFC5280-4.2.1.3-4`](#rfc5280-4.2.1.3-4), [`RFC5280-4.2.1.4-1`](#rfc5280-4.2.1.4-1), [`RFC5280-4.2.1.4-2`](#rfc5280-4.2.1.4-2), [`RFC5280-4.2.1.4-3`](#rfc5280-4.2.1.4-3), [`RFC5280-4.2.1.4-4`](#rfc5280-4.2.1.4-4), [`RFC5280-4.2.1.6-1`](#rfc5280-4.2.1.6-1), [`RFC5280-4.2.1.6-2`](#rfc5280-4.2.1.6-2), [`RFC5280-4.2.1.6-3`](#rfc5280-4.2.1.6-3), [`RFC5280-4.2.1.6-4`](#rfc5280-4.2.1.6-4), [`RFC5280-4.2.1.6-5`](#rfc5280-4.2.1.6-5), [`RFC5280-4.2.1.6-6`](#rfc5280-4.2.1.6-6), [`RFC5280-4.2.1.6-8`](#rfc5280-4.2.1.6-8), [`RFC5280-4.2.1.6-9`](#rfc5280-4.2.1.6-9), [`RFC5280-4.2.1.6-11`](#rfc5280-4.2.1.6-11), [`RFC5280-4.2.1.9-2`](#rfc5280-4.2.1.9-2), [`RFC5280-4.2.1.9-3`](#rfc5280-4.2.1.9-3), [`RFC5280-4.2.1.9-4`](#rfc5280-4.2.1.9-4), [`RFC5280-4.2.1.10-1`](#rfc5280-4.2.1.10-1), [`RFC5280-4.2.1.10-2`](#rfc5280-4.2.1.10-2), [`RFC5280-4.2.1.10-3`](#rfc5280-4.2.1.10-3), [`RFC5280-4.2.1.10-4`](#rfc5280-4.2.1.10-4), [`RFC5280-4.2.1.10-5`](#rfc5280-4.2.1.10-5), [`RFC5280-4.2.1.11-1`](#rfc5280-4.2.1.11-1), [`RFC5280-4.2.1.11-2`](#rfc5280-4.2.1.11-2), [`RFC5280-4.2.1.11-3`](#rfc5280-4.2.1.11-3), [`RFC5280-4.2.2.1-1`](#rfc5280-4.2.2.1-1), [`RFC5280-5-1`](#rfc5280-5-1), [`RFC5280-5.1.2.4-1`](#rfc5280-5.1.2.4-1), [`RFC5280-5.2.3-1`](#rfc5280-5.2.3-1), [`RFC5280-6.1-1`](#rfc5280-6.1-1), [`RFC5280-6.1-2`](#rfc5280-6.1-2), [`RFC5280-6.1.4-1`](#rfc5280-6.1.4-1), [`RFC5280-6.3-1`](#rfc5280-6.3-1), [`RFC5280-7.1-1`](#rfc5280-7.1-1), [`RFC5280-7.1-2`](#rfc5280-7.1-2), [`RFC5280-7.2-1`](#rfc5280-7.2-1), [`RFC5280-7.2-3`](#rfc5280-7.2-3), [`RFC5280-7.2-4`](#rfc5280-7.2-4), [`RFC5280-8-1`](#rfc5280-8-1), [`RFC5280-A.2-1`](#rfc5280-a.2-1), [`RFC5280-B-1`](#rfc5280-b-1), [`RFC5280-B-2`](#rfc5280-b-2), [`RFC5280-B-3`](#rfc5280-b-3), [`RFC5280-B-4`](#rfc5280-b-4), [`RFC5280-B-5`](#rfc5280-b-5)
 
 ## Figures
 
-- **MUST bar**: Ze proven 26, OS testing gap 50, Ze correctness gap 26
-- **Overview bar**: Ze MUST proven 26, SHOULD not decided 108, OS testing gap 50, Ze correctness gap 26
+- **MUST bar**: Ze proven 32, OS testing gap 50, Not built 20
+- **Overview bar**: Ze MUST proven 32, OS testing gap 50, Not assessed 108, Not built 20
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 102 |
 | MUST rows kept (the MUST bar) | 102 |
-| Ze proven | 26 |
+| Ze proven | 32 |
 | OS verified | 0 |
+| Proof pending | 0 |
 | OS testing gap | 50 |
-| Ze correctness gap | 26 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 20 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -138,11 +148,12 @@ Enrolled: The X.509 profile behind every certificate IKEv2, EAP-TLS and Ze's own
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 108 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 108 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc5280.json](../../../data/rfc/rfc5280.json).
 
@@ -181,7 +192,7 @@ Source: [data/rfc/rfc5280.json](../../../data/rfc/rfc5280.json).
 | `RFC5280-4.1.2.8-2` | CAs conforming to this profile MUST NOT generate certificates with unique identifiers. (§4.1.2.8) | MUST NOT | 4.1.2.8 | **positive:** no positive test. **negative:** no negative test. **{lower-layer}:** Go crypto/x509 CreateCertificate and encoding/asn1, go:crypto/x509; internal/component/pki/ca.go::generateRoot and internal/component/pki/ca.go::Root.IssueLeafFor and internal/core/selfcert/selfcert.go::GenerateWebCertWithNames fill an x509.Certificate template and CreateCertificate encodes it, deciding this field; no template value ze sets decides it |
 | `RFC5280-4.1.2.9-1` | This field MUST only appear if the version is 3 (Section 4.1.2.1). (§4.1.2.9) | MUST | 4.1.2.9 | **positive:** no positive test. **negative:** no negative test. **{lower-layer}:** Go crypto/x509 CreateCertificate and encoding/asn1, go:crypto/x509; internal/component/pki/ca.go::generateRoot and internal/component/pki/ca.go::Root.IssueLeafFor and internal/core/selfcert/selfcert.go::GenerateWebCertWithNames fill an x509.Certificate template and CreateCertificate encodes it, deciding this field; no template value ze sets decides it |
 | `RFC5280-4.2-1` | A certificate-using system MUST reject the certificate if it encounters a critical extension it does not recognize or a critical extension that contains information that it cannot process. (§4.2) | MUST | 4.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Go crypto/x509 parseNameConstraintsExtension reads only the base of each GeneralSubtree and never minimum or maximum, so a critical name constraints extension that sets them is accepted unprocessed, and parseCertificatePoliciesExtension skips the qualifiers of a critical certificatePolicies extension; Certificate.Verify then uses the certificate in internal/component/ike/engine/cert_payload.go::getRemoteCert and internal/component/pki/tls.go::verifyEntryChain. Same cause as RFC5280-4.2.1.10-3 and RFC5280-4.2.1.4-2 |
-| `RFC5280-4.2-2` | A non-critical extension MAY be ignored if it is not recognized, but MUST be processed if it is recognized. (§4.2) | MUST | 4.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** internal/component/ike/engine/cert_payload.go::getRemoteCert and internal/component/pki/tls.go::verifyEntryChain pass KeyUsages ExtKeyUsageAny to x509.Certificate.Verify, which then skips checkChainForKeyUsage, and Go never checks the leaf keyUsage extension, so a recognized extended key usage or key usage extension is not processed. Same cause as RFC5280-4.2.1.12-1 and RFC5280-4.2.1.12-2 |
+| `RFC5280-4.2-2` | A non-critical extension MAY be ignored if it is not recognized, but MUST be processed if it is recognized. (§4.2) | MUST | 4.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** internal/component/pki/tls.go::verifyEntryChain passes KeyUsages ExtKeyUsageAny to x509.Certificate.Verify, which then skips checkChainForKeyUsage, and Go never checks the keyUsage extension, so a recognized extended key usage or key usage extension of a certificate Ze serves, or of a CA certificate on an IKE peer chain, is not processed; internal/component/ike/engine/remote_cert_checks.go::checkIKEPurpose processes the keyUsage and extendedKeyUsage of the IKE peer's own certificate only (RFC 4945 Section 5.1.3); internal/component/pki/tls.go::verifyEntryChain |
 | `RFC5280-4.2-3` | A certificate MUST NOT include more than one instance of a particular extension. (§4.2) | MUST NOT | 4.2 | **positive:** no positive test. **negative:** no negative test. **{lower-layer}:** Go crypto/x509 CreateCertificate and encoding/asn1, go:crypto/x509; internal/component/pki/ca.go::generateRoot and internal/component/pki/ca.go::Root.IssueLeafFor and internal/core/selfcert/selfcert.go::GenerateWebCertWithNames fill an x509.Certificate template and CreateCertificate encodes it, deciding this field; no template value ze sets decides it |
 | `RFC5280-4.2-4` | Conforming CAs MUST support key identifiers (Sections 4.2.1.1 and 4.2.1.2), basic constraints (Section 4.2.1.9), key usage (Section 4.2.1.3), and certificate policies (Section 4.2.1.4) extensions. (§4.2) | MUST | 4.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the pki CA writes key identifiers (through CreateCertificate), basic constraints and key usage, but no template it builds can carry certificate policies; internal/component/pki/ca.go::Root.IssueLeafFor |
 | `RFC5280-4.2-5` | If the CA issues certificates with an empty sequence for the subject field, the CA MUST support the subject alternative name extension (Section 4.2.1.6). (§4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestRFC5280AltNameOnlyCertificateMarksTheExtensionCritical`](https://github.com/ze-software/ze/blob/main/internal/core/selfcert/rfc5280_alt_name_only_test.go#L37). **negative:** no negative test. **{single-polarity}:** the only empty-subject certificate Ze writes (GenerateWebCertWithNames) always carries the listener names in subjectAltName, and WebCertHosts always yields localhost and the loopback addresses, so there is no empty-subject certificate without the extension to contrast |
@@ -223,19 +234,19 @@ Source: [data/rfc/rfc5280.json](../../../data/rfc/rfc5280.json).
 | `RFC5280-4.2.1.11-1` | Conforming applications MUST be able to process the requireExplicitPolicy field and SHOULD be able to process the inhibitPolicyMapping field. (§4.2.1.11) | MUST | 4.2.1.11 | **positive:** no positive test. **negative:** no negative test. **{lower-layer}:** Go crypto/x509 Certificate.Verify, go:crypto/x509; internal/component/ike/engine/cert_payload.go::getRemoteCert and internal/component/pki/tls.go::verifyEntryChain hand the certificate, its intermediates and the configured trust anchor to x509.Certificate.Verify, which performs this check; ze installs no value it reads |
 | `RFC5280-4.2.1.11-2` | Applications that support the inhibitPolicyMapping field MUST also implement support for the policyMappings extension. (§4.2.1.11) | MUST | 4.2.1.11 | **positive:** no positive test. **negative:** no negative test. **{lower-layer}:** Go crypto/x509 Certificate.Verify, go:crypto/x509; internal/component/ike/engine/cert_payload.go::getRemoteCert and internal/component/pki/tls.go::verifyEntryChain hand the certificate, its intermediates and the configured trust anchor to x509.Certificate.Verify, which performs this check; ze installs no value it reads |
 | `RFC5280-4.2.1.11-3` | If the policyConstraints extension is marked as critical and the inhibitPolicyMapping field is present, applications that do not implement support for the inhibitPolicyMapping field MUST reject the certificate. (§4.2.1.11) | MUST | 4.2.1.11 | **positive:** no positive test. **negative:** no negative test. **{lower-layer}:** Go crypto/x509 Certificate.Verify, go:crypto/x509; internal/component/ike/engine/cert_payload.go::getRemoteCert and internal/component/pki/tls.go::verifyEntryChain hand the certificate, its intermediates and the configured trust anchor to x509.Certificate.Verify, which performs this check; ze installs no value it reads |
-| `RFC5280-4.2.1.12-1` | If the extension is present, then the certificate MUST only be used for one of the purposes indicated. (§4.2.1.12) | MUST | 4.2.1.12 | **positive:** no positive test. **negative:** no negative test. **{gap}:** getRemoteCert and verifyEntryChain pass KeyUsages ExtKeyUsageAny to x509.Certificate.Verify and check no key usage bit of the leaf, so a peer certificate whose extensions name no purpose IKE fills is still used for IKE authentication; internal/component/ike/engine/cert_payload.go::getRemoteCert |
-| `RFC5280-4.2.1.12-2` | If a certificate contains both a key usage extension and an extended key usage extension, then both extensions MUST be processed independently and the certificate MUST only be used for a purpose consistent with both extensions. (§4.2.1.12) | MUST | 4.2.1.12 | **positive:** no positive test. **negative:** no negative test. **{gap}:** getRemoteCert and verifyEntryChain pass KeyUsages ExtKeyUsageAny to x509.Certificate.Verify and check no key usage bit of the leaf, so a peer certificate whose extensions name no purpose IKE fills is still used for IKE authentication; internal/component/ike/engine/cert_payload.go::getRemoteCert |
+| `RFC5280-4.2.1.12-1` | If the extension is present, then the certificate MUST only be used for one of the purposes indicated. (§4.2.1.12) | MUST | 4.2.1.12 | **positive:** `unit/verify` [`TestRFC5280Section42112IKEPurpose`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5280_ike_purpose_test.go#L141). **negative:** `unit/verify` [`TestRFC5280Section42112IKEPurpose`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5280_ike_purpose_test.go#L194) |
+| `RFC5280-4.2.1.12-2` | If a certificate contains both a key usage extension and an extended key usage extension, then both extensions MUST be processed independently and the certificate MUST only be used for a purpose consistent with both extensions. (§4.2.1.12) | MUST | 4.2.1.12 | **positive:** `unit/verify` [`TestRFC5280Section42112IKEPurpose`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5280_ike_purpose_test.go#L144). **negative:** `unit/verify` [`TestRFC5280Section42112IKEPurpose`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5280_ike_purpose_test.go#L167) |
 | `RFC5280-4.2.2.1-1` | Conforming applications that support HTTP or FTP for accessing certificates MUST be able to accept individual DER encoded certificates and SHOULD be able to accept "certs-only" CMS messages. (§4.2.2.1) | MUST | 4.2.2.1 | **positive:** `unit/verify` [`TestRFC7296ReceivedHashAndURLFormatsAreAcceptedWhenConfigured`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_hash_url_accept_test.go#L69). **negative:** no negative test. **{single-polarity}:** Ze accesses certificates over HTTP only through RFC 7296 Hash and URL (internal/component/ike/engine/certurl.go::fetchHashAndURL), and encoding 12 is defined as one individual DER certificate, so there is no other format it must also refuse to contrast |
 | `RFC5280-5-1` | Conforming applications that support CRLs are REQUIRED to process both version 1 and version 2 complete CRLs that provide revocation information for all certificates issued by one CA. (§5) | REQUIRED | 5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** x509.ParseRevocationList refuses a CRL without a version field (a version 1 CRL), and parseCRLs and the pki crl leaf-list refuse the material with it; internal/core/eap/revocation.go::parseCRLs |
 | `RFC5280-5.1.1.3-1` | Applications that perform CRL checking MUST support certification path validation when certificates and CRLs are digitally signed with the same CA private key. (§5.1.1.3) | MUST | 5.1.1.3 | **positive:** `unit/verify` [`TestRFC5280CRLMustChainToTheCertificatesOwnAnchor`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5280_crl_path_test.go#L49). **negative:** `unit/verify` [`TestRFC5280CRLMustChainToTheCertificatesOwnAnchor`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5280_crl_path_test.go#L55) |
 | `RFC5280-5.1.2.4-1` | Conforming applications MUST be able to process dates that are encoded in either UTCTime or GeneralizedTime. (§5.1.2.4) | MUST | 5.1.2.4 | **positive:** no positive test. **negative:** no negative test. **{lower-layer}:** Go crypto/x509 ParseRevocationList, go:crypto/x509; internal/core/eap/revocation.go::parseCRLs parses every configured CRL with x509.ParseRevocationList, which decodes this field; ze installs no value it reads |
-| `RFC5280-5.2-1` | If a CRL contains a critical extension that the application cannot process, then the application MUST NOT use that CRL to determine the status of certificates. (§5.2) | MUST NOT | 5.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** checkChainRevocation reads any list x509.ParseRevocationList accepts, and neither it nor Go looks at the critical flag of a CRL or CRL entry extension, so a list carrying an extension ze cannot process (a delta CRL indicator, an issuing distribution point, a certificate issuer entry) still decides certificate status; internal/core/eap/revocation.go::crlSet.currentListFrom |
+| `RFC5280-5.2-1` | If a CRL contains a critical extension that the application cannot process, then the application MUST NOT use that CRL to determine the status of certificates. (§5.2) | MUST NOT | 5.2 | **positive:** `unit/verify` [`TestRFC5280Section52UnprocessedCriticalCRL`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5280_crl_critical_test.go#L118). **negative:** `unit/verify` [`TestRFC5280Section52UnprocessedCriticalCRL`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5280_crl_critical_test.go#L124) |
 | `RFC5280-5.2.3-1` | CRL verifiers MUST be able to handle CRLNumber values up to 20 octets. (§5.2.3) | MUST | 5.2.3 | **positive:** no positive test. **negative:** no negative test. **{lower-layer}:** Go crypto/x509 ParseRevocationList, go:crypto/x509; internal/core/eap/revocation.go::parseCRLs parses every configured CRL with x509.ParseRevocationList, which decodes this field; ze installs no value it reads |
-| `RFC5280-5.2.5-1` | However, implementations that do not support this extension MUST either treat the status of any certificate not listed on this CRL as unknown or locate another CRL that does not contain any unrecognized critical extensions. (§5.2.5) | MUST | 5.2.5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** checkChainRevocation reads any list x509.ParseRevocationList accepts, and neither it nor Go looks at the critical flag of a CRL or CRL entry extension, so a list carrying an extension ze cannot process (a delta CRL indicator, an issuing distribution point, a certificate issuer entry) still decides certificate status; internal/core/eap/revocation.go::crlSet.currentListFrom |
-| `RFC5280-5.3-1` | If a CRL contains a critical CRL entry extension that the application cannot process, then the application MUST NOT use that CRL to determine the status of any certificates. (§5.3) | MUST NOT | 5.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** checkChainRevocation reads any list x509.ParseRevocationList accepts, and neither it nor Go looks at the critical flag of a CRL or CRL entry extension, so a list carrying an extension ze cannot process (a delta CRL indicator, an issuing distribution point, a certificate issuer entry) still decides certificate status; internal/core/eap/revocation.go::crlSet.currentListFrom |
-| `RFC5280-6.1-1` | A conforming implementation MUST include an X.509 path processing procedure that is functionally equivalent to the external behavior of this algorithm. (§6.1) | MUST | 6.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Go crypto/x509 Certificate.Verify, the path processing both callers use, performs no revocation check, and neither caller checks revocation either (only EAP-TLS reads CRLs), so the procedure is not functionally equivalent to the Section 6.1 algorithm, whose step 6.1.3 (a)(3) requires that at the current time the certificate is not revoked; internal/component/ike/engine/cert_payload.go::getRemoteCert and internal/component/pki/tls.go::verifyEntryChain |
+| `RFC5280-5.2.5-1` | However, implementations that do not support this extension MUST either treat the status of any certificate not listed on this CRL as unknown or locate another CRL that does not contain any unrecognized critical extensions. (§5.2.5) | MUST | 5.2.5 | **positive:** `unit/verify` [`TestRFC5280Section52UnprocessedCriticalCRL`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5280_crl_critical_test.go#L135). **negative:** `unit/verify` [`TestRFC5280Section52UnprocessedCriticalCRL`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5280_crl_critical_test.go#L140) |
+| `RFC5280-5.3-1` | If a CRL contains a critical CRL entry extension that the application cannot process, then the application MUST NOT use that CRL to determine the status of any certificates. (§5.3) | MUST NOT | 5.3 | **positive:** `unit/verify` [`TestRFC5280Section52UnprocessedCriticalCRL`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5280_crl_critical_test.go#L153). **negative:** `unit/verify` [`TestRFC5280Section52UnprocessedCriticalCRL`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5280_crl_critical_test.go#L158) |
+| `RFC5280-6.1-1` | A conforming implementation MUST include an X.509 path processing procedure that is functionally equivalent to the external behavior of this algorithm. (§6.1) | MUST | 6.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Go crypto/x509 Certificate.Verify performs no revocation check. internal/component/ike/engine/cert_payload.go::getRemoteCert adds the Section 6.1.3 (a)(3) check over the chains Verify returns once a pki ca on the chain holds a CRL, and accepts the chain with a warning when none does, while internal/component/pki/tls.go::verifyEntryChain checks no revocation, so the procedure is not functionally equivalent to the Section 6.1 algorithm on every path; internal/component/pki/tls.go::verifyEntryChain |
 | `RFC5280-6.1-2` | A certificate MUST NOT appear more than once in a prospective certification path. (§6.1) | MUST NOT | 6.1 | **positive:** no positive test. **negative:** no negative test. **{lower-layer}:** Go crypto/x509 Certificate.Verify, go:crypto/x509; internal/component/ike/engine/cert_payload.go::getRemoteCert and internal/component/pki/tls.go::verifyEntryChain hand the certificate, its intermediates and the configured trust anchor to x509.Certificate.Verify, which performs this check; ze installs no value it reads |
-| `RFC5280-6.1.3-1` | The certificate MUST satisfy each of the following: (§6.1.3) | MUST | 6.1.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** x509.Certificate.Verify checks the signature, the validity period and issuer name chaining, and nothing checks condition (a)(3), the revocation status, of an IKE peer certificate: getRemoteCert runs no CRL or OCSP check (EAP-TLS does, in internal/core/eap/revocation.go::checkChainRevocation); internal/component/ike/engine/cert_payload.go::getRemoteCert |
+| `RFC5280-6.1.3-1` | The certificate MUST satisfy each of the following: (§6.1.3) | MUST | 6.1.3 | **positive:** `unit/verify` [`TestRFC5280Section613RevokedIKEPeerRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5280_ike_revocation_test.go#L110). **negative:** `unit/verify` [`TestRFC5280Section613RevokedIKEPeerRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5280_ike_revocation_test.go#L125) |
 | `RFC5280-6.1.4-1` | (If certificate i is a version 1 or version 2 certificate, then the application MUST either verify that certificate i is a CA certificate through out-of-band means or reject the certificate. (§6.1.4) | MUST | 6.1.4 | **positive:** no positive test. **negative:** no negative test. **{lower-layer}:** Go crypto/x509 Certificate.Verify, go:crypto/x509; internal/component/ike/engine/cert_payload.go::getRemoteCert and internal/component/pki/tls.go::verifyEntryChain hand the certificate, its intermediates and the configured trust anchor to x509.Certificate.Verify, which performs this check; ze installs no value it reads |
 | `RFC5280-6.3-1` | Conforming implementations that support CRLs are not required to implement this algorithm, but they MUST be functionally equivalent to the external behavior resulting from this procedure when processing CRLs that are issued in conformance with this profile. (§6.3) | MUST | 6.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** checkChainRevocation matches a list to the issuer, checks its signature and its nextUpdate, and implements none of the scope, reason, delta and critical extension steps of Section 6.3.3; internal/core/eap/revocation.go::checkChainRevocation |
 | `RFC5280-6.3.3-1` | The trust anchor for the certification path MUST be the same as the trust anchor used to validate the target certificate. (§6.3.3) | MUST | 6.3.3 | **positive:** `unit/verify` [`TestRFC5280CRLMustChainToTheCertificatesOwnAnchor`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5280_crl_path_test.go#L61). **negative:** `unit/verify` [`TestRFC5280CRLMustChainToTheCertificatesOwnAnchor`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5280_crl_path_test.go#L74) |
@@ -388,7 +399,7 @@ Source: [data/rfc/rfc5280.json](../../../data/rfc/rfc5280.json).
 | [`RFC5280-4.1.2.8-2`](#rfc5280-4.1.2.8-2) CAs conforming to this profile MUST NOT generate certificates with unique identifiers. (§4.1.2.8) | no test | no test carries this requirement id; annotated {lower-layer}: Go crypto/x509 CreateCertificate and encoding/asn1, go:crypto/x509; internal/component/pki/ca.go::generateRoot and internal/component/pki/ca.go::Root.IssueLeafFor and internal/core/selfcert/selfcert.go::GenerateWebCertWithNames fill an x509.Certificate template and CreateCertificate encodes it, deciding this field; no template value ze sets decides it |
 | [`RFC5280-4.1.2.9-1`](#rfc5280-4.1.2.9-1) This field MUST only appear if the version is 3 (Section 4.1.2.1). (§4.1.2.9) | no test | no test carries this requirement id; annotated {lower-layer}: Go crypto/x509 CreateCertificate and encoding/asn1, go:crypto/x509; internal/component/pki/ca.go::generateRoot and internal/component/pki/ca.go::Root.IssueLeafFor and internal/core/selfcert/selfcert.go::GenerateWebCertWithNames fill an x509.Certificate template and CreateCertificate encodes it, deciding this field; no template value ze sets decides it |
 | [`RFC5280-4.2-1`](#rfc5280-4.2-1) A certificate-using system MUST reject the certificate if it encounters a critical extension it does not recognize or a critical extension that contains information that it cannot process. (§4.2) | {gap}, no test | Go crypto/x509 parseNameConstraintsExtension reads only the base of each GeneralSubtree and never minimum or maximum, so a critical name constraints extension that sets them is accepted unprocessed, and parseCertificatePoliciesExtension skips the qualifiers of a critical certificatePolicies extension; Certificate.Verify then uses the certificate in internal/component/ike/engine/cert_payload.go::getRemoteCert and internal/component/pki/tls.go::verifyEntryChain. Same cause as RFC5280-4.2.1.10-3 and RFC5280-4.2.1.4-2 |
-| [`RFC5280-4.2-2`](#rfc5280-4.2-2) A non-critical extension MAY be ignored if it is not recognized, but MUST be processed if it is recognized. (§4.2) | {gap}, no test | internal/component/ike/engine/cert_payload.go::getRemoteCert and internal/component/pki/tls.go::verifyEntryChain pass KeyUsages ExtKeyUsageAny to x509.Certificate.Verify, which then skips checkChainForKeyUsage, and Go never checks the leaf keyUsage extension, so a recognized extended key usage or key usage extension is not processed. Same cause as RFC5280-4.2.1.12-1 and RFC5280-4.2.1.12-2 |
+| [`RFC5280-4.2-2`](#rfc5280-4.2-2) A non-critical extension MAY be ignored if it is not recognized, but MUST be processed if it is recognized. (§4.2) | {gap}, no test | internal/component/pki/tls.go::verifyEntryChain passes KeyUsages ExtKeyUsageAny to x509.Certificate.Verify, which then skips checkChainForKeyUsage, and Go never checks the keyUsage extension, so a recognized extended key usage or key usage extension of a certificate Ze serves, or of a CA certificate on an IKE peer chain, is not processed; internal/component/ike/engine/remote_cert_checks.go::checkIKEPurpose processes the keyUsage and extendedKeyUsage of the IKE peer's own certificate only (RFC 4945 Section 5.1.3); internal/component/pki/tls.go::verifyEntryChain |
 | [`RFC5280-4.2-3`](#rfc5280-4.2-3) A certificate MUST NOT include more than one instance of a particular extension. (§4.2) | no test | no test carries this requirement id; annotated {lower-layer}: Go crypto/x509 CreateCertificate and encoding/asn1, go:crypto/x509; internal/component/pki/ca.go::generateRoot and internal/component/pki/ca.go::Root.IssueLeafFor and internal/core/selfcert/selfcert.go::GenerateWebCertWithNames fill an x509.Certificate template and CreateCertificate encodes it, deciding this field; no template value ze sets decides it |
 | [`RFC5280-4.2-4`](#rfc5280-4.2-4) Conforming CAs MUST support key identifiers (Sections 4.2.1.1 and 4.2.1.2), basic constraints (Section 4.2.1.9), key usage (Section 4.2.1.3), and certificate policies (Section 4.2.1.4) extensions. (§4.2) | {gap}, no test | the pki CA writes key identifiers (through CreateCertificate), basic constraints and key usage, but no template it builds can carry certificate policies; internal/component/pki/ca.go::Root.IssueLeafFor |
 | [`RFC5280-4.2-6`](#rfc5280-4.2-6) At a minimum, applications conforming to this profile MUST recognize the following extensions: key usage (Section 4.2.1.3), certificate policies (Section 4.2.1.4), subject alternative name (Section 4.2.1.6), basic constraints (Section 4.2.1.9), name constraints (Section 4.2.1.10), policy constraints (Section 4.2.1.11), extended key usage (Section 4.2.1.12), and inhibit anyPolicy (Section 4.2.1.14). (§4.2) | no test | no test carries this requirement id; annotated {lower-layer}: Go crypto/x509 ParseCertificate, go:crypto/x509; internal/component/ike/engine/cert_payload.go::getRemoteCert parses the certificates a peer sends with x509.ParseCertificate, which decides what it accepts; ze installs no value it reads |
@@ -417,17 +428,11 @@ Source: [data/rfc/rfc5280.json](../../../data/rfc/rfc5280.json).
 | [`RFC5280-4.2.1.11-1`](#rfc5280-4.2.1.11-1) Conforming applications MUST be able to process the requireExplicitPolicy field and SHOULD be able to process the inhibitPolicyMapping field. (§4.2.1.11) | no test | no test carries this requirement id; annotated {lower-layer}: Go crypto/x509 Certificate.Verify, go:crypto/x509; internal/component/ike/engine/cert_payload.go::getRemoteCert and internal/component/pki/tls.go::verifyEntryChain hand the certificate, its intermediates and the configured trust anchor to x509.Certificate.Verify, which performs this check; ze installs no value it reads |
 | [`RFC5280-4.2.1.11-2`](#rfc5280-4.2.1.11-2) Applications that support the inhibitPolicyMapping field MUST also implement support for the policyMappings extension. (§4.2.1.11) | no test | no test carries this requirement id; annotated {lower-layer}: Go crypto/x509 Certificate.Verify, go:crypto/x509; internal/component/ike/engine/cert_payload.go::getRemoteCert and internal/component/pki/tls.go::verifyEntryChain hand the certificate, its intermediates and the configured trust anchor to x509.Certificate.Verify, which performs this check; ze installs no value it reads |
 | [`RFC5280-4.2.1.11-3`](#rfc5280-4.2.1.11-3) If the policyConstraints extension is marked as critical and the inhibitPolicyMapping field is present, applications that do not implement support for the inhibitPolicyMapping field MUST reject the certificate. (§4.2.1.11) | no test | no test carries this requirement id; annotated {lower-layer}: Go crypto/x509 Certificate.Verify, go:crypto/x509; internal/component/ike/engine/cert_payload.go::getRemoteCert and internal/component/pki/tls.go::verifyEntryChain hand the certificate, its intermediates and the configured trust anchor to x509.Certificate.Verify, which performs this check; ze installs no value it reads |
-| [`RFC5280-4.2.1.12-1`](#rfc5280-4.2.1.12-1) If the extension is present, then the certificate MUST only be used for one of the purposes indicated. (§4.2.1.12) | {gap}, no test | getRemoteCert and verifyEntryChain pass KeyUsages ExtKeyUsageAny to x509.Certificate.Verify and check no key usage bit of the leaf, so a peer certificate whose extensions name no purpose IKE fills is still used for IKE authentication; internal/component/ike/engine/cert_payload.go::getRemoteCert |
-| [`RFC5280-4.2.1.12-2`](#rfc5280-4.2.1.12-2) If a certificate contains both a key usage extension and an extended key usage extension, then both extensions MUST be processed independently and the certificate MUST only be used for a purpose consistent with both extensions. (§4.2.1.12) | {gap}, no test | getRemoteCert and verifyEntryChain pass KeyUsages ExtKeyUsageAny to x509.Certificate.Verify and check no key usage bit of the leaf, so a peer certificate whose extensions name no purpose IKE fills is still used for IKE authentication; internal/component/ike/engine/cert_payload.go::getRemoteCert |
 | [`RFC5280-5-1`](#rfc5280-5-1) Conforming applications that support CRLs are REQUIRED to process both version 1 and version 2 complete CRLs that provide revocation information for all certificates issued by one CA. (§5) | {gap}, no test | x509.ParseRevocationList refuses a CRL without a version field (a version 1 CRL), and parseCRLs and the pki crl leaf-list refuse the material with it; internal/core/eap/revocation.go::parseCRLs |
 | [`RFC5280-5.1.2.4-1`](#rfc5280-5.1.2.4-1) Conforming applications MUST be able to process dates that are encoded in either UTCTime or GeneralizedTime. (§5.1.2.4) | no test | no test carries this requirement id; annotated {lower-layer}: Go crypto/x509 ParseRevocationList, go:crypto/x509; internal/core/eap/revocation.go::parseCRLs parses every configured CRL with x509.ParseRevocationList, which decodes this field; ze installs no value it reads |
-| [`RFC5280-5.2-1`](#rfc5280-5.2-1) If a CRL contains a critical extension that the application cannot process, then the application MUST NOT use that CRL to determine the status of certificates. (§5.2) | {gap}, no test | checkChainRevocation reads any list x509.ParseRevocationList accepts, and neither it nor Go looks at the critical flag of a CRL or CRL entry extension, so a list carrying an extension ze cannot process (a delta CRL indicator, an issuing distribution point, a certificate issuer entry) still decides certificate status; internal/core/eap/revocation.go::crlSet.currentListFrom |
 | [`RFC5280-5.2.3-1`](#rfc5280-5.2.3-1) CRL verifiers MUST be able to handle CRLNumber values up to 20 octets. (§5.2.3) | no test | no test carries this requirement id; annotated {lower-layer}: Go crypto/x509 ParseRevocationList, go:crypto/x509; internal/core/eap/revocation.go::parseCRLs parses every configured CRL with x509.ParseRevocationList, which decodes this field; ze installs no value it reads |
-| [`RFC5280-5.2.5-1`](#rfc5280-5.2.5-1) However, implementations that do not support this extension MUST either treat the status of any certificate not listed on this CRL as unknown or locate another CRL that does not contain any unrecognized critical extensions. (§5.2.5) | {gap}, no test | checkChainRevocation reads any list x509.ParseRevocationList accepts, and neither it nor Go looks at the critical flag of a CRL or CRL entry extension, so a list carrying an extension ze cannot process (a delta CRL indicator, an issuing distribution point, a certificate issuer entry) still decides certificate status; internal/core/eap/revocation.go::crlSet.currentListFrom |
-| [`RFC5280-5.3-1`](#rfc5280-5.3-1) If a CRL contains a critical CRL entry extension that the application cannot process, then the application MUST NOT use that CRL to determine the status of any certificates. (§5.3) | {gap}, no test | checkChainRevocation reads any list x509.ParseRevocationList accepts, and neither it nor Go looks at the critical flag of a CRL or CRL entry extension, so a list carrying an extension ze cannot process (a delta CRL indicator, an issuing distribution point, a certificate issuer entry) still decides certificate status; internal/core/eap/revocation.go::crlSet.currentListFrom |
-| [`RFC5280-6.1-1`](#rfc5280-6.1-1) A conforming implementation MUST include an X.509 path processing procedure that is functionally equivalent to the external behavior of this algorithm. (§6.1) | {gap}, no test | Go crypto/x509 Certificate.Verify, the path processing both callers use, performs no revocation check, and neither caller checks revocation either (only EAP-TLS reads CRLs), so the procedure is not functionally equivalent to the Section 6.1 algorithm, whose step 6.1.3 (a)(3) requires that at the current time the certificate is not revoked; internal/component/ike/engine/cert_payload.go::getRemoteCert and internal/component/pki/tls.go::verifyEntryChain |
+| [`RFC5280-6.1-1`](#rfc5280-6.1-1) A conforming implementation MUST include an X.509 path processing procedure that is functionally equivalent to the external behavior of this algorithm. (§6.1) | {gap}, no test | Go crypto/x509 Certificate.Verify performs no revocation check. internal/component/ike/engine/cert_payload.go::getRemoteCert adds the Section 6.1.3 (a)(3) check over the chains Verify returns once a pki ca on the chain holds a CRL, and accepts the chain with a warning when none does, while internal/component/pki/tls.go::verifyEntryChain checks no revocation, so the procedure is not functionally equivalent to the Section 6.1 algorithm on every path; internal/component/pki/tls.go::verifyEntryChain |
 | [`RFC5280-6.1-2`](#rfc5280-6.1-2) A certificate MUST NOT appear more than once in a prospective certification path. (§6.1) | no test | no test carries this requirement id; annotated {lower-layer}: Go crypto/x509 Certificate.Verify, go:crypto/x509; internal/component/ike/engine/cert_payload.go::getRemoteCert and internal/component/pki/tls.go::verifyEntryChain hand the certificate, its intermediates and the configured trust anchor to x509.Certificate.Verify, which performs this check; ze installs no value it reads |
-| [`RFC5280-6.1.3-1`](#rfc5280-6.1.3-1) The certificate MUST satisfy each of the following: (§6.1.3) | {gap}, no test | x509.Certificate.Verify checks the signature, the validity period and issuer name chaining, and nothing checks condition (a)(3), the revocation status, of an IKE peer certificate: getRemoteCert runs no CRL or OCSP check (EAP-TLS does, in internal/core/eap/revocation.go::checkChainRevocation); internal/component/ike/engine/cert_payload.go::getRemoteCert |
 | [`RFC5280-6.1.4-1`](#rfc5280-6.1.4-1) (If certificate i is a version 1 or version 2 certificate, then the application MUST either verify that certificate i is a CA certificate through out-of-band means or reject the certificate. (§6.1.4) | no test | no test carries this requirement id; annotated {lower-layer}: Go crypto/x509 Certificate.Verify, go:crypto/x509; internal/component/ike/engine/cert_payload.go::getRemoteCert and internal/component/pki/tls.go::verifyEntryChain hand the certificate, its intermediates and the configured trust anchor to x509.Certificate.Verify, which performs this check; ze installs no value it reads |
 | [`RFC5280-6.3-1`](#rfc5280-6.3-1) Conforming implementations that support CRLs are not required to implement this algorithm, but they MUST be functionally equivalent to the external behavior resulting from this procedure when processing CRLs that are issued in conformance with this profile. (§6.3) | {gap}, no test | checkChainRevocation matches a list to the issuer, checks its signature and its nextUpdate, and implements none of the scope, reason, delta and critical extension steps of Section 6.3.3; internal/core/eap/revocation.go::checkChainRevocation |
 | [`RFC5280-7.1-1`](#rfc5280-7.1-1) Conforming implementations MUST support UTF8String and PrintableString. (§7.1) | no test | no test carries this requirement id; annotated {lower-layer}: Go crypto/x509 ParseCertificate, go:crypto/x509; internal/component/ike/engine/cert_payload.go::getRemoteCert parses the certificates a peer sends with x509.ParseCertificate, which decides what it accepts; ze installs no value it reads |
@@ -444,37 +449,37 @@ Source: [data/rfc/rfc5280.json](../../../data/rfc/rfc5280.json).
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC5280-4.1.1.2-1`](#rfc5280-4.1.1.2-1)
 
 This field MUST contain the same algorithm identifier as the signature field in the sequence tbsCertificate (Section 4.1.2.3). (§4.1.1.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.1.1.2-1, so no unit is bound to it.
+No test carries RFC5280-4.1.1.2-1, so there is no linked test.
 
 ### [`RFC5280-4.1.2.1-1`](#rfc5280-4.1.2.1-1)
 
 When extensions are used, as expected in this profile, version MUST be 3 (value is 2). (§4.1.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.1.2.1-1, so no unit is bound to it.
+No test carries RFC5280-4.1.2.1-1, so there is no linked test.
 
 ### [`RFC5280-4.1.2.1-2`](#rfc5280-4.1.2.1-2)
 
 At a minimum, conforming implementations MUST recognize version 3 certificates. (§4.1.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.1.2.1-2, so no unit is bound to it.
+No test carries RFC5280-4.1.2.1-2, so there is no linked test.
 
 ### [`RFC5280-4.1.2.2-1`](#rfc5280-4.1.2.2-1)
 
 The serial number MUST be a positive integer assigned by the CA to each certificate. (§4.1.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -484,7 +489,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 It MUST be unique for each certificate issued by a given CA (i.e., the issuer name and serial number identify a unique certificate). (§4.1.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -494,7 +499,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 CAs MUST force the serialNumber to be a non-negative integer. (§4.1.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -504,15 +509,15 @@ Audit verdict: not audited: no reader has judged these tests
 
 Certificate users MUST be able to handle serialNumber values up to 20 octets. (§4.1.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.1.2.2-4, so no unit is bound to it.
+No test carries RFC5280-4.1.2.2-4, so there is no linked test.
 
 ### [`RFC5280-4.1.2.2-5`](#rfc5280-4.1.2.2-5)
 
 Conforming CAs MUST NOT use serialNumber values longer than 20 octets. (§4.1.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -522,111 +527,111 @@ Audit verdict: not audited: no reader has judged these tests
 
 The issuer field MUST contain a non-empty distinguished name (DN). (§4.1.2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.1.2.4-1, so no unit is bound to it.
+No test carries RFC5280-4.1.2.4-1, so there is no linked test.
 
 ### [`RFC5280-4.1.2.4-2`](#rfc5280-4.1.2.4-2)
 
 CAs conforming to this profile MUST use either the PrintableString or UTF8String encoding of DirectoryString, with two exceptions. (§4.1.2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.1.2.4-2, so no unit is bound to it.
+No test carries RFC5280-4.1.2.4-2, so there is no linked test.
 
 ### [`RFC5280-4.1.2.4-3`](#rfc5280-4.1.2.4-3)
 
 However, conforming implementations MUST be prepared to receive certificates with issuer names containing the set of attribute types defined below. (§4.1.2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.1.2.4-3, so no unit is bound to it.
+No test carries RFC5280-4.1.2.4-3, so there is no linked test.
 
 ### [`RFC5280-4.1.2.4-4`](#rfc5280-4.1.2.4-4)
 
 In addition, implementations of this specification MUST be prepared to receive the domainComponent attribute, as defined in [RFC4519]. (§4.1.2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.1.2.4-4, so no unit is bound to it.
+No test carries RFC5280-4.1.2.4-4, so there is no linked test.
 
 ### [`RFC5280-4.1.2.4-5`](#rfc5280-4.1.2.4-5)
 
 Certificate users MUST be prepared to process the issuer distinguished name and subject distinguished name (Section 4.1.2.6) fields to perform name chaining for certification path validation (Section 6). (§4.1.2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.1.2.4-5, so no unit is bound to it.
+No test carries RFC5280-4.1.2.4-5, so there is no linked test.
 
 ### [`RFC5280-4.1.2.5-1`](#rfc5280-4.1.2.5-1)
 
 CAs conforming to this profile MUST always encode certificate validity dates through the year 2049 as UTCTime; certificate validity dates in 2050 or later MUST be encoded as GeneralizedTime. (§4.1.2.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.1.2.5-1, so no unit is bound to it.
+No test carries RFC5280-4.1.2.5-1, so there is no linked test.
 
 ### [`RFC5280-4.1.2.5-2`](#rfc5280-4.1.2.5-2)
 
 Conforming applications MUST be able to process validity dates that are encoded in either UTCTime or GeneralizedTime. (§4.1.2.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.1.2.5-2, so no unit is bound to it.
+No test carries RFC5280-4.1.2.5-2, so there is no linked test.
 
 ### [`RFC5280-4.1.2.5-3`](#rfc5280-4.1.2.5-3)
 
 When the issuer will not be able to maintain status information until the notAfter date (including when the notAfter date is 99991231235959Z), the issuer MUST ensure that no valid certification path exists for the certificate after maintenance of status information is terminated. (§4.1.2.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.1.2.5-3, so no unit is bound to it.
+No test carries RFC5280-4.1.2.5-3, so there is no linked test.
 
 ### [`RFC5280-4.1.2.5.1-1`](#rfc5280-4.1.2.5.1-1)
 
 For the purposes of this profile, UTCTime values MUST be expressed in Greenwich Mean Time (Zulu) and MUST include seconds (i.e., times are YYMMDDHHMMSSZ), even where the number of seconds is zero. (§4.1.2.5.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.1.2.5.1-1, so no unit is bound to it.
+No test carries RFC5280-4.1.2.5.1-1, so there is no linked test.
 
 ### [`RFC5280-4.1.2.5.1-2`](#rfc5280-4.1.2.5.1-2)
 
 Where YY is greater than or equal to 50, the year SHALL be interpreted as 19YY; and (§4.1.2.5.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.1.2.5.1-2, so no unit is bound to it.
+No test carries RFC5280-4.1.2.5.1-2, so there is no linked test.
 
 ### [`RFC5280-4.1.2.5.1-3`](#rfc5280-4.1.2.5.1-3)
 
 Where YY is less than 50, the year SHALL be interpreted as 20YY. (§4.1.2.5.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.1.2.5.1-3, so no unit is bound to it.
+No test carries RFC5280-4.1.2.5.1-3, so there is no linked test.
 
 ### [`RFC5280-4.1.2.5.2-1`](#rfc5280-4.1.2.5.2-1)
 
 For the purposes of this profile, GeneralizedTime values MUST be expressed in Greenwich Mean Time (Zulu) and MUST include seconds (i.e., times are YYYYMMDDHHMMSSZ), even where the number of seconds is zero. (§4.1.2.5.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.1.2.5.2-1, so no unit is bound to it.
+No test carries RFC5280-4.1.2.5.2-1, so there is no linked test.
 
 ### [`RFC5280-4.1.2.5.2-2`](#rfc5280-4.1.2.5.2-2)
 
 GeneralizedTime values MUST NOT include fractional seconds. (§4.1.2.5.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.1.2.5.2-2, so no unit is bound to it.
+No test carries RFC5280-4.1.2.5.2-2, so there is no linked test.
 
 ### [`RFC5280-4.1.2.6-1`](#rfc5280-4.1.2.6-1)
 
 If the subject is a CA (e.g., the basic constraints extension, as discussed in Section 4.2.1.9, is present and the value of cA is TRUE), then the subject field MUST be populated with a non-empty distinguished name matching the contents of the issuer field (Section 4.1.2.4) in all certificates issued by the subject CA. (§4.1.2.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -636,7 +641,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If the subject is a CRL issuer (e.g., the key usage extension, as discussed in Section 4.2.1.3, is present and the value of cRLSign is TRUE), then the subject field MUST be populated with a non-empty distinguished name matching the contents of the issuer field (Section 5.1.2.3) in all CRLs issued by the subject CRL issuer. (§4.1.2.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -646,7 +651,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If subject naming information is present only in the subjectAltName extension (e.g., a key bound only to an email address or URI), then the subject name MUST be an empty sequence and the subjectAltName extension MUST be critical. (§4.1.2.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -656,15 +661,15 @@ Audit verdict: not audited: no reader has judged these tests
 
 Where it is non-empty, the subject field MUST contain an X.500 distinguished name (DN). (§4.1.2.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.1.2.6-4, so no unit is bound to it.
+No test carries RFC5280-4.1.2.6-4, so there is no linked test.
 
 ### [`RFC5280-4.1.2.6-5`](#rfc5280-4.1.2.6-5)
 
 The DN MUST be unique for each subject entity certified by the one CA as defined by the issuer field. (§4.1.2.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -675,71 +680,71 @@ Audit verdict: not audited: no reader has judged these tests
 
 (a) When the subject of the certificate is a CA, the subject field MUST be encoded in the same way as it is encoded in the issuer field (Section 4.1.2.4) in all certificates issued by the subject CA. (§4.1.2.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.1.2.6-6, so no unit is bound to it.
+No test carries RFC5280-4.1.2.6-6, so there is no linked test.
 
 ### [`RFC5280-4.1.2.8-1`](#rfc5280-4.1.2.8-1)
 
 These fields MUST only appear if the version is 2 or 3 (Section 4.1.2.1). (§4.1.2.8)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.1.2.8-1, so no unit is bound to it.
+No test carries RFC5280-4.1.2.8-1, so there is no linked test.
 
 ### [`RFC5280-4.1.2.8-2`](#rfc5280-4.1.2.8-2)
 
 CAs conforming to this profile MUST NOT generate certificates with unique identifiers. (§4.1.2.8)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.1.2.8-2, so no unit is bound to it.
+No test carries RFC5280-4.1.2.8-2, so there is no linked test.
 
 ### [`RFC5280-4.1.2.9-1`](#rfc5280-4.1.2.9-1)
 
 This field MUST only appear if the version is 3 (Section 4.1.2.1). (§4.1.2.9)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.1.2.9-1, so no unit is bound to it.
+No test carries RFC5280-4.1.2.9-1, so there is no linked test.
 
 ### [`RFC5280-4.2-1`](#rfc5280-4.2-1)
 
 A certificate-using system MUST reject the certificate if it encounters a critical extension it does not recognize or a critical extension that contains information that it cannot process. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.2-1, so no unit is bound to it.
+No test carries RFC5280-4.2-1, so there is no linked test.
 
 ### [`RFC5280-4.2-2`](#rfc5280-4.2-2)
 
 A non-critical extension MAY be ignored if it is not recognized, but MUST be processed if it is recognized. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.2-2, so no unit is bound to it.
+No test carries RFC5280-4.2-2, so there is no linked test.
 
 ### [`RFC5280-4.2-3`](#rfc5280-4.2-3)
 
 A certificate MUST NOT include more than one instance of a particular extension. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.2-3, so no unit is bound to it.
+No test carries RFC5280-4.2-3, so there is no linked test.
 
 ### [`RFC5280-4.2-4`](#rfc5280-4.2-4)
 
 Conforming CAs MUST support key identifiers (Sections 4.2.1.1 and 4.2.1.2), basic constraints (Section 4.2.1.9), key usage (Section 4.2.1.3), and certificate policies (Section 4.2.1.4) extensions. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.2-4, so no unit is bound to it.
+No test carries RFC5280-4.2-4, so there is no linked test.
 
 ### [`RFC5280-4.2-5`](#rfc5280-4.2-5)
 
 If the CA issues certificates with an empty sequence for the subject field, the CA MUST support the subject alternative name extension (Section 4.2.1.6). (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -749,55 +754,55 @@ Audit verdict: not audited: no reader has judged these tests
 
 At a minimum, applications conforming to this profile MUST recognize the following extensions: key usage (Section 4.2.1.3), certificate policies (Section 4.2.1.4), subject alternative name (Section 4.2.1.6), basic constraints (Section 4.2.1.9), name constraints (Section 4.2.1.10), policy constraints (Section 4.2.1.11), extended key usage (Section 4.2.1.12), and inhibit anyPolicy (Section 4.2.1.14). (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.2-6, so no unit is bound to it.
+No test carries RFC5280-4.2-6, so there is no linked test.
 
 ### [`RFC5280-4.2.1.1-1`](#rfc5280-4.2.1.1-1)
 
 The keyIdentifier field of the authorityKeyIdentifier extension MUST be included in all certificates generated by conforming CAs to facilitate certification path construction. (§4.2.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.2.1.1-1, so no unit is bound to it.
+No test carries RFC5280-4.2.1.1-1, so there is no linked test.
 
 ### [`RFC5280-4.2.1.1-2`](#rfc5280-4.2.1.1-2)
 
 Conforming CAs MUST mark this extension as non-critical. (§4.2.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.2.1.1-2, so no unit is bound to it.
+No test carries RFC5280-4.2.1.1-2, so there is no linked test.
 
 ### [`RFC5280-4.2.1.2-1`](#rfc5280-4.2.1.2-1)
 
 To facilitate certification path construction, this extension MUST appear in all conforming CA certificates, that is, all certificates including the basic constraints extension (Section 4.2.1.9) where the value of cA is TRUE. (§4.2.1.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.2.1.2-1, so no unit is bound to it.
+No test carries RFC5280-4.2.1.2-1, so there is no linked test.
 
 ### [`RFC5280-4.2.1.2-2`](#rfc5280-4.2.1.2-2)
 
 In conforming CA certificates, the value of the subject key identifier MUST be the value placed in the key identifier field of the authority key identifier extension (Section 4.2.1.1) of certificates issued by the subject of this certificate. (§4.2.1.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.2.1.2-2, so no unit is bound to it.
+No test carries RFC5280-4.2.1.2-2, so there is no linked test.
 
 ### [`RFC5280-4.2.1.2-3`](#rfc5280-4.2.1.2-3)
 
 Conforming CAs MUST mark this extension as non-critical. (§4.2.1.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.2.1.2-3, so no unit is bound to it.
+No test carries RFC5280-4.2.1.2-3, so there is no linked test.
 
 ### [`RFC5280-4.2.1.3-1`](#rfc5280-4.2.1.3-1)
 
 Conforming CAs MUST include this extension in certificates that contain public keys that are used to validate digital signatures on other public key certificates or CRLs. (§4.2.1.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -807,7 +812,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If the keyCertSign bit is asserted, then the cA bit in the basic constraints extension (Section 4.2.1.9) MUST also be asserted. (§4.2.1.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -817,15 +822,15 @@ Audit verdict: not audited: no reader has judged these tests
 
 If the keyUsage extension is present, then the subject public key MUST NOT be used to verify signatures on certificates or CRLs unless the corresponding keyCertSign or cRLSign bit is set. (§4.2.1.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.2.1.3-3, so no unit is bound to it.
+No test carries RFC5280-4.2.1.3-3, so there is no linked test.
 
 ### [`RFC5280-4.2.1.3-4`](#rfc5280-4.2.1.3-4)
 
 When the keyUsage extension appears in a certificate, at least one of the bits MUST be set to 1. (§4.2.1.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -835,39 +840,39 @@ Audit verdict: not audited: no reader has judged these tests
 
 A certificate policy OID MUST NOT appear more than once in a certificate policies extension. (§4.2.1.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.2.1.4-1, so no unit is bound to it.
+No test carries RFC5280-4.2.1.4-1, so there is no linked test.
 
 ### [`RFC5280-4.2.1.4-2`](#rfc5280-4.2.1.4-2)
 
 If this extension is critical, the path validation software MUST be able to interpret this extension (including the optional qualifier), or MUST reject the certificate. (§4.2.1.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.2.1.4-2, so no unit is bound to it.
+No test carries RFC5280-4.2.1.4-2, so there is no linked test.
 
 ### [`RFC5280-4.2.1.4-3`](#rfc5280-4.2.1.4-3)
 
 When qualifiers are used with the special policy anyPolicy, they MUST be limited to the qualifiers identified in this section. (§4.2.1.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.2.1.4-3, so no unit is bound to it.
+No test carries RFC5280-4.2.1.4-3, so there is no linked test.
 
 ### [`RFC5280-4.2.1.4-4`](#rfc5280-4.2.1.4-4)
 
 Conforming CAs MUST NOT encode explicitText as VisibleString or BMPString. (§4.2.1.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.2.1.4-4, so no unit is bound to it.
+No test carries RFC5280-4.2.1.4-4, so there is no linked test.
 
 ### [`RFC5280-4.2.1.6-1`](#rfc5280-4.2.1.6-1)
 
 Whenever such identities are to be bound into a certificate, the subject alternative name (or issuer alternative name) extension MUST be used; however, a DNS name MAY also be represented in the subject field using the domainComponent attribute as described in Section 4.1.2.4. (§4.2.1.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -877,7 +882,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Because the subject alternative name is considered to be definitively bound to the public key, all parts of the subject alternative name MUST be verified by the CA. (§4.2.1.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -887,7 +892,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Further, if the only subject identity included in the certificate is an alternative name form (e.g., an electronic mail address), then the subject distinguished name MUST be empty (an empty sequence), and the subjectAltName extension MUST be present. (§4.2.1.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -897,31 +902,31 @@ Audit verdict: not audited: no reader has judged these tests
 
 When the subjectAltName extension contains an iPAddress, the address MUST be stored in the octet string in "network byte order", as specified in [RFC791]. (§4.2.1.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.2.1.6-4, so no unit is bound to it.
+No test carries RFC5280-4.2.1.6-4, so there is no linked test.
 
 ### [`RFC5280-4.2.1.6-5`](#rfc5280-4.2.1.6-5)
 
 For IP version 4, as specified in [RFC791], the octet string MUST contain exactly four octets. (§4.2.1.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.2.1.6-5, so no unit is bound to it.
+No test carries RFC5280-4.2.1.6-5, so there is no linked test.
 
 ### [`RFC5280-4.2.1.6-6`](#rfc5280-4.2.1.6-6)
 
 For IP version 6, as specified in [RFC2460], the octet string MUST contain exactly sixteen octets. (§4.2.1.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.2.1.6-6, so no unit is bound to it.
+No test carries RFC5280-4.2.1.6-6, so there is no linked test.
 
 ### [`RFC5280-4.2.1.6-7`](#rfc5280-4.2.1.6-7)
 
 When the subjectAltName extension contains a domain name system label, the domain name MUST be stored in the dNSName (an IA5String). (§4.2.1.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -932,23 +937,23 @@ Audit verdict: not audited: no reader has judged these tests
 
 The name MUST be in the "preferred name syntax", as specified by Section 3.5 of [RFC1034] and as modified by Section 2.1 of [RFC1123]. (§4.2.1.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.2.1.6-8, so no unit is bound to it.
+No test carries RFC5280-4.2.1.6-8, so there is no linked test.
 
 ### [`RFC5280-4.2.1.6-9`](#rfc5280-4.2.1.6-9)
 
 In addition, while the string " " is a legal domain name, subjectAltName extensions with a dNSName of " " MUST NOT be used. (§4.2.1.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.2.1.6-9, so no unit is bound to it.
+No test carries RFC5280-4.2.1.6-9, so there is no linked test.
 
 ### [`RFC5280-4.2.1.6-10`](#rfc5280-4.2.1.6-10)
 
 If the subjectAltName extension is present, the sequence MUST contain at least one entry. (§4.2.1.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -959,15 +964,15 @@ Audit verdict: not audited: no reader has judged these tests
 
 Unlike the subject field, conforming CAs MUST NOT issue certificates with subjectAltNames containing empty GeneralName fields. (§4.2.1.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.2.1.6-11, so no unit is bound to it.
+No test carries RFC5280-4.2.1.6-11, so there is no linked test.
 
 ### [`RFC5280-4.2.1.9-1`](#rfc5280-4.2.1.9-1)
 
 If the cA boolean is not asserted, then the keyCertSign bit in the key usage extension MUST NOT be asserted. (§4.2.1.9)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -978,15 +983,15 @@ Audit verdict: not audited: no reader has judged these tests
 
 If the basic constraints extension is not present in a version 3 certificate, or the extension is present but the cA boolean is not asserted, then the certified public key MUST NOT be used to verify certificate signatures. (§4.2.1.9)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.2.1.9-2, so no unit is bound to it.
+No test carries RFC5280-4.2.1.9-2, so there is no linked test.
 
 ### [`RFC5280-4.2.1.9-3`](#rfc5280-4.2.1.9-3)
 
 Where it appears, the pathLenConstraint field MUST be greater than or equal to zero. (§4.2.1.9)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -996,7 +1001,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Conforming CAs MUST include this extension in all CA certificates that contain public keys used to validate digital signatures on certificates and MUST mark the extension as critical in such certificates. (§4.2.1.9)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1006,7 +1011,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 CAs MUST NOT include the pathLenConstraint field unless the cA boolean is asserted and the key usage extension asserts the keyCertSign bit. (§4.2.1.9)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1017,87 +1022,93 @@ Audit verdict: not audited: no reader has judged these tests
 
 Applications conforming to this profile MUST be able to process name constraints that are imposed on the directoryName name form and SHOULD be able to process name constraints that are imposed on the rfc822Name, uniformResourceIdentifier, dNSName, and iPAddress name forms. (§4.2.1.10)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.2.1.10-1, so no unit is bound to it.
+No test carries RFC5280-4.2.1.10-1, so there is no linked test.
 
 ### [`RFC5280-4.2.1.10-2`](#rfc5280-4.2.1.10-2)
 
 If a name constraints extension that is marked as critical imposes constraints on a particular name form, and an instance of that name form appears in the subject field or subjectAltName extension of a subsequent certificate, then the application MUST either process the constraint or reject the certificate. (§4.2.1.10)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.2.1.10-2, so no unit is bound to it.
+No test carries RFC5280-4.2.1.10-2, so there is no linked test.
 
 ### [`RFC5280-4.2.1.10-3`](#rfc5280-4.2.1.10-3)
 
 However, if an application encounters a critical name constraints extension that specifies other values for minimum or maximum for a name form that appears in a subsequent certificate, the application MUST either process these fields or reject the certificate. (§4.2.1.10)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.2.1.10-3, so no unit is bound to it.
+No test carries RFC5280-4.2.1.10-3, so there is no linked test.
 
 ### [`RFC5280-4.2.1.10-4`](#rfc5280-4.2.1.10-4)
 
 If a constraint is applied to the uniformResourceIdentifier name form and a subsequent certificate includes a subjectAltName extension with a uniformResourceIdentifier that does not include an authority component with a host name specified as a fully qualified domain name (e.g., if the URI either does not include an authority component or includes an authority component in which the host name is specified as an IP address), then the application MUST reject the certificate. (§4.2.1.10)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.2.1.10-4, so no unit is bound to it.
+No test carries RFC5280-4.2.1.10-4, so there is no linked test.
 
 ### [`RFC5280-4.2.1.10-5`](#rfc5280-4.2.1.10-5)
 
 When constraints are imposed on the rfc822Name name form, but the certificate does not include a subject alternative name, the rfc822Name constraint MUST be applied to the attribute of type emailAddress in the subject distinguished name. (§4.2.1.10)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.2.1.10-5, so no unit is bound to it.
+No test carries RFC5280-4.2.1.10-5, so there is no linked test.
 
 ### [`RFC5280-4.2.1.11-1`](#rfc5280-4.2.1.11-1)
 
 Conforming applications MUST be able to process the requireExplicitPolicy field and SHOULD be able to process the inhibitPolicyMapping field. (§4.2.1.11)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.2.1.11-1, so no unit is bound to it.
+No test carries RFC5280-4.2.1.11-1, so there is no linked test.
 
 ### [`RFC5280-4.2.1.11-2`](#rfc5280-4.2.1.11-2)
 
 Applications that support the inhibitPolicyMapping field MUST also implement support for the policyMappings extension. (§4.2.1.11)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.2.1.11-2, so no unit is bound to it.
+No test carries RFC5280-4.2.1.11-2, so there is no linked test.
 
 ### [`RFC5280-4.2.1.11-3`](#rfc5280-4.2.1.11-3)
 
 If the policyConstraints extension is marked as critical and the inhibitPolicyMapping field is present, applications that do not implement support for the inhibitPolicyMapping field MUST reject the certificate. (§4.2.1.11)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.2.1.11-3, so no unit is bound to it.
+No test carries RFC5280-4.2.1.11-3, so there is no linked test.
 
 ### [`RFC5280-4.2.1.12-1`](#rfc5280-4.2.1.12-1)
 
 If the extension is present, then the certificate MUST only be used for one of the purposes indicated. (§4.2.1.12)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.2.1.12-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC5280Section42112IKEPurpose`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5280_ike_purpose_test.go#L194) | unit/verify | revert, verified |
+| positive | [`TestRFC5280Section42112IKEPurpose`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5280_ike_purpose_test.go#L141) | unit/verify | revert, verified |
 
 ### [`RFC5280-4.2.1.12-2`](#rfc5280-4.2.1.12-2)
 
 If a certificate contains both a key usage extension and an extended key usage extension, then both extensions MUST be processed independently and the certificate MUST only be used for a purpose consistent with both extensions. (§4.2.1.12)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-4.2.1.12-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC5280Section42112IKEPurpose`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5280_ike_purpose_test.go#L167) | unit/verify | revert, verified |
+| positive | [`TestRFC5280Section42112IKEPurpose`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5280_ike_purpose_test.go#L144) | unit/verify | revert, verified |
 
 ### [`RFC5280-4.2.2.1-1`](#rfc5280-4.2.2.1-1)
 
 Conforming applications that support HTTP or FTP for accessing certificates MUST be able to accept individual DER encoded certificates and SHOULD be able to accept "certs-only" CMS messages. (§4.2.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1107,15 +1118,15 @@ Audit verdict: not audited: no reader has judged these tests
 
 Conforming applications that support CRLs are REQUIRED to process both version 1 and version 2 complete CRLs that provide revocation information for all certificates issued by one CA. (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-5-1, so no unit is bound to it.
+No test carries RFC5280-5-1, so there is no linked test.
 
 ### [`RFC5280-5.1.1.3-1`](#rfc5280-5.1.1.3-1)
 
 Applications that perform CRL checking MUST support certification path validation when certificates and CRLs are digitally signed with the same CA private key. (§5.1.1.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1126,87 +1137,99 @@ Audit verdict: not audited: no reader has judged these tests
 
 Conforming applications MUST be able to process dates that are encoded in either UTCTime or GeneralizedTime. (§5.1.2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-5.1.2.4-1, so no unit is bound to it.
+No test carries RFC5280-5.1.2.4-1, so there is no linked test.
 
 ### [`RFC5280-5.2-1`](#rfc5280-5.2-1)
 
 If a CRL contains a critical extension that the application cannot process, then the application MUST NOT use that CRL to determine the status of certificates. (§5.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-5.2-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC5280Section52UnprocessedCriticalCRL`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5280_crl_critical_test.go#L124) | unit/verify | revert, verified |
+| positive | [`TestRFC5280Section52UnprocessedCriticalCRL`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5280_crl_critical_test.go#L118) | unit/verify | revert, verified |
 
 ### [`RFC5280-5.2.3-1`](#rfc5280-5.2.3-1)
 
 CRL verifiers MUST be able to handle CRLNumber values up to 20 octets. (§5.2.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-5.2.3-1, so no unit is bound to it.
+No test carries RFC5280-5.2.3-1, so there is no linked test.
 
 ### [`RFC5280-5.2.5-1`](#rfc5280-5.2.5-1)
 
 However, implementations that do not support this extension MUST either treat the status of any certificate not listed on this CRL as unknown or locate another CRL that does not contain any unrecognized critical extensions. (§5.2.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-5.2.5-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC5280Section52UnprocessedCriticalCRL`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5280_crl_critical_test.go#L140) | unit/verify | revert, verified |
+| positive | [`TestRFC5280Section52UnprocessedCriticalCRL`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5280_crl_critical_test.go#L135) | unit/verify | revert, verified |
 
 ### [`RFC5280-5.3-1`](#rfc5280-5.3-1)
 
 If a CRL contains a critical CRL entry extension that the application cannot process, then the application MUST NOT use that CRL to determine the status of any certificates. (§5.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-5.3-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC5280Section52UnprocessedCriticalCRL`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5280_crl_critical_test.go#L158) | unit/verify | revert, verified |
+| positive | [`TestRFC5280Section52UnprocessedCriticalCRL`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5280_crl_critical_test.go#L153) | unit/verify | revert, verified |
 
 ### [`RFC5280-6.1-1`](#rfc5280-6.1-1)
 
 A conforming implementation MUST include an X.509 path processing procedure that is functionally equivalent to the external behavior of this algorithm. (§6.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-6.1-1, so no unit is bound to it.
+No test carries RFC5280-6.1-1, so there is no linked test.
 
 ### [`RFC5280-6.1-2`](#rfc5280-6.1-2)
 
 A certificate MUST NOT appear more than once in a prospective certification path. (§6.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-6.1-2, so no unit is bound to it.
+No test carries RFC5280-6.1-2, so there is no linked test.
 
 ### [`RFC5280-6.1.3-1`](#rfc5280-6.1.3-1)
 
 The certificate MUST satisfy each of the following: (§6.1.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-6.1.3-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC5280Section613RevokedIKEPeerRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5280_ike_revocation_test.go#L125) | unit/verify | revert, verified |
+| positive | [`TestRFC5280Section613RevokedIKEPeerRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5280_ike_revocation_test.go#L110) | unit/verify | revert, verified |
 
 ### [`RFC5280-6.1.4-1`](#rfc5280-6.1.4-1)
 
 (If certificate i is a version 1 or version 2 certificate, then the application MUST either verify that certificate i is a CA certificate through out-of-band means or reject the certificate. (§6.1.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-6.1.4-1, so no unit is bound to it.
+No test carries RFC5280-6.1.4-1, so there is no linked test.
 
 ### [`RFC5280-6.3-1`](#rfc5280-6.3-1)
 
 Conforming implementations that support CRLs are not required to implement this algorithm, but they MUST be functionally equivalent to the external behavior resulting from this procedure when processing CRLs that are issued in conformance with this profile. (§6.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-6.3-1, so no unit is bound to it.
+No test carries RFC5280-6.3-1, so there is no linked test.
 
 ### [`RFC5280-6.3.3-1`](#rfc5280-6.3.3-1)
 
 The trust anchor for the certification path MUST be the same as the trust anchor used to validate the target certificate. (§6.3.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1217,31 +1240,31 @@ Audit verdict: not audited: no reader has judged these tests
 
 Conforming implementations MUST support UTF8String and PrintableString. (§7.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-7.1-1, so no unit is bound to it.
+No test carries RFC5280-7.1-1, so there is no linked test.
 
 ### [`RFC5280-7.1-2`](#rfc5280-7.1-2)
 
 Conforming implementations MUST use the LDAP StringPrep profile (including insignificant space handling), as specified in [RFC4518], as the basis for comparison of distinguished name attributes encoded in either PrintableString or UTF8String. (§7.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-7.1-2, so no unit is bound to it.
+No test carries RFC5280-7.1-2, so there is no linked test.
 
 ### [`RFC5280-7.2-1`](#rfc5280-7.2-1)
 
 To accommodate internationalized domain names in the current structure, conforming implementations MUST convert internationalized domain names to the ASCII Compatible Encoding (ACE) format as specified in Section 4 of RFC 3490 before storage in the dNSName field. (§7.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-7.2-1, so no unit is bound to it.
+No test carries RFC5280-7.2-1, so there is no linked test.
 
 ### [`RFC5280-7.2-2`](#rfc5280-7.2-2)
 
 When comparing DNS names for equality, conforming implementations MUST perform a case-insensitive exact match on the entire DNS name. (§7.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1252,23 +1275,23 @@ Audit verdict: not audited: no reader has judged these tests
 
 When evaluating name constraints, conforming implementations MUST perform a case-insensitive exact match on a label-by-label basis. (§7.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-7.2-3, so no unit is bound to it.
+No test carries RFC5280-7.2-3, so there is no linked test.
 
 ### [`RFC5280-7.2-4`](#rfc5280-7.2-4)
 
 Note: Implementations MUST allow for increased space requirements for IDNs. (§7.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-7.2-4, so no unit is bound to it.
+No test carries RFC5280-7.2-4, so there is no linked test.
 
 ### [`RFC5280-8-1`](#rfc5280-8-1)
 
 Relying parties that choose to validate the server's certificate when obtaining information pointed to by an https URI in the cRLDistributionPoints, authorityInfoAccess, or subjectInfoAccess extensions MUST be prepared for the possibility that this will result in unbounded recursion. (§8)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1278,51 +1301,51 @@ Audit verdict: not audited: no reader has judged these tests
 
 AuthorityKeyIdentifier ::= SEQUENCE { keyIdentifier [0] KeyIdentifier OPTIONAL, authorityCertIssuer [1] GeneralNames OPTIONAL, authorityCertSerialNumber [2] CertificateSerialNumber OPTIONAL } -- authorityCertIssuer and authorityCertSerialNumber MUST both -- be present or both be absent (§A.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-A.2-1, so no unit is bound to it.
+No test carries RFC5280-A.2-1, so there is no linked test.
 
 ### [`RFC5280-B-1`](#rfc5280-b-1)
 
 Conforming implementations MUST NOT encode strings that include either the at sign or underscore character as PrintableString. (§B)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-B-1, so no unit is bound to it.
+No test carries RFC5280-B-1, so there is no linked test.
 
 ### [`RFC5280-B-2`](#rfc5280-b-2)
 
 When DER encoding a named bit list, trailing zeros MUST be omitted. (§B)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-B-2, so no unit is bound to it.
+No test carries RFC5280-B-2, so there is no linked test.
 
 ### [`RFC5280-B-3`](#rfc5280-b-3)
 
 This specification mandates support for OIDs that have arc elements with values that are less than 2^28, that is, they MUST be between 0 and 268,435,455, inclusive. (§B)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-B-3, so no unit is bound to it.
+No test carries RFC5280-B-3, so there is no linked test.
 
 ### [`RFC5280-B-4`](#rfc5280-b-4)
 
 Implementations MUST also support OIDs where the length of the dotted decimal (see Section 1.4 of [RFC4512]) string representation can be up to 100 bytes (inclusive). (§B)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-B-4, so no unit is bound to it.
+No test carries RFC5280-B-4, so there is no linked test.
 
 ### [`RFC5280-B-5`](#rfc5280-b-5)
 
 Implementations MUST be able to handle OIDs with up to 20 elements (inclusive). (§B)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5280-B-5, so no unit is bound to it.
+No test carries RFC5280-B-5, so there is no linked test.
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -1342,116 +1365,116 @@ No test carries RFC5280-B-5, so no unit is bound to it.
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
 | `front` | title, status and table of contents | 0 | skipped (front-matter) | title, status and table of contents |
-| `1` | not stated | 2 | walked | not stated |
-| `2` | not stated | 0 | walked | not stated |
-| `2.1` | not stated | 0 | walked | not stated |
-| `2.2` | not stated | 0 | walked | not stated |
-| `2.3` | not stated | 0 | walked | not stated |
-| `2.4` | not stated | 0 | walked | not stated |
-| `3` | not stated | 0 | walked | not stated |
-| `3.1` | not stated | 0 | walked | not stated |
-| `3.2` | not stated | 0 | walked | not stated |
-| `3.3` | not stated | 1 | walked | not stated |
-| `3.4` | not stated | 0 | walked | not stated |
-| `3.5` | not stated | 0 | walked | not stated |
-| `4` | not stated | 0 | walked | not stated |
-| `4.1` | not stated | 1 | walked | not stated |
-| `4.1.1` | not stated | 0 | walked | not stated |
-| `4.1.1.1` | not stated | 0 | walked | not stated |
-| `4.1.1.2` | not stated | 1 | walked | not stated |
-| `4.1.1.3` | not stated | 0 | walked | not stated |
-| `4.1.2` | not stated | 0 | walked | not stated |
-| `4.1.2.1` | not stated | 2 | walked | not stated |
-| `4.1.2.2` | not stated | 5 | walked | not stated |
-| `4.1.2.3` | not stated | 1 | walked | not stated |
-| `4.1.2.4` | not stated | 6 | walked | not stated |
-| `4.1.2.5` | not stated | 3 | walked | not stated |
-| `4.1.2.5.1` | not stated | 4 | walked | not stated |
-| `4.1.2.5.2` | not stated | 2 | walked | not stated |
-| `4.1.2.6` | not stated | 11 | walked | not stated |
-| `4.1.2.7` | not stated | 0 | walked | not stated |
-| `4.1.2.8` | not stated | 3 | walked | not stated |
-| `4.1.2.9` | not stated | 1 | walked | not stated |
-| `4.2` | not stated | 6 | walked | not stated |
-| `4.2.1` | not stated | 0 | walked | not stated |
-| `4.2.1.1` | not stated | 2 | walked | not stated |
-| `4.2.1.2` | not stated | 3 | walked | not stated |
-| `4.2.1.3` | not stated | 4 | walked | not stated |
-| `4.2.1.4` | not stated | 4 | walked | not stated |
-| `4.2.1.5` | not stated | 1 | walked | not stated |
-| `4.2.1.6` | not stated | 19 | walked | not stated |
-| `4.2.1.7` | not stated | 1 | walked | not stated |
-| `4.2.1.8` | not stated | 1 | walked | not stated |
-| `4.2.1.9` | not stated | 5 | walked | not stated |
-| `4.2.1.10` | not stated | 19 | walked | not stated |
-| `4.2.1.11` | not stated | 6 | walked | not stated |
-| `4.2.1.12` | not stated | 4 | walked | not stated |
-| `4.2.1.13` | not stated | 12 | walked | not stated |
-| `4.2.1.14` | not stated | 1 | walked | not stated |
-| `4.2.1.15` | not stated | 1 | walked | not stated |
-| `4.2.2` | not stated | 0 | walked | not stated |
-| `4.2.2.1` | not stated | 4 | walked | not stated |
-| `4.2.2.2` | not stated | 6 | walked | not stated |
-| `5` | not stated | 3 | walked | not stated |
-| `5.1` | not stated | 1 | walked | not stated |
-| `5.1.1` | not stated | 0 | walked | not stated |
-| `5.1.1.1` | not stated | 0 | walked | not stated |
-| `5.1.1.2` | not stated | 1 | walked | not stated |
-| `5.1.1.3` | not stated | 1 | walked | not stated |
-| `5.1.2` | not stated | 0 | walked | not stated |
-| `5.1.2.1` | not stated | 1 | walked | not stated |
-| `5.1.2.2` | not stated | 1 | walked | not stated |
-| `5.1.2.3` | not stated | 2 | walked | not stated |
-| `5.1.2.4` | not stated | 5 | walked | not stated |
-| `5.1.2.5` | not stated | 6 | walked | not stated |
-| `5.1.2.6` | not stated | 2 | walked | not stated |
-| `5.1.2.7` | not stated | 0 | walked | not stated |
-| `5.2` | not stated | 2 | walked | not stated |
-| `5.2.1` | not stated | 1 | walked | not stated |
-| `5.2.2` | not stated | 1 | walked | not stated |
-| `5.2.3` | not stated | 8 | walked | not stated |
-| `5.2.4` | not stated | 11 | walked | not stated |
-| `5.2.5` | not stated | 15 | walked | not stated |
-| `5.2.6` | not stated | 4 | walked | not stated |
-| `5.2.7` | not stated | 7 | walked | not stated |
-| `5.3` | not stated | 1 | walked | not stated |
-| `5.3.1` | not stated | 0 | walked | not stated |
-| `5.3.2` | not stated | 1 | walked | not stated |
-| `5.3.3` | not stated | 3 | walked | not stated |
-| `6` | not stated | 1 | walked | not stated |
-| `6.1` | not stated | 3 | walked | not stated |
-| `6.1.1` | not stated | 1 | walked | not stated |
-| `6.1.2` | not stated | 1 | walked | not stated |
-| `6.1.3` | not stated | 1 | walked | not stated |
-| `6.1.4` | not stated | 1 | walked | not stated |
-| `6.1.5` | not stated | 0 | walked | not stated |
-| `6.1.6` | not stated | 0 | walked | not stated |
-| `6.2` | not stated | 0 | walked | not stated |
-| `6.3` | not stated | 1 | walked | not stated |
-| `6.3.1` | not stated | 0 | walked | not stated |
-| `6.3.2` | not stated | 0 | walked | not stated |
-| `6.3.3` | not stated | 1 | walked | not stated |
-| `7` | not stated | 0 | walked | not stated |
-| `7.1` | not stated | 6 | walked | not stated |
-| `7.2` | not stated | 9 | walked | not stated |
-| `7.3` | not stated | 3 | walked | not stated |
-| `7.4` | not stated | 7 | walked | not stated |
-| `7.5` | not stated | 2 | walked | not stated |
-| `8` | not stated | 6 | walked | not stated |
+| `1` | not stated | 2 | reviewed | not stated |
+| `2` | not stated | 0 | reviewed | not stated |
+| `2.1` | not stated | 0 | reviewed | not stated |
+| `2.2` | not stated | 0 | reviewed | not stated |
+| `2.3` | not stated | 0 | reviewed | not stated |
+| `2.4` | not stated | 0 | reviewed | not stated |
+| `3` | not stated | 0 | reviewed | not stated |
+| `3.1` | not stated | 0 | reviewed | not stated |
+| `3.2` | not stated | 0 | reviewed | not stated |
+| `3.3` | not stated | 1 | reviewed | not stated |
+| `3.4` | not stated | 0 | reviewed | not stated |
+| `3.5` | not stated | 0 | reviewed | not stated |
+| `4` | not stated | 0 | reviewed | not stated |
+| `4.1` | not stated | 1 | reviewed | not stated |
+| `4.1.1` | not stated | 0 | reviewed | not stated |
+| `4.1.1.1` | not stated | 0 | reviewed | not stated |
+| `4.1.1.2` | not stated | 1 | reviewed | not stated |
+| `4.1.1.3` | not stated | 0 | reviewed | not stated |
+| `4.1.2` | not stated | 0 | reviewed | not stated |
+| `4.1.2.1` | not stated | 2 | reviewed | not stated |
+| `4.1.2.2` | not stated | 5 | reviewed | not stated |
+| `4.1.2.3` | not stated | 1 | reviewed | not stated |
+| `4.1.2.4` | not stated | 6 | reviewed | not stated |
+| `4.1.2.5` | not stated | 3 | reviewed | not stated |
+| `4.1.2.5.1` | not stated | 4 | reviewed | not stated |
+| `4.1.2.5.2` | not stated | 2 | reviewed | not stated |
+| `4.1.2.6` | not stated | 11 | reviewed | not stated |
+| `4.1.2.7` | not stated | 0 | reviewed | not stated |
+| `4.1.2.8` | not stated | 3 | reviewed | not stated |
+| `4.1.2.9` | not stated | 1 | reviewed | not stated |
+| `4.2` | not stated | 6 | reviewed | not stated |
+| `4.2.1` | not stated | 0 | reviewed | not stated |
+| `4.2.1.1` | not stated | 2 | reviewed | not stated |
+| `4.2.1.2` | not stated | 3 | reviewed | not stated |
+| `4.2.1.3` | not stated | 4 | reviewed | not stated |
+| `4.2.1.4` | not stated | 4 | reviewed | not stated |
+| `4.2.1.5` | not stated | 1 | reviewed | not stated |
+| `4.2.1.6` | not stated | 19 | reviewed | not stated |
+| `4.2.1.7` | not stated | 1 | reviewed | not stated |
+| `4.2.1.8` | not stated | 1 | reviewed | not stated |
+| `4.2.1.9` | not stated | 5 | reviewed | not stated |
+| `4.2.1.10` | not stated | 19 | reviewed | not stated |
+| `4.2.1.11` | not stated | 6 | reviewed | not stated |
+| `4.2.1.12` | not stated | 4 | reviewed | not stated |
+| `4.2.1.13` | not stated | 12 | reviewed | not stated |
+| `4.2.1.14` | not stated | 1 | reviewed | not stated |
+| `4.2.1.15` | not stated | 1 | reviewed | not stated |
+| `4.2.2` | not stated | 0 | reviewed | not stated |
+| `4.2.2.1` | not stated | 4 | reviewed | not stated |
+| `4.2.2.2` | not stated | 6 | reviewed | not stated |
+| `5` | not stated | 3 | reviewed | not stated |
+| `5.1` | not stated | 1 | reviewed | not stated |
+| `5.1.1` | not stated | 0 | reviewed | not stated |
+| `5.1.1.1` | not stated | 0 | reviewed | not stated |
+| `5.1.1.2` | not stated | 1 | reviewed | not stated |
+| `5.1.1.3` | not stated | 1 | reviewed | not stated |
+| `5.1.2` | not stated | 0 | reviewed | not stated |
+| `5.1.2.1` | not stated | 1 | reviewed | not stated |
+| `5.1.2.2` | not stated | 1 | reviewed | not stated |
+| `5.1.2.3` | not stated | 2 | reviewed | not stated |
+| `5.1.2.4` | not stated | 5 | reviewed | not stated |
+| `5.1.2.5` | not stated | 6 | reviewed | not stated |
+| `5.1.2.6` | not stated | 2 | reviewed | not stated |
+| `5.1.2.7` | not stated | 0 | reviewed | not stated |
+| `5.2` | not stated | 2 | reviewed | not stated |
+| `5.2.1` | not stated | 1 | reviewed | not stated |
+| `5.2.2` | not stated | 1 | reviewed | not stated |
+| `5.2.3` | not stated | 8 | reviewed | not stated |
+| `5.2.4` | not stated | 11 | reviewed | not stated |
+| `5.2.5` | not stated | 15 | reviewed | not stated |
+| `5.2.6` | not stated | 4 | reviewed | not stated |
+| `5.2.7` | not stated | 7 | reviewed | not stated |
+| `5.3` | not stated | 1 | reviewed | not stated |
+| `5.3.1` | not stated | 0 | reviewed | not stated |
+| `5.3.2` | not stated | 1 | reviewed | not stated |
+| `5.3.3` | not stated | 3 | reviewed | not stated |
+| `6` | not stated | 1 | reviewed | not stated |
+| `6.1` | not stated | 3 | reviewed | not stated |
+| `6.1.1` | not stated | 1 | reviewed | not stated |
+| `6.1.2` | not stated | 1 | reviewed | not stated |
+| `6.1.3` | not stated | 1 | reviewed | not stated |
+| `6.1.4` | not stated | 1 | reviewed | not stated |
+| `6.1.5` | not stated | 0 | reviewed | not stated |
+| `6.1.6` | not stated | 0 | reviewed | not stated |
+| `6.2` | not stated | 0 | reviewed | not stated |
+| `6.3` | not stated | 1 | reviewed | not stated |
+| `6.3.1` | not stated | 0 | reviewed | not stated |
+| `6.3.2` | not stated | 0 | reviewed | not stated |
+| `6.3.3` | not stated | 1 | reviewed | not stated |
+| `7` | not stated | 0 | reviewed | not stated |
+| `7.1` | not stated | 6 | reviewed | not stated |
+| `7.2` | not stated | 9 | reviewed | not stated |
+| `7.3` | not stated | 3 | reviewed | not stated |
+| `7.4` | not stated | 7 | reviewed | not stated |
+| `7.5` | not stated | 2 | reviewed | not stated |
+| `8` | not stated | 6 | reviewed | not stated |
 | `9` | IANA considerations | 0 | skipped (iana) | IANA considerations |
 | `10` | acknowledgments | 0 | skipped (acknowledgements) | acknowledgments |
 | `11` | references | 0 | skipped (references) | references |
 | `11.1` | normative references | 0 | skipped (references) | normative references |
 | `11.2` | informative references | 0 | skipped (references) | informative references |
-| `A` | not stated | 0 | walked | not stated |
-| `A.1` | not stated | 3 | walked | not stated |
-| `A.2` | not stated | 3 | walked | not stated |
-| `B` | not stated | 12 | walked | not stated |
-| `C` | not stated | 0 | walked | not stated |
-| `C.1` | not stated | 0 | walked | not stated |
-| `C.2` | not stated | 0 | walked | not stated |
-| `C.3` | not stated | 0 | walked | not stated |
-| `C.4` | not stated | 0 | walked | not stated |
+| `A` | not stated | 0 | reviewed | not stated |
+| `A.1` | not stated | 3 | reviewed | not stated |
+| `A.2` | not stated | 3 | reviewed | not stated |
+| `B` | not stated | 12 | reviewed | not stated |
+| `C` | not stated | 0 | reviewed | not stated |
+| `C.1` | not stated | 0 | reviewed | not stated |
+| `C.2` | not stated | 0 | reviewed | not stated |
+| `C.3` | not stated | 0 | reviewed | not stated |
+| `C.4` | not stated | 0 | reviewed | not stated |
 
 ### Excluded sentences
 

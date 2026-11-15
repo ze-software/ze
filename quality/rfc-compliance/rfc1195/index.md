@@ -1,6 +1,6 @@
 # RFC 1195 - Use of OSI IS-IS for Routing in TCP/IP and Dual Environments
 
-Integrated IS-IS for IPv4. Every requirement this repository extracted from RFC 1195, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+Integrated IS-IS for IPv4. Every requirement listed for RFC 1195, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,24 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 29 | of 41 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 5 | of 41 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 41 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 41 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 61 | 61 of 85 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-
-### Neutral
-
-measures that are neither good news nor bad
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Gated MUSTs | 41 | of 42 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 41 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 41 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 41 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 41 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 41 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Tested both ways | 29 | of 41 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 5 | of 41 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 41 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 41 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Tests shown to detect a fault | 61 | 61 of 85 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -35,55 +22,75 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 7 | of 41 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 31 | of 41 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+| Declared gap or no test | 7 | of 41 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Audit verdicts | 31 | of 41 mandatory requirements reviewed | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
-The 9 counts marked as a part above are the whole of the 41 gated MUSTs: they add up to 41. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Neutral
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+measures that are neither good news nor bad
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Out of scope | 0 | of 41 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 41 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 41 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 41 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 41 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+
+### Totals
+
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 41 | of 42 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 41 mandatory requirements: they add up to 41. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | Integrated IS-IS for IPv4 |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 42 |
-| Gated MUST-level | 41 |
+| Mandatory requirements (MUST level) | 41 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 7 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 85 |
-| Tagged units | 85 |
+| Tests linked to requirements | 85 |
 | Recorded audit verdicts | 31 |
-| Discrimination records | 61 |
+| Fault test records | 61 |
 | Summary | `rfc/short/rfc1195.md` |
-| Requirement shard | `rfc/requirements/rfc1195.md` |
+| Requirement table | `rfc/requirements/rfc1195.md` |
 | RFC text | `rfc/full/rfc1195.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: Integrated IS-IS for IP routing. The checklist records the requirements extracted from RFC 1195; the current native gate and discrimination records, not a fixed historical count, determine verified coverage. The started implementation includes narrow IPv4 reachability, ISO 9542 point-to-point discovery and scoped password authentication.
+Included in automatic checks: Integrated IS-IS for IP routing. The checklist records the requirements extracted from RFC 1195; the current native gate and discrimination records, not a fixed historical count, determine verified coverage. The started implementation includes narrow IPv4 reachability, ISO 9542 point-to-point discovery and scoped password authentication.
 
-## What the public ledger says
+## Published support status
 
 **Area:** Integrated IS-IS for IPv4
 
@@ -98,14 +105,14 @@ Enrolled: Integrated IS-IS for IP routing. The checklist records the requirement
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 29 | one part of the gated population |
-| Annotated (including scoped evidence) | 12 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **41** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 29 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 12 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **41** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (29):** [`RFC1195-5.3.4-1`](#rfc1195-5.3.4-1), [`RFC1195-5.3.4-2`](#rfc1195-5.3.4-2), [`RFC1195-5.3.5-2`](#rfc1195-5.3.5-2), [`RFC1195-5.2-4`](#rfc1195-5.2-4), [`RFC1195-3.2-1`](#rfc1195-3.2-1), [`RFC1195-3.9-1`](#rfc1195-3.9-1), [`RFC1195-1.4-2`](#rfc1195-1.4-2), [`RFC1195-3.2-2`](#rfc1195-3.2-2), [`RFC1195-3.3-1`](#rfc1195-3.3-1), [`RFC1195-3.3-2`](#rfc1195-3.3-2), [`RFC1195-3.4-1`](#rfc1195-3.4-1), [`RFC1195-3.10-1`](#rfc1195-3.10-1), [`RFC1195-3.10-2`](#rfc1195-3.10-2), [`RFC1195-3.10-3`](#rfc1195-3.10-3), [`RFC1195-4.1-1`](#rfc1195-4.1-1), [`RFC1195-4.2-1`](#rfc1195-4.2-1), [`RFC1195-4.4-1`](#rfc1195-4.4-1), [`RFC1195-4.4-2`](#rfc1195-4.4-2), [`RFC1195-4.4-3`](#rfc1195-4.4-3), [`RFC1195-4.5-1`](#rfc1195-4.5-1), [`RFC1195-5.3.4-3`](#rfc1195-5.3.4-3), [`RFC1195-7-1`](#rfc1195-7-1), [`RFC1195-7-2`](#rfc1195-7-2), [`RFC1195-7-3`](#rfc1195-7-3), [`RFC1195-7-4`](#rfc1195-7-4), [`RFC1195-7-5`](#rfc1195-7-5), [`RFC1195-7-6`](#rfc1195-7-6), [`RFC1195-7-7`](#rfc1195-7-7), [`RFC1195-7-8`](#rfc1195-7-8)
 
@@ -113,20 +120,23 @@ Enrolled: Integrated IS-IS for IP routing. The checklist records the requirement
 
 ## Figures
 
-- **MUST bar**: Ze proven 25, Ze correctness gap 16
-- **Overview bar**: Ze MUST proven 25, SHOULD not decided 1, Ze correctness gap 16
+- **MUST bar**: Ze proven 25, Proof pending 9, Not built 7
+- **Overview bar**: Ze MUST proven 25, Proof pending 9, Not assessed 1, Not built 7
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 41 |
 | MUST rows kept (the MUST bar) | 41 |
 | Ze proven | 25 |
 | OS verified | 0 |
+| Proof pending | 9 |
 | OS testing gap | 0 |
-| Ze correctness gap | 16 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 7 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -139,11 +149,12 @@ Enrolled: Integrated IS-IS for IP routing. The checklist records the requirement
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 1 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 1 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc1195.json](../../../data/rfc/rfc1195.json).
 
@@ -208,7 +219,7 @@ Source: [data/rfc/rfc1195.json](../../../data/rfc/rfc1195.json).
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC1195-5.2-1`](#rfc1195-5.2-1)
 
@@ -337,9 +348,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Clau
 
 Within a dual domain, if both IP and OSI traffic are to be routed between areas then all level 2 routers must be dual. (Section 1.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC1195-1.4-1, so no unit is bound to it.
+No test carries RFC1195-1.4-1, so there is no linked test.
 
 ### [`RFC1195-1.4-3`](#rfc1195-1.4-3)
 
@@ -347,21 +358,21 @@ In a dual area within a dual routing domain only dual routers may be used. (§1.
 
 Audit verdict: unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-30 (independent judge) after the row's annotation moved from {not-applicable} to {gap}. RFC 1195 Section 1.4 reads 'In a dual area within a dual routing domain only dual routers may be used.' The sentence names no role a not-applicable quote could bind (it carries a lower-case 'may', has the dual area as its subject, and no owner decision declines dual operation), so the earlier not-applicable verdict, which rested on 'binds the network design', no longer stands and the absent dual capability is a conformance gap. Ze is an IP-only Integrated IS-IS router: internal/plugins/isis/lsdb/encode.go::protocolNLPIDs advertises only NLPID 0xCC (IPv4) and 0x8E (IPv6) in the Protocols Supported TLV and never 0x81 (CLNP), and no CLNP forwarding path exists in internal/plugins/isis, so Ze can never be the dual router the sentence requires, and nothing refuses or warns when it is placed in a dual area. No test is tagged to the row.
 
-No test carries RFC1195-1.4-3, so no unit is bound to it.
+No test carries RFC1195-1.4-3, so there is no linked test.
 
 ### [`RFC1195-1.2-1`](#rfc1195-1.2-1)
 
 External links (to other routing domains) must be from level 2 routers (Section 1.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC1195-1.2-1, so no unit is bound to it.
+No test carries RFC1195-1.2-1, so there is no linked test.
 
 ### [`RFC1195-1.4-2`](#rfc1195-1.4-2)
 
 In a pure IP routing domain, all routers must be IP-capable (Section 1.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -384,9 +395,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 If a level 2 router receives an IP packet whose IP address matches a manually configured address which it is including in its level 2 LSP, but which is not reachable via level 1 routing in the area, then the packet must be discarded. (Section 3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC1195-3.2-3, so no unit is bound to it.
+No test carries RFC1195-3.2-3, so there is no linked test.
 
 ### [`RFC1195-3.3-1`](#rfc1195-3.3-1)
 
@@ -403,7 +414,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Enco
 
 IEEE 802 addresses, if used, must appear in IEEE canonical format (Section 3.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -414,7 +425,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 When an external route using external metrics must be used, the lowest value of the external metric is preferred regardless of the internal cost to reach the appropriate exit point (Section 3.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -425,7 +436,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The Dijkstra calculation must calculate routes to each distinct IP reachability entry (Section 3.10)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -458,9 +469,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 3) If the specified destination is not reachable via level 1 routing, and the manually configured summary address advertised by this router (the router which has received the packet and is trying to forward it) represents the most desireable route, then the destination is unreachable and the packet must be discarded. (Section 3.10.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC1195-3.10.2-1, so no unit is bound to it.
+No test carries RFC1195-3.10.2-1, so there is no linked test.
 
 ### [`RFC1195-4.1-1`](#rfc1195-4.1-1)
 
@@ -503,7 +514,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 All IS-IS routers are therefore required to transmit and receive ISO 9542 ISH packets on point-to-point links. (Section 4.4)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 by an independent auditor after the userns conversion. The unit's only change since the last verdict is userns.Enter(t) as its first statement (the child re-runs the whole body in its own user, network and mount namespace; a child failure or skip propagates to the parent, and a child that ran nothing fails it) plus removal of EPERM/EACCES skips, so a refused privilege now fails instead of skipping. Assertions are byte-identical. Section 4.4: 'All IS-IS routers are therefore required to transmit and receive ISO 9542 ISH packets on point-to-point links.' TestRFC1195ISHVethTransport runs the production AF_PACKET transport at both ends of a veth pair, sends an ISH with NET and protocols-supported through SendISH, and fails unless the peer's circuit receives it addressed to AllESs with the identical PDU and decodes NET and holding time. The capability error from HandleLinkUp is now fatal, not a skip. Root units unchanged: TestRFC1195ISHTransmitReceive (ISH before first IIH, received ISH initializes peer), TestRFC1195NeighborWithoutISHStillFormsAdjacency (negative), corruption/wrong-circuit and password units as supplementary negatives. The veth unit's own revert record of SendISH, owed per the earlier verdict, is not claimed here.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent scoped source rejudgment after the raw CircuitID API adaptation. RFC 1195 Section 4.4 states: 'All IS-IS routers are therefore required to transmit and receive ISO 9542 ISH packets on point-to-point links.' TestRFC1195ISHTransmitReceive drives a configured P2P circuit, requires an ISH addressed to AllESs before the IIH, decodes its configured NET and IPv4 capability, dispatches a valid peer ISH through production handling, and requires one initializing IPv4 adjacency without bypassing the subsequent three-way handshake. TestRFC1195ISHVethTransport uses the actual AF_PACKET transport at both ends of an isolated veth pair, sends the encoded ISH through SendISH, filters the peer ifindex, requires exact AllESs destination and PDU bytes, and decodes the NET and holding time. Its sole edit discards CircuitInfo's added identity result; all inputs and assertions remain unchanged. Removing SendISH, corrupting its delivery, or removing P2P receive processing would fail those assertions. TestRFC1195ISHRejectsCorruptionAndWrongCircuit rejects corrupted P2P discovery and discovery on broadcast circuits. TestRFC1195ISHConfiguredPassword and TestRFC1195ISHWrongPassword retain the configured per-link-password send/receive and missing/wrong-password controls. TestRFC1195NeighborWithoutISHStillFormsAdjacency is supplementary IIH-only interoperability coverage, not the refusal proof for the mandatory transmit/receive capability. No claim or requirement scope changed. The tuple edit originally staled the veth unit's observation. ROOT then re-recorded that positive through the official revert route: the named unit passed its clean run and failed after SendISH was disabled through an overlay, with no skip; both VMs stopped. The reviewer read job-isis-raw-identity-rfc1195-own-kernel-record-157545f6.log and the native updated discrimination record. Both runs used Ze's own runtime system, module release 7.3.0-ze and kernel SHA256 e3b00fe91d5ce09cd4133f4d455e9295e815df9da6aac25a4039befa8a41caec. This fresh observation proves the tagged veth transport claim's dependence on SendISH, not additional protocol or whole-RFC conformance.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -645,19 +656,19 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 Type = 2 indicates that the external information field contains an autonomous system number tag, to be applied to subsequent IP external reachability information entries. In this case, this "inter-domain routing protocol information" entry must contain precisely one 2 octet AS number. The AS tag is associated with subsequent IP External Reachability entries, until the end of the LSP, or until the next occurence of the Inter-Domain Routing Protocol Information field. (§A.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC1195-8-1, so no unit is bound to it.
+No test carries RFC1195-8-1, so there is no linked test.
 
 ### [`RFC1195-8-2`](#rfc1195-8-2)
 
 Type = 0 is reserved (must not be sent, and must be ignored on receipt). (Section A.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC1195-8-2, so no unit is bound to it.
+No test carries RFC1195-8-2, so there is no linked test.
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -676,70 +687,70 @@ No test carries RFC1195-8-2, so no unit is bound to it.
 
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
-| `front` | not stated | 0 | walked | not stated |
-| `1` | not stated | 1 | walked | not stated |
-| `1.1` | not stated | 1 | walked | not stated |
-| `1.2` | not stated | 2 | walked | not stated |
-| `1.3` | not stated | 0 | walked | not stated |
-| `1.4` | not stated | 3 | walked | not stated |
-| `1.5` | not stated | 4 | walked | not stated |
-| `2` | not stated | 0 | walked | not stated |
-| `3` | not stated | 0 | walked | not stated |
-| `3.1` | not stated | 3 | walked | not stated |
-| `3.2` | not stated | 3 | walked | not stated |
-| `3.3` | not stated | 9 | walked | not stated |
-| `3.4` | not stated | 1 | walked | not stated |
-| `3.5` | not stated | 0 | walked | not stated |
-| `3.6` | not stated | 1 | walked | not stated |
-| `3.7` | not stated | 0 | walked | not stated |
-| `3.8` | not stated | 1 | walked | not stated |
-| `3.9` | not stated | 1 | walked | not stated |
-| `3.10` | not stated | 3 | walked | not stated |
-| `3.10.1` | not stated | 0 | walked | not stated |
-| `3.10.2` | not stated | 1 | walked | not stated |
-| `4` | not stated | 0 | walked | not stated |
-| `4.1` | not stated | 2 | walked | not stated |
-| `4.2` | not stated | 1 | walked | not stated |
-| `4.3` | not stated | 0 | walked | not stated |
-| `4.4` | not stated | 7 | walked | not stated |
-| `4.5` | not stated | 2 | walked | not stated |
-| `5` | not stated | 0 | walked | not stated |
-| `5.1` | not stated | 1 | walked | not stated |
-| `5.2` | not stated | 6 | walked | not stated |
-| `5.3` | not stated | 0 | walked | not stated |
-| `5.3.1` | not stated | 0 | walked | not stated |
-| `5.3.2` | not stated | 0 | walked | not stated |
-| `5.3.3` | not stated | 0 | walked | not stated |
-| `5.3.4` | not stated | 10 | walked | not stated |
-| `5.3.5` | not stated | 19 | walked | not stated |
-| `5.3.6` | not stated | 0 | walked | not stated |
-| `5.3.7` | not stated | 0 | walked | not stated |
-| `5.3.8` | not stated | 0 | walked | not stated |
-| `5.3.9` | not stated | 0 | walked | not stated |
-| `5.3.10` | not stated | 0 | walked | not stated |
-| `6` | not stated | 0 | walked | not stated |
-| `7` | not stated | 0 | walked | not stated |
-| `8` | not stated | 0 | walked | not stated |
-| `A.1` | Annex subsection A.1 | 1 | walked | Annex subsection A.1. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of section 8, where its 1 site(s) were walked; every decision is carried forward by its verbatim quote. |
-| `A.2` | Annex subsection A.2 | 2 | walked | Annex subsection A.2. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of section 8, where its 2 site(s) were walked; every decision is carried forward by its verbatim quote. |
-| `B.1` | Annex subsection B.1 | 2 | walked | Annex subsection B.1. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of section 8, where its 2 site(s) were walked; every decision is carried forward by its verbatim quote. |
-| `B.2` | Annex subsection B.2 | 2 | walked | Annex subsection B.2. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of section 8, where its 2 site(s) were walked; every decision is carried forward by its verbatim quote. |
-| `B.3` | Annex subsection B.3 | 2 | walked | Annex subsection B.3. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of section 8, where its 2 site(s) were walked; every decision is carried forward by its verbatim quote. |
-| `B.4` | Annex subsection B.4 | 2 | walked | Annex subsection B.4. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of section 8, where its 2 site(s) were walked; every decision is carried forward by its verbatim quote. |
-| `C.1` | Annex subsection C.1 | 1 | walked | Annex subsection C.1. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of section 8, where its 1 site(s) were walked; every decision is carried forward by its verbatim quote. |
-| `C.1.1` | Annex subsection C.1.1 | 1 | walked | Annex subsection C.1.1. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of section 8, where its 1 site(s) were walked; every decision is carried forward by its verbatim quote. |
-| `C.1.2` | Annex subsection C.1.2 | 0 | walked | Annex subsection C.1.2. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved. |
-| `C.1.3` | Annex subsection C.1.3 | 0 | walked | Annex subsection C.1.3. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved. |
-| `C.1.4` | Annex subsection C.1.4 | 6 | walked | Annex subsection C.1.4. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of section 8, where its 6 site(s) were walked; every decision is carried forward by its verbatim quote. |
-| `C.2` | Annex subsection C.2 | 0 | walked | Annex subsection C.2. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved. |
-| `C.2.1` | Annex subsection C.2.1 | 0 | walked | Annex subsection C.2.1. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved. |
-| `C.2.2` | Annex subsection C.2.2 | 0 | walked | Annex subsection C.2.2. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved. |
-| `D.1` | Annex subsection D.1 | 0 | walked | Annex subsection D.1. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved. |
-| `D.2` | Annex subsection D.2 | 7 | walked | Annex subsection D.2. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of section 8, where its 7 site(s) were walked; every decision is carried forward by its verbatim quote. |
-| `E.1` | Annex subsection E.1 | 0 | walked | Annex subsection E.1. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved. |
-| `E.2` | Annex subsection E.2 | 0 | walked | Annex subsection E.2. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved. |
-| `E.2.1` | Annex subsection E.2.1 | 0 | walked | Annex subsection E.2.1. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved. |
-| `E.2.2` | Annex subsection E.2.2 | 0 | walked | Annex subsection E.2.2. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `front` | not stated | 0 | reviewed | not stated |
+| `1` | not stated | 1 | reviewed | not stated |
+| `1.1` | not stated | 1 | reviewed | not stated |
+| `1.2` | not stated | 2 | reviewed | not stated |
+| `1.3` | not stated | 0 | reviewed | not stated |
+| `1.4` | not stated | 3 | reviewed | not stated |
+| `1.5` | not stated | 4 | reviewed | not stated |
+| `2` | not stated | 0 | reviewed | not stated |
+| `3` | not stated | 0 | reviewed | not stated |
+| `3.1` | not stated | 3 | reviewed | not stated |
+| `3.2` | not stated | 3 | reviewed | not stated |
+| `3.3` | not stated | 9 | reviewed | not stated |
+| `3.4` | not stated | 1 | reviewed | not stated |
+| `3.5` | not stated | 0 | reviewed | not stated |
+| `3.6` | not stated | 1 | reviewed | not stated |
+| `3.7` | not stated | 0 | reviewed | not stated |
+| `3.8` | not stated | 1 | reviewed | not stated |
+| `3.9` | not stated | 1 | reviewed | not stated |
+| `3.10` | not stated | 3 | reviewed | not stated |
+| `3.10.1` | not stated | 0 | reviewed | not stated |
+| `3.10.2` | not stated | 1 | reviewed | not stated |
+| `4` | not stated | 0 | reviewed | not stated |
+| `4.1` | not stated | 2 | reviewed | not stated |
+| `4.2` | not stated | 1 | reviewed | not stated |
+| `4.3` | not stated | 0 | reviewed | not stated |
+| `4.4` | not stated | 7 | reviewed | not stated |
+| `4.5` | not stated | 2 | reviewed | not stated |
+| `5` | not stated | 0 | reviewed | not stated |
+| `5.1` | not stated | 1 | reviewed | not stated |
+| `5.2` | not stated | 6 | reviewed | not stated |
+| `5.3` | not stated | 0 | reviewed | not stated |
+| `5.3.1` | not stated | 0 | reviewed | not stated |
+| `5.3.2` | not stated | 0 | reviewed | not stated |
+| `5.3.3` | not stated | 0 | reviewed | not stated |
+| `5.3.4` | not stated | 10 | reviewed | not stated |
+| `5.3.5` | not stated | 19 | reviewed | not stated |
+| `5.3.6` | not stated | 0 | reviewed | not stated |
+| `5.3.7` | not stated | 0 | reviewed | not stated |
+| `5.3.8` | not stated | 0 | reviewed | not stated |
+| `5.3.9` | not stated | 0 | reviewed | not stated |
+| `5.3.10` | not stated | 0 | reviewed | not stated |
+| `6` | not stated | 0 | reviewed | not stated |
+| `7` | not stated | 0 | reviewed | not stated |
+| `8` | not stated | 0 | reviewed | not stated |
+| `A.1` | Annex subsection A.1 | 1 | reviewed | Annex subsection A.1. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of section 8, where its 1 site(s) were walked; every decision is carried forward by its verbatim quote. |
+| `A.2` | Annex subsection A.2 | 2 | reviewed | Annex subsection A.2. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of section 8, where its 2 site(s) were walked; every decision is carried forward by its verbatim quote. |
+| `B.1` | Annex subsection B.1 | 2 | reviewed | Annex subsection B.1. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of section 8, where its 2 site(s) were walked; every decision is carried forward by its verbatim quote. |
+| `B.2` | Annex subsection B.2 | 2 | reviewed | Annex subsection B.2. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of section 8, where its 2 site(s) were walked; every decision is carried forward by its verbatim quote. |
+| `B.3` | Annex subsection B.3 | 2 | reviewed | Annex subsection B.3. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of section 8, where its 2 site(s) were walked; every decision is carried forward by its verbatim quote. |
+| `B.4` | Annex subsection B.4 | 2 | reviewed | Annex subsection B.4. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of section 8, where its 2 site(s) were walked; every decision is carried forward by its verbatim quote. |
+| `C.1` | Annex subsection C.1 | 1 | reviewed | Annex subsection C.1. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of section 8, where its 1 site(s) were walked; every decision is carried forward by its verbatim quote. |
+| `C.1.1` | Annex subsection C.1.1 | 1 | reviewed | Annex subsection C.1.1. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of section 8, where its 1 site(s) were walked; every decision is carried forward by its verbatim quote. |
+| `C.1.2` | Annex subsection C.1.2 | 0 | reviewed | Annex subsection C.1.2. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `C.1.3` | Annex subsection C.1.3 | 0 | reviewed | Annex subsection C.1.3. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `C.1.4` | Annex subsection C.1.4 | 6 | reviewed | Annex subsection C.1.4. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of section 8, where its 6 site(s) were walked; every decision is carried forward by its verbatim quote. |
+| `C.2` | Annex subsection C.2 | 0 | reviewed | Annex subsection C.2. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `C.2.1` | Annex subsection C.2.1 | 0 | reviewed | Annex subsection C.2.1. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `C.2.2` | Annex subsection C.2.2 | 0 | reviewed | Annex subsection C.2.2. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `D.1` | Annex subsection D.1 | 0 | reviewed | Annex subsection D.1. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `D.2` | Annex subsection D.2 | 7 | reviewed | Annex subsection D.2. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of section 8, where its 7 site(s) were walked; every decision is carried forward by its verbatim quote. |
+| `E.1` | Annex subsection E.1 | 0 | reviewed | Annex subsection E.1. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `E.2` | Annex subsection E.2 | 0 | reviewed | Annex subsection E.2. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `E.2.1` | Annex subsection E.2.1 | 0 | reviewed | Annex subsection E.2.1. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `E.2.2` | Annex subsection E.2.2 | 0 | reviewed | Annex subsection E.2.2. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved. |
 
 ### Excluded sentences
 

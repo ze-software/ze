@@ -1,16 +1,16 @@
 # Contributor guide
 
-This is the practical side of contributing to Ze: how work gets in, how to
-set up a build, and what the project expects of a change. The
-[contribute page](../) covers the why, the funding, and the Contributor
-License Agreement. Read that first, then come back here.
+This guide explains how to propose a change to Ze, set up a build, and prepare
+the change for review. The [contribute page](../) explains how the project is
+funded and what its Contributor License Agreement grants.
 
 Everyone taking part is expected to follow the
 [Code of Conduct](../../code-of-conduct/).
 
 ## How work gets in
 
-Ze is built spec by spec, and that shapes how contributions flow:
+For a contribution beyond a small fix, we agree on a spec before implementation
+so that the expected behavior and tests are clear to both author and reviewer.
 
 1. **Open an issue** describing what you want to change or fix, on the
    [tracker](https://github.com/ze-software/ze/issues). Start here even for
@@ -18,10 +18,9 @@ Ze is built spec by spec, and that shapes how contributions flow:
 2. **Agree on a spec.** For anything beyond a small fix, the maintainer turns
    the issue into a spec that says what the change should do and how it will
    be tested. Specs keep the project coherent and stop work drifting.
-3. **Implement the spec**, with tests written alongside the code, not after.
+3. **Implement the spec**, starting with tests for the behavior it requires.
 4. **Sign your commits** with `git commit -s`. That sign-off certifies you
-   accept the [CLA](../). No signed-off commit, no merge: this is the one hard
-   requirement.
+   accept the [CLA](../). Every merged contribution requires that sign-off.
 5. **Open a pull request.** The maintainer reviews it, often with AI
    assistance, the same way the rest of the project is built (the
    [FAQ](../../faq/#ai-development) explains how).
@@ -46,10 +45,11 @@ in the repository.
 
 - **Tests come with it.** Ze is test-driven; a change without tests is not
   finished.
-- **`./le verify current` passes.** That is the gate the maintainer runs, so run it
-  yourself before you submit.
-- **It arrives in one piece.** Code, tests, and documentation together, not a
-  code change now with the docs to follow.
+- **The relevant tests have run.** Run the tests for the packages and behavior
+  the change reaches, and include their results with the submission. GitHub CI
+  runs the full verification on pushed commits.
+- **It arrives in one piece.** Include the code, tests, and documentation in
+  the same change so the instructions describe the behavior under review.
 - **It respects the project's standards.** The coding, testing, and workflow
   rules the project follows live in
   [the repository](https://github.com/ze-software/ze/blob/main/CONTRIBUTING.md)

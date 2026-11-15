@@ -1,6 +1,6 @@
 # RFC 2865 - Remote Authentication Dial In User Service (RADIUS)
 
-RADIUS authentication. Every requirement this repository extracted from RFC 2865, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+RADIUS authentication. Every requirement listed for RFC 2865, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,12 +10,12 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 26 | of 31 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 5 | of 31 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 31 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 31 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| No test at all | 0 | of 31 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 77 | 77 of 107 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 26 | of 31 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 5 | of 31 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 31 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 31 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Declared gap or no test | 0 | of 31 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Tests shown to detect a fault | 77 | 77 of 107 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Neutral
 
@@ -23,59 +23,66 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 31 | of 32 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 31 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 31 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 31 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 31 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 31 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Out of scope | 0 | of 31 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 31 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 31 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 31 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 31 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
 
-The 9 counts marked as a part above are the whole of the 31 gated MUSTs: they add up to 31. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Totals
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 31 | of 32 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 31 mandatory requirements: they add up to 31. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | ok | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | RADIUS authentication |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 32 |
-| Gated MUST-level | 31 |
+| Mandatory requirements (MUST level) | 31 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 116 |
-| Tagged units | 107 |
+| Tests linked to requirements | 107 |
 | Recorded audit verdicts | 22 |
-| Discrimination records | 77 |
+| Fault test records | 77 |
 | Summary | `rfc/short/rfc2865.md` |
-| Requirement shard | `rfc/requirements/rfc2865.md` |
+| Requirement table | `rfc/requirements/rfc2865.md` |
 | RFC text | `rfc/full/rfc2865.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: Remote Authentication Dial In User Service (RADIUS), ze as a RADIUS client/NAS: ten MUST-level requirements, all met in internal/component/radius (and l2tp/authradius). Six carry positive+negative tags: 3-1 (packet length 20..4096), 3-3 (Response Authenticator = MD5 over Code, Identifier, Length, Request Authenticator, attributes, and secret), 3-4 (verify the Response Authenticator before trusting a response), 5.2-1 (User-Password hidden via the MD5-with-shared-secret XOR chain), 5-2 (an attribute Length is bounded to 255 octets), and 3-5 (accept a response only from the server the request was sent to). Four are {single-polarity: positive}: 3-2 (the Request Authenticator is 16 random octets), 2.5-1 (a retransmission reuses the same Identifier and Request Authenticator), 5-1 (an Access-Request includes a User-Name), and 5.2-2 (User-Password padded to a multiple of 16, capped at 128). Seven new tests bind the previously-untested behaviors.
+Included in automatic checks: Remote Authentication Dial In User Service (RADIUS), ze as a RADIUS client/NAS: ten MUST-level requirements, all met in internal/component/radius (and l2tp/authradius). Six carry positive+negative tags: 3-1 (packet length 20..4096), 3-3 (Response Authenticator = MD5 over Code, Identifier, Length, Request Authenticator, attributes, and secret), 3-4 (verify the Response Authenticator before trusting a response), 5.2-1 (User-Password hidden via the MD5-with-shared-secret XOR chain), 5-2 (an attribute Length is bounded to 255 octets), and 3-5 (accept a response only from the server the request was sent to). Four are {single-polarity: positive}: 3-2 (the Request Authenticator is 16 random octets), 2.5-1 (a retransmission reuses the same Identifier and Request Authenticator), 5-1 (an Access-Request includes a User-Name), and 5.2-2 (User-Password padded to a multiple of 16, capped at 128). Seven new tests bind the previously-untested behaviors.
 
-## What the public ledger says
+## Published support status
 
 **Area:** RADIUS authentication
 
@@ -90,14 +97,14 @@ Enrolled: Remote Authentication Dial In User Service (RADIUS), ze as a RADIUS cl
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 26 | one part of the gated population |
-| Annotated (including scoped evidence) | 5 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **31** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 26 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 5 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **31** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (26):** [`RFC2865-3-1`](#rfc2865-3-1), [`RFC2865-3-3`](#rfc2865-3-3), [`RFC2865-4.2-1`](#rfc2865-4.2-1), [`RFC2865-5-1`](#rfc2865-5-1), [`RFC2865-5.2-1`](#rfc2865-5.2-1), [`RFC2865-5-2`](#rfc2865-5-2), [`RFC2865-1.1-1`](#rfc2865-1.1-1), [`RFC2865-1.1-2`](#rfc2865-1.1-2), [`RFC2865-5.6-1`](#rfc2865-5.6-1), [`RFC2865-3-6`](#rfc2865-3-6), [`RFC2865-3-8`](#rfc2865-3-8), [`RFC2865-4.1-1`](#rfc2865-4.1-1), [`RFC2865-4.1-6`](#rfc2865-4.1-6), [`RFC2865-4.1-2`](#rfc2865-4.1-2), [`RFC2865-4.1-3`](#rfc2865-4.1-3), [`RFC2865-4.4-1`](#rfc2865-4.4-1), [`RFC2865-5-4`](#rfc2865-5-4), [`RFC2865-5-8`](#rfc2865-5-8), [`RFC2865-5-9`](#rfc2865-5-9), [`RFC2865-3-7`](#rfc2865-3-7), [`RFC2865-4.1-5`](#rfc2865-4.1-5), [`RFC2865-5-6`](#rfc2865-5-6), [`RFC2865-5-7`](#rfc2865-5-7), [`RFC2865-5.11-1`](#rfc2865-5.11-1), [`RFC2865-5.24-1`](#rfc2865-5.24-1), [`RFC2865-5.25-1`](#rfc2865-5.25-1)
 
@@ -105,20 +112,23 @@ Enrolled: Remote Authentication Dial In User Service (RADIUS), ze as a RADIUS cl
 
 ## Figures
 
-- **MUST bar**: Ze proven 27, Ze correctness gap 4
-- **Overview bar**: Ze MUST proven 27, SHOULD not decided 1, Ze correctness gap 4
+- **MUST bar**: Ze proven 27, Proof pending 4
+- **Overview bar**: Ze MUST proven 27, Proof pending 4, Not assessed 1
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 31 |
 | MUST rows kept (the MUST bar) | 31 |
 | Ze proven | 27 |
 | OS verified | 0 |
+| Proof pending | 4 |
 | OS testing gap | 0 |
-| Ze correctness gap | 4 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 0 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -131,11 +141,12 @@ Enrolled: Remote Authentication Dial In User Service (RADIUS), ze as a RADIUS cl
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 1 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 1 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc2865.json](../../../data/rfc/rfc2865.json).
 
@@ -178,11 +189,11 @@ Source: [data/rfc/rfc2865.json](../../../data/rfc/rfc2865.json).
 
 ## Gaps and untested MUSTs
 
-RFC 2865 declares no gap, and every gated MUST it carries has a test bound to it.
+RFC 2865 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC2865-3-1`](#rfc2865-3-1)
 
@@ -300,7 +311,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Posi
 
 A NAS that does not implement a given service MUST NOT implement the RADIUS attributes for that service (§1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -340,7 +351,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 Octets outside the range of the Length field MUST be treated as padding and ignored on reception (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -353,7 +364,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The secret MUST NOT be empty (length 0) since this would allow packets to be trivially forged (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -366,7 +377,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 An implementation wishing to authenticate a user MUST transmit a RADIUS packet with the Code field set to 1 (Access-Request) (§4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -378,7 +389,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The Request Authenticator value MUST be changed each time a new Identifier is used (§4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -434,7 +445,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. The 
 
 A RADIUS server or client MUST NOT have any dependencies on the order of attributes of different types (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -483,7 +494,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 An Access-Request MUST NOT contain both a User-Password and a CHAP-Password (§4.1, §5.44)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -494,7 +505,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The Identifier field MUST be changed whenever the content of the Attributes field changes, and whenever a valid reply has been received for a previous request (§4.1, §2.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -505,7 +516,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 A RADIUS server or client MUST NOT require attributes of the same type to be contiguous (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -570,7 +581,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Quot
 | positive | [`TestRadiusClassIsNotInterpretedLocally`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_authenticator_test.go#L322) | unit/verify | unproven |
 | positive | [`TestStateIsNotInterpretedLocally`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L583) | unit/verify | revert, verified |
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -590,76 +601,76 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Quot
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
 | `front` | not stated | 0 | skipped (front-matter) | Title block, Status of this Memo, Copyright Notice, Abstract and Table of Contents. The Abstract restates section 1 and states no obligation. |
-| `1` | not stated | 0 | walked | Introduction: what RADIUS is, its client/server model, its network security model and its extensibility. It states no obligation of its own and derives no site. |
-| `1.1` | Specification of Requirements | 3 | walked | Specification of Requirements. It carries the RFC 2119 key-words paragraph the site scan correctly refuses to count, the definition of unconditional and conditional compliance, and three NAS obligations about services a NAS does not implement (sites 1.1:1 to 1.1:3). |
-| `1.2` | Terminology: service, session and 'silently discard' | 0 | walked | Terminology: service, session and 'silently discard'. The two keywords in the 'silently discard' entry are SHOULDs about logging and counting a discarded packet, so the scan derives no site. |
-| `2` | Operation | 2 | walked | Operation. It narrates one authentication exchange end to end. Its two sites are both server obligations. The client-side sentences here are indicative or MAY-level and are stated normatively in sections 3, 4.1 and 4.4. |
-| `2.1` | Challenge/Response | 0 | walked | Challenge/Response. Descriptive: what a challenge is, what the user does with it, and a worked example. It states no obligation, and the NAS obligation for a challenge is in section 4.4. |
-| `2.2` | Interoperation with PAP and CHAP | 2 | walked | Interoperation with PAP and CHAP. It describes how a NAS maps PAP and CHAP credentials onto User-Password and CHAP-Password, in indicative prose, and then states two server obligations (sites 2.2:1 and 2.2:2). |
-| `2.3` | Proxy | 10 | walked | Proxy. Ten sites, every one binding a forwarding server or a remote server. Ze forwards no RADIUS request and answers none, so the whole section is excluded by role. |
-| `2.4` | Why UDP? Design rationale for the transport choice | 0 | walked | Why UDP? Design rationale for the transport choice. It uses 'must' in lowercase throughout to describe consequences, and states no obligation. |
-| `2.5` | Retransmission Hints | 2 | walked | Retransmission Hints. Its two sites are the same-server retransmission rule (site 2.5:1) and the changed-attributes rule (site 2.5:2), which Section 4.1 states in full. |
-| `2.6` | Keep-Alives Considered Harmful | 0 | walked | Keep-Alives Considered Harmful. Advice against probing a server, phrased as 'strongly discouraged'. No capitalised keyword and no obligation. |
-| `3` | Packet Format | 5 | walked | Packet Format. The header layout, the Code, Identifier, Length and Authenticator fields, the Request and Response Authenticator definitions, and the Administrative Note on the shared secret. Five sites: three bind any receiver or both ends and are mapped, two bind a server or a proxy. |
-| `4` | Packet Types | 0 | walked | Packet Types. One sentence saying the Code field decides the type. The four types are 4.1 to 4.4. |
-| `4.1` | Access-Request | 8 | walked | Access-Request. Eight sites. Six bind the sender and are mapped or duplicated onto Section 2.5; one binds the server that must reply; one is the retransmission half of the Identifier rule. |
-| `4.2` | Access-Accept | 2 | walked | Access-Accept. Two sites, both binding the RADIUS server: its obligation to transmit the Access-Accept, and the Response Authenticator it writes, which MUST contain the correct response for the pending Access-Request. The client's side of the paragraph is the indicative 'Invalid packets are silently discarded', which carries no keyword and so no site; RFC2865-4.2-1 quotes it and is declared unsourced here. |
-| `4.3` | Access-Reject | 1 | walked | Access-Reject. One site, binding the server that transmits it. The Reply-Message sentence is MAY-level and is the summary's RFC2865-5-3. |
-| `4.4` | Access-Challenge | 4 | walked | Access-Challenge. Four sites: two bind the server, and two state what a NAS without challenge/response support owes, which is RFC2865-4.4-1. |
-| `5` | Attributes | 7 | walked | Attributes. The attribute format, the Type, Length and Value fields, and the five data types. Seven sites: five bind a client and are mapped, one binds a proxy, one repeats the zero-length rule for String. |
-| `5.1` | User-Name | 1 | walked | User-Name. One site: the attribute MUST be sent in an Access-Request if available. |
-| `5.2` | User-Password | 0 | walked | User-Password. The hiding algorithm, stated entirely in indicative prose and as a set of equations, so the scan derives no site. The two obligations the summary declares from it are listed below. |
-| `5.3` | CHAP-Password | 0 | walked | CHAP-Password. Format and the rule that the challenge is in CHAP-Challenge if present and the Request Authenticator otherwise. Indicative prose, no site. |
-| `5.4` | NAS-IP-Address | 3 | walked | NAS-IP-Address. Three sites: the Section 4.1 identification rule restated, and the two shared-secret-selection sentences that bind the server. |
-| `5.5` | NAS-Port | 0 | walked | NAS-Port. Attribute format and a note on 16-bit port values. No obligation. |
-| `5.6` | Service-Type | 1 | walked | Service-Type. One site: a NAS MUST treat an unknown or unsupported Service-Type as an Access-Reject. The rest is the value table. |
-| `5.7` | Framed-Protocol | 0 | walked | Framed-Protocol. Value table for PPP, SLIP, ARAP, Gandalf, Xylogics and X.75. No obligation. |
-| `5.8` | Framed-IP-Address | 0 | walked | Framed-IP-Address. Format and the two special values 0xFFFFFFFF and 0xFFFFFFFE. No obligation. |
-| `5.9` | Framed-IP-Netmask | 0 | walked | Framed-IP-Netmask. Format. No obligation. |
-| `5.10` | Framed-Routing | 0 | walked | Framed-Routing. Value table. No obligation. |
-| `5.11` | Filter-Id | 1 | walked | Filter-Id. One site: the attribute is human readable and MUST NOT affect operation of the protocol. |
-| `5.12` | Framed-MTU | 0 | walked | Framed-MTU. Format and range. No obligation. |
-| `5.13` | Framed-Compression | 0 | walked | Framed-Compression. Value table. No obligation. |
-| `5.14` | Login-IP-Host | 0 | walked | Login-IP-Host. Format and the two special values. No obligation. |
-| `5.15` | Login-Service | 0 | walked | Login-Service. Value table. No obligation. |
-| `5.16` | Login-TCP-Port | 0 | walked | Login-TCP-Port. Format. No obligation. |
-| `5.17` | Unassigned attribute type 17 | 0 | walked | Unassigned attribute type 17. A heading and a note. No obligation. |
-| `5.18` | Reply-Message | 2 | walked | Reply-Message. Two sites: the display-order rule for several messages, and the human-readable sentence the other carrier attributes repeat. |
-| `5.19` | Callback-Number | 0 | walked | Callback-Number. Format. No obligation. |
-| `5.20` | Callback-Id | 0 | walked | Callback-Id. Format and a note that the id is NAS specific. No obligation. |
-| `5.21` | Unassigned attribute type 21 | 0 | walked | Unassigned attribute type 21. A heading and a note. No obligation. |
-| `5.22` | Framed-Route | 1 | walked | Framed-Route. One site: the human-readable sentence. The route text format is stated in indicative prose. |
-| `5.23` | Framed-IPX-Network | 0 | walked | Framed-IPX-Network. Format and the special value 0xFFFFFFFE. No obligation. |
-| `5.24` | State | 3 | walked | State. Three sites: the challenge-reply carry rule, the Termination-Action carry rule, and the prohibition on interpreting the attribute locally. |
-| `5.25` | Class | 1 | walked | Class. One site: the client MUST NOT interpret the attribute locally. The accounting-echo sentence beside it is a SHOULD. |
-| `5.26` | Vendor-Specific | 2 | walked | Vendor-Specific. Two sites: the attribute MUST NOT affect protocol operation, and a server not equipped to interpret vendor information MUST ignore it. |
-| `5.27` | Session-Timeout | 0 | walked | Session-Timeout. Format and meaning. No obligation. |
-| `5.28` | Idle-Timeout | 0 | walked | Idle-Timeout. Format and meaning. No obligation. |
-| `5.29` | Termination-Action | 0 | walked | Termination-Action. Value table. No obligation. |
-| `5.30` | Called-Station-Id | 0 | walked | Called-Station-Id. Format and a note on dialed-number identification. No obligation. |
-| `5.31` | Calling-Station-Id | 0 | walked | Calling-Station-Id. Format and a note on automatic number identification. No obligation. |
-| `5.32` | NAS-Identifier | 3 | walked | NAS-Identifier. Three sites, the same three sentences Section 5.4 carries for NAS-IP-Address. |
-| `5.33` | Proxy-State | 4 | walked | Proxy-State. Four sites, every one binding a proxy server or a server that adds a Proxy-State. |
-| `5.34` | Login-LAT-Service | 0 | walked | Login-LAT-Service. Format and a note on LAT string handling. No obligation, and ze offers no LAT service. |
-| `5.35` | Login-LAT-Node | 0 | walked | Login-LAT-Node. Format. No obligation, and ze offers no LAT service. |
-| `5.36` | Login-LAT-Group | 0 | walked | Login-LAT-Group. Format of the 32-octet group code bitmap. No obligation, and ze offers no LAT service. |
-| `5.37` | Framed-AppleTalk-Link | 0 | walked | Framed-AppleTalk-Link. Format. No obligation, and ze offers no AppleTalk service. |
-| `5.38` | Framed-AppleTalk-Network | 0 | walked | Framed-AppleTalk-Network. Format. No obligation, and ze offers no AppleTalk service. |
-| `5.39` | Framed-AppleTalk-Zone | 0 | walked | Framed-AppleTalk-Zone. Format. No obligation, and ze offers no AppleTalk service. |
-| `5.40` | CHAP-Challenge | 0 | walked | CHAP-Challenge. Format and the rule that a 16-octet challenge may travel in the Request Authenticator instead. Indicative prose, no site. |
-| `5.41` | NAS-Port-Type | 0 | walked | NAS-Port-Type. Value table. No obligation. |
-| `5.42` | Port-Limit | 0 | walked | Port-Limit. Format and meaning. No obligation. |
-| `5.43` | Login-LAT-Port | 0 | walked | Login-LAT-Port. Format. No obligation, and ze offers no LAT service. |
-| `5.44` | Table of Attributes | 4 | walked | Table of Attributes. Three sites in Note 1 and Note 2, restating Section 4.1's credential and identification rules, and the legend site that defines what the table's cells mean. |
+| `1` | not stated | 0 | reviewed | Introduction: what RADIUS is, its client/server model, its network security model and its extensibility. It states no obligation of its own and derives no site. |
+| `1.1` | Specification of Requirements | 3 | reviewed | Specification of Requirements. It carries the RFC 2119 key-words paragraph the site scan correctly refuses to count, the definition of unconditional and conditional compliance, and three NAS obligations about services a NAS does not implement (sites 1.1:1 to 1.1:3). |
+| `1.2` | Terminology: service, session and 'silently discard' | 0 | reviewed | Terminology: service, session and 'silently discard'. The two keywords in the 'silently discard' entry are SHOULDs about logging and counting a discarded packet, so the scan derives no site. |
+| `2` | Operation | 2 | reviewed | Operation. It narrates one authentication exchange end to end. Its two sites are both server obligations. The client-side sentences here are indicative or MAY-level and are stated normatively in sections 3, 4.1 and 4.4. |
+| `2.1` | Challenge/Response | 0 | reviewed | Challenge/Response. Descriptive: what a challenge is, what the user does with it, and a worked example. It states no obligation, and the NAS obligation for a challenge is in section 4.4. |
+| `2.2` | Interoperation with PAP and CHAP | 2 | reviewed | Interoperation with PAP and CHAP. It describes how a NAS maps PAP and CHAP credentials onto User-Password and CHAP-Password, in indicative prose, and then states two server obligations (sites 2.2:1 and 2.2:2). |
+| `2.3` | Proxy | 10 | reviewed | Proxy. Ten sites, every one binding a forwarding server or a remote server. Ze forwards no RADIUS request and answers none, so the whole section is excluded by role. |
+| `2.4` | Why UDP? Design rationale for the transport choice | 0 | reviewed | Why UDP? Design rationale for the transport choice. It uses 'must' in lowercase throughout to describe consequences, and states no obligation. |
+| `2.5` | Retransmission Hints | 2 | reviewed | Retransmission Hints. Its two sites are the same-server retransmission rule (site 2.5:1) and the changed-attributes rule (site 2.5:2), which Section 4.1 states in full. |
+| `2.6` | Keep-Alives Considered Harmful | 0 | reviewed | Keep-Alives Considered Harmful. Advice against probing a server, phrased as 'strongly discouraged'. No capitalised keyword and no obligation. |
+| `3` | Packet Format | 5 | reviewed | Packet Format. The header layout, the Code, Identifier, Length and Authenticator fields, the Request and Response Authenticator definitions, and the Administrative Note on the shared secret. Five sites: three bind any receiver or both ends and are mapped, two bind a server or a proxy. |
+| `4` | Packet Types | 0 | reviewed | Packet Types. One sentence saying the Code field decides the type. The four types are 4.1 to 4.4. |
+| `4.1` | Access-Request | 8 | reviewed | Access-Request. Eight sites. Six bind the sender and are mapped or duplicated onto Section 2.5; one binds the server that must reply; one is the retransmission half of the Identifier rule. |
+| `4.2` | Access-Accept | 2 | reviewed | Access-Accept. Two sites, both binding the RADIUS server: its obligation to transmit the Access-Accept, and the Response Authenticator it writes, which MUST contain the correct response for the pending Access-Request. The client's side of the paragraph is the indicative 'Invalid packets are silently discarded', which carries no keyword and so no site; RFC2865-4.2-1 quotes it and is declared unsourced here. |
+| `4.3` | Access-Reject | 1 | reviewed | Access-Reject. One site, binding the server that transmits it. The Reply-Message sentence is MAY-level and is the summary's RFC2865-5-3. |
+| `4.4` | Access-Challenge | 4 | reviewed | Access-Challenge. Four sites: two bind the server, and two state what a NAS without challenge/response support owes, which is RFC2865-4.4-1. |
+| `5` | Attributes | 7 | reviewed | Attributes. The attribute format, the Type, Length and Value fields, and the five data types. Seven sites: five bind a client and are mapped, one binds a proxy, one repeats the zero-length rule for String. |
+| `5.1` | User-Name | 1 | reviewed | User-Name. One site: the attribute MUST be sent in an Access-Request if available. |
+| `5.2` | User-Password | 0 | reviewed | User-Password. The hiding algorithm, stated entirely in indicative prose and as a set of equations, so the scan derives no site. The two obligations the summary declares from it are listed below. |
+| `5.3` | CHAP-Password | 0 | reviewed | CHAP-Password. Format and the rule that the challenge is in CHAP-Challenge if present and the Request Authenticator otherwise. Indicative prose, no site. |
+| `5.4` | NAS-IP-Address | 3 | reviewed | NAS-IP-Address. Three sites: the Section 4.1 identification rule restated, and the two shared-secret-selection sentences that bind the server. |
+| `5.5` | NAS-Port | 0 | reviewed | NAS-Port. Attribute format and a note on 16-bit port values. No obligation. |
+| `5.6` | Service-Type | 1 | reviewed | Service-Type. One site: a NAS MUST treat an unknown or unsupported Service-Type as an Access-Reject. The rest is the value table. |
+| `5.7` | Framed-Protocol | 0 | reviewed | Framed-Protocol. Value table for PPP, SLIP, ARAP, Gandalf, Xylogics and X.75. No obligation. |
+| `5.8` | Framed-IP-Address | 0 | reviewed | Framed-IP-Address. Format and the two special values 0xFFFFFFFF and 0xFFFFFFFE. No obligation. |
+| `5.9` | Framed-IP-Netmask | 0 | reviewed | Framed-IP-Netmask. Format. No obligation. |
+| `5.10` | Framed-Routing | 0 | reviewed | Framed-Routing. Value table. No obligation. |
+| `5.11` | Filter-Id | 1 | reviewed | Filter-Id. One site: the attribute is human readable and MUST NOT affect operation of the protocol. |
+| `5.12` | Framed-MTU | 0 | reviewed | Framed-MTU. Format and range. No obligation. |
+| `5.13` | Framed-Compression | 0 | reviewed | Framed-Compression. Value table. No obligation. |
+| `5.14` | Login-IP-Host | 0 | reviewed | Login-IP-Host. Format and the two special values. No obligation. |
+| `5.15` | Login-Service | 0 | reviewed | Login-Service. Value table. No obligation. |
+| `5.16` | Login-TCP-Port | 0 | reviewed | Login-TCP-Port. Format. No obligation. |
+| `5.17` | Unassigned attribute type 17 | 0 | reviewed | Unassigned attribute type 17. A heading and a note. No obligation. |
+| `5.18` | Reply-Message | 2 | reviewed | Reply-Message. Two sites: the display-order rule for several messages, and the human-readable sentence the other carrier attributes repeat. |
+| `5.19` | Callback-Number | 0 | reviewed | Callback-Number. Format. No obligation. |
+| `5.20` | Callback-Id | 0 | reviewed | Callback-Id. Format and a note that the id is NAS specific. No obligation. |
+| `5.21` | Unassigned attribute type 21 | 0 | reviewed | Unassigned attribute type 21. A heading and a note. No obligation. |
+| `5.22` | Framed-Route | 1 | reviewed | Framed-Route. One site: the human-readable sentence. The route text format is stated in indicative prose. |
+| `5.23` | Framed-IPX-Network | 0 | reviewed | Framed-IPX-Network. Format and the special value 0xFFFFFFFE. No obligation. |
+| `5.24` | State | 3 | reviewed | State. Three sites: the challenge-reply carry rule, the Termination-Action carry rule, and the prohibition on interpreting the attribute locally. |
+| `5.25` | Class | 1 | reviewed | Class. One site: the client MUST NOT interpret the attribute locally. The accounting-echo sentence beside it is a SHOULD. |
+| `5.26` | Vendor-Specific | 2 | reviewed | Vendor-Specific. Two sites: the attribute MUST NOT affect protocol operation, and a server not equipped to interpret vendor information MUST ignore it. |
+| `5.27` | Session-Timeout | 0 | reviewed | Session-Timeout. Format and meaning. No obligation. |
+| `5.28` | Idle-Timeout | 0 | reviewed | Idle-Timeout. Format and meaning. No obligation. |
+| `5.29` | Termination-Action | 0 | reviewed | Termination-Action. Value table. No obligation. |
+| `5.30` | Called-Station-Id | 0 | reviewed | Called-Station-Id. Format and a note on dialed-number identification. No obligation. |
+| `5.31` | Calling-Station-Id | 0 | reviewed | Calling-Station-Id. Format and a note on automatic number identification. No obligation. |
+| `5.32` | NAS-Identifier | 3 | reviewed | NAS-Identifier. Three sites, the same three sentences Section 5.4 carries for NAS-IP-Address. |
+| `5.33` | Proxy-State | 4 | reviewed | Proxy-State. Four sites, every one binding a proxy server or a server that adds a Proxy-State. |
+| `5.34` | Login-LAT-Service | 0 | reviewed | Login-LAT-Service. Format and a note on LAT string handling. No obligation, and ze offers no LAT service. |
+| `5.35` | Login-LAT-Node | 0 | reviewed | Login-LAT-Node. Format. No obligation, and ze offers no LAT service. |
+| `5.36` | Login-LAT-Group | 0 | reviewed | Login-LAT-Group. Format of the 32-octet group code bitmap. No obligation, and ze offers no LAT service. |
+| `5.37` | Framed-AppleTalk-Link | 0 | reviewed | Framed-AppleTalk-Link. Format. No obligation, and ze offers no AppleTalk service. |
+| `5.38` | Framed-AppleTalk-Network | 0 | reviewed | Framed-AppleTalk-Network. Format. No obligation, and ze offers no AppleTalk service. |
+| `5.39` | Framed-AppleTalk-Zone | 0 | reviewed | Framed-AppleTalk-Zone. Format. No obligation, and ze offers no AppleTalk service. |
+| `5.40` | CHAP-Challenge | 0 | reviewed | CHAP-Challenge. Format and the rule that a 16-octet challenge may travel in the Request Authenticator instead. Indicative prose, no site. |
+| `5.41` | NAS-Port-Type | 0 | reviewed | NAS-Port-Type. Value table. No obligation. |
+| `5.42` | Port-Limit | 0 | reviewed | Port-Limit. Format and meaning. No obligation. |
+| `5.43` | Login-LAT-Port | 0 | reviewed | Login-LAT-Port. Format. No obligation, and ze offers no LAT service. |
+| `5.44` | Table of Attributes | 4 | reviewed | Table of Attributes. Three sites in Note 1 and Note 2, restating Section 4.1's credential and identification rules, and the legend site that defines what the table's cells mean. |
 | `6` | IANA Considerations | 0 | skipped (iana) | IANA Considerations. It names the registries and the assignment process for RADIUS packet type codes, attribute types and attribute values. Binds IANA, not a speaker. |
 | `6.1` | not stated | 0 | skipped (iana) | Definition of Terms for the IANA section: Private Use, Specification Required, Designated Expert and so on. |
 | `6.2` | Recommended Registration Policies | 0 | skipped (iana) | Recommended Registration Policies. It tells IANA which policy governs each RADIUS namespace. |
-| `7` | Examples | 0 | walked | Examples. Three worked exchanges shown as attribute dumps. Non-normative illustration of sections 4 and 5, and it states no obligation. |
-| `7.1` | Example: user Telnet to a specified host | 0 | walked | Example: user Telnet to a specified host. An attribute dump of one Access-Request and its Access-Accept. |
-| `7.2` | Example: framed user authenticating with CHAP | 0 | walked | Example: framed user authenticating with CHAP. An attribute dump of one exchange. |
-| `7.3` | Example: user with a challenge-response card | 0 | walked | Example: user with a challenge-response card. An attribute dump of an Access-Request, an Access-Challenge and a second Access-Request. |
-| `8` | Security Considerations | 0 | walked | Security Considerations. It discusses one authentication method per user name, secret storage, secret distribution and the known weakness of the Section 5.2 hiding mechanism. Its two keywords are SHOULDs, so the scan derives no site. |
-| `9` | Change Log | 1 | walked | Change Log. It lists what changed from RFC 2138. Its one site quotes the Section 5 proxy ordering sentence while describing that change. |
+| `7` | Examples | 0 | reviewed | Examples. Three worked exchanges shown as attribute dumps. Non-normative illustration of sections 4 and 5, and it states no obligation. |
+| `7.1` | Example: user Telnet to a specified host | 0 | reviewed | Example: user Telnet to a specified host. An attribute dump of one Access-Request and its Access-Accept. |
+| `7.2` | Example: framed user authenticating with CHAP | 0 | reviewed | Example: framed user authenticating with CHAP. An attribute dump of one exchange. |
+| `7.3` | Example: user with a challenge-response card | 0 | reviewed | Example: user with a challenge-response card. An attribute dump of an Access-Request, an Access-Challenge and a second Access-Request. |
+| `8` | Security Considerations | 0 | reviewed | Security Considerations. It discusses one authentication method per user name, secret storage, secret distribution and the known weakness of the Section 5.2 hiding mechanism. Its two keywords are SHOULDs, so the scan derives no site. |
+| `9` | Change Log | 1 | reviewed | Change Log. It lists what changed from RFC 2138. Its one site quotes the Section 5 proxy ordering sentence while describing that change. |
 | `10` | References, normative and informative | 0 | skipped (references) | References, normative and informative. |
 | `11` | Acknowledgements | 0 | skipped (acknowledgements) | Acknowledgements. |
 | `12` | Chair's Address | 0 | skipped (front-matter) | Chair's Address. A contact block, the same boilerplate class as the title block at the head of the document. |

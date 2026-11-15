@@ -1,6 +1,6 @@
 # RFC 5286 - Basic Specification for IP Fast Reroute: Loop-Free Alternates
 
-Loop-Free Alternate FRR. Every requirement this repository extracted from RFC 5286, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+Loop-Free Alternate FRR. Every requirement listed for RFC 5286, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,24 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 3 | of 6 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0 | of 6 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 6 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 6 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 8 | 8 of 12 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-
-### Neutral
-
-measures that are neither good news nor bad
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Gated MUSTs | 6 | of 30 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 6 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 6 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 6 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 6 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 6 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Tested both ways | 3 | of 6 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0 | of 6 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 6 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 6 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Tests shown to detect a fault | 8 | 8 of 12 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -35,54 +22,74 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 3 | of 6 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Declared gap or no test | 3 | of 6 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 
-The 9 counts marked as a part above are the whole of the 6 gated MUSTs: they add up to 6. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Neutral
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+measures that are neither good news nor bad
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Out of scope | 0 | of 6 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 6 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 6 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 6 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 6 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+
+### Totals
+
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 6 | of 30 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 6 mandatory requirements: they add up to 6. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | Loop-Free Alternate FRR |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 30 |
-| Gated MUST-level | 6 |
+| Mandatory requirements (MUST level) | 6 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 3 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 13 |
-| Tagged units | 12 |
+| Tests linked to requirements | 12 |
 | Recorded audit verdicts | 3 |
-| Discrimination records | 8 |
+| Fault test records | 8 |
 | Summary | `rfc/short/rfc5286.md` |
-| Requirement shard | `rfc/requirements/rfc5286.md` |
+| Requirement table | `rfc/requirements/rfc5286.md` |
 | RFC text | `rfc/full/rfc5286.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: IP Fast Reroute: Loop-Free Alternates (LFA): six MUST-level requirements, computed in OSPF only (internal/plugins/ospf/spf/lfa.go). x-1 (Inequality 1 strict loop-free criterion), x-2 (no alternate over a link with forward/reverse cost LSInfinity), and x-3 (OSPF: exclude a neighbor whose every reverse link is LSInfinity) each carry positive+negative tags. x-4 (IS-IS overload-bit exclusion) is {gap}: ze has no IS-IS LFA code path. x-5 (alternate only for shortest-path traffic) and x-6 (bound the alternate's lifetime) are {gap}: the backup is attached to every SPF route with no address-family guard so an OSPFv3 multicast AF route inherits it, and ze has no explicit RFC 5286 Section 4.1 hold-down/termination timer (only SPF reconvergence). Disclosed in the docs/features/rfc-status.md RFC 5286 row.
+Included in automatic checks: IP Fast Reroute: Loop-Free Alternates (LFA): six MUST-level requirements, computed in OSPF only (internal/plugins/ospf/spf/lfa.go). x-1 (Inequality 1 strict loop-free criterion), x-2 (no alternate over a link with forward/reverse cost LSInfinity), and x-3 (OSPF: exclude a neighbor whose every reverse link is LSInfinity) each carry positive+negative tags. x-4 (IS-IS overload-bit exclusion) is {gap}: ze has no IS-IS LFA code path. x-5 (alternate only for shortest-path traffic) and x-6 (bound the alternate's lifetime) are {gap}: the backup is attached to every SPF route with no address-family guard so an OSPFv3 multicast AF route inherits it, and ze programs no alternate into the Linux kernel, so none is used after a primary failure (only SPF reconvergence), and has no RFC 5286 Section 4.1 hold-down/termination timer. Disclosed in the docs/features/rfc-status.md RFC 5286 row.
 
-## What the public ledger says
+## Published support status
 
 **Area:** Loop-Free Alternate FRR
 
@@ -97,14 +104,14 @@ Enrolled: IP Fast Reroute: Loop-Free Alternates (LFA): six MUST-level requiremen
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 3 | one part of the gated population |
-| Annotated (including scoped evidence) | 3 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **6** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 3 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 3 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **6** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (3):** [`RFC5286-x-1`](#rfc5286-x-1), [`RFC5286-x-2`](#rfc5286-x-2), [`RFC5286-x-3`](#rfc5286-x-3)
 
@@ -112,20 +119,23 @@ Enrolled: IP Fast Reroute: Loop-Free Alternates (LFA): six MUST-level requiremen
 
 ## Figures
 
-- **MUST bar**: Ze proven 2, Ze correctness gap 4
-- **Overview bar**: Ze MUST proven 2, SHOULD not decided 24, Ze correctness gap 4
+- **MUST bar**: Ze proven 2, Proof pending 1, Not built 3
+- **Overview bar**: Ze MUST proven 2, Proof pending 1, Not assessed 24, Not built 3
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 6 |
 | MUST rows kept (the MUST bar) | 6 |
 | Ze proven | 2 |
 | OS verified | 0 |
+| Proof pending | 1 |
 | OS testing gap | 0 |
-| Ze correctness gap | 4 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 3 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -138,11 +148,12 @@ Enrolled: IP Fast Reroute: Loop-Free Alternates (LFA): six MUST-level requiremen
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 24 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 24 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc5286.json](../../../data/rfc/rfc5286.json).
 
@@ -155,7 +166,7 @@ Source: [data/rfc/rfc5286.json](../../../data/rfc/rfc5286.json).
 | `RFC5286-x-3` | In the case of OSPF, if all links from router S to a neighbor N_i have a reverse cost of LSInfinity, then router S MUST NOT use N_i as an alternate. (§3.5) | MUST NOT | 3.5 | **positive:** `unit/verify` [`TestRFC5286AllReverseLinksCostedOut`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_costed_out_test.go#L59). **positive:** `unit/verify` [`TestRFC5286ReverseCostAllInfinite`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_lfa_test.go#L99). **positive:** `unit/verify` [`TestRFC5286TransitNeighborFiniteReverseIsAlternate`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_transit_reverse_test.go#L70). **negative:** `unit/verify` [`TestRFC5286AllReverseLinksCostedOut`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_costed_out_test.go#L72). **negative:** `unit/verify` [`TestRFC5286ReverseCostAllInfinite`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_lfa_test.go#L114). **negative:** `unit/verify` [`TestRFC5286TransitNeighborCostedOutReverseNotAlternate`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_transit_reverse_test.go#L85) |
 | `RFC5286-x-4` | Similarly in the case of IS-IS, if N_i has the overload bit set, then S MUST NOT consider using N_i as an alternate. (§3.5) | MUST NOT | 3.5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze computes Loop-Free Alternates only in OSPF (internal/plugins/ospf/spf/lfa.go) and implements no IS-IS LFA, with no owner decision declining it, so no IS-IS computation excludes an overloaded neighbor |
 | `RFC5286-x-5` | The alternate next-hop MUST be used only for traffic types that are routed according to the shortest path. (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze attaches the RFC 5286 alternate to a route's Loc-RIB Path unconditionally in Installer.insert (internal/plugins/ospf/spf/install.go:213-229) with no guard confining it to unicast shortest-path forwarding; an OSPFv3 multicast address-family engine (family.IPv4Multicast / family.IPv6Multicast, internal/plugins/ospf/multiaf.go:102-115) installs through the same NewInstallerFamily path (internal/plugins/ospf/spf_wiring.go:34) and inherits fast-reroute config (internal/plugins/ospf/config.go:709-711), so a multicast-AF route receives the same backup next-hop, which Section 4 confines to shortest-path traffic and Section 6.5 excludes from multicast RPF. Disclosed in the docs/features/rfc-status.md RFC 5286 row |
-| `RFC5286-x-6` | A router MUST limit the amount of time an alternate next-hop is used after the primary next-hop has become unavailable. (§4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze relies on SPF reconvergence to replace a route with a stale alternate (internal/plugins/ospf/spf/install.go:171-195) and the kernel RTNH_F_LINKDOWN flag (internal/plugins/fib/kernel/nexthop_linux.go:113), but implements no explicit RFC 5286 Section 4.1 hold-down timer or termination-condition bounding how long an alternate stays active. Disclosed in the docs/features/rfc-status.md RFC 5286 row |
+| `RFC5286-x-6` | A router MUST limit the amount of time an alternate next-hop is used after the primary next-hop has become unavailable. (§4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze computes the alternate (internal/plugins/ospf/spf/lfa.go) and carries it on the Loc-RIB Path through sysrib to fib-kernel's own state, but fib-kernel does not program it into the Linux kernel (buildRichRoute in internal/plugins/fib/kernel/nexthop_linux.go sends the primary next-hops only), so no alternate is ever in use after a primary failure and traffic recovers only through SPF reconvergence (internal/plugins/ospf/spf/install.go). There is nothing to time-limit yet: the requirement becomes meaningful once a backup is activated on primary failure, and ze then also owes a Section 4.1 hold-down or termination condition. Disclosed in the docs/features/rfc-status.md RFC 5286 row |
 | `RFC5286-x-7` | Since the functionality of link-and-node-protecting LFAs is greater than that of link-protecting downstream paths, a router SHOULD select a link-and-node-protecting LFA over a link-protecting downstream path. (§1.1) | SHOULD | 1.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5286-x-8` | Therefore, it SHOULD be assumed that an alternate next-hop does not offer node protection if Inequality 3 is not met. (§3.2) | SHOULD | 3.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5286-x-9` | If the primary next-hop uses a broadcast link, then an alternate SHOULD be loop-free with respect to that link's pseudo-node (PN) to provide link protection. This requirement is described in Inequality 4 below. (§3.3) | SHOULD | 3.3 | **positive:** no positive test. **negative:** no negative test |
@@ -187,11 +198,11 @@ Source: [data/rfc/rfc5286.json](../../../data/rfc/rfc5286.json).
 |---|---|---|
 | [`RFC5286-x-4`](#rfc5286-x-4) Similarly in the case of IS-IS, if N_i has the overload bit set, then S MUST NOT consider using N_i as an alternate. (§3.5) | {gap}, no test | ze computes Loop-Free Alternates only in OSPF (internal/plugins/ospf/spf/lfa.go) and implements no IS-IS LFA, with no owner decision declining it, so no IS-IS computation excludes an overloaded neighbor |
 | [`RFC5286-x-5`](#rfc5286-x-5) The alternate next-hop MUST be used only for traffic types that are routed according to the shortest path. (§4) | {gap}, no test | ze attaches the RFC 5286 alternate to a route's Loc-RIB Path unconditionally in Installer.insert (internal/plugins/ospf/spf/install.go:213-229) with no guard confining it to unicast shortest-path forwarding; an OSPFv3 multicast address-family engine (family.IPv4Multicast / family.IPv6Multicast, internal/plugins/ospf/multiaf.go:102-115) installs through the same NewInstallerFamily path (internal/plugins/ospf/spf_wiring.go:34) and inherits fast-reroute config (internal/plugins/ospf/config.go:709-711), so a multicast-AF route receives the same backup next-hop, which Section 4 confines to shortest-path traffic and Section 6.5 excludes from multicast RPF. Disclosed in the docs/features/rfc-status.md RFC 5286 row |
-| [`RFC5286-x-6`](#rfc5286-x-6) A router MUST limit the amount of time an alternate next-hop is used after the primary next-hop has become unavailable. (§4.1) | {gap}, no test | ze relies on SPF reconvergence to replace a route with a stale alternate (internal/plugins/ospf/spf/install.go:171-195) and the kernel RTNH_F_LINKDOWN flag (internal/plugins/fib/kernel/nexthop_linux.go:113), but implements no explicit RFC 5286 Section 4.1 hold-down timer or termination-condition bounding how long an alternate stays active. Disclosed in the docs/features/rfc-status.md RFC 5286 row |
+| [`RFC5286-x-6`](#rfc5286-x-6) A router MUST limit the amount of time an alternate next-hop is used after the primary next-hop has become unavailable. (§4.1) | {gap}, no test | ze computes the alternate (internal/plugins/ospf/spf/lfa.go) and carries it on the Loc-RIB Path through sysrib to fib-kernel's own state, but fib-kernel does not program it into the Linux kernel (buildRichRoute in internal/plugins/fib/kernel/nexthop_linux.go sends the primary next-hops only), so no alternate is ever in use after a primary failure and traffic recovers only through SPF reconvergence (internal/plugins/ospf/spf/install.go). There is nothing to time-limit yet: the requirement becomes meaningful once a backup is activated on primary failure, and ze then also owes a Section 4.1 hold-down or termination condition. Disclosed in the docs/features/rfc-status.md RFC 5286 row |
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC5286-x-1`](#rfc5286-x-1)
 
@@ -236,27 +247,27 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 Similarly in the case of IS-IS, if N_i has the overload bit set, then S MUST NOT consider using N_i as an alternate. (§3.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5286-x-4, so no unit is bound to it.
+No test carries RFC5286-x-4, so there is no linked test.
 
 ### [`RFC5286-x-5`](#rfc5286-x-5)
 
 The alternate next-hop MUST be used only for traffic types that are routed according to the shortest path. (§4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5286-x-5, so no unit is bound to it.
+No test carries RFC5286-x-5, so there is no linked test.
 
 ### [`RFC5286-x-6`](#rfc5286-x-6)
 
 A router MUST limit the amount of time an alternate next-hop is used after the primary next-hop has become unavailable. (§4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5286-x-6, so no unit is bound to it.
+No test carries RFC5286-x-6, so there is no linked test.
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -275,42 +286,42 @@ No test carries RFC5286-x-6, so no unit is bound to it.
 
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
-| `front` | not stated | 0 | walked | not stated |
-| `1` | not stated | 0 | walked | not stated |
-| `1.1` | not stated | 0 | walked | not stated |
-| `1.2` | not stated | 0 | walked | not stated |
-| `2` | not stated | 0 | walked | not stated |
-| `3` | not stated | 0 | walked | not stated |
-| `3.1` | not stated | 1 | walked | not stated |
-| `3.2` | not stated | 0 | walked | not stated |
-| `3.3` | not stated | 0 | walked | not stated |
-| `3.4` | not stated | 0 | walked | not stated |
-| `3.5` | not stated | 3 | walked | not stated |
-| `3.5.1` | not stated | 0 | walked | not stated |
-| `3.6` | not stated | 0 | walked | not stated |
-| `3.7` | not stated | 0 | walked | not stated |
-| `3.8` | not stated | 0 | walked | not stated |
-| `4` | not stated | 1 | walked | not stated |
-| `4.1` | not stated | 1 | walked | not stated |
-| `5` | not stated | 0 | walked | not stated |
-| `6` | not stated | 0 | walked | not stated |
-| `6.1` | not stated | 0 | walked | not stated |
-| `6.2` | not stated | 0 | walked | not stated |
-| `6.3` | not stated | 0 | walked | not stated |
-| `6.3.1` | not stated | 0 | walked | not stated |
-| `6.3.2` | not stated | 0 | walked | not stated |
-| `6.4` | not stated | 0 | walked | not stated |
-| `6.5` | not stated | 0 | walked | not stated |
-| `7` | not stated | 0 | walked | not stated |
-| `8` | not stated | 0 | walked | not stated |
-| `9` | not stated | 0 | walked | not stated |
-| `9.1` | not stated | 0 | walked | not stated |
-| `9.2` | not stated | 0 | walked | not stated |
-| `A` | not stated | 0 | walked | not stated |
+| `front` | not stated | 0 | reviewed | not stated |
+| `1` | not stated | 0 | reviewed | not stated |
+| `1.1` | not stated | 0 | reviewed | not stated |
+| `1.2` | not stated | 0 | reviewed | not stated |
+| `2` | not stated | 0 | reviewed | not stated |
+| `3` | not stated | 0 | reviewed | not stated |
+| `3.1` | not stated | 1 | reviewed | not stated |
+| `3.2` | not stated | 0 | reviewed | not stated |
+| `3.3` | not stated | 0 | reviewed | not stated |
+| `3.4` | not stated | 0 | reviewed | not stated |
+| `3.5` | not stated | 3 | reviewed | not stated |
+| `3.5.1` | not stated | 0 | reviewed | not stated |
+| `3.6` | not stated | 0 | reviewed | not stated |
+| `3.7` | not stated | 0 | reviewed | not stated |
+| `3.8` | not stated | 0 | reviewed | not stated |
+| `4` | not stated | 1 | reviewed | not stated |
+| `4.1` | not stated | 1 | reviewed | not stated |
+| `5` | not stated | 0 | reviewed | not stated |
+| `6` | not stated | 0 | reviewed | not stated |
+| `6.1` | not stated | 0 | reviewed | not stated |
+| `6.2` | not stated | 0 | reviewed | not stated |
+| `6.3` | not stated | 0 | reviewed | not stated |
+| `6.3.1` | not stated | 0 | reviewed | not stated |
+| `6.3.2` | not stated | 0 | reviewed | not stated |
+| `6.4` | not stated | 0 | reviewed | not stated |
+| `6.5` | not stated | 0 | reviewed | not stated |
+| `7` | not stated | 0 | reviewed | not stated |
+| `8` | not stated | 0 | reviewed | not stated |
+| `9` | not stated | 0 | reviewed | not stated |
+| `9.1` | not stated | 0 | reviewed | not stated |
+| `9.2` | not stated | 0 | reviewed | not stated |
+| `A` | not stated | 0 | reviewed | not stated |
 
 ### Excluded sentences
 
-The walk over RFC 5286 declined no sentence: every site it found is mapped to a requirement.
+The review of RFC 5286 excluded no sentences: every sentence identified as an obligation is linked to a requirement.
 
 ## Superseded
 

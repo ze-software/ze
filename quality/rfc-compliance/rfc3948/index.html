@@ -4,18 +4,18 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
-        <title>RFC 3948 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 3948: UDP Encapsulation of IPsec ESP Packets. 11 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
-        <meta property="og:title" content="RFC 3948 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 3948: UDP Encapsulation of IPsec ESP Packets. 11 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <title>RFC 3948 requirements and tests - Ze</title>
+        <meta name="description" content="RFC 3948: UDP Encapsulation of IPsec ESP Packets. 11 mandatory requirements included in automatic checks, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:title" content="RFC 3948 requirements and tests - Ze" />
+        <meta property="og:description" content="RFC 3948: UDP Encapsulation of IPsec ESP Packets. 11 mandatory requirements included in automatic checks, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="RFC 3948 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 3948: UDP Encapsulation of IPsec ESP Packets. 11 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:title" content="RFC 3948 requirements and tests - Ze" />
+        <meta name="twitter:description" content="RFC 3948: UDP Encapsulation of IPsec ESP Packets. 11 mandatory requirements included in automatic checks, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -47,7 +47,7 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">UDP encapsulation of ESP</span>
     <h1 id="rfc-detail-title">RFC 3948 - UDP Encapsulation of IPsec ESP Packets</h1>
-    <p>Every requirement this repository extracted from RFC 3948, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
+    <p>Every requirement listed for RFC 3948, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.</p>
 </div>
 <style>
 .rfc-table-wrap { overflow-x: auto; }
@@ -57,16 +57,25 @@
 .rfc-verdict p:last-child { margin-bottom: 0; }
 .rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
-.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
-.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: block; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
 .rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
-.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
-.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-card b { display: block; margin: 0; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: .5rem 0 0; color: var(--muted); font-size: .92rem; line-height: 1.6; }
+.rfc-card.rfc-total-card { grid-column: 1 / -1; display: grid; grid-template-columns: 15rem minmax(0, 1fr); column-gap: 1.5rem; align-items: start; }
+.rfc-card.rfc-total-card span, .rfc-card.rfc-total-card strong, .rfc-card.rfc-total-card b { grid-column: 1; }
+.rfc-card.rfc-total-card p { grid-column: 2; grid-row: 1 / span 3; margin: 0; }
+@media (max-width: 760px) {
+  .rfc-card-grid { grid-template-columns: minmax(0, 1fr); }
+  .rfc-card.rfc-total-card { display: block; }
+  .rfc-card.rfc-total-card p { margin: .5rem 0 0; }
+}
 .rfc-ok { border-left: 7px solid var(--green); }
 .rfc-neutral { border-left: 7px solid var(--line-strong); }
 .rfc-warn { border-left: 7px solid var(--amber); }
 .rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-card.rfc-total-card { background: var(--bg-soft); border: 1px solid var(--line-strong); box-shadow: none; }
 .rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
 .rfc-tape span { width: var(--w); min-width: 0; display: block; }
 .rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
@@ -87,6 +96,7 @@
 .rfc-swatch.rfc-neutral { background: var(--line-strong); }
 .rfc-swatch.rfc-warn { background: var(--amber); }
 .rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-swatch.rfc-total-card { background: var(--bg-soft); }
 .rfc-total td { border-top: 2px solid var(--line-strong); }
 .rfc-prose { max-width: 46rem; }
 ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
@@ -118,38 +128,38 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>8</strong><b>of 11 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>2</strong><b>of 11 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 11 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 11 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>73</strong><b>73 of 84 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
-</div>
-<h3>Neutral</h3>
-<p>measures that are neither good news nor bad</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>11</strong><b>of 16 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 11 gated MUSTs</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 11 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 11 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 11 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 11 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>8</strong><b>of 11 mandatory requirements</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>2</strong><b>of 11 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 11 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 11 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>73</strong><b>73 of 84 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>1</strong><b>of 11 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Declared gap or no test</span><strong>1</strong><b>of 11 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
 </div>
-<p>The 9 counts marked as a part above are the whole of the 11 gated MUSTs: they add up to 11. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.</p>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 11 mandatory requirements</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 11 mandatory requirements</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 11 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 11 mandatory requirements</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 11 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit</p></article>
+</div>
+<h3>Totals</h3>
+<p>what the cards above are counted against</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-total-card"><span>Mandatory requirements (MUST level)</span><strong>11</strong><b>of 16 requirements this summary lists, at all levels</b><p>The RFC&#39;s MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements.</p></article>
+</div>
+<p>The 9 counts marked as a part above are the whole of the 11 mandatory requirements: they add up to 11. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
-<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
 <tbody>
-<tr><td>Gated MUSTs</td>
-<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
-</tr>
 <tr><td>Out of scope</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
 <td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
@@ -170,9 +180,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
-<tr><td>No test at all</td>
+<tr><td>Declared gap or no test</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
-<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+<td>green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
@@ -190,13 +200,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
 <td>neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption</td>
 </tr>
-<tr><td>Proven by a recorded break</td>
+<tr><td>Tests shown to detect a fault</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above</td>
+<td>green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
 <td><span class="rfc-swatch rfc-warn"></span> warn</td>
-<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current</td>
+</tr>
+<tr><td>Mandatory requirements (MUST level)</td>
+<td><span class="rfc-swatch rfc-total-card"></span> outlined</td>
+<td>outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad</td>
 </tr>
 </tbody>
 </table>
@@ -211,13 +225,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Public row</td>
 <td>UDP encapsulation of ESP</td>
 </tr>
-<tr><td>Enrolment</td>
-<td>Enrolled</td>
+<tr><td>Automatic checks</td>
+<td>Included</td>
 </tr>
 <tr><td>Requirements</td>
 <td>16</td>
 </tr>
-<tr><td>Gated MUST-level</td>
+<tr><td>Mandatory requirements (MUST level)</td>
 <td>11</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
@@ -229,7 +243,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
 </tr>
-<tr><td>Gated with no test</td>
+<tr><td>Mandatory requirements with no test and no annotation</td>
 <td>0</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
@@ -238,19 +252,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Test tags</td>
 <td>84</td>
 </tr>
-<tr><td>Tagged units</td>
+<tr><td>Tests linked to requirements</td>
 <td>84</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>9</td>
 </tr>
-<tr><td>Discrimination records</td>
+<tr><td>Fault test records</td>
 <td>73</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc3948.md</code></td>
 </tr>
-<tr><td>Requirement shard</td>
+<tr><td>Requirement table</td>
 <td><code>rfc/requirements/rfc3948.md</code></td>
 </tr>
 <tr><td>RFC text</td>
@@ -260,10 +274,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 </section>
-<section><h2>Enrolment</h2>
-<p>Enrolled: UDP Encapsulation of IPsec ESP Packets (NAT-Traversal): eleven MUST-level requirements. Eight are met with tags in internal/component/ike: 2.1-1 (the ESP SPI is never zero), 2.1-3 (demultiplex on port 4500 -- a four-zero-byte marker is IKE, a single 0xFF byte is a NAT keepalive, otherwise ESP), 2.2-1 (the non-ESP marker of four zero bytes is prepended to IKE), 1-1 (a tunnel-mode client supports tunnel mode: every Child SA that negotiated no USE_TRANSPORT_MODE installs as tunnel, and a peer request the operator did not configure cannot change that), and 4-3 (a received NAT-keepalive reaches no SA, so it is never read as evidence the connection is live) carry positive+negative tags; 2.1-2 (the ESP SA&#39;s UDP-encapsulation ports are the ports the IKE SA uses: the peer&#39;s authenticated IKE port and this node&#39;s NAT-T socket port), 4-1 (NAT keepalives are sent at a conservative sub-binding-timeout interval) and 2.3-2 (the keepalive payload is one octet of 0xFF) are {single-polarity: positive} with new tests. The last three ids were extracted by the 2026-08-31 extraction sign-off, which found their sites unmapped. 3.1.2-1 (ESP-in-UDP encapsulation and transport-mode checksum fixup) and 3.1.2-2 (inner checksum handling on decapsulation) are performed by the kernel via XFRM_ENCAP_ESPINUDP. 2.1-4 (do not depend on a zero UDP checksum) is a gap: ze&#39;s IKE never inspects the UDP checksum and Linux verifies a nonzero one, with no test over the socket ze opens, and UDP-encapsulated ESP receipt is unverified on the VPP IPsec backend.</p>
+<section><h2>Automatic checks</h2>
+<p>Included in automatic checks: UDP Encapsulation of IPsec ESP Packets (NAT-Traversal): eleven MUST-level requirements. Eight are met with tags in internal/component/ike: 2.1-1 (the ESP SPI is never zero), 2.1-3 (demultiplex on port 4500 -- a four-zero-byte marker is IKE, a single 0xFF byte is a NAT keepalive, otherwise ESP), 2.2-1 (the non-ESP marker of four zero bytes is prepended to IKE), 1-1 (a tunnel-mode client supports tunnel mode: every Child SA that negotiated no USE_TRANSPORT_MODE installs as tunnel, and a peer request the operator did not configure cannot change that), and 4-3 (a received NAT-keepalive reaches no SA, so it is never read as evidence the connection is live) carry positive+negative tags; 2.1-2 (the ESP SA&#39;s UDP-encapsulation ports are the ports the IKE SA uses: the peer&#39;s authenticated IKE port and this node&#39;s NAT-T socket port), 4-1 (NAT keepalives are sent at a conservative sub-binding-timeout interval) and 2.3-2 (the keepalive payload is one octet of 0xFF) are {single-polarity: positive} with new tests. The last three ids were extracted by the 2026-08-31 extraction sign-off, which found their sites unmapped. 3.1.2-1 (ESP-in-UDP encapsulation and transport-mode checksum fixup) and 3.1.2-2 (inner checksum handling on decapsulation) are performed by the kernel via XFRM_ENCAP_ESPINUDP. 2.1-4 (do not depend on a zero UDP checksum) is a gap: ze&#39;s IKE never inspects the UDP checksum and Linux verifies a nonzero one, with no test over the socket ze opens, and UDP-encapsulated ESP receipt is unverified on the VPP IPsec backend.</p>
 </section>
-<section><h2>What the public ledger says</h2>
+<section><h2>Published support status</h2>
 <p><strong>Area:</strong> UDP encapsulation of ESP</p>
 <p><strong>Proof:</strong> 6 of 11 MUST proven</p>
 <p><strong>Evidence:</strong> unit 6</p>
@@ -277,33 +291,33 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td>Positive and negative tests</td>
 <td><strong>8</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
 <td><strong>3</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
-<tr><td>One polarity only</td>
+<tr><td>Only a positive or negative test</td>
 <td><strong>0</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
 <td><strong>0</strong></td>
-<td>an overlay: each of these is also counted by the part it falls in</td>
+<td>also counted in one of the groups above</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>2</strong></td>
-<td>an overlay: each of these is also counted by the part it falls in</td>
+<td>also counted in one of the groups above</td>
 </tr>
 <tr><td>Derived from other rows</td>
 <td><strong>0</strong></td>
-<td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
+<td>excluded from the total: each summarizes the status of other requirements, which are already counted above</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>11</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Mandatory requirements (MUST level)</strong></td><td><strong>11</strong></td><td>every mandatory requirement appears in exactly one group above</td></tr>
 </tbody>
 </table>
 </div>
@@ -313,9 +327,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc3948:must">Ze proven 6, Ze correctness gap 5</div>
+<div data-ze-rfc-bar="rfc3948:must">Ze proven 6, Proof pending 4, Not built 1</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc3948:overview">Ze MUST proven 6, SHOULD proven 2, SHOULD not decided 3, Ze correctness gap 5</div>
+<div data-ze-rfc-bar="rfc3948:overview">Ze MUST proven 6, SHOULD proven 2, Proof pending 4, Not assessed 3, Not built 1</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -323,10 +337,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>RFCs</td>
 <td><span data-ze-rfc="rfc3948:rfcs">1</span></td>
 </tr>
-<tr><td>Not walked</td>
+<tr><td>Requirements not reviewed</td>
 <td><span data-ze-rfc="rfc3948:not-walked">0</span></td>
 </tr>
-<tr><td>Mandatory register</td>
+<tr><td>Mandatory requirements complete</td>
 <td><span data-ze-rfc="rfc3948:register">not complete</span></td>
 </tr>
 <tr><td>MUST rows</td>
@@ -341,11 +355,20 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc3948:must.os-verified">0</span></td>
 </tr>
+<tr><td>Proof pending</td>
+<td><span data-ze-rfc="rfc3948:must.proof-pending">4</span></td>
+</tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc3948:must.os-gap">0</span></td>
 </tr>
-<tr><td>Ze correctness gap</td>
-<td><span data-ze-rfc="rfc3948:must.ze-gap">5</span></td>
+<tr><td>Exclusion unchecked</td>
+<td><span data-ze-rfc="rfc3948:must.exclusion-unchecked">0</span></td>
+</tr>
+<tr><td>Not assessed</td>
+<td><span data-ze-rfc="rfc3948:must.not-assessed">0</span></td>
+</tr>
+<tr><td>Not built</td>
+<td><span data-ze-rfc="rfc3948:must.not-built">1</span></td>
 </tr>
 <tr><td>MUST rows not owed</td>
 <td><span data-ze-rfc="rfc3948:must.not-owed">0</span></td>
@@ -383,19 +406,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD not owed: not-applicable</td>
 <td><span data-ze-rfc="rfc3948:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
-<tr><td>SHOULD not ever</td>
-<td><span data-ze-rfc="rfc3948:should.not-ever">0</span></td>
+<tr><td>SHOULD proof pending</td>
+<td><span data-ze-rfc="rfc3948:should.proof-pending">0</span></td>
 </tr>
-<tr><td>SHOULD not yet</td>
-<td><span data-ze-rfc="rfc3948:should.not-yet">0</span></td>
+<tr><td>SHOULD exclusion unchecked</td>
+<td><span data-ze-rfc="rfc3948:should.exclusion-unchecked">0</span></td>
 </tr>
-<tr><td>SHOULD not decided</td>
-<td><span data-ze-rfc="rfc3948:should.not-decided">3</span></td>
+<tr><td>SHOULD not assessed</td>
+<td><span data-ze-rfc="rfc3948:should.not-assessed">3</span></td>
+</tr>
+<tr><td>SHOULD not built</td>
+<td><span data-ze-rfc="rfc3948:should.not-built">0</span></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.</p>
+<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
 
 </section>
 <section><h2>Requirements</h2>
@@ -443,18 +469,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3.1.2 - Transport Mode Decapsulation NAT Procedure</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3948-3.1.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1701" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTransportInnerChecksum</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1740" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTunnelInnerChecksum</code></a></span></div>
-</div><p class="rfc-mark"><strong>nightly-only:</strong> every test bound to this requirement runs in the scheduled workflow alone, so nothing here is proven on the merge path</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1722" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTransportInnerChecksum</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1761" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTunnelInnerChecksum</code></a></span></div>
+</div><p class="rfc-mark"><strong>nightly-only:</strong> every test bound to this requirement runs in the scheduled workflow alone, so these tests are not run as part of the checks before integration</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3948-3.1.2-2">RFC3948-3.1.2-2</code></td><td colspan="3"><span class="rfc-subject">Tunnel mode TCP checksums MUST be verified (S3.1.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1.2 - Transport Mode Decapsulation NAT Procedure</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3948-3.1.2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1737" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTunnelInnerChecksum</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1704" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTransportInnerChecksum</code></a></span></div>
-</div><p class="rfc-mark"><strong>nightly-only:</strong> every test bound to this requirement runs in the scheduled workflow alone, so nothing here is proven on the merge path</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1758" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTunnelInnerChecksum</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1725" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTransportInnerChecksum</code></a></span></div>
+</div><p class="rfc-mark"><strong>nightly-only:</strong> every test bound to this requirement runs in the scheduled workflow alone, so these tests are not run as part of the checks before integration</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3948-2.1-4">RFC3948-2.1-4</code></td><td colspan="3"><span class="rfc-subject">receivers MUST NOT depend on the UDP checksum being a zero value (S2.1)</span></td></tr>
 <tr><td></td>
@@ -627,7 +653,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Proof state</h2>
-<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<p>A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.</p>
 <h3><a href="#rfc3948-2.1-1"><code>RFC3948-2.1-1</code></a></h3>
 <p>The SPI field in the ESP header MUST NOT be a zero value. (S2.1)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-08 (independent auditor) after 67700fd37e. The only change in TestRFC3948OutboundESPSPIIsNeverZero is that initiatorFirstChildSA no longer takes the peer config (it reads sa.PeerCfg); the outbound ESP state must still carry exactly the peer&#39;s non-zero SPI, and an SAr2 with SPI 0 must still leave the initiator un-established with no SA installed. Records are current. Prior judgement: Re-judged 2026-10-10 against RFC 3948 S2.1 &#34;The SPI field in the ESP header MUST NOT be a zero value.&#34; after e2e724cf57 changed TestResponderRefusesPeerSPIZero. Its negative no longer asserts the IKE SA stays down (RFC 7296 S2.21.2 lets it stay up childless); it asserts no first Child SA on the session, an IKE_AUTH response sent, no SA payload in it and a NO_PROPOSAL_CHOSEN refusal. That is still the SPI obligation: the only route to an ESP header carrying the peer&#39;s 0 is a Child SA built on it, and the SAi2 edit is the only difference from TestResponderUsesPeerSPI, which pins outbound SPI 0x0a0b0c0d. Removing both refusals (selectAuthChildSA&#39;s ChildOutboundSPI==0 and createFirstChildSA&#39;s) creates the Child SA and reddens it. Unchanged units: own SPI TestRFC3948GeneratedESPSPIIsNeverZero (five scripted zero draws discarded), initiator SAr2 TestRFC3948OutboundESPSPIIsNeverZero (no establish, no ESP state), rekey request and response refuse 0 with no Child SA and no ESP state and install 0x0a0b0c0d. Records revert the producers (whole-body, reach); discrimination judged from the exact assertions. Caveat: TestGenerateESPSPI (random draws) cannot fail on its own and is redundant.</p>
@@ -755,18 +781,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc3948-3.1.2-1"><code>RFC3948-3.1.2-1</code></a></h3>
 <p>Depending on local policy, one of the following MUST be done: 1. If the protocol header after the ESP header is a TCP/UDP header and the peer&#39;s real source and destination IP address have been received according to [RFC3947], incrementally recompute the TCP/UDP checksum: * Subtract the IP source address in the received packet from the checksum. * Add the real IP source address received via IKE to the checksum (obtained from the NAT-OA) * Subtract the IP destination address in the received packet from the checksum. * Add the real IP destination address received via IKE to the checksum (obtained from the NAT-OA). Note: If the received and real address are the same for a given address (e.g., say the source address), the operations cancel and don&#39;t need to be performed. 2. If the protocol header after the ESP header is a TCP/UDP header, recompute the checksum field in the TCP/UDP header. 3. If the protocol header after the ESP header is a UDP header, set the checksum field to zero in the UDP header. If the protocol after the ESP header is a TCP header, and if there is an option to flag to the stack that the TCP checksum does not need to be computed, then that flag MAY be used. (S3.1.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independently re-judged against committed a617f53893dab242be088ea985b9baae7e66c430. RFC 3948 Section 3.1.2 states: &#34;When a transport mode has been used to transmit packets, contained TCP or UDP headers will have incorrect checksums due to the change of parts of the IP header during transit.&#34; The section requires one local-policy checksum-handling alternative. checkNATTTransportInnerChecksum requires inbound transport-mode ESP-in-UDP state, successful TCP and UDP delivery, and acceptance of correct and deliberately corrupt inner-checksum probes without checksum-error increments. checkNATTTunnelInnerChecksum requires correct probes to succeed and corrupt probes to increment checksum-error counters without acceptance. craftedProbe uses rawprobe -b through a raw IP socket, not nping. createFirstChildSA/installChildSA and xfrmStateFromParams select and install the mode and encapsulation consumed by Linux XFRM. This covers the selected transport receive outcome and tunnel boundary, not NAT-OA or a real address-translating middlebox. Both scenario names dispatch to the examined checkers. Verdict retained from source review; no new execution result is claimed by this rejudgment.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/le/interoplab/ipsec/checkers.go::checkNATTTransportInnerChecksum, internal/le/interoplab/ipsec/checkers.go::checkNATTTunnelInnerChecksum moved. Independently re-judged against committed a617f53893dab242be088ea985b9baae7e66c430. RFC 3948 Section 3.1.2 states: &#34;When a transport mode has been used to transmit packets, contained TCP or UDP headers will have incorrect checksums due to the change of parts of the IP header during transit.&#34; The section requires one local-policy checksum-handling alternative. checkNATTTransportInnerChecksum requires inbound transport-mode ESP-in-UDP state, successful TCP and UDP delivery, and acceptance of correct and deliberately corrupt inner-checksum probes without checksum-error increments. checkNATTTunnelInnerChecksum requires correct probes to succeed and corrupt probes to increment checksum-error counters without acceptance. craftedProbe uses rawprobe -b through a raw IP socket, not nping. createFirstChildSA/installChildSA and xfrmStateFromParams select and install the mode and encapsulation consumed by Linux XFRM. This covers the selected transport receive outcome and tunnel boundary, not NAT-OA or a real address-translating middlebox. Both scenario names dispatch to the examined checkers. Verdict retained from source review; no new execution result is claimed by this rejudgment.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1740" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTunnelInnerChecksum</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1761" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTunnelInnerChecksum</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1701" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTransportInnerChecksum</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1722" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTransportInnerChecksum</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -775,18 +801,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc3948-3.1.2-2"><code>RFC3948-3.1.2-2</code></a></h3>
 <p>Tunnel mode TCP checksums MUST be verified (S3.1.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1704" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTransportInnerChecksum</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1725" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTransportInnerChecksum</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1737" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTunnelInnerChecksum</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1758" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTunnelInnerChecksum</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -795,8 +821,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc3948-2.1-4"><code>RFC3948-2.1-4</code></a></h3>
 <p>receivers MUST NOT depend on the UDP checksum being a zero value (S2.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC3948-2.1-4, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC3948-2.1-4, so there is no linked test.</p>
 <h3><a href="#rfc3948-4-1"><code>RFC3948-4-1</code></a></h3>
 <p>A peer SHOULD send a NAT-keepalive packet if a need for it is detected according to [RFC3947] and if no other packet to the peer has been sent in M seconds. (S4)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Closure rejudge 2026-10-02: the tag on transport TestKeepaliveDefaultInterval was removed (it asserts only the DefaultKeepaliveInterval constant and could never carry a record); its comment now says so and names TestRFC3948UnsetKeepaliveIntervalFallsBackToM, which closes the rewording the 2026-09-30 note left owed. Need clause unchanged: the non-MOBIKE gate startNATKeepalive held by TestRFC3948KeepaliveStartsWhenNATDetected (+) and TestRFC3948NoKeepaliveWithoutDetectedNAT (-), the MOBIKE gate serviceMobike by TestRFC3948MobikeKeepaliveWhenNATDetected (+) and TestRFC3948MobikeNoKeepaliveWithoutDetectedNAT (-); each reads the peer socket. M-second clause held by TestRFC3948KeepaliveIdleWindowNeverExceedsM (+, on Run), TestRFC3948UnsetKeepaliveIntervalFallsBackToM (-, on NewKeepalive) and TestNATKeepalive (+, on Run). All seven carry observed-red records.</p>
@@ -844,7 +870,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc3948-1-1"><code>RFC3948-1-1</code></a></h3>
 <p>IPsec tunnel mode clients MUST support tunnel mode (S1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -884,7 +910,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc3948-4-3"><code>RFC3948-4-3</code></a></h3>
 <p>Reception of NAT-keepalive packets MUST NOT be used to detect whether a connection is live (S4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1173,7 +1199,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 </section>
-<section><h2>Extraction sign-off</h2>
+<section><h2>Requirement list review</h2>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
@@ -1225,109 +1251,109 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td><code>1</code></td>
 <td>Introduction</td>
 <td>3</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Introduction. Scope, the shared-port rationale, the two mode-support sentences, the zero-SPI ban, the IPv6 note, the exclusion of AH and of manual keying, and the RFC 2119 key-words paragraph. Its three sites are classified below.</td>
 </tr>
 <tr><td><code>2</code></td>
 <td>Packet Formats</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Packet Formats. A heading with no text of its own; every sentence belongs to 2.1, 2.2 or 2.3.</td>
 </tr>
 <tr><td><code>2.1</code></td>
 <td>UDP-Encapsulated ESP Header Format</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>UDP-Encapsulated ESP Header Format. The wire diagram, the three UDP-header bullets and the zero-SPI ban. The splitter fuses the three bullets into one site, so only the first of them has a site of its own. The other two are listed below. The demultiplexing rule once filed here is RFC 7296 Section 2.23, and lives in that summary.</td>
 </tr>
 <tr><td><code>2.2</code></td>
 <td>IKE Header Format for Port 4500</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>IKE Header Format for Port 4500. The marker is stated in the indicative, &#39;A Non-ESP Marker is 4 zero-valued bytes aligning with the SPI field of an ESP packet&#39;, so the keyword scan sees no site. The obligation to prepend it is stated by RFC 7296 Section 2.23, whose own row RFC7296-2.23-3 carries it, so no row of this summary claims it. The section states no checksum rule of its own and defers the checksum to RFC 3947.</td>
 </tr>
 <tr><td><code>2.3</code></td>
 <td>NAT-Keepalive Packet Format</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>NAT-Keepalive Packet Format. The diagram, the three UDP-header bullets repeated from 2.1, the sender payload rule and the receiver&#39;s SHOULD. The SHOULD sentence carries no MUST-level keyword, so it makes no site and is listed below as RFC3948-2.3-1, which is advisory and gates nothing.</td>
 </tr>
 <tr><td><code>3</code></td>
 <td>Encapsulation and Decapsulation Procedures</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Encapsulation and Decapsulation Procedures. A heading with no text of its own.</td>
 </tr>
 <tr><td><code>3.1</code></td>
 <td>Auxiliary Procedures</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Auxiliary Procedures. A heading with no text of its own.</td>
 </tr>
 <tr><td><code>3.1.1</code></td>
 <td>Tunnel Mode Decapsulation NAT Procedure</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Tunnel Mode Decapsulation NAT Procedure. One MUST opening a three-way choice about the inner packet&#39;s addresses. Its site is mapped below to RFC3948-3.1.1-1: ze takes the first choice by defining the valid source address space in the inbound Security Policy it installs, and the kernel checks each decapsulated packet against it.</td>
 </tr>
 <tr><td><code>3.1.2</code></td>
 <td>Transport Mode Decapsulation NAT Procedure</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Transport Mode Decapsulation NAT Procedure. Two sites, both mapped. The third choice carries a MAY about skipping the TCP checksum, and the section closes with &#39;an implementation MAY fix any contained protocols&#39;. Both are advisory, make no site, and are listed below as RFC3948-3.1.2-3.</td>
 </tr>
 <tr><td><code>3.2</code></td>
 <td>Transport Mode ESP Encapsulation</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Transport Mode ESP Encapsulation. A before-and-after diagram and three numbered steps written in the indicative (ordinary ESP, insert the UDP header, edit Total Length, Protocol and Header Checksum). No keyword, and no obligation the mapped sections do not already carry.</td>
 </tr>
 <tr><td><code>3.3</code></td>
 <td>Transport Mode ESP Decapsulation</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Transport Mode ESP Decapsulation. Four numbered steps in the indicative, the last of which invokes the Section 3.1.2 procedure. No keyword, and no requirement id is read from it.</td>
 </tr>
 <tr><td><code>3.4</code></td>
 <td>Tunnel Mode ESP Encapsulation</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Tunnel Mode ESP Encapsulation. A before-and-after diagram and three numbered steps in the indicative, the same shape as Section 3.2 with a new outer header. No keyword, and no requirement id is read from it.</td>
 </tr>
 <tr><td><code>3.5</code></td>
 <td>Tunnel Mode ESP Decapsulation</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Tunnel Mode ESP Decapsulation. Four numbered steps in the indicative, the last of which invokes the Section 3.1.1 procedure. No keyword, and no requirement id is read from it.</td>
 </tr>
 <tr><td><code>4</code></td>
 <td>NAT Keepalive Procedure</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>NAT Keepalive Procedure. One MUST NOT site, mapped below. The sending rules are a MAY over N minutes and a SHOULD over M seconds, with locally configurable defaults of 5 minutes and 20 seconds, neither of which makes a site, so the two interval rows the summary reads from them are listed below: RFC3948-4-2 carries the intervals, and RFC3948-4-1 is read from the section&#39;s indicative opening.</td>
 </tr>
 <tr><td><code>5</code></td>
 <td>Security Considerations</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Security Considerations. A heading with no text of its own.</td>
 </tr>
 <tr><td><code>5.1</code></td>
 <td>Tunnel Mode Conflict</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Tunnel Mode Conflict. The overlapping-inner-address hazard at a security gateway, one MUST and one RECOMMENDED remedy. Its site is mapped below to RFC3948-5.1-1, which the summary carries as partial: ze is the security gateway of the diagram, it prevents the overlap for a peer bound to a virtual-IP pool, and nothing it holds prevents it for a tunnel-mode peer bound to no pool.</td>
 </tr>
 <tr><td><code>5.2</code></td>
 <td>Transport Mode Conflict</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Transport Mode Conflict. The same hazard for two transport-mode clients behind one NAT, with a worked policy example. Two sites, both excluded below.</td>
 </tr>
 <tr><td><code>6</code></td>
 <td>IAB Considerations</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>IAB Considerations. One sentence handing the UNSAF questions of RFC 3424 to RFC 3715. It directs no implementation.</td>
 </tr>
 <tr><td><code>7</code></td>
@@ -1357,7 +1383,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td><code>A</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Appendix A, Clarification of Potential NAT Multiple Client Solutions. Non-normative by its own statement: the subject is &#39;not a matter of wire protocol, but a matter local implementation&#39; and the mechanisms &#39;do not belong in the protocol specification itself&#39;. It lists implementation options Tr1 to Tr5 and Tn1 to Tn4. It is walked rather than skipped because its one site is classified below.</td>
 </tr>
 </tbody>
@@ -1413,7 +1439,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     </a>
                     <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
                         <span class="page-sidebar-link-label">Verify debugging</span>
-                        <small>How failed checks route to evidence.</small>
+                        <small>How to investigate failed checks using their logs.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -1432,7 +1458,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 01:56 UTC</span>
                 </div>
             </div>
         </footer>

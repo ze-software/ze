@@ -62,7 +62,7 @@
 <li><a href="#lab-evidence">Lab evidence</a></li>
 </ol></details></nav><div class="doc-body">
 <p><strong>RFC completion:</strong> the <a href="../../quality/rfc-compliance/profiles/dns/">DNS coverage page</a> shows how much of the RFC work behind this use case is proven by tests.</p>
-<p>This is a local-network deployment shape. If you intend to advertise an AS112 node to public Internet peers, coordinate it first as RFC 7534 expects, and keep the import and export filters below. The software cannot do that human coordination for you.</p>
+<p>This example runs AS112 inside a local network. If you intend to advertise an AS112 node to public Internet peers, coordinate it first as RFC 7534 expects, and keep the import and export filters below. The software cannot do that human coordination for you.</p>
 <h2 id="topology">Topology</h2>
 <table>
 <thead>
@@ -472,7 +472,7 @@ request as112 healthcheck target 2001:4:112::1
 </tr>
 <tr>
 <td>test/interop/scenarios/as112-redistribute-origin-frr</td>
-<td>The AS112 redistribute producer carries origin AS 112; FRR sees the iBGP shape and BIRD sees the eBGP prepend shape</td>
+<td>Redistributed AS112 routes carry origin AS 112; FRR receives the iBGP AS path, and BIRD receives the eBGP AS path with Ze's local AS prepended</td>
 </tr>
 <tr>
 <td>test/interop/scenarios/as112-redistribute-community-frr</td>
@@ -500,7 +500,7 @@ INTEROP_SCENARIO=as112-redistribute-community-frr ./le test integration interop
                     <h2>Related usage</h2>
                     <a class="page-sidebar-link" href="../../use-cases/">
                         <span class="page-sidebar-link-label">All usage examples</span>
-                        <small>Return to the deployment shapes.</small>
+                        <small>Return to the deployment examples.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../docs/">
                         <span class="page-sidebar-link-label">Documentation hub</span>
@@ -527,7 +527,7 @@ INTEROP_SCENARIO=as112-redistribute-community-frr ./le test integration interop
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 00:45 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 02:04 UTC</span>
                 </div>
             </div>
         </footer>

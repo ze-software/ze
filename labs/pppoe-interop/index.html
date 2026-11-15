@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>PPPoE Interop - Ze</title>
-        <meta name="description" content="Ze PPPoE client against real accel-ppp, the dominant open-source access concentrator." />
+        <meta name="description" content="Test Ze&#39;s PPPoE discovery and PPP negotiation against the accel-ppp access concentrator." />
         <meta property="og:title" content="PPPoE Interop - Ze" />
-        <meta property="og:description" content="Ze PPPoE client against real accel-ppp, the dominant open-source access concentrator." />
+        <meta property="og:description" content="Test Ze&#39;s PPPoE discovery and PPP negotiation against the accel-ppp access concentrator." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="PPPoE Interop - Ze" />
-        <meta name="twitter:description" content="Ze PPPoE client against real accel-ppp, the dominant open-source access concentrator." />
+        <meta name="twitter:description" content="Test Ze&#39;s PPPoE discovery and PPP negotiation against the accel-ppp access concentrator." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../assets/vendor/fonts/fonts.css" />
@@ -48,24 +48,20 @@
                     <span class="journey-eyebrow">Protocol lab</span>
                     <h1 id="lab-title">PPPoE Interop</h1>
                     <p>
-                        Ze's PPPoE client against real
-                        <code>accel-ppp</code>, the dominant open-source
-                        BRAS/access concentrator.
+                        This lab connects Ze's PPPoE client to the
+                        <code>accel-ppp</code> access concentrator.
                     </p>
                 </div>
                 <div class="status-panel reveal">
                     <div class="status-copy">
                         <span class="tag">Daemon</span>
                         <p>
-                            An L2TP interop test against accel-ppp isn't
-                            buildable: an L2TP tunnel needs exactly one LAC
-                            (initiator) and one LNS (responder), and both Ze
-                            and accel-ppp are LNS-only. PPPoE is where the two
-                            have complementary roles instead --
-                            accel-ppp's first-class role is the PPPoE server
-                            (access concentrator), and Ze has a full RFC 2516
-                            PPPoE client. This lab exercises exactly that
-                            pairing.
+                            In this pairing, accel-ppp is the PPPoE server
+                            (access concentrator) and Ze is the client. Their
+                            L2TP implementations both take the LNS responder
+                            role, so they cannot form an L2TP tunnel with each
+                            other. PPPoE gives them complementary roles for
+                            testing discovery and PPP negotiation.
                         </p>
                         <p>
                             A peer-isolated Docker lab proves Ze's PPPoE
@@ -76,7 +72,7 @@
                     <div class="status-table" aria-label="Lab facts">
                         <div class="status-row">
                             <strong>Proves</strong>
-                            <span>RFC 2516 PPPoE discovery + PPP negotiation against a real access concentrator, not a stub</span>
+                            <span>RFC 2516 PPPoE discovery and PPP negotiation with accel-ppp</span>
                         </div>
                         <div class="status-row">
                             <strong>Peer</strong>
@@ -158,7 +154,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 21:59 UTC</span>
+                    <span class="footer-published">Published 15 November 2026 00:14 UTC</span>
                 </div>
             </div>
         </footer>

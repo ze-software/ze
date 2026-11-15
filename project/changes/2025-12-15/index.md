@@ -4,11 +4,11 @@ The first tracked week of development on Ze. In seven days the BGP engine went f
 
 ## 🏗️ Core BGP engine
 
-The foundational pieces of a BGP speaker landed: wire-format encoding/decoding, all BGP message types, capability negotiation, path attributes, NLRI types, a RIB, the finite state machine, and the session/reactor layer that drives peer connections. A zero-copy byte-deduplication pool underpins the encoding path from the start.
+The foundational pieces of a BGP speaker were added: wire-format encoding/decoding, all BGP message types, capability negotiation, path attributes, NLRI types, a RIB, the finite state machine, and the session/reactor layer that drives peer connections. A zero-copy byte-deduplication pool underpins the encoding path from the start.
 
 ## 🧩 Config and CLI
 
-A schema-driven config parser landed with ExaBGP-compatible syntax (set-style blocks, arrays, serialization), wired straight through to the reactor. The CLI grew daemon and API run modes plus an interactive editor with autocomplete.
+A schema-driven config parser was added with ExaBGP-compatible syntax (set-style blocks, arrays, serialization), connected directly to the BGP engine. The CLI grew daemon and API run modes plus an interactive editor with autocomplete.
 
 ## 🔌 API and self-check testing
 

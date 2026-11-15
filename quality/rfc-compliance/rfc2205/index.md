@@ -1,6 +1,6 @@
 # RFC 2205 - Resource ReSerVation Protocol (RSVP) -- Version 1 Functional Specification
 
-RSVP base protocol. Every requirement this repository extracted from RFC 2205, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+RSVP base protocol. Every requirement listed for RFC 2205, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,24 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 25 | of 75 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 6 | of 75 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 75 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 75 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 84 | 84 of 85 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-
-### Neutral
-
-measures that are neither good news nor bad
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Gated MUSTs | 75 | of 80 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 75 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 75 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 75 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 75 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 75 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Tested both ways | 25 | of 75 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 6 | of 75 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 75 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 75 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Tests shown to detect a fault | 84 | 84 of 85 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -35,55 +22,75 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 44 | of 75 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 19 | of 75 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+| Declared gap or no test | 44 | of 75 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Audit verdicts | 19 | of 75 mandatory requirements reviewed | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
-The 9 counts marked as a part above are the whole of the 75 gated MUSTs: they add up to 75. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Neutral
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+measures that are neither good news nor bad
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Out of scope | 0 | of 75 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 75 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 75 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 75 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 75 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+
+### Totals
+
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 75 | of 80 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 75 mandatory requirements: they add up to 75. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | RSVP base protocol |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 80 |
-| Gated MUST-level | 75 |
+| Mandatory requirements (MUST level) | 75 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 44 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 89 |
-| Tagged units | 85 |
+| Tests linked to requirements | 85 |
 | Recorded audit verdicts | 19 |
-| Discrimination records | 84 |
+| Fault test records | 84 |
 | Summary | `rfc/short/rfc2205.md` |
-| Requirement shard | `rfc/requirements/rfc2205.md` |
+| Requirement table | `rfc/requirements/rfc2205.md` |
 | RFC text | `rfc/full/rfc2205.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: RSVP version 1 base protocol (codec shared by ze's RSVP-TE plugin). The 2026-09-21 extraction walk read all 123 normative sites and the checklist now holds 75 rows: 70 MUST or MUST NOT, 2 SHOULD, 1 SHOULD NOT and 2 MAY. Seven MUST rows were enrolled first and are described below; the walk added 63 more, none of them bound to a test, covering the reservation model of Sections 1 and 2 (merging, teardown, blockade state, admission and policy control, non-RSVP clouds), the message rules of Section 3 (addressing, object order, port consistency, state matching, teardown routing, error reporting, refresh timing, loop avoidance, and the routing, interface and packet-diversion services RSVP requires of the node), and the object field and UDP encapsulation rules of the appendices. Of the seven: 3.1-1 (Version MUST be 1) is met with positive+negative tags (encode round-trip and bad-version decode reject, internal/plugins/rsvpte/wire.go). 3.1-2 (reserved octet 0 on send) and 3.1.2-1 (object length multiple of 4) are {single-polarity: positive} with send-side tests (wire.go and the object encoders). 3.1.3-1 (a received message carries every object its BNF writes unbracketed) is met with positive+negative tags: checkMandatoryObjects (internal/plugins/rsvpte/mandatory.go) refuses a Path, Resv, PathTear or PathErr that omits one, and handlePacket drops it with a log line and no ERROR_SPEC. 3.10-1 (reject an unknown Class-Num of the form 0bbbbbbb) is met with positive+negative tags: DecodeMessage classifies by the high-order bit (classifyUnknownClass, wire.go) and engine.rejectUnknownObject answers a PATH with Error Code 13. 3.1-3 (verify checksum on receipt) and x-1 (IP Router Alert in PATH) are {gap}: ze's receive path (wire.go DecodeHeader) and raw-socket send (transport_linux.go) omit these. Disclosed in the docs/features/rfc-status.md RFC 2205 row.
+Included in automatic checks: RSVP version 1 base protocol (codec shared by ze's RSVP-TE plugin). The 2026-09-21 extraction walk read all 123 normative sites and the checklist now holds 75 rows: 70 MUST or MUST NOT, 2 SHOULD, 1 SHOULD NOT and 2 MAY. Seven MUST rows were enrolled first and are described below; the walk added 63 more, none of them bound to a test, covering the reservation model of Sections 1 and 2 (merging, teardown, blockade state, admission and policy control, non-RSVP clouds), the message rules of Section 3 (addressing, object order, port consistency, state matching, teardown routing, error reporting, refresh timing, loop avoidance, and the routing, interface and packet-diversion services RSVP requires of the node), and the object field and UDP encapsulation rules of the appendices. Of the seven: 3.1-1 (Version MUST be 1) is met with positive+negative tags (encode round-trip and bad-version decode reject, internal/plugins/rsvpte/wire.go). 3.1-2 (reserved octet 0 on send) and 3.1.2-1 (object length multiple of 4) are {single-polarity: positive} with send-side tests (wire.go and the object encoders). 3.1.3-1 (a received message carries every object its BNF writes unbracketed) is met with positive+negative tags: checkMandatoryObjects (internal/plugins/rsvpte/mandatory.go) refuses a Path, Resv, PathTear or PathErr that omits one, and handlePacket drops it with a log line and no ERROR_SPEC. 3.10-1 (reject an unknown Class-Num of the form 0bbbbbbb) is met with positive+negative tags: DecodeMessage classifies by the high-order bit (classifyUnknownClass, wire.go) and engine.rejectUnknownObject answers a PATH with Error Code 13. 3.1-3 (verify checksum on receipt) and x-1 (IP Router Alert in PATH) are {gap}: ze's receive path (wire.go DecodeHeader) and raw-socket send (transport_linux.go) omit these. Disclosed in the docs/features/rfc-status.md RFC 2205 row.
 
-## What the public ledger says
+## Published support status
 
 **Area:** RSVP base protocol
 
@@ -98,14 +105,14 @@ Enrolled: RSVP version 1 base protocol (codec shared by ze's RSVP-TE plugin). Th
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 25 | one part of the gated population |
-| Annotated (including scoped evidence) | 50 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **75** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 25 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 50 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **75** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (25):** [`RFC2205-3.1-1`](#rfc2205-3.1-1), [`RFC2205-3.1.2-1`](#rfc2205-3.1.2-1), [`RFC2205-3.1.3-1`](#rfc2205-3.1.3-1), [`RFC2205-3.1.1-1`](#rfc2205-3.1.1-1), [`RFC2205-x-1`](#rfc2205-x-1), [`RFC2205-3.10-1`](#rfc2205-3.10-1), [`RFC2205-2-1`](#rfc2205-2-1), [`RFC2205-2-2`](#rfc2205-2-2), [`RFC2205-2-3`](#rfc2205-2-3), [`RFC2205-2-4`](#rfc2205-2-4), [`RFC2205-2.3-1`](#rfc2205-2.3-1), [`RFC2205-2-7`](#rfc2205-2-7), [`RFC2205-2-8`](#rfc2205-2-8), [`RFC2205-3-1`](#rfc2205-3-1), [`RFC2205-3-2`](#rfc2205-3-2), [`RFC2205-3-12`](#rfc2205-3-12), [`RFC2205-3.1.5-1`](#rfc2205-3.1.5-1), [`RFC2205-3-13`](#rfc2205-3-13), [`RFC2205-3.1.6-1`](#rfc2205-3.1.6-1), [`RFC2205-3-14`](#rfc2205-3-14), [`RFC2205-3-17`](#rfc2205-3-17), [`RFC2205-3-18`](#rfc2205-3-18), [`RFC2205-3-19`](#rfc2205-3-19), [`RFC2205-3-20`](#rfc2205-3-20), [`RFC2205-4-4`](#rfc2205-4-4)
 
@@ -113,20 +120,23 @@ Enrolled: RSVP version 1 base protocol (codec shared by ze's RSVP-TE plugin). Th
 
 ## Figures
 
-- **MUST bar**: Ze proven 31, Ze correctness gap 44
-- **Overview bar**: Ze MUST proven 31, SHOULD not decided 5, Ze correctness gap 44
+- **MUST bar**: Ze proven 31, Not built 44
+- **Overview bar**: Ze MUST proven 31, Not assessed 5, Not built 44
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 75 |
 | MUST rows kept (the MUST bar) | 75 |
 | Ze proven | 31 |
 | OS verified | 0 |
+| Proof pending | 0 |
 | OS testing gap | 0 |
-| Ze correctness gap | 44 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 44 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -139,11 +149,12 @@ Enrolled: RSVP version 1 base protocol (codec shared by ze's RSVP-TE plugin). Th
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 5 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 5 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc2205.json](../../../data/rfc/rfc2205.json).
 
@@ -283,7 +294,7 @@ Source: [data/rfc/rfc2205.json](../../../data/rfc/rfc2205.json).
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC2205-3.1-1`](#rfc2205-3.1-1)
 
@@ -375,33 +386,33 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 Because the UDP/TCP port numbers are used for packet classification, each router must be able to examine these fields. (§1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2205-1-1, so no unit is bound to it.
+No test carries RFC2205-1-1, so there is no linked test.
 
 ### [`RFC2205-1-2`](#rfc2205-1-2)
 
 If the link-layer technology implements its own QoS management capability, then RSVP must negotiate with the link layer to obtain the requested QoS. (§1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2205-1-2, so no unit is bound to it.
+No test carries RFC2205-1-2, so there is no linked test.
 
 ### [`RFC2205-1-3`](#rfc2205-1-3)
 
 More importantly, reservations from different downstream branches of the multicast tree(s) from the same sender (or set of senders) must be " merged" as reservations travel upstream. (§1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2205-1-3, so no unit is bound to it.
+No test carries RFC2205-1-3, so there is no linked test.
 
 ### [`RFC2205-1-4`](#rfc2205-1-4)
 
 In an explicit sender-selection reservation, each filter spec must match exactly one sender (§1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2205-1-4, so no unit is bound to it.
+No test carries RFC2205-1-4, so there is no linked test.
 
 ### [`RFC2205-2-1`](#rfc2205-2-1)
 
@@ -420,7 +431,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 Resv messages must finally be delivered to the sender hosts themselves (§2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -431,7 +442,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 A Path message is required to carry a Sender Template (§2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -442,7 +453,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 A Path message is required to carry a Sender Tspec (§2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -454,9 +465,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 If this update results in modification of state to be forwarded in refresh messages, these refresh messages must be generated and forwarded immediately, so that state changes can be propagated end-to-end without delay. (§2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2205-2-5, so no unit is bound to it.
+No test carries RFC2205-2-5, so there is no linked test.
 
 ### [`RFC2205-2.3-1`](#rfc2205-2.3-1)
 
@@ -478,15 +489,15 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 Conversely, state that is forwarded out interface I* must be computed using only state that arrived on interfaces different from I*. (§2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2205-2-6, so no unit is bound to it.
+No test carries RFC2205-2-6, so there is no linked test.
 
 ### [`RFC2205-2-7`](#rfc2205-2-7)
 
 Once initiated, a teardown request must be forwarded hop-by-hop without delay (§2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -497,7 +508,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Since a request that fails may be the result of merging a number of requests, a reservation error must be reported to all of the responsible receivers. (§2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -508,41 +519,41 @@ Audit verdict: not audited: no reader has judged these tests
 
 The blockade state in each downstream router must not remove the state or prevent its immediate refresh. (§2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2205-2-9, so no unit is bound to it.
+No test carries RFC2205-2-9, so there is no linked test.
 
 ### [`RFC2205-2.5-1`](#rfc2205-2.5-1)
 
 This must not prevent a different receiver from now establishing a smaller reservation Q0 that would succeed if not merged with Q1. (§2.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2205-2.5-1, so no unit is bound to it.
+No test carries RFC2205-2.5-1, so there is no linked test.
 
 ### [`RFC2205-2-10`](#rfc2205-2-10)
 
 When a new reservation is requested, each node must answer two questions: "Are enough resources available to meet this request?" and "Is this user allowed to make this reservation?" These two decisions are termed the "admission control" decision and the "policy control" decision, respectively, and both must be favorable in order for RSVP to make a reservation. (§2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2205-2-10, so no unit is bound to it.
+No test carries RFC2205-2-10, so there is no linked test.
 
 ### [`RFC2205-2-11`](#rfc2205-2-11)
 
 RSVP must therefore provide correct protocol operation even when two RSVP-capable routers are joined by an arbitrary "cloud" of non-RSVP routers. (§2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2205-2-11, so no unit is bound to it.
+No test carries RFC2205-2-11, so there is no linked test.
 
 ### [`RFC2205-2-12`](#rfc2205-2-12)
 
 If the destination address does not match any local interface and the message is not a Path or PathTear, the message must be forwarded without further processing by this node. (§2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2205-2-12, so no unit is bound to it.
+No test carries RFC2205-2-12, so there is no linked test.
 
 ### [`RFC2205-3-1`](#rfc2205-3-1)
 
@@ -573,73 +584,73 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 If the INTEGRITY object is present, it must immediately follow the common header. (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2205-3-3, so no unit is bound to it.
+No test carries RFC2205-3-3, so there is no linked test.
 
 ### [`RFC2205-3-4`](#rfc2205-3-4)
 
 Path state and reservation state for the same DestAddress and ProtocolId must each have DstPort values that are all zero or all non-zero.  Violation of this condition in a node is a "Conflicting Dest Ports" error.  2.   Destination ports rule.  If DstPort in a session definition is zero, all SrcPort fields used for that session must also be zero.  The assumption here is that the protocol does not have UDP/TCP- like ports.   Violation of this condition in a node is a "Bad Src Ports" error.  3.   Source Ports must be consistent.  A sender host must not send path state both with and without a zero SrcPort. (§3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2205-3-4, so no unit is bound to it.
+No test carries RFC2205-3-4, so there is no linked test.
 
 ### [`RFC2205-3-5`](#rfc2205-3-5)
 
 Multicast routing allows a stable distribution tree in which Path messages from the same sender arrive from more than one PHOP, and RSVP must be prepared to maintain all such path state. (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2205-3-5, so no unit is bound to it.
+No test carries RFC2205-3-5, so there is no linked test.
 
 ### [`RFC2205-3-6`](#rfc2205-3-6)
 
 RSVP must not forward (according to the rules of Section 3.9) Path messages that arrive on an incoming interface different from that provided by routing. (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2205-3-6, so no unit is bound to it.
+No test carries RFC2205-3-6, so there is no linked test.
 
 ### [`RFC2205-3-7`](#rfc2205-3-7)
 
 The STYLE object followed by the flow descriptor list must occur at the end of the message, and objects within the flow descriptor list must follow the BNF (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2205-3-7, so no unit is bound to it.
+No test carries RFC2205-3-7, so there is no linked test.
 
 ### [`RFC2205-3-8`](#rfc2205-3-8)
 
 A FLOWSPEC object can be omitted if it is identical to the most recent such object that appeared in the list; the first FF flow descriptor must contain a FLOWSPEC. (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2205-3-8, so no unit is bound to it.
+No test carries RFC2205-3-8, so there is no linked test.
 
 ### [`RFC2205-3-9`](#rfc2205-3-9)
 
 Whenever a Resv message with wildcard sender selection is forwarded to more than one previous hop, a SCOPE object must be included in the message (see Section 3.4 below); in this case, the scope for forwarding the reservation is constrained to just the sender IP addresses explicitly listed in the SCOPE object. (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2205-3-9, so no unit is bound to it.
+No test carries RFC2205-3-9, so there is no linked test.
 
 ### [`RFC2205-3-10`](#rfc2205-3-10)
 
 Matching state must have match the SESSION, SENDER_TEMPLATE, and PHOP objects. (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2205-3-10, so no unit is bound to it.
+No test carries RFC2205-3-10, so there is no linked test.
 
 ### [`RFC2205-3-11`](#rfc2205-3-11)
 
 A unicast PathTear must not be forwarded if there is path state for the same (session, sender) pair but a different PHOP (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2205-3-11, so no unit is bound to it.
+No test carries RFC2205-3-11, so there is no linked test.
 
 ### [`RFC2205-3-12`](#rfc2205-3-12)
 
@@ -668,7 +679,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 A PathTear message may include a SENDER_TSPEC or ADSPEC object in its sender descriptor, but these must be ignored. (§3.1.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -703,15 +714,15 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 Matching reservation state must match the SESSION, STYLE, and FILTER_SPEC objects as well as the LIH in the RSVP_HOP object. (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2205-3-16, so no unit is bound to it.
+No test carries RFC2205-3-16, so there is no linked test.
 
 ### [`RFC2205-3-17`](#rfc2205-3-17)
 
 A ResvTear message must be routed like the corresponding Resv message (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -722,7 +733,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Each flow descriptor in a FF-style Resv message must be processed independently, and a separate ResvErr message must be generated for each one that is in error. (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -733,7 +744,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 This ResvErr message must contain the information required to define the error and to route the error message in later hops. (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -744,7 +755,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If the error is an admission control failure while attempting to increase an existing reservation, then the existing reservation must be left in place and the InPlace flag bit must be on in the ERROR_SPEC of the ResvErr message. (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -755,137 +766,137 @@ Audit verdict: not audited: no reader has judged these tests
 
 However, this must not trigger sending a message out the interface through which M arrived (which could happen if the implementation simply triggered an immediate refresh of all state for the session). (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2205-3-21, so no unit is bound to it.
+No test carries RFC2205-3-21, so there is no linked test.
 
 ### [`RFC2205-3-22`](#rfc2205-3-22)
 
 In this version of the spec, each RSVP message must occupy exactly one IP datagram. (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2205-3-22, so no unit is bound to it.
+No test carries RFC2205-3-22, so there is no linked test.
 
 ### [`RFC2205-3-23`](#rfc2205-3-23)
 
 Forwarding of RSVP messages must avoid looping (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2205-3-23, so no unit is bound to it.
+No test carries RFC2205-3-23, so there is no linked test.
 
 ### [`RFC2205-3-24`](#rfc2205-3-24)
 
 If reservation state from some NHOP does not contain a SCOPE object, a substitute sender list must be created and included in the union. (§3.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2205-3-24, so no unit is bound to it.
+No test carries RFC2205-3-24, so there is no linked test.
 
 ### [`RFC2205-3-25`](#rfc2205-3-25)
 
 However, the ResvErr message forwarded out OI must contain a SCOPE object derived from L by including only those senders that route to OI. (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2205-3-25, so no unit is bound to it.
+No test carries RFC2205-3-25, so there is no linked test.
 
 ### [`RFC2205-3-26`](#rfc2205-3-26)
 
 Since RSVP sends periodic refresh messages, it must avoid message synchronization and ensure that any synchronization that may occur is not stable. (§3.7)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2205-3-26, so no unit is bound to it.
+No test carries RFC2205-3-26, so there is no linked test.
 
 ### [`RFC2205-3-27`](#rfc2205-3-27)
 
 To avoid premature loss of state, L must satisfy L >= (K + 0.5)*1.5*R, where K is a small integer. (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2205-3-27, so no unit is bound to it.
+No test carries RFC2205-3-27, so there is no linked test.
 
 ### [`RFC2205-3-28`](#rfc2205-3-28)
 
 Specifically, the ratio of two successive values R2/R1 must not exceed 1 + Slew.Max. (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2205-3-28, so no unit is bound to it.
+No test carries RFC2205-3-28, so there is no linked test.
 
 ### [`RFC2205-3-29`](#rfc2205-3-29)
 
 RSVP knows where such points occur and must so indicate to the traffic control mechanism. (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2205-3-29, so no unit is bound to it.
+No test carries RFC2205-3-29, so there is no linked test.
 
 ### [`RFC2205-3-30`](#rfc2205-3-30)
 
 RSVP must also test for the presence of non-RSVP hops in the path and pass this information to traffic control. (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2205-3-30, so no unit is bound to it.
+No test carries RFC2205-3-30, so there is no linked test.
 
 ### [`RFC2205-3-31`](#rfc2205-3-31)
 
 For example, if the routing protocol uses IP encapsulating tunnels, then the routing protocol must inform RSVP when non-RSVP hops are included. (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2205-3-31, so no unit is bound to it.
+No test carries RFC2205-3-31, so there is no linked test.
 
 ### [`RFC2205-3-32`](#rfc2205-3-32)
 
 The RSVP process must be aware of the default, and if an application sets a specific interface, it must also pass that information to RSVP. o Sending Data (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2205-3-32, so no unit is bound to it.
+No test carries RFC2205-3-32, so there is no linked test.
 
 ### [`RFC2205-3-33`](#rfc2205-3-33)
 
 The RSVP process must determine which case holds by examining the path state, to decide which incoming interface to use for sending Resv messages. (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2205-3-33, so no unit is bound to it.
+No test carries RFC2205-3-33, so there is no linked test.
 
 ### [`RFC2205-3-34`](#rfc2205-3-34)
 
 The path state on Iapp should only match a reservation from the local application; it must be marked "Local_only" by the RSVP process. (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2205-3-34, so no unit is bound to it.
+No test carries RFC2205-3-34, so there is no linked test.
 
 ### [`RFC2205-3.9-1`](#rfc2205-3.9-1)
 
 When Path and PathTear messages are forwarded, path state marked "Local_Only" must be ignored. (§3.9)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2205-3.9-1, so no unit is bound to it.
+No test carries RFC2205-3.9-1, so there is no linked test.
 
 ### [`RFC2205-3-35`](#rfc2205-3-35)
 
 The original order of such unknown-class objects need not be retained; however, the message that is forwarded must obey the general order requirements for its message type. (§3.10)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2205-3-35, so no unit is bound to it.
+No test carries RFC2205-3-35, so there is no linked test.
 
 ### [`RFC2205-3-36`](#rfc2205-3-36)
 
 At each such replication point, RSVP must merge reservation requests from the corresponding next hops by computing the "maximum" of their flowspecs. (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2205-3-36, so no unit is bound to it.
+No test carries RFC2205-3-36, so there is no linked test.
 
 ### [`RFC2205-3-37`](#rfc2205-3-37)
 
@@ -902,15 +913,15 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 RSVP must be able to learn what real and virtual interfaces are active, with their IP addresses (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2205-3-38, so no unit is bound to it.
+No test carries RFC2205-3-38, so there is no linked test.
 
 ### [`RFC2205-3-39`](#rfc2205-3-39)
 
 Packets received for IP protocol 46 but not addressed to the node must be diverted to the RSVP program for processing, without being forwarded (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -940,7 +951,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 RSVP must be able to specify the IP source address and IP TTL to be used when sending Path messages (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -950,33 +961,33 @@ Audit verdict: not audited: no reader has judged these tests
 
 In order to manipulate these objects, RSVP process must have available to it the following service-dependent routines. (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2205-3-43, so no unit is bound to it.
+No test carries RFC2205-3-43, so there is no linked test.
 
 ### [`RFC2205-4-1`](#rfc2205-4-1)
 
 This field must be non-zero. (§A)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2205-4-1, so no unit is bound to it.
+No test carries RFC2205-4-1, so there is no linked test.
 
 ### [`RFC2205-4-2`](#rfc2205-4-2)
 
 This field must be non-zero. (§A)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2205-4-2, so no unit is bound to it.
+No test carries RFC2205-4-2, so there is no linked test.
 
 ### [`RFC2205-4-3`](#rfc2205-4-3)
 
 The addresses must be listed in ascending numerical order. (§A)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2205-4-3, so no unit is bound to it.
+No test carries RFC2205-4-3, so there is no linked test.
 
 ### [`RFC2205-4-4`](#rfc2205-4-4)
 
@@ -997,11 +1008,11 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 However, some important classes of host systems may not support raw network I/O.  To use RSVP, such hosts must encapsulate RSVP messages in UDP.  The basic UDP encapsulation scheme makes two assumptions:  1.   All hosts are capable of sending and receiving multicast packets if multicast destinations are to be supported.  2.   The first/last-hop routers are RSVP-capable.  A method of relaxing the second assumption is given later.  Let Hu be a "UDP-only" host that requires UDP encapsulation, and Hr a host that can do raw network I/O.  The UDP encapsulation scheme must allow RSVP interoperation among an arbitrary topology of Hr hosts, Hu hosts, and routers. (§C)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2205-4-5, so no unit is bound to it.
+No test carries RFC2205-4-5, so there is no linked test.
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -1020,15 +1031,15 @@ No test carries RFC2205-4-5, so no unit is bound to it.
 
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
-| `front` | not stated | 0 | walked | not stated |
-| `1` | not stated | 9 | walked | not stated |
-| `2` | not stated | 23 | walked | not stated |
-| `3` | not stated | 77 | walked | not stated |
-| `4` | not stated | 0 | walked | not stated |
-| `A` | Appendix A | 4 | walked | Appendix A. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of section 4, where its 4 site(s) were walked; every decision is carried forward by its verbatim quote. |
-| `B` | Appendix B | 5 | walked | Appendix B. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of section 4, where its 5 site(s) were walked; every decision is carried forward by its verbatim quote. |
-| `C` | Appendix C | 4 | walked | Appendix C. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of section 4, where its 4 site(s) were walked; every decision is carried forward by its verbatim quote. |
-| `D` | Appendix D | 1 | walked | Appendix D. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of section 4, where its 1 site(s) were walked; every decision is carried forward by its verbatim quote. |
+| `front` | not stated | 0 | reviewed | not stated |
+| `1` | not stated | 9 | reviewed | not stated |
+| `2` | not stated | 23 | reviewed | not stated |
+| `3` | not stated | 77 | reviewed | not stated |
+| `4` | not stated | 0 | reviewed | not stated |
+| `A` | Appendix A | 4 | reviewed | Appendix A. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of section 4, where its 4 site(s) were walked; every decision is carried forward by its verbatim quote. |
+| `B` | Appendix B | 5 | reviewed | Appendix B. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of section 4, where its 5 site(s) were walked; every decision is carried forward by its verbatim quote. |
+| `C` | Appendix C | 4 | reviewed | Appendix C. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of section 4, where its 4 site(s) were walked; every decision is carried forward by its verbatim quote. |
+| `D` | Appendix D | 1 | reviewed | Appendix D. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of section 4, where its 1 site(s) were walked; every decision is carried forward by its verbatim quote. |
 
 ### Excluded sentences
 

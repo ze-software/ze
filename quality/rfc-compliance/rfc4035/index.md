@@ -1,6 +1,6 @@
 # RFC 4035 - Protocol Modifications for the DNS Security Extensions
 
-DNSSEC protocol modifications. Every requirement this repository extracted from RFC 4035, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+DNSSEC protocol modifications. Every requirement listed for RFC 4035, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,24 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 5 | of 108 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 9 | of 108 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 108 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 108 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 10 | 10 of 24 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-
-### Neutral
-
-measures that are neither good news nor bad
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Gated MUSTs | 108 | of 158 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 108 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 108 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 108 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 108 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 108 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Tested both ways | 5 | of 108 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 9 | of 108 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 108 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 108 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Tests shown to detect a fault | 10 | 10 of 24 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -35,55 +22,75 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 94 | of 108 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 14 | of 108 gated MUSTs judged | 3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+| Declared gap or no test | 94 | of 108 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Audit verdicts | 14 | of 108 mandatory requirements reviewed | 3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
-The 9 counts marked as a part above are the whole of the 108 gated MUSTs: they add up to 108. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Neutral
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+measures that are neither good news nor bad
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Out of scope | 0 | of 108 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 108 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 108 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 108 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 108 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+
+### Totals
+
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 108 | of 158 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 108 mandatory requirements: they add up to 108. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | DNSSEC protocol modifications |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 158 |
-| Gated MUST-level | 108 |
+| Mandatory requirements (MUST level) | 108 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 94 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 24 |
-| Tagged units | 24 |
+| Tests linked to requirements | 24 |
 | Recorded audit verdicts | 14 |
-| Discrimination records | 10 |
+| Fault test records | 10 |
 | Summary | `rfc/short/rfc4035.md` |
-| Requirement shard | `rfc/requirements/rfc4035.md` |
+| Requirement table | `rfc/requirements/rfc4035.md` |
 | RFC text | `rfc/full/rfc4035.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: Protocol Modifications for the DNS Security Extensions
+Included in automatic checks: Protocol Modifications for the DNS Security Extensions
 
-## What the public ledger says
+## Published support status
 
 **Area:** DNSSEC protocol modifications
 
@@ -98,14 +105,14 @@ Enrolled: Protocol Modifications for the DNS Security Extensions
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 5 | one part of the gated population |
-| Annotated (including scoped evidence) | 103 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **108** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 5 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 103 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **108** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (5):** [`RFC4035-3-8`](#rfc4035-3-8), [`RFC4035-3-9`](#rfc4035-3-9), [`RFC4035-3.1.4.1-1`](#rfc4035-3.1.4.1-1), [`RFC4035-4.6-3`](#rfc4035-4.6-3), [`RFC4035-4.9-1`](#rfc4035-4.9-1)
 
@@ -113,20 +120,23 @@ Enrolled: Protocol Modifications for the DNS Security Extensions
 
 ## Figures
 
-- **MUST bar**: Ze proven 4, Ze correctness gap 104
-- **Overview bar**: Ze MUST proven 4, SHOULD not decided 50, Ze correctness gap 104
+- **MUST bar**: Ze proven 4, Proof pending 10, Not built 94
+- **Overview bar**: Ze MUST proven 4, Proof pending 10, Not assessed 50, Not built 94
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 108 |
 | MUST rows kept (the MUST bar) | 108 |
 | Ze proven | 4 |
 | OS verified | 0 |
+| Proof pending | 10 |
 | OS testing gap | 0 |
-| Ze correctness gap | 104 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 94 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -139,11 +149,12 @@ Enrolled: Protocol Modifications for the DNS Security Extensions
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 50 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 50 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc4035.json](../../../data/rfc/rfc4035.json).
 
@@ -411,31 +422,31 @@ Source: [data/rfc/rfc4035.json](../../../data/rfc/rfc4035.json).
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC4035-2.1-2`](#rfc4035-2.1-2)
 
 A zone key DNSKEY RR MUST have the Zone Key bit of the flags RDATA field set (§2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-2.1-2, so no unit is bound to it.
+No test carries RFC4035-2.1-2, so there is no linked test.
 
 ### [`RFC4035-2.1-4`](#rfc4035-2.1-4)
 
 Public keys associated with other DNS operations MAY be stored in DNSKEY RRs that are not marked as zone keys but MUST NOT be used to verify RRSIGs. (§2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-2.1-4, so no unit is bound to it.
+No test carries RFC4035-2.1-4, so there is no linked test.
 
 ### [`RFC4035-2.1-5`](#rfc4035-2.1-5)
 
 If the zone administrator intends a signed zone to be usable other than as an island of security, the zone apex MUST contain at least one DNSKEY RR to act as a secure entry point into the zone. (§2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-2.1-5, so no unit is bound to it.
+No test carries RFC4035-2.1-5, so there is no linked test.
 
 ### [`RFC4035-2.2-1`](#rfc4035-2.2-1)
 
@@ -443,167 +454,167 @@ For each authoritative RRset in a signed zone, there MUST be at least one RRSIG 
 
 Audit verdict: unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-30 (independent judge) after the row's annotation moved from {not-applicable} to {gap}. RFC 4035 Section 2.2 reads 'For each authoritative RRset in a signed zone, there MUST be at least one RRSIG record that meets the following requirements:'. Ze is the authoritative source of the zones it serves (geodns builds its zone from configuration, as112 its AS112 zones), so the zone-signer role is Ze's to fill once it signs. DNSSEC is post-release work, not declined (commit 5ff4834b67, plan/post-release/features/spec-dns-resolver-dnssec-validation.md), and no owner decision excludes signing, so the absent feature is a conformance gap and the earlier not-applicable verdict no longer stands. Ze signs no zone: internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers, and internal/plugins/as112/zones.go::answerQuestions builds only SOA, NS and the hostname TXT record or a negative answer; neither creates an RRSIG, and no layer signs on Ze's behalf.
 
-No test carries RFC4035-2.2-1, so no unit is bound to it.
+No test carries RFC4035-2.2-1, so there is no linked test.
 
 ### [`RFC4035-2.2-3`](#rfc4035-2.2-3)
 
 An RRSIG RR itself MUST NOT be signed (§2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-2.2-3, so no unit is bound to it.
+No test carries RFC4035-2.2-3, so there is no linked test.
 
 ### [`RFC4035-2.2-4`](#rfc4035-2.2-4)
 
 The NS RRset that appears at the zone apex name MUST be signed (§2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-2.2-4, so no unit is bound to it.
+No test carries RFC4035-2.2-4, so there is no linked test.
 
 ### [`RFC4035-2.2-5`](#rfc4035-2.2-5)
 
 The NS RRset that appears at the zone apex name MUST be signed, but the NS RRsets that appear at delegation points (that is, the NS RRsets in the parent zone that delegate the name to the child zone's name servers) MUST NOT be signed. (§2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-2.2-5, so no unit is bound to it.
+No test carries RFC4035-2.2-5, so there is no linked test.
 
 ### [`RFC4035-2.2-6`](#rfc4035-2.2-6)
 
 Glue address RRsets associated with delegations MUST NOT be signed (§2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-2.2-6, so no unit is bound to it.
+No test carries RFC4035-2.2-6, so there is no linked test.
 
 ### [`RFC4035-2.2-7`](#rfc4035-2.2-7)
 
 There MUST be an RRSIG for each RRset using at least one DNSKEY of each algorithm in the zone apex DNSKEY RRset (§2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-2.2-7, so no unit is bound to it.
+No test carries RFC4035-2.2-7, so there is no linked test.
 
 ### [`RFC4035-2.2-8`](#rfc4035-2.2-8)
 
 The apex DNSKEY RRset itself MUST be signed by each algorithm appearing in the DS RRset located at the delegating parent (if any). (§2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-2.2-8, so no unit is bound to it.
+No test carries RFC4035-2.2-8, so there is no linked test.
 
 ### [`RFC4035-2.3-1`](#rfc4035-2.3-1)
 
 Each owner name in the zone that has authoritative data or a delegation point NS RRset MUST have an NSEC resource record (§2.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-2.3-1, so no unit is bound to it.
+No test carries RFC4035-2.3-1, so there is no linked test.
 
 ### [`RFC4035-2.3-3`](#rfc4035-2.3-3)
 
 An NSEC record (and its associated RRSIG RRset) MUST NOT be the only RRset at any particular owner name. (§2.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-2.3-3, so no unit is bound to it.
+No test carries RFC4035-2.3-3, so there is no linked test.
 
 ### [`RFC4035-2.3-4`](#rfc4035-2.3-4)
 
 That is, the signing process MUST NOT create NSEC or RRSIG RRs for owner name nodes that were not the owner name of any RRset before the zone was signed. (§2.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-2.3-4, so no unit is bound to it.
+No test carries RFC4035-2.3-4, so there is no linked test.
 
 ### [`RFC4035-2.3-5`](#rfc4035-2.3-5)
 
 The type bitmap of every NSEC resource record in a signed zone MUST indicate the presence of both the NSEC record itself and its corresponding RRSIG record. (§2.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-2.3-5, so no unit is bound to it.
+No test carries RFC4035-2.3-5, so there is no linked test.
 
 ### [`RFC4035-2.3-6`](#rfc4035-2.3-6)
 
 Bits corresponding to the delegation NS RRset and any RRsets for which the parent zone has authoritative data MUST be set (§2.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-2.3-6, so no unit is bound to it.
+No test carries RFC4035-2.3-6, so there is no linked test.
 
 ### [`RFC4035-2.3-7`](#rfc4035-2.3-7)
 
 bits corresponding to any non-NS RRset for which the parent is not authoritative MUST be clear. (§2.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-2.3-7, so no unit is bound to it.
+No test carries RFC4035-2.3-7, so there is no linked test.
 
 ### [`RFC4035-2.4-3`](#rfc4035-2.4-3)
 
 All DS RRsets in a zone MUST be signed (§2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-2.4-3, so no unit is bound to it.
+No test carries RFC4035-2.4-3, so there is no linked test.
 
 ### [`RFC4035-2.4-4`](#rfc4035-2.4-4)
 
 DS RRsets MUST NOT appear at a zone's apex (§2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-2.4-4, so no unit is bound to it.
+No test carries RFC4035-2.4-4, so there is no linked test.
 
 ### [`RFC4035-2.5-1`](#rfc4035-2.5-1)
 
 If a CNAME RRset is present at a name in a signed zone, appropriate RRSIG and NSEC RRsets are REQUIRED at that name (§2.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-2.5-1, so no unit is bound to it.
+No test carries RFC4035-2.5-1, so there is no linked test.
 
 ### [`RFC4035-2.5-2`](#rfc4035-2.5-2)
 
 If a CNAME RRset is present at a name in a signed zone, appropriate RRSIG and NSEC RRsets are REQUIRED at that name. A KEY RRset at that name for secure dynamic update purposes is also allowed ([RFC3007]). Other types MUST NOT be present at that name. (§2.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-2.5-2, so no unit is bound to it.
+No test carries RFC4035-2.5-2, so there is no linked test.
 
 ### [`RFC4035-2.6-1`](#rfc4035-2.6-1)
 
 At the parental side of a zone cut (that is, at a delegation point), NSEC RRs are REQUIRED at the owner name. (§2.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-2.6-1, so no unit is bound to it.
+No test carries RFC4035-2.6-1, so there is no linked test.
 
 ### [`RFC4035-3-1`](#rfc4035-3-1)
 
 A security-aware name server MUST support the EDNS0 ([RFC2671]) message size extension (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-3-1, so no unit is bound to it.
+No test carries RFC4035-3-1, so there is no linked test.
 
 ### [`RFC4035-3-2`](#rfc4035-3-2)
 
 A security-aware name server MUST support the EDNS0 ([RFC2671]) message size extension, MUST support a message size of at least 1220 octets (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-3-2, so no unit is bound to it.
+No test carries RFC4035-3-2, so there is no linked test.
 
 ### [`RFC4035-3-5`](#rfc4035-3-5)
 
 A security-aware name server that receives a DNS query that does not include the EDNS OPT pseudo-RR or that has the DO bit clear MUST treat the RRSIG, DNSKEY, and NSEC RRs as it would any other RRset (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-3-5, so no unit is bound to it.
+No test carries RFC4035-3-5, so there is no linked test.
 
 ### [`RFC4035-3-6`](#rfc4035-3-6)
 
@@ -642,33 +653,33 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 RRSIG RRs that can be used to authenticate a response MUST be included in the response according to the rules in Section 3.1.1. (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-3.1-1, so no unit is bound to it.
+No test carries RFC4035-3.1-1, so there is no linked test.
 
 ### [`RFC4035-3.1-2`](#rfc4035-3.1-2)
 
 NSEC RRs that can be used to provide authenticated denial of existence MUST be included in the response automatically according to the rules in Section 3.1.3. (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-3.1-2, so no unit is bound to it.
+No test carries RFC4035-3.1-2, so there is no linked test.
 
 ### [`RFC4035-3.1-3`](#rfc4035-3.1-3)
 
 Either a DS RRset or an NSEC RR proving that no DS RRs exist MUST be included in referrals automatically (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-3.1-3, so no unit is bound to it.
+No test carries RFC4035-3.1-3, so there is no linked test.
 
 ### [`RFC4035-3.1.1-3`](#rfc4035-3.1.1-3)
 
 When placing a signed RRset in the Answer section, the name server MUST also place its RRSIG RRs in the Answer section (§3.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-3.1.1-3, so no unit is bound to it.
+No test carries RFC4035-3.1.1-3, so there is no linked test.
 
 ### [`RFC4035-3.1.1-4`](#rfc4035-3.1.1-4)
 
@@ -676,119 +687,119 @@ If space does not permit inclusion of these RRSIG RRs, the name server MUST set 
 
 Audit verdict: unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-30 (independent judge) after the row's annotation moved from {not-applicable} to {gap}. RFC 4035 Section 3.1.1 reads 'If space does not permit inclusion of these RRSIG RRs, the name server MUST set the TC bit.' The summary holds Ze's authoritative servers to the security-aware name server role (RFC4035-3-1 and the CD/AD rows), and DNSSEC is post-release work, not declined (commit 5ff4834b67), so the obligation is a gap rather than an exclusion. Ze's authoritative servers hold no RRSIG to include: internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers and internal/plugins/as112/zones.go::answerQuestions builds only SOA, NS and the hostname TXT record or a negative answer, so no code places an RRSIG in a response or sets TC for one that does not fit.
 
-No test carries RFC4035-3.1.1-4, so no unit is bound to it.
+No test carries RFC4035-3.1.1-4, so there is no linked test.
 
 ### [`RFC4035-3.1.1-5`](#rfc4035-3.1.1-5)
 
 When placing a signed RRset in the Authority section, the name server MUST also place its RRSIG RRs in the Authority section (§3.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-3.1.1-5, so no unit is bound to it.
+No test carries RFC4035-3.1.1-5, so there is no linked test.
 
 ### [`RFC4035-3.1.1-6`](#rfc4035-3.1.1-6)
 
 When placing a signed RRset in the Additional section, the name server MUST also place its RRSIG RRs in the Additional section (§3.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-3.1.1-6, so no unit is bound to it.
+No test carries RFC4035-3.1.1-6, so there is no linked test.
 
 ### [`RFC4035-3.1.1-8`](#rfc4035-3.1.1-8)
 
 If this happens, the name server MUST NOT set the TC bit solely because these RRSIG RRs didn't fit. (§3.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-3.1.1-8, so no unit is bound to it.
+No test carries RFC4035-3.1.1-8, so there is no linked test.
 
 ### [`RFC4035-3.1.2-3`](#rfc4035-3.1.2-3)
 
 If there is not enough space to include these DNSKEY and RRSIG RRs, the name server MUST omit them (§3.1.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-3.1.2-3, so no unit is bound to it.
+No test carries RFC4035-3.1.2-3, so there is no linked test.
 
 ### [`RFC4035-3.1.2-4`](#rfc4035-3.1.2-4)
 
 If there is not enough space to include these DNSKEY and RRSIG RRs, the name server MUST omit them and MUST NOT set the TC bit solely because these RRs didn't fit (§3.1.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-3.1.2-4, so no unit is bound to it.
+No test carries RFC4035-3.1.2-4, so there is no linked test.
 
 ### [`RFC4035-3.1.3-1`](#rfc4035-3.1.3-1)
 
 When responding to a query that has the DO bit set, a security-aware authoritative name server for a signed zone MUST include NSEC RRs in each of the following cases (§3.1.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-3.1.3-1, so no unit is bound to it.
+No test carries RFC4035-3.1.3-1, so there is no linked test.
 
 ### [`RFC4035-3.1.3.1-1`](#rfc4035-3.1.3.1-1)
 
 If the zone contains RRsets matching <SNAME, SCLASS> but contains no RRset matching <SNAME, SCLASS, STYPE>, then the name server MUST include the NSEC RR for <SNAME, SCLASS> along with its associated RRSIG RR(s) in the Authority section of the response (see Section 3.1.1). (§3.1.3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-3.1.3.1-1, so no unit is bound to it.
+No test carries RFC4035-3.1.3.1-1, so there is no linked test.
 
 ### [`RFC4035-3.1.3.2-1`](#rfc4035-3.1.3.2-1)
 
 If the zone does not contain any RRsets matching <SNAME, SCLASS> either exactly or via wildcard name expansion, then the name server MUST include the following NSEC RRs in the Authority section, along with their associated RRSIG RRs: o An NSEC RR proving that there is no exact match for <SNAME, SCLASS>. o An NSEC RR proving that the zone contains no RRsets that would match <SNAME, SCLASS> via wildcard name expansion. (§3.1.3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-3.1.3.2-1, so no unit is bound to it.
+No test carries RFC4035-3.1.3.2-1, so there is no linked test.
 
 ### [`RFC4035-3.1.3.3-1`](#rfc4035-3.1.3.3-1)
 
 If the zone does not contain any RRsets that exactly match <SNAME, SCLASS> but does contain an RRset that matches <SNAME, SCLASS, STYPE> via wildcard name expansion, the name server MUST include the wildcard-expanded answer and the corresponding wildcard-expanded RRSIG RRs in the Answer section (§3.1.3.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-3.1.3.3-1, so no unit is bound to it.
+No test carries RFC4035-3.1.3.3-1, so there is no linked test.
 
 ### [`RFC4035-3.1.3.3-2`](#rfc4035-3.1.3.3-2)
 
 If the zone does not contain any RRsets that exactly match <SNAME, SCLASS> but does contain an RRset that matches <SNAME, SCLASS, STYPE> via wildcard name expansion, the name server MUST include the wildcard-expanded answer and the corresponding wildcard-expanded RRSIG RRs in the Answer section and MUST include in the Authority section an NSEC RR and associated RRSIG RR(s) proving that the zone does not contain a closer match for <SNAME, SCLASS>. (§3.1.3.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-3.1.3.3-2, so no unit is bound to it.
+No test carries RFC4035-3.1.3.3-2, so there is no linked test.
 
 ### [`RFC4035-3.1.3.4-1`](#rfc4035-3.1.3.4-1)
 
 The name server MUST include the following NSEC RRs in the Authority section, along with their associated RRSIG RRs: o An NSEC RR proving that there are no RRsets matching STYPE at the wildcard owner name that matched <SNAME, SCLASS> via wildcard expansion. o An NSEC RR proving that there are no RRsets in the zone that would have been a closer match for <SNAME, SCLASS>. (§3.1.3.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-3.1.3.4-1, so no unit is bound to it.
+No test carries RFC4035-3.1.3.4-1, so there is no linked test.
 
 ### [`RFC4035-3.1.4-1`](#rfc4035-3.1.4-1)
 
 If a DS RRset is present at the delegation point, the name server MUST return both the DS RRset and its associated RRSIG RR(s) in the Authority section along with the NS RRset. (§3.1.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-3.1.4-1, so no unit is bound to it.
+No test carries RFC4035-3.1.4-1, so there is no linked test.
 
 ### [`RFC4035-3.1.4-2`](#rfc4035-3.1.4-2)
 
 If no DS RRset is present at the delegation point, the name server MUST return both the NSEC RR that proves that the DS RRset is not present and the NSEC RR's associated RRSIG RR(s) along with the NS RRset. (§3.1.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-3.1.4-2, so no unit is bound to it.
+No test carries RFC4035-3.1.4-2, so there is no linked test.
 
 ### [`RFC4035-3.1.4-3`](#rfc4035-3.1.4-3)
 
 The name server MUST place the NS RRset before the NSEC RRset and its associated RRSIG RR(s). (§3.1.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-3.1.4-3, so no unit is bound to it.
+No test carries RFC4035-3.1.4-3, so there is no linked test.
 
 ### [`RFC4035-3.1.4.1-1`](#rfc4035-3.1.4.1-1)
 
@@ -805,49 +816,49 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. an a
 
 An authoritative name server that chooses to perform its own zone validation MUST NOT selectively reject some RRs and accept others. (§3.1.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-3.1.5-2, so no unit is bound to it.
+No test carries RFC4035-3.1.5-2, so there is no linked test.
 
 ### [`RFC4035-3.1.5-3`](#rfc4035-3.1.5-3)
 
 As with any other authoritative RRset, the DS RRset MUST be included in zone transfers of the zone in which the RRset is authoritative data. (§3.1.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-3.1.5-3, so no unit is bound to it.
+No test carries RFC4035-3.1.5-3, so there is no linked test.
 
 ### [`RFC4035-3.1.5-4`](#rfc4035-3.1.5-4)
 
 NSEC RRs MUST be included in zone transfers of the zone in which they are authoritative data (§3.1.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-3.1.5-4, so no unit is bound to it.
+No test carries RFC4035-3.1.5-4, so there is no linked test.
 
 ### [`RFC4035-3.1.5-5`](#rfc4035-3.1.5-5)
 
 The parental NSEC RR at a zone cut MUST be included in zone transfers of the parent zone (§3.1.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-3.1.5-5, so no unit is bound to it.
+No test carries RFC4035-3.1.5-5, so there is no linked test.
 
 ### [`RFC4035-3.1.5-6`](#rfc4035-3.1.5-6)
 
 the NSEC at the zone apex of the child zone MUST be included in zone transfers of the child zone. (§3.1.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-3.1.5-6, so no unit is bound to it.
+No test carries RFC4035-3.1.5-6, so there is no linked test.
 
 ### [`RFC4035-3.1.5-7`](#rfc4035-3.1.5-7)
 
 RRSIG RRs MUST be included in zone transfers of the zone in which they are authoritative data (§3.1.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-3.1.5-7, so no unit is bound to it.
+No test carries RFC4035-3.1.5-7, so there is no linked test.
 
 ### [`RFC4035-3.1.6-2`](#rfc4035-3.1.6-2)
 
@@ -883,57 +894,57 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. sing
 
 A security-aware name server that supports recursion MUST follow the rules for the CD and AD bits given in Section 3.2 when generating a response that involves data obtained via recursion. (§3.1.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-3.1.6-6, so no unit is bound to it.
+No test carries RFC4035-3.1.6-6, so there is no linked test.
 
 ### [`RFC4035-3.2.1-1`](#rfc4035-3.2.1-1)
 
 The resolver side of a security-aware recursive name server MUST set the DO bit when sending requests (§3.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-3.2.1-1, so no unit is bound to it.
+No test carries RFC4035-3.2.1-1, so there is no linked test.
 
 ### [`RFC4035-3.2.1-2`](#rfc4035-3.2.1-2)
 
 If the DO bit in an initiating query is not set, the name server side MUST strip any authenticating DNSSEC RRs from the response (§3.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-3.2.1-2, so no unit is bound to it.
+No test carries RFC4035-3.2.1-2, so there is no linked test.
 
 ### [`RFC4035-3.2.1-3`](#rfc4035-3.2.1-3)
 
 If the DO bit in an initiating query is not set, the name server side MUST strip any authenticating DNSSEC RRs from the response but MUST NOT strip any DNSSEC RR types that the initiating query explicitly requested. (§3.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-3.2.1-3, so no unit is bound to it.
+No test carries RFC4035-3.2.1-3, so there is no linked test.
 
 ### [`RFC4035-3.2.2-1`](#rfc4035-3.2.2-1)
 
 The name server side of a security-aware recursive name server MUST pass the state of the CD bit to the resolver side along with the rest of an initiating query, so that the resolver side will know whether it is required to verify the response data it returns to the name server side. (§3.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-3.2.2-1, so no unit is bound to it.
+No test carries RFC4035-3.2.2-1, so there is no linked test.
 
 ### [`RFC4035-3.2.2-4`](#rfc4035-3.2.2-4)
 
 If the resolver side implements a BAD cache (see Section 4.7) and the name server side receives a query that matches an entry in the resolver side's BAD cache, the name server side's response depends on the state of the CD bit in the original query. If the CD bit is set, the name server side SHOULD return the data from the BAD cache; if the CD bit is not set, the name server side MUST return RCODE 2 (server failure). (§3.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-3.2.2-4, so no unit is bound to it.
+No test carries RFC4035-3.2.2-4, so there is no linked test.
 
 ### [`RFC4035-3.2.3-2`](#rfc4035-3.2.3-2)
 
 The resolver side MUST follow the procedure described in Section 5 to determine whether the RRs in question are authentic. (§3.2.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-3.2.3-2, so no unit is bound to it.
+No test carries RFC4035-3.2.3-2, so there is no linked test.
 
 ### [`RFC4035-4.1-1`](#rfc4035-4.1-1)
 
@@ -950,7 +961,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 A security-aware resolver MUST support a message size of at least 1220 octets (§4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -971,41 +982,41 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 A security-aware resolver's IP layer MUST handle fragmented UDP packets correctly regardless of whether any such fragmented packets were received via IPv4 or IPv6. (§4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-4.1-5, so no unit is bound to it.
+No test carries RFC4035-4.1-5, so there is no linked test.
 
 ### [`RFC4035-4.2-1`](#rfc4035-4.2-1)
 
 A security-aware resolver MUST support the signature verification mechanisms described in Section 5 (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-4.2-1, so no unit is bound to it.
+No test carries RFC4035-4.2-1, so there is no linked test.
 
 ### [`RFC4035-4.2-3`](#rfc4035-4.2-3)
 
 A security-aware resolver's support for signature verification MUST include support for verification of wildcard owner names. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-4.2-3, so no unit is bound to it.
+No test carries RFC4035-4.2-3, so there is no linked test.
 
 ### [`RFC4035-4.2-5`](#rfc4035-4.2-5)
 
 When attempting to retrieve missing NSEC RRs that reside on the parental side at a zone cut, a security-aware iterative-mode resolver MUST query the name servers for the parent zone, not the child zone. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-4.2-5, so no unit is bound to it.
+No test carries RFC4035-4.2-5, so there is no linked test.
 
 ### [`RFC4035-4.2-6`](#rfc4035-4.2-6)
 
 When attempting to retrieve a missing DS, a security-aware iterative-mode resolver MUST query the name servers for the parent zone, not the child zone. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-4.2-6, so no unit is bound to it.
+No test carries RFC4035-4.2-6, so there is no linked test.
 
 ### [`RFC4035-4.3-1`](#rfc4035-4.3-1)
 
@@ -1013,21 +1024,21 @@ A security-aware resolver MUST be able to determine whether it should expect a p
 
 Audit verdict: unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-30 (independent judge) after the row's annotation moved from {not-applicable} to {gap}. RFC 4035 Section 4.3 reads 'A security-aware resolver MUST be able to determine whether it should expect a particular RRset to be signed.' Ze's stub fills the security-aware resolver role (the summary holds it to the Section 4.1 rows: DO bit, 1220-octet size, advertised payload size), and local validation is post-release work, not declined (commit 5ff4834b67, plan/post-release/features/spec-dns-resolver-dnssec-validation.md), so the absent behaviour is a gap and the earlier not-applicable verdict no longer stands. internal/component/resolve/dns/resolver.go::dnssecDecision inspects only the upstream rcode (SERVFAIL) under the configured mode, with no trust anchor, DS chain, signature check or NSEC proof, and internal/plugins/dnsresolver/forward.go::upstreamQuery sends every upstream query with the DO bit clear, so no Ze code classifies an RRset as secure, insecure, bogus or indeterminate.
 
-No test carries RFC4035-4.3-1, so no unit is bound to it.
+No test carries RFC4035-4.3-1, so there is no linked test.
 
 ### [`RFC4035-4.4-1`](#rfc4035-4.4-1)
 
 A security-aware resolver MUST be capable of being configured with at least one trusted public key or DS RR (§4.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-4.4-1, so no unit is bound to it.
+No test carries RFC4035-4.4-1, so there is no linked test.
 
 ### [`RFC4035-4.6-2`](#rfc4035-4.6-2)
 
 A security-aware resolver MUST clear the AD bit when composing query messages (§4.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1050,33 +1061,33 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 Resolvers that implement a BAD cache MUST take steps to prevent the cache from being useful as a denial-of-service attack amplifier (§4.7)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-4.7-2, so no unit is bound to it.
+No test carries RFC4035-4.7-2, so there is no linked test.
 
 ### [`RFC4035-4.7-3`](#rfc4035-4.7-3)
 
 Since RRsets that fail to validate do not have trustworthy TTLs, the implementation MUST assign a TTL. (§4.7)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-4.7-3, so no unit is bound to it.
+No test carries RFC4035-4.7-3, so there is no linked test.
 
 ### [`RFC4035-4.7-7`](#rfc4035-4.7-7)
 
 Resolvers MUST NOT return RRsets from the BAD cache unless the resolver is not required to validate the signatures of the RRsets in question under the rules given in Section 4.2 of this document. (§4.7)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-4.7-7, so no unit is bound to it.
+No test carries RFC4035-4.7-7, so there is no linked test.
 
 ### [`RFC4035-4.8-1`](#rfc4035-4.8-1)
 
 A validating security-aware resolver MUST treat the signature of a valid signed DNAME RR as also covering unsigned CNAME RRs that could have been synthesized from the DNAME RR, as described in [RFC2672], at least to the extent of not rejecting a response message solely because it contains such CNAME RRs. (§4.8)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-4.8-1, so no unit is bound to it.
+No test carries RFC4035-4.8-1, so there is no linked test.
 
 ### [`RFC4035-4.9-1`](#rfc4035-4.9-1)
 
@@ -1093,7 +1104,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 A validating security-aware stub resolver MUST set the DO bit (§4.9.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1103,219 +1114,219 @@ Audit verdict: not audited: no reader has judged these tests
 
 In any case, a security-aware stub resolver MUST NOT place any reliance on signature validation allegedly performed on its behalf, except when the security-aware stub resolver obtained the data in question from a trusted security-aware recursive name server via a secure channel. (§4.9.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-4.9.3-2, so no unit is bound to it.
+No test carries RFC4035-4.9.3-2, so there is no linked test.
 
 ### [`RFC4035-5-1`](#rfc4035-5-1)
 
 To authenticate an apex DNSKEY RRset by using an initial key, the resolver MUST: 1. verify that the initial DNSKEY RR appears in the apex DNSKEY RRset, and that the DNSKEY RR has the Zone Key Flag (DNSKEY RDATA bit 7) set (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-5-1, so no unit is bound to it.
+No test carries RFC4035-5-1, so there is no linked test.
 
 ### [`RFC4035-5-2`](#rfc4035-5-2)
 
 To authenticate an apex DNSKEY RRset by using an initial key, the resolver MUST: 1. verify that the initial DNSKEY RR appears in the apex DNSKEY RRset, and that the DNSKEY RR has the Zone Key Flag (DNSKEY RDATA bit 7) set; and 2. verify that there is some RRSIG RR that covers the apex DNSKEY RRset, and that the combination of the RRSIG RR and the initial DNSKEY RR authenticates the DNSKEY RRset. (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-5-2, so no unit is bound to it.
+No test carries RFC4035-5-2, so there is no linked test.
 
 ### [`RFC4035-5-3`](#rfc4035-5-3)
 
 The absence of DNSSEC data in a response MUST NOT by itself be taken as an indication that no authentication information exists (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-5-3, so no unit is bound to it.
+No test carries RFC4035-5-3, so there is no linked test.
 
 ### [`RFC4035-5.2-1`](#rfc4035-5.2-1)
 
 A security-aware resolver MUST query the name servers for the parent zone for the DS RRset if the referral includes neither a DS RRset nor a NSEC RRset proving that the DS RRset does not exist (see Section 4). (§5.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-5.2-1, so no unit is bound to it.
+No test carries RFC4035-5.2-1, so there is no linked test.
 
 ### [`RFC4035-5.2-3`](#rfc4035-5.2-3)
 
 A security-aware resolver MUST use the parent NSEC RR when attempting to prove that a DS RRset does not exist (§5.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-5.2-3, so no unit is bound to it.
+No test carries RFC4035-5.2-3, so there is no linked test.
 
 ### [`RFC4035-5.3.1-1`](#rfc4035-5.3.1-1)
 
 The RRSIG RR and the RRset MUST have the same owner name and the same class (§5.3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-5.3.1-1, so no unit is bound to it.
+No test carries RFC4035-5.3.1-1, so there is no linked test.
 
 ### [`RFC4035-5.3.1-2`](#rfc4035-5.3.1-2)
 
 The RRSIG RR's Signer's Name field MUST be the name of the zone that contains the RRset (§5.3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-5.3.1-2, so no unit is bound to it.
+No test carries RFC4035-5.3.1-2, so there is no linked test.
 
 ### [`RFC4035-5.3.1-3`](#rfc4035-5.3.1-3)
 
 The RRSIG RR's Type Covered field MUST equal the RRset's type (§5.3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-5.3.1-3, so no unit is bound to it.
+No test carries RFC4035-5.3.1-3, so there is no linked test.
 
 ### [`RFC4035-5.3.1-4`](#rfc4035-5.3.1-4)
 
 The number of labels in the RRset owner name MUST be greater than or equal to the value in the RRSIG RR's Labels field (§5.3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-5.3.1-4, so no unit is bound to it.
+No test carries RFC4035-5.3.1-4, so there is no linked test.
 
 ### [`RFC4035-5.3.1-5`](#rfc4035-5.3.1-5)
 
 o The validator's notion of the current time MUST be less than or equal to the time listed in the RRSIG RR's Expiration field. (§5.3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-5.3.1-5, so no unit is bound to it.
+No test carries RFC4035-5.3.1-5, so there is no linked test.
 
 ### [`RFC4035-5.3.1-6`](#rfc4035-5.3.1-6)
 
 o The validator's notion of the current time MUST be greater than or equal to the time listed in the RRSIG RR's Inception field. (§5.3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-5.3.1-6, so no unit is bound to it.
+No test carries RFC4035-5.3.1-6, so there is no linked test.
 
 ### [`RFC4035-5.3.1-7`](#rfc4035-5.3.1-7)
 
 o The RRSIG RR's Signer's Name, Algorithm, and Key Tag fields MUST match the owner name, algorithm, and key tag for some DNSKEY RR in the zone's apex DNSKEY RRset. (§5.3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-5.3.1-7, so no unit is bound to it.
+No test carries RFC4035-5.3.1-7, so there is no linked test.
 
 ### [`RFC4035-5.3.1-8`](#rfc4035-5.3.1-8)
 
 The matching DNSKEY RR MUST be present in the zone's apex DNSKEY RRset (§5.3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-5.3.1-8, so no unit is bound to it.
+No test carries RFC4035-5.3.1-8, so there is no linked test.
 
 ### [`RFC4035-5.3.1-9`](#rfc4035-5.3.1-9)
 
 The matching DNSKEY RR MUST be present in the zone's apex DNSKEY RRset, and MUST have the Zone Flag bit (DNSKEY RDATA Flag bit 7) set. (§5.3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-5.3.1-9, so no unit is bound to it.
+No test carries RFC4035-5.3.1-9, so there is no linked test.
 
 ### [`RFC4035-5.3.1-10`](#rfc4035-5.3.1-10)
 
 It is possible for more than one DNSKEY RR to match the conditions above. In this case, the validator cannot predetermine which DNSKEY RR to use to authenticate the signature, and it MUST try each matching DNSKEY RR until either the signature is validated or the validator has run out of matching public keys to try. (§5.3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-5.3.1-10, so no unit is bound to it.
+No test carries RFC4035-5.3.1-10, so there is no linked test.
 
 ### [`RFC4035-5.3.2-1`](#rfc4035-5.3.2-1)
 
 if rrsig_labels > fqdn_labels the RRSIG RR did not pass the necessary validation checks and MUST NOT be used to authenticate this RRset. (§5.3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-5.3.2-1, so no unit is bound to it.
+No test carries RFC4035-5.3.2-1, so there is no linked test.
 
 ### [`RFC4035-5.3.2-2`](#rfc4035-5.3.2-2)
 
 When reconstructing the original NSEC RRset for the delegation from the parent zone, the NSEC RRs MUST NOT be combined with NSEC RRs from the child zone. (§5.3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-5.3.2-2, so no unit is bound to it.
+No test carries RFC4035-5.3.2-2, so there is no linked test.
 
 ### [`RFC4035-5.3.2-3`](#rfc4035-5.3.2-3)
 
 When reconstructing the original NSEC RRset for the apex of the child zone, the NSEC RRs MUST NOT be combined with NSEC RRs from the parent zone. (§5.3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-5.3.2-3, so no unit is bound to it.
+No test carries RFC4035-5.3.2-3, so there is no linked test.
 
 ### [`RFC4035-5.3.3-1`](#rfc4035-5.3.3-1)
 
 If the Labels field of the RRSIG RR is not equal to the number of labels in the RRset's fully qualified owner name, then the RRset is either invalid or the result of wildcard expansion. The resolver MUST verify that wildcard expansion was applied properly before considering the RRset to be authentic. (§5.3.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-5.3.3-1, so no unit is bound to it.
+No test carries RFC4035-5.3.3-1, so there is no linked test.
 
 ### [`RFC4035-5.3.3-2`](#rfc4035-5.3.3-2)
 
 If the resolver accepts the RRset as authentic, the validator MUST set the TTL of the RRSIG RR and each RR in the authenticated RRset to a value no greater than the minimum of: o the RRset's TTL as received in the response; o the RRSIG RR's TTL as received in the response; o the value in the RRSIG RR's Original TTL field; and o the difference of the RRSIG RR's Signature Expiration time and the current time. (§5.3.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-5.3.3-2, so no unit is bound to it.
+No test carries RFC4035-5.3.3-2, so there is no linked test.
 
 ### [`RFC4035-5.4-1`](#rfc4035-5.4-1)
 
 In addition, security-aware resolvers MUST authenticate the NSEC RRsets that comprise the non-existence proof as described in Section 5.3. (§5.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-5.4-1, so no unit is bound to it.
+No test carries RFC4035-5.4-1, so there is no linked test.
 
 ### [`RFC4035-5.4-2`](#rfc4035-5.4-2)
 
 If the complete set of necessary NSEC RRsets is not present in a response (perhaps due to message truncation), then a security-aware resolver MUST resend the query in order to attempt to obtain the full collection of NSEC RRs necessary to verify the non-existence of the requested RRset. (§5.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-5.4-2, so no unit is bound to it.
+No test carries RFC4035-5.4-2, so there is no linked test.
 
 ### [`RFC4035-5.4-3`](#rfc4035-5.4-3)
 
 As with all DNS operations, however, the resolver MUST bound the work it puts into answering any particular query. (§5.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-5.4-3, so no unit is bound to it.
+No test carries RFC4035-5.4-3, so there is no linked test.
 
 ### [`RFC4035-5.4-4`](#rfc4035-5.4-4)
 
 Since a validated NSEC RR proves the existence of both itself and its corresponding RRSIG RR, a validator MUST ignore the settings of the NSEC and RRSIG bits in an NSEC RR. (§5.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-5.4-4, so no unit is bound to it.
+No test carries RFC4035-5.4-4, so there is no linked test.
 
 ### [`RFC4035-5.5-2`](#rfc4035-5.5-2)
 
 If the validation was being done to service a recursive query, the name server MUST return RCODE 2 to the originating client. (§5.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-5.5-2, so no unit is bound to it.
+No test carries RFC4035-5.5-2, so there is no linked test.
 
 ### [`RFC4035-5.5-3`](#rfc4035-5.5-3)
 
 However, it MUST return the full response if and only if the original query had the CD bit set. (§5.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4035-5.5-3, so no unit is bound to it.
+No test carries RFC4035-5.5-3, so there is no linked test.
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -1334,87 +1345,87 @@ No test carries RFC4035-5.5-3, so no unit is bound to it.
 
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
-| `front` | not stated | 0 | walked | not stated |
-| `1` | not stated | 0 | walked | not stated |
-| `1.1` | not stated | 0 | walked | not stated |
-| `1.2` | not stated | 0 | walked | not stated |
-| `2` | not stated | 0 | walked | not stated |
-| `2.1` | not stated | 3 | walked | not stated |
-| `2.2` | not stated | 6 | walked | not stated |
-| `2.3` | not stated | 5 | walked | not stated |
-| `2.4` | not stated | 1 | walked | not stated |
-| `2.5` | not stated | 2 | walked | not stated |
-| `2.6` | not stated | 1 | walked | not stated |
-| `2.7` | not stated | 0 | walked | not stated |
-| `3` | not stated | 4 | walked | not stated |
-| `3.1` | not stated | 3 | walked | not stated |
-| `3.1.1` | not stated | 6 | walked | not stated |
-| `3.1.2` | not stated | 1 | walked | not stated |
-| `3.1.3` | not stated | 1 | walked | not stated |
-| `3.1.3.1` | not stated | 2 | walked | not stated |
-| `3.1.3.2` | not stated | 2 | walked | not stated |
-| `3.1.3.3` | not stated | 2 | walked | not stated |
-| `3.1.3.4` | not stated | 2 | walked | not stated |
-| `3.1.3.5` | not stated | 0 | walked | not stated |
-| `3.1.4` | not stated | 4 | walked | not stated |
-| `3.1.4.1` | not stated | 1 | walked | not stated |
-| `3.1.5` | not stated | 6 | walked | not stated |
-| `3.1.6` | not stated | 3 | walked | not stated |
-| `3.2` | not stated | 0 | walked | not stated |
-| `3.2.1` | not stated | 2 | walked | not stated |
-| `3.2.2` | not stated | 3 | walked | not stated |
-| `3.2.3` | not stated | 2 | walked | not stated |
-| `3.3` | not stated | 0 | walked | not stated |
-| `4` | not stated | 0 | walked | not stated |
-| `4.1` | not stated | 3 | walked | not stated |
-| `4.2` | not stated | 5 | walked | not stated |
-| `4.3` | not stated | 2 | walked | not stated |
-| `4.4` | not stated | 1 | walked | not stated |
-| `4.5` | not stated | 0 | walked | not stated |
-| `4.6` | not stated | 2 | walked | not stated |
-| `4.7` | not stated | 3 | walked | not stated |
-| `4.8` | not stated | 2 | walked | not stated |
-| `4.9` | not stated | 1 | walked | not stated |
-| `4.9.1` | not stated | 2 | walked | not stated |
-| `4.9.2` | not stated | 0 | walked | not stated |
-| `4.9.3` | not stated | 1 | walked | not stated |
-| `5` | not stated | 2 | walked | not stated |
-| `5.1` | not stated | 0 | walked | not stated |
-| `5.2` | not stated | 2 | walked | not stated |
-| `5.3` | not stated | 0 | walked | not stated |
-| `5.3.1` | not stated | 9 | walked | not stated |
-| `5.3.2` | not stated | 3 | walked | not stated |
-| `5.3.3` | not stated | 2 | walked | not stated |
-| `5.3.4` | not stated | 1 | walked | not stated |
-| `5.4` | not stated | 5 | walked | not stated |
-| `5.5` | not stated | 2 | walked | not stated |
-| `5.6` | not stated | 0 | walked | not stated |
-| `6` | not stated | 0 | walked | not stated |
-| `7` | not stated | 0 | walked | not stated |
-| `8` | not stated | 0 | walked | not stated |
-| `9` | not stated | 0 | walked | not stated |
-| `9.1` | not stated | 0 | walked | not stated |
-| `9.2` | not stated | 0 | walked | not stated |
-| `A` | not stated | 0 | walked | not stated |
-| `B` | not stated | 0 | walked | not stated |
-| `B.1` | not stated | 0 | walked | not stated |
-| `B.2` | not stated | 0 | walked | not stated |
-| `B.3` | not stated | 0 | walked | not stated |
-| `B.4` | not stated | 0 | walked | not stated |
-| `B.5` | not stated | 0 | walked | not stated |
-| `B.6` | not stated | 0 | walked | not stated |
-| `B.7` | not stated | 0 | walked | not stated |
-| `B.8` | not stated | 0 | walked | not stated |
-| `C` | not stated | 0 | walked | not stated |
-| `C.1` | not stated | 0 | walked | not stated |
-| `C.1.1` | not stated | 0 | walked | not stated |
-| `C.2` | not stated | 0 | walked | not stated |
-| `C.3` | not stated | 0 | walked | not stated |
-| `C.4` | not stated | 0 | walked | not stated |
-| `C.5` | not stated | 0 | walked | not stated |
-| `C.6` | not stated | 1 | walked | not stated |
-| `C.7` | not stated | 0 | walked | not stated |
-| `C.8` | not stated | 1 | walked | not stated |
+| `front` | not stated | 0 | reviewed | not stated |
+| `1` | not stated | 0 | reviewed | not stated |
+| `1.1` | not stated | 0 | reviewed | not stated |
+| `1.2` | not stated | 0 | reviewed | not stated |
+| `2` | not stated | 0 | reviewed | not stated |
+| `2.1` | not stated | 3 | reviewed | not stated |
+| `2.2` | not stated | 6 | reviewed | not stated |
+| `2.3` | not stated | 5 | reviewed | not stated |
+| `2.4` | not stated | 1 | reviewed | not stated |
+| `2.5` | not stated | 2 | reviewed | not stated |
+| `2.6` | not stated | 1 | reviewed | not stated |
+| `2.7` | not stated | 0 | reviewed | not stated |
+| `3` | not stated | 4 | reviewed | not stated |
+| `3.1` | not stated | 3 | reviewed | not stated |
+| `3.1.1` | not stated | 6 | reviewed | not stated |
+| `3.1.2` | not stated | 1 | reviewed | not stated |
+| `3.1.3` | not stated | 1 | reviewed | not stated |
+| `3.1.3.1` | not stated | 2 | reviewed | not stated |
+| `3.1.3.2` | not stated | 2 | reviewed | not stated |
+| `3.1.3.3` | not stated | 2 | reviewed | not stated |
+| `3.1.3.4` | not stated | 2 | reviewed | not stated |
+| `3.1.3.5` | not stated | 0 | reviewed | not stated |
+| `3.1.4` | not stated | 4 | reviewed | not stated |
+| `3.1.4.1` | not stated | 1 | reviewed | not stated |
+| `3.1.5` | not stated | 6 | reviewed | not stated |
+| `3.1.6` | not stated | 3 | reviewed | not stated |
+| `3.2` | not stated | 0 | reviewed | not stated |
+| `3.2.1` | not stated | 2 | reviewed | not stated |
+| `3.2.2` | not stated | 3 | reviewed | not stated |
+| `3.2.3` | not stated | 2 | reviewed | not stated |
+| `3.3` | not stated | 0 | reviewed | not stated |
+| `4` | not stated | 0 | reviewed | not stated |
+| `4.1` | not stated | 3 | reviewed | not stated |
+| `4.2` | not stated | 5 | reviewed | not stated |
+| `4.3` | not stated | 2 | reviewed | not stated |
+| `4.4` | not stated | 1 | reviewed | not stated |
+| `4.5` | not stated | 0 | reviewed | not stated |
+| `4.6` | not stated | 2 | reviewed | not stated |
+| `4.7` | not stated | 3 | reviewed | not stated |
+| `4.8` | not stated | 2 | reviewed | not stated |
+| `4.9` | not stated | 1 | reviewed | not stated |
+| `4.9.1` | not stated | 2 | reviewed | not stated |
+| `4.9.2` | not stated | 0 | reviewed | not stated |
+| `4.9.3` | not stated | 1 | reviewed | not stated |
+| `5` | not stated | 2 | reviewed | not stated |
+| `5.1` | not stated | 0 | reviewed | not stated |
+| `5.2` | not stated | 2 | reviewed | not stated |
+| `5.3` | not stated | 0 | reviewed | not stated |
+| `5.3.1` | not stated | 9 | reviewed | not stated |
+| `5.3.2` | not stated | 3 | reviewed | not stated |
+| `5.3.3` | not stated | 2 | reviewed | not stated |
+| `5.3.4` | not stated | 1 | reviewed | not stated |
+| `5.4` | not stated | 5 | reviewed | not stated |
+| `5.5` | not stated | 2 | reviewed | not stated |
+| `5.6` | not stated | 0 | reviewed | not stated |
+| `6` | not stated | 0 | reviewed | not stated |
+| `7` | not stated | 0 | reviewed | not stated |
+| `8` | not stated | 0 | reviewed | not stated |
+| `9` | not stated | 0 | reviewed | not stated |
+| `9.1` | not stated | 0 | reviewed | not stated |
+| `9.2` | not stated | 0 | reviewed | not stated |
+| `A` | not stated | 0 | reviewed | not stated |
+| `B` | not stated | 0 | reviewed | not stated |
+| `B.1` | not stated | 0 | reviewed | not stated |
+| `B.2` | not stated | 0 | reviewed | not stated |
+| `B.3` | not stated | 0 | reviewed | not stated |
+| `B.4` | not stated | 0 | reviewed | not stated |
+| `B.5` | not stated | 0 | reviewed | not stated |
+| `B.6` | not stated | 0 | reviewed | not stated |
+| `B.7` | not stated | 0 | reviewed | not stated |
+| `B.8` | not stated | 0 | reviewed | not stated |
+| `C` | not stated | 0 | reviewed | not stated |
+| `C.1` | not stated | 0 | reviewed | not stated |
+| `C.1.1` | not stated | 0 | reviewed | not stated |
+| `C.2` | not stated | 0 | reviewed | not stated |
+| `C.3` | not stated | 0 | reviewed | not stated |
+| `C.4` | not stated | 0 | reviewed | not stated |
+| `C.5` | not stated | 0 | reviewed | not stated |
+| `C.6` | not stated | 1 | reviewed | not stated |
+| `C.7` | not stated | 0 | reviewed | not stated |
+| `C.8` | not stated | 1 | reviewed | not stated |
 
 ### Excluded sentences
 

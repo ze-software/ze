@@ -69,6 +69,7 @@ and <strong>runtime commands</strong> sent to the running daemon via SSH.</p>
 <li><a href="#ze-show-system">ze show system</a></li>
 <li><a href="#show-plugin-list">show plugin list</a></li>
 <li><a href="#show-plugin-declarations">show plugin declarations</a></li>
+<li><a href="#request-plugin-restart">request plugin restart</a></li>
 <li><a href="#show-host">show host</a></li>
 <li><a href="#show-storage-smart">show storage smart</a></li>
 <li><a href="#ze-request-support-archive">ze request support archive</a></li>
@@ -138,6 +139,10 @@ and <strong>runtime commands</strong> sent to the running daemon via SSH.</p>
 <li><a href="#user-u-flag-all-client-clis">--user / -u flag (all client CLIs)</a></li>
 <li><a href="#ze-start-web">ze start --web</a></li>
 <li><a href="#debug-set-delete-show-clear">debug (set / delete / show / clear)</a></li>
+<li><a href="#create-agent-skill">create agent skill</a></li>
+<li><a href="#show-agent-skill">show agent skill</a></li>
+<li><a href="#delete-agent-skill">delete agent skill</a></li>
+<li><a href="#show-agent-context">show agent context</a></li>
 <li><a href="#ze-pipe">ze pipe</a></li>
 <li><a href="#ze-data">ze data</a></li>
 <li><a href="#ze-plugin">ze plugin</a></li>
@@ -388,6 +393,21 @@ ze cli -c "show config validation &lt;config-file&gt; | json"   # the same verdi
 </tbody>
 </table>
 <p>Exit codes: 0 = valid, 1 = invalid, 2 = file not found.</p>
+<p>A value the schema does not accept (outside an enumeration, a range, a length
+or a format, a list key included) is refused with the line, the setting's full
+path, the value, the accepted values with their help or the bounds or the
+format in words, a closest match when one is close, and a last line that is
+the file line to write:</p>
+<pre><code class="language-text">line 11: ospf interfaces interface eth0 cost: "0" is outside the accepted range
+cost accepts a value in 1..65535
+fix: cost &lt;1..65535&gt;;
+</code></pre>
+<p>In a set-format file the fix is the <code>set</code> line, corrected. In the JSON form
+each such refusal is one diagnostic whose <code>code</code> names its kind
+(<code>config-yang-enum</code>, <code>config-yang-range</code>, <code>config-yang-length</code>,
+<code>config-yang-pattern</code>) and whose <code>fix</code> holds the fix line. Every kind, with
+examples: <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/config/yang-config-design.md#value-refusals" target="_blank" rel="noopener">Value refusals</a>.</p>
+<!-- source: internal/component/config/cli/cmd_validate.go -- refusalDiagnostic, yangErrorCode -->
 <p>Validation includes the commit-time backend capability gate: a config whose
 active <code>backend</code> leaf does not implement a feature it uses (e.g. <code>backend vpp</code>
 with a <code>bridge</code>, <code>tunnel</code>, <code>wireguard</code>, <code>veth</code>, or <code>mirror</code> entry) is
@@ -456,6 +476,15 @@ ze config activate &lt;file&gt; &lt;path&gt;    # Clear the inactive flag on a n
 <p><code>deactivate</code> and <code>activate</code> accept any node type: leaf, container, list entry,
 or leaf-list value. The deactivated node round-trips through save/load and is
 skipped at apply time. See <code>docs/guide/config-deactivate.md</code>.</p>
+<p>Inside the editor (<code>ze config edit</code>, the SSH session, the web terminal and the
+web CLI bar), <code>top</code> alone moves to the root, and <code>top &lt;command&gt;</code> runs that one
+command as if at the root and leaves you where you are: <code>top set bgp router-id 192.0.2.9</code>, <code>top show</code>, <code>top show | errors</code>, <code>top delete &lt;path&gt;</code>,
+<code>top run &lt;command&gt;</code>, <code>top load terminal relative merge</code>. Only a command that
+moves you keeps its move, so <code>top edit bgp</code> goes to <code>bgp</code>. A fix line the
+editor prints inside an <code>edit</code> context reads <code>top set &lt;full path&gt; ...</code>, which
+is exact from any position. The editor commands are in
+<a href="../config-editor/#editor-commands">Configuration Editor</a>.</p>
+<!-- source: internal/component/cli/model_commands.go -- cmdTop, lineBehindTop -->
 <p><strong>Storage:</strong></p>
 <pre><code>ze config import &lt;file&gt;...       # Import files into the database
 ze config import --name &lt;n&gt; &lt;file&gt;  # Import under a different name
@@ -465,6 +494,15 @@ ze config list [prefix]          # List files in database
 ze config list --backup &lt;artifact&gt;  # List the configs inside a backup
 ze config cat &lt;key&gt;              # Print database entry
 </code></pre>
+<p>While ze runs and owns the store, <code>ze config import</code> sends each input to the
+daemon as <code>update data config name &lt;name&gt; content &lt;base64&gt;</code> after the same
+name checks and confirmation, and prints the same lines; an input over 195,840
+bytes stops it before anything is sent. With ze stopped, an import into a
+config whose confirmed commit a stopped daemon left open is refused, naming
+<code>ze start &lt;config&gt;</code>. <a href="../config-editor/">Configuration Editor</a> gives the whole
+contract.</p>
+<!-- source: internal/component/config/cli/cmd_import.go -- cmdImportWithStorage, cmdImportThroughDaemon -->
+<!-- source: internal/component/config/storage/daemonroute/daemonroute.go -- ConfigLine, Send -->
 <p><strong>Inspection:</strong></p>
 <pre><code>ze config validate &lt;file&gt;        # Validate configuration file
 ze config show &lt;file&gt; [path...]  # Show the config tree at a path (one-shot)
@@ -884,6 +922,11 @@ ze show errors source l2tp count 5     # last 5 errors from l2tp
 <td>Optional structured context (family, code/subcode, reason, ...)</td>
 </tr>
 <tr>
+<td><code>fix</code></td>
+<td>string</td>
+<td>Optional: the command that fixes the subject, when the producer knows one; omitted when empty</td>
+</tr>
+<tr>
 <td><code>raised</code></td>
 <td>RFC 3339 time</td>
 <td>When the issue first appeared on the bus</td>
@@ -934,7 +977,19 @@ ze show errors source l2tp count 5     # last 5 errors from l2tp
 <tr>
 <td>error</td>
 <td><code>bgp / session-dropped</code></td>
-<td>An Established session ends without a NOTIFICATION exchange (TCP loss, hold-timer with no notification, peer FIN)</td>
+<td>An Established session ends without a NOTIFICATION exchange (TCP loss, hold-timer with no notification, peer FIN) and no other event reported the close</td>
+<td>Never</td>
+</tr>
+<tr>
+<td>error</td>
+<td><code>bgp / doctor-bgp-peer-not-reading</code></td>
+<td>Ze closes a session because the peer accepted no data for a whole write budget (the budget is in <code>detail</code>, the fix on the event)</td>
+<td>Never</td>
+</tr>
+<tr>
+<td>error</td>
+<td><code>bgp / doctor-bgp-write-path-held</code></td>
+<td>Ze closes a session while another writer still holds its write path, so what that writer had not sent is dropped, and a NOTIFICATION that was due is not sent (the fix is on the event)</td>
 <td>Never</td>
 </tr>
 </tbody>
@@ -1019,7 +1074,7 @@ ze show system dns                 # learned resolver records and each dns-sourc
 </tr>
 <tr>
 <td><code>show system date</code></td>
-<td><code>time</code> (RFC3339), <code>unix</code>, <code>unix-nano</code>, <code>timezone</code>, <code>utc-offset-secs</code></td>
+<td><code>time</code> (RFC3339), <code>unix</code>, <code>unix-nano</code>, <code>timezone</code>, <code>utc-offset-secs</code>; an enabled NTP client adds <code>ntp-synced</code>, <code>ntp-source</code>, <code>ntp-offset</code></td>
 </tr>
 <tr>
 <td><code>show system dns</code></td>
@@ -1035,6 +1090,29 @@ ze show system dns                 # learned resolver records and each dns-sourc
 </tr>
 </tbody>
 </table>
+<p><code>show system date</code> refuses when the NTP state provider is unavailable, including
+a build without NTP support. Install a build with NTP support and retry
+<code>ze show system date</code>. A registered but unconfigured or disabled NTP client
+still permits the date answer, without synchronization metadata. The daemon
+uses its accepted configuration to distinguish that inactive client from an
+enabled client whose state cannot be read. An enabled client reports its
+published synchronization state, including <code>false</code> and a zero offset.</p>
+<!-- source: internal/component/plugin/registry/registry.go -- GetNTPSyncInfo -->
+<!-- source: internal/plugins/ntp/register.go -- ntpSyncInfo -->
+<p>The NTP status, peers and date metadata come from the running NTP process,
+whether it runs inside the daemon or as an external plugin. An active client
+with no published snapshot, a disabled worker that disagrees with the accepted
+configuration, a failed command connection or a malformed reply is refused.
+The initial unsynchronized snapshot can carry a zero offset before any server
+exchange; it does not claim a successful synchronization.</p>
+<!-- source: internal/plugins/ntp/register_commands.go -- forwardNTPCommand, executeNTPCommand -->
+<!-- source: internal/plugins/ntp/register.go -- ntpReplyEnabled, ntpActiveMetadata, handleShowSystemNTP, handleShowSystemNTPPeers -->
+<!-- source: internal/plugins/ntp/ntp.go -- syncWorker.run, syncWorker.publishState -->
+<p>If the final write of the last-known time fails, the NTP plugin exits with an
+error that retains the storage cause and asks for write access to be restored.
+It stops its worker and releases its subscriptions before returning, including
+when startup fails after configuration.</p>
+<!-- source: internal/plugins/ntp/register.go -- runNTPPlugin, finishNTPWorker -->
 <p>The <code>hardware</code> subobject under <code>memory</code> and <code>cpu</code> mirrors the data
 returned by <code>show host memory</code> / <code>show host cpu</code>. Both paths are
 correct; pick <code>show system *</code> when you want runtime-first with hardware
@@ -1083,6 +1161,38 @@ applies to the answer: <code>show plugin list | json</code>, <code>| yaml</code>
 <tr>
 <td><code>capabilities</code></td>
 <td>The BGP capability codes it owns, when it declares any</td>
+</tr>
+<tr>
+<td><code>config-roots</code></td>
+<td>The config roots whose presence loads it, when it declares any</td>
+</tr>
+<tr>
+<td><code>dependencies</code></td>
+<td>The plugins that must load with it, when it declares any</td>
+</tr>
+<tr>
+<td><code>optional-dependencies</code></td>
+<td>The plugins it uses when they are loaded, when it declares any</td>
+</tr>
+<tr>
+<td><code>start-after</code></td>
+<td>The plugins it starts after when both are selected, when it declares any</td>
+</tr>
+<tr>
+<td><code>features</code></td>
+<td>Its space-separated feature list, when it declares one</td>
+</tr>
+<tr>
+<td><code>yang</code></td>
+<td><code>true</code> when it carries a YANG schema. Absent otherwise</td>
+</tr>
+<tr>
+<td><code>nlri-decoder</code></td>
+<td><code>true</code> when it decodes NLRI in process. Absent otherwise</td>
+</tr>
+<tr>
+<td><code>nlri-encoder</code></td>
+<td><code>true</code> when it encodes NLRI in process. Absent otherwise</td>
 </tr>
 <tr>
 <td><code>reason</code></td>
@@ -1198,6 +1308,104 @@ to declare and a plugin that answered nothing are different facts.</p>
 started.</p>
 <!-- source: internal/component/plugin/declarations.go -- dataDeclarations, declarationRows, queriedDeclarationRow -->
 <!-- source: internal/component/plugin/register.go -- the two show plugin declarations registrations -->
+<h3 id="request-plugin-restart">request plugin restart</h3>
+<p>Restarts a configured plugin without restarting ze, whether it runs or not.
+A plugin can stop for good on several paths: its failure policy left it
+stopped, the respawn limit disabled it, a restart failed, or its startup
+handshake failed. <code>ze doctor</code> names each such plugin under
+<code>doctor-plugin-stopped</code>, with this command as its fix. A running plugin can
+hold state only a new process clears: a config-committed it was never told of,
+an event it failed to apply, a post-startup callback it never received.
+<code>ze doctor</code> names this command as the fix of those rows too, and as the last
+step of a dropped subscription's fix, once the plugin subscribes in a namespace
+the build registers. A row that counts entries past what the doctor keeps names
+<code>ze show log recent</code> instead, which lists them. The command runs in the daemon.</p>
+<pre><code>ze request plugin restart &lt;name&gt;     # &lt;name&gt; is the plugin's configured name
+</code></pre>
+<p>The name may also follow its keyword, <code>ze request plugin restart name &lt;name&gt;</code>,
+which is the form the web admin page posts. Both forms are the same command.</p>
+<p>Restarting a running plugin stops it, which cuts the commands it was serving,
+and starts it again; its failure policy is not applied, so a plugin whose
+failure stops ze does not stop ze here. The order lifts a respawn-limit disable
+and resets the plugin's respawn count, because the limit guards against a crash
+loop nobody asked for and this restart was asked for. The daemon then respawns
+the plugin and runs its startup handshake again, which delivers the running
+configuration, and answers <code>plugin &lt;name&gt; started again</code>, or <code>plugin &lt;name&gt; was running: stopped and started again</code> (the <code>was-running</code> field says which).</p>
+<table>
+<thead>
+<tr>
+<th>Refusal</th>
+<th>When</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>required argument missing: name</code></td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td><code>request plugin restart needs exactly one plugin name</code></td>
+<td>more than one name was given</td>
+</tr>
+<tr>
+<td><code>plugin &lt;name&gt; is not a configured plugin</code></td>
+<td>neither the configuration nor its auto-load started a plugin of that name. The name is refused, never guessed</td>
+</tr>
+<tr>
+<td><code>plugin &lt;name&gt; cannot restart itself</code></td>
+<td>the plugin sent the command for its own name. The restart waits until the plugin's calls into ze have ended, and this request is one of them, so it is refused before anything stops; type the command at the CLI</td>
+</tr>
+<tr>
+<td><code>plugin &lt;name&gt; was not restarted: a config transaction is in flight</code></td>
+<td>a reload or commit is running, whichever plugins it talks to; run the command again once it has answered</td>
+</tr>
+<tr>
+<td><code>plugin &lt;name&gt; was not restarted: its removal is still pending</code></td>
+<td>a reload removed the plugin and the removal has not settled: the plugin has not acknowledged it, or putting it back failed. <code>ze request reload</code> retries the removal's recovery</td>
+</tr>
+<tr>
+<td><code>plugin &lt;name&gt; cannot be restarted: no plugin server runs here</code></td>
+<td>the process that answered holds no plugin server; the fix is <code>ze start</code></td>
+</tr>
+<tr>
+<td><code>plugin &lt;name&gt; cannot be restarted: plugin startup has not begun</code></td>
+<td>the daemon has not handed its plugins to a process manager yet</td>
+</tr>
+<tr>
+<td><code>plugin &lt;name&gt; did not start again</code></td>
+<td>the restart itself failed. The plugin stays down, and <code>ze doctor</code> names it with the error</td>
+</tr>
+</tbody>
+</table>
+<p>The restart waits 3 seconds, the daemon's stop budget, for the stopped process
+to clean up after its calls into ze. When one of those calls has not returned
+by then, the restart fails rather than wait: the new process is stopped, the
+plugin stays down under <code>doctor-plugin-stopped</code>, and the answer is <code>plugin &lt;name&gt; did not start again</code> with the cause <code>the stopped process has not finished its cleanup</code>. Until that cleanup has run, every restart of the plugin
+is refused with the same cause and starts nothing, and so is a reload that
+would start it again, because the late cleanup would remove what a new process
+registered under the same name. Once the call returns, the restart works
+again. A call that never returns ends only when ze restarts, so the answer and
+the <code>doctor-plugin-stopped</code> row name the restart once the call has returned,
+and <code>ze signal restart</code> if it never does.</p>
+<p>Each refusal the command itself answers says why and names the command that
+helps: <code>ze show doctor</code>, except for the missing server (<code>ze start</code>), a pending
+removal (<code>ze request reload</code>), an unfinished cleanup (the restart once the
+call has returned, or <code>ze signal restart</code>), and a self-restart or a
+transaction in flight, which name the same restart command to run again.</p>
+<p>In the interactive CLI (SSH and <code>ze cli</code>), Tab after <code>request plugin restart</code>
+offers every configured plugin, the names the command knows; a plugin offered
+can still meet a refusal above, such as a pending removal or an unfinished
+cleanup. Each is marked <code>configured plugin, running: the restart stops it first</code> or
+<code>configured plugin, not running</code>. The candidates are asked of the running
+daemon at each Tab, so the marks follow the plugin's state. Shell completion
+(<code>ze completion</code>) has no daemon to ask and offers no plugin names.</p>
+<!-- source: internal/component/plugin/server/register_plugin_restart.go -- handlePluginRestart, pluginRestartRefusal, pluginRestartFailure, removalPendingFor, completePluginRestart -->
+<!-- source: internal/component/plugin/server/reload_tx.go -- restartPlugin, restartPluginProcess -->
+<!-- source: internal/component/plugin/server/restart.go -- restartCleanupGrace, awaitReplacedCleanup, lateCleanupRecord -->
+<!-- source: internal/component/plugin/server/startup.go -- runPluginPhaseWithin -->
+<!-- source: internal/component/plugin/doctor/checks_runtime.go -- pluginStoppedRow -->
+<!-- source: internal/component/plugin/process/stopped.go -- Reenable, RestartCommand -->
+<!-- source: internal/core/ipc/yang/ze-system-cmd.yang -- request plugin restart -->
 <h3 id="show-host">show host</h3>
 <p>Host hardware inventory. Read-only. Walks sysfs/procfs (and issues best-effort
 <code>ethtool</code> ioctls for NIC firmware/rings) to produce a structured JSON description
@@ -1623,10 +1831,15 @@ ze show mpls forwarding limit 500       # Cap the response size
 <p>Each entry reports the incoming label (<code>in-label</code>), the <code>operation</code>
 applied (<code>swap</code> when an outgoing label stack is programmed, <code>pop</code> for
 disposition / implicit-null), any <code>out-labels</code>, the <code>next-hop</code>, and the
-egress <code>device</code>. On a non-Linux host the command fails with an error
-naming the host's OS, rather than answering an empty table: Ze reads the
-kernel MPLS FIB on Linux only.</p>
+egress <code>device</code>. The table is the one used by the data plane that
+<code>interface { backend }</code> selects: the kernel MPLS FIB under <code>netlink</code>, and
+VPP MPLS table 0 plus VPP's labeled IP routes under <code>vpp</code>. The rows have the
+same format on both. When the table cannot be read, the command fails and
+says why. That happens on a non-Linux host (the error names the OS), when VPP
+is unreachable, or when the build has no reader for the selected data plane.
+The command never answers an empty table in place of a table it could not read.</p>
 <!-- source: internal/component/mpls/show_forwarding.go -- handleShowMPLSForwarding -->
+<!-- source: internal/plugins/fib/vpp/mplsforwarding.go -- readMPLSForwarding -->
 <!-- source: internal/component/mpls/forwarding_linux.go -- dumpMPLSRoutes -->
 <!-- source: internal/component/mpls/forwarding_other.go -- dumpMPLSRoutes -->
 <h3 id="show-rsvp-te">show rsvp-te</h3>
@@ -2697,7 +2910,9 @@ ze install remote --interface eth0 --network 10.0.0.0/24 \
 under the same ownership lock. Stop the daemon before installation or replacement.
 Later store maintenance runs as <code>ze</code>, not root.</p>
 <p>The generated unit sets <code>XDG_RUNTIME_DIR=/run/ze</code>, creates <code>/run/ze</code>, and grants
-<code>CAP_NET_ADMIN</code>, <code>CAP_NET_RAW</code>, and <code>CAP_NET_BIND_SERVICE</code>.</p>
+<code>CAP_NET_ADMIN</code>, <code>CAP_NET_RAW</code>, <code>CAP_NET_BIND_SERVICE</code>, and <code>CAP_BPF</code> (for the
+eBPF programs of the IPsec ESP form fast path, the IPsec application override
+guard and traffic-usage).</p>
 <!-- source: internal/plugins/systemd/cmd_install.go -- cmdInstall, chownConfig -->
 <!-- source: internal/component/config/storage/ownership.go -- TransferOwnership -->
 <p>The daemon socket is <code>/run/ze/ze.socket</code> under this unit. Configure
@@ -2902,6 +3117,91 @@ gives one <code>module</code>, <code>level</code>, <code>flags</code>, <code>sco
 <!-- source: internal/plugins/debug/register.go -- set/delete/show/clear debug registrations -->
 <!-- source: internal/plugins/debug/cmd/handlers.go -- show debug live state RPC -->
 <!-- source: internal/component/debug/yang/register.go -- RegisterModule, ValidateFlag -->
+<h3 id="create-agent-skill">create agent skill</h3>
+<pre><code>ze create agent skill [agent &lt;claude|codex|opencode|pi&gt;]
+</code></pre>
+<p>Installs a stub skill named <code>ze</code> that sends the agent to <code>ze show skill ze</code>.
+Without <code>agent</code> it acts on every harness whose configuration directory exists
+(<code>~/.claude</code> or <code>CLAUDE_CONFIG_DIR</code>, <code>~/.codex</code> or <code>CODEX_HOME</code>,
+<code>~/.config/opencode</code>, <code>~/.pi</code>); with no harness found it writes the shared
+stub <code>~/.agents/skills/ze/SKILL.md</code>, which Codex, OpenCode and Pi read. Claude
+Code's stub is <code>skills/ze/SKILL.md</code> under its configuration directory. With
+<code>agent &lt;name&gt;</code> it sets up that harness even where its directory does not
+exist. <code>agent all</code> is refused here: the bare form is the every-harness form.</p>
+<p>For Claude Code (<code>settings.json</code>) and Codex (<code>hooks.json</code>), it also installs
+a session-start hook: one group appended at the end of <code>hooks.SessionStart</code>,
+with no matcher and one entry, type <code>command</code>, command
+<code>/bin/sh -c 'ze show agent context 2&gt;/dev/null || true'</code>, timeout 5 seconds.
+The hook runs <code>show agent context</code> at every session start; the shell makes it
+print nothing and succeed when <code>ze</code> is not on the harness's path. Ze splices
+the group into the file's text, so every other byte stays as it was, inserts
+a missing <code>hooks</code> or <code>SessionStart</code> key, and creates a missing file
+owner-only. A linked file is written through to its final target and the
+link stays.</p>
+<p>Each stub row answers <code>created</code>, <code>updated</code> (a stub an older ze wrote),
+<code>unchanged</code>, <code>foreign</code> (a <code>SKILL.md</code> without Ze's marker, or a file where the
+<code>ze</code> directory belongs, left as it is, with the command that replaces it) or
+<code>refused</code> (with the reason and the fix). Each
+hook row answers <code>created</code>, <code>updated</code> (Ze's group as an older ze wrote it,
+rewritten in place), <code>unchanged</code> or <code>refused</code>. A hook row is refused, and the
+file left as it is, for a file Ze does not fully understand (not valid JSON, a
+byte-order mark, a second <code>hooks</code> or <code>SessionStart</code> key, a <code>hooks</code> value that
+is not an object, a <code>SessionStart</code> value that is not a list, a group that is
+not an object), with the line and column. It is also refused for a dangling
+link, a target that is not a regular file, a file or directory Ze cannot write,
+and a file that changed while Ze edited it. The Codex hook row says Codex
+skips the hook until you trust it with <code>/hooks</code> in Codex. OpenCode and Pi's
+hook rows answer <code>unsupported</code>. The command exits 1 when a row is refused.</p>
+<h3 id="show-agent-skill">show agent skill</h3>
+<pre><code>ze show agent skill [agent &lt;claude|codex|opencode|pi&gt;]
+</code></pre>
+<p>Reports, for every harness the plugin knows (or the one named), whether it was
+found and the state of its stub: <code>current</code>, <code>outdated</code>, <code>missing</code>, <code>foreign</code>,
+<code>refused</code> or <code>unsupported</code>. Its hook rows answer <code>current</code>, <code>outdated</code>,
+<code>missing</code>, <code>refused</code> or, for OpenCode and Pi, <code>unsupported</code>: whether the hook
+is installed, never whether it ran. The Codex row says Ze cannot see whether
+Codex trusts the hook, and to check with <code>/hooks</code>. It changes no file.</p>
+<h3 id="delete-agent-skill">delete agent skill</h3>
+<pre><code>ze delete agent skill [agent &lt;claude|codex|opencode|pi|all&gt;]
+</code></pre>
+<p>Removes the stub Ze wrote, and its directory when that leaves it empty. It
+leaves a <code>SKILL.md</code> without Ze's marker, and anything else Ze did not write
+at the stub's place (<code>foreign</code>). Without <code>agent</code> it acts on every harness
+found, and <code>agent all</code> does the same. With one harness named, the shared stub
+stays while another harness found on the machine still reads it (<code>kept</code>,
+naming that harness). Rows answer <code>removed</code>, <code>absent</code>, <code>kept</code>, <code>foreign</code>,
+<code>refused</code> or <code>unsupported</code>. A hook row answers <code>removed</code>, <code>absent</code> or
+<code>refused</code>: Ze removes its group and its separating comma and leaves every
+other byte, and a <code>SessionStart</code> list or file left empty stays. In Codex's
+file a group of Ze's that is not the last is emptied in place
+(<code>{"hooks": []}</code>) instead, because Codex trusts each hook by its position.</p>
+<p>Through the daemon (<code>ze cli</code>, SSH, REST, gRPC, MCP, web) the three commands
+read and write nothing on the daemon's host. They answer, per harness, the
+stub's default path relative to the home directory with the state
+<code>not-inspected</code>, and for create and show the stub to place, whose body tells
+the agent to ask the Ze system it is connected to for <code>show skill ze</code>. The
+answer carries no hook.</p>
+<!-- source: internal/plugins/skills/agent_skill.go -- harnesses, localRun, remoteAnswer, exitCode -->
+<!-- source: internal/plugins/skills/agent_stub.go -- findStub, createStub, inspectStub, removeStub -->
+<!-- source: internal/plugins/skills/agent_hook.go -- hookCommand, createHook, inspectHook, deleteHook, readLayout, withoutGroup -->
+<!-- source: internal/plugins/skills/yang/ze-skills-cmd.yang -- leaf agent -->
+<h3 id="show-agent-context">show agent context</h3>
+<pre><code>ze show agent context
+</code></pre>
+<p>Prints the few lines an agent session starts with: the Ze version, whether
+the daemon answered, the config directory, and the guide to read
+(<code>ze show skill ze</code>). At a shell, the command dials the daemon's address (the
+one <code>ze cli</code> connects to) once, for at most one second, and closes the
+connection without sending anything. It prints <code>answering at &lt;host:port&gt;</code>
+or <code>not answering at &lt;host:port&gt;</code> with the reason. An address it cannot
+read is reported as not answering, with the reason. The command exits 0 in
+every case. It is what the session-start hook <code>ze create agent skill</code>
+installs runs, and it never fails a session.</p>
+<p>Through the daemon (<code>ze cli</code>, SSH, REST, gRPC, MCP, web) the answer is the
+version, a line saying the caller reached the daemon, and the guide. It
+carries no directory and dials nothing, so a read-only caller does not learn
+where the daemon keeps its config.</p>
+<!-- source: internal/plugins/skills/agent_context.go -- showAgentContextLocal, handleShowAgentContext, daemonState, configDirectory, drawAgentContext -->
 <h3 id="ze-pipe">ze pipe</h3>
 <p>Apply pipe formatting to stdin. Offline commands that print text rather than answer data do not pass
 through the YANG-dispatched pipe infrastructure. <code>ze pipe</code> provides the same
@@ -2925,13 +3225,14 @@ operators (match, count, first, last, display) work on both JSON and plain text.
 <!-- source: cmd/ze/ze_core_pipe.go -- runPipe -->
 <h3 id="ze-data">ze data</h3>
 <p>Inspect a live tree read-only, or modify a tree or explicit blob artifact offline.
-Mutations refuse an active writer. Keys are raw, namespaced paths, and <code>list</code>
+Mutations refuse an active writer, except <code>rm</code>, which sends its removal to the
+daemon that owns the store. Keys are raw, namespaced paths, and <code>list</code>
 recursively lists matching keys.</p>
 <pre><code>ze data --path /etc/ze/database list meta/
 ze data --path /etc/ze/database cat meta/instance/name
 ze data write &lt;key&gt; &lt;file&gt;         # A file of "-" reads stdin
-ze data import &lt;file&gt;...           # Import under file/active/&lt;basename&gt;
-ze data rm &lt;key&gt;...
+ze data import &lt;file&gt;...           # Import as the config &lt;basename&gt;, a new version when it exists
+ze data rm &lt;key&gt;...                # Through the daemon while ze runs
 ze data registered [pattern]
 ze data check
 ze data repair --output &lt;new-path&gt;
@@ -2983,15 +3284,38 @@ the bytes live once under <code>object/&lt;hex&gt;</code>. Each finding is one r
 <td>error</td>
 <td><code>meta/config/&lt;name&gt;/&lt;pointer&gt;</code> names a stamp whose entry does not resolve</td>
 </tr>
+<tr>
+<td><code>removed-during-check</code></td>
+<td>warning</td>
+<td>a writer removed the key after the walk listed it, so it was not read</td>
+</tr>
 </tbody>
 </table>
+<p><code>check</code> reads a live store while ze writes it, so the daemon can remove a key
+after the walk lists it and before the walk reads it. That key is not an error
+and is not skipped in silence: it is named on one stdout line,
+<code>removed while the check ran, not read (&lt;n&gt;): &lt;key&gt;, &lt;key&gt;</code>, a directory key
+ending in <code>/</code>, and the closing line counts it apart from what was read,
+<code>ok: &lt;n&gt; entries read, &lt;n&gt; removed during the check not read, magic ok, container ok</code>.
+No error is drawn from a removed key: an entry whose object was removed, and a
+pointer whose entry was removed, are not judged dangling. The exit code is the
+one the other rows give.</p>
 <p><code>repair</code> preserves the source and writes verified keys to a new tree or blob. It
 refuses an existing output. It then drops every dangling or malformed entry and
 every wrong-hash object from the output, one <code>dropped:</code> row each, keeps orphan
 objects, and reports every pointer left naming a dropped entry without moving
-it. Integrity exits are <code>0</code> for success, <code>1</code> for corruption, skipped or dropped
-keys, or a history error, and <code>2</code> for an I/O failure or unsafe path.</p>
-<!-- source: internal/component/config/storage/cli/cmd_integrity.go -- cmdCheck, cmdRepair, printHistoryFindings -->
+it. A key the daemon removed from the source while the walk ran is not in the
+output: it gets one <code>removed: &lt;key&gt;</code> line, and the summary line counts it,
+<code>&lt;n&gt; recovered, &lt;n&gt; skipped, &lt;n&gt; removed while the repair ran -&gt; &lt;output&gt;</code>.
+Integrity exits are <code>0</code> for success, <code>1</code> for corruption, skipped or dropped
+keys, or a history error, and <code>2</code> for an I/O failure or unsafe path. A removed
+key does not change the exit code.</p>
+<p>Both run while ze runs: neither opens the live store as its writer. A remote
+operator runs the same through the daemon, below: <code>show data check</code> answers
+the rows <code>check</code> prints, and <code>request data repair path &lt;file&gt;</code> writes the
+salvage on the daemon's host. Installing a repaired store in place of the live
+one needs ze stopped.</p>
+<!-- source: internal/component/config/storage/cli/cmd_integrity.go -- cmdCheck, printVerdict, integrityVerdict, reportVerdict, cmdRepair, printRepair, salvageHistory, printHistoryFindings -->
 <!-- source: internal/component/config/storage/history_check.go -- CheckHistory, RepairHistory -->
 <p><code>backup</code> copies every key of the store, at any depth and in any namespace, to
 one new blob artifact under one write lock, so a commit is in the backup whole
@@ -3014,7 +3338,11 @@ version are unchanged. The artifact's config is its active version, or its
 it the artifact's only config is taken, else the one named like this device;
 any other case is refused, listing the artifact's configs. A differing source
 name is printed. A staged candidate refuses the restore. It is offline only:
-while a daemon owns the store it names the live route, <code>request data restore path &lt;file&gt; config</code>.</p>
+while a daemon owns the store it names the live route, <code>request data restore path &lt;file&gt; config</code>. A confirmed commit a stopped daemon left open on this
+device's config refuses it with that window's refusal, naming
+<code>ze start &lt;config&gt;</code>, because that daemon's next start reverts the commit and
+would undo the restore.</p>
+<!-- source: internal/component/config/storage/cli/cmd_restore.go -- restoreConfig -->
 <p><code>ze data restore &lt;file&gt; full</code> replaces the whole live tree with every key of the
 artifact, history, credentials and identity included. The previous tree moves to
 <code>database.replaced-&lt;stamp&gt;</code>, and an unrelated <code>database.zefs</code> beside it moves to
@@ -3028,10 +3356,146 @@ the daemon; there is no live full restore. The restore records a durable
 <code>database.import-intent</code> before it moves anything. When it is interrupted, every
 opener, <code>ze start</code> included, refuses and prints <code>ze data restore &lt;file&gt; full</code>,
 and that command alone finishes the restore.</p>
-<p>The daemon answers two RPCs over SSH, for a file on its own host:</p>
+<p><code>rm</code> removes each key it is given, printing <code>removed &lt;key&gt;</code> for each and then
+<code>&lt;n&gt; entries removed from &lt;store&gt;</code>. A key the store does not hold is an error
+line, and the next key is still removed. It exits <code>0</code> when at least one key was
+removed and <code>2</code> when none was. While a daemon owns the store, the store refuses
+the local writer, so <code>rm</code> sends each key to that daemon as
+<code>delete data key &lt;key&gt;</code>, one command per key, and prints the same lines with
+the same exit codes. It reaches the daemon the way <code>ze doctor</code> does: the
+address and login of the store it was given (the <code>ze.ssh.*</code> settings, then what
+<code>ze init</code> recorded), with no password prompt. The daemon command reaches
+runtime state only, so while ze runs <code>rm</code> removes runtime-state keys only, and
+its refusals are the ones <code>delete data key</code> gives below. When no daemon
+answers, <code>rm</code> keeps the store's refusal, says why the daemon did not answer (no
+listener at its address, no credentials to log in, or no answer) and names the
+command that fixes that, and exits <code>2</code>. With ze stopped, <code>rm</code> removes any key.</p>
+<!-- source: internal/component/config/storage/cli/main.go -- cmdRm, removeKeys, removeKeysThroughDaemon -->
+<!-- source: internal/component/config/storage/daemonroute/daemonroute.go -- Send, OverSSH, UnansweredRefusal -->
+<p><code>write</code> writes the bytes of a file, or of stdin for <code>-</code>, into one key, creating
+it or replacing it, and prints <code>wrote &lt;key&gt; (&lt;n&gt; bytes) into &lt;store&gt;</code>. While a
+daemon owns the store, <code>write</code> sends the bytes to that daemon as
+<code>update data key &lt;key&gt; content &lt;base64&gt;</code>, by the route <code>rm</code> takes, and prints
+the same line with exit <code>0</code>. The daemon command writes runtime state only, and
+its refusals are the ones <code>update data key</code> gives below. A file over 195,840
+bytes is refused before anything connects, with the daemon's own refusal: one
+SSH packet carries the whole command, and 195,840 bytes is what it holds. Write
+a larger value with ze stopped. With ze stopped, <code>write</code> writes any key, of any
+size.</p>
+<!-- source: internal/component/config/storage/cli/main.go -- cmdWrite, writeKey, writeKeyThroughDaemon -->
+<p><code>import</code> lands each file in the config named by its file name, under the key
+<code>file/active/&lt;basename&gt;</code>, and prints <code>imported &lt;key&gt; (&lt;n&gt; bytes)</code> per file and
+<code>&lt;n&gt; files imported into &lt;store&gt;</code>. A config the store already holds is
+committed as a new active version and the previous one is kept as rollback, as
+<code>ze config import</code> replaces one, so a daemon started after the import runs the
+imported config. A config the store does not hold yet is written as its key.
+While a daemon owns the store, <code>import</code> sends each file to that daemon as
+<code>update data config name &lt;name&gt; content &lt;base64&gt;</code>, one command per file, by
+the route <code>rm</code> takes, and prints the same lines. A file the daemon refuses is
+an error line and the next file is still sent, so a refusal of the third file
+leaves the first two imported. A file over 195,840 bytes is refused before
+anything connects; restore a larger config from a backup file on the daemon's
+host with <code>request data restore path &lt;file&gt; config</code>. The command exits <code>0</code>
+when at least one file was imported and <code>2</code> when none was. With ze stopped, a
+file whose config has a confirmed commit a stopped daemon left open is refused
+with that window's refusal, naming <code>ze start &lt;config&gt;</code>, because that daemon's
+next start reverts the commit and would undo the import.</p>
+<!-- source: internal/component/config/storage/cli/main.go -- cmdImport, importConfigs, importConfig, importConfigsThroughDaemon -->
+<!-- source: internal/component/config/confirm/store.go -- WriteOutsideRecorded -->
+<p>The daemon answers these store commands on every surface (SSH, REST, gRPC,
+MCP, the web), acting on the store it owns. The <code>request data</code> commands read
+or write a file on the daemon's own host:</p>
 <pre><code>request data backup path &lt;absolute-file&gt; [spare &lt;n&gt;] [force]
 request data restore path &lt;absolute-file&gt; config [name &lt;source-name&gt;] [client &lt;name&gt;]
+request data repair path &lt;absolute-output&gt;
+delete data key &lt;key&gt;
+update data key &lt;key&gt; content &lt;base64&gt;
+update data config name &lt;name&gt; content &lt;base64&gt;
+show data check
 </code></pre>
+<p><code>request data repair path &lt;absolute-output&gt;</code> writes the salvage <code>ze data repair --output</code> writes, from the store the daemon owns, while it runs. The
+daemon holds its own writes for the walk, so a key it would write or remove
+meanwhile waits, and the copy is one moment of the store. The history of the
+copy is then repaired as <code>ze data repair</code> repairs it. It answers <code>path</code>,
+<code>recovered</code>, <code>skipped</code>, a row per skipped entry and per history finding, and a
+warning when an entry did not read or a history key was dropped. It also
+answers <code>vanished</code> and one <code>vanished-keys</code> row per key removed during the walk,
+which the held writes keep at zero on the daemon. A relative
+path, a <code>..</code> element, a symlink, an existing path, a name the store owns in
+its folder and a path inside the live tree are refused, each naming the rule.
+The live store is not changed; check the copy with
+<code>ze data --path &lt;output&gt; check</code>. The built-in read-only profile is denied it.</p>
+<!-- source: internal/component/config/storage/cli/data_rpc_repair.go -- handleDataRepair, repairAnswer -->
+<!-- source: internal/component/config/storage/salvage.go -- HoldWrites, Salvage -->
+<p><code>show data check</code> answers the store's integrity verdict: <code>entries</code>,
+<code>corrupt-entries</code>, <code>vanished-entries</code>, <code>history-checked</code> and one <code>findings</code> row
+(<code>severity</code>, <code>check</code>, <code>kind</code>, <code>key</code>, <code>detail</code>) per corrupt entry, per key
+removed during the check (kind <code>removed-during-check</code>, a warning) and per
+history finding, the rows <code>ze data check</code> prints. Any error row makes the
+answer an error.
+<code>| json</code> and <code>| table</code> render the same rows. In <code>ze cli -c</code> it runs in your own
+process over the store <code>--path</code> or the configured directory names; every
+other surface asks the daemon, which checks its own store with its writes held
+for the walk.</p>
+<!-- source: internal/component/config/storage/cli/storage_data.go -- dataCheck, answer -->
+<p><code>delete data key &lt;key&gt;</code> removes one runtime-state key while ze runs: a key
+under <code>meta/</code> outside <code>meta/config/</code>. It answers <code>key</code>. A configuration key
+(under <code>file/</code> or <code>meta/config/</code>, or outside both) is refused before the store
+is touched, because a raw removal bypasses its versions, pointers and history;
+the refusal names <code>update data config name &lt;name&gt; content &lt;base64&gt;</code>. A key a
+plugin is granted is refused while that plugin runs, because the plugin manages
+the key while it runs: the refusal names the plugin and
+<code>ze request plugin restart &lt;name&gt;</code>. A key granted to a plugin that does not
+run, and a key no plugin is granted, are removed. Until the daemon has started
+its plugins, a key a plugin is granted is refused, because the daemon cannot
+tell yet whether that plugin runs. A key the
+store does not hold is an error, as it is for <code>ze data rm</code>. The built-in
+read-only profile is denied the command. Runtime state includes the login and
+HTTPS credentials, so removing one of them can lock you out:
+<code>meta/auth/local/...</code> holds the local administrator's name, password hash and
+SSH public keys, <code>meta/ssh/...</code> the SSH login the CLI uses, and <code>meta/web/cert</code>
+and <code>meta/web/key</code> the HTTPS certificate and private key.</p>
+<!-- source: pkg/zefs/keys.go -- KeySSHUsername, KeySSHPassword, KeyLocalAdminUsername, KeyLocalAdminPassword, KeyLocalAdminAuthorizedKeys, KeyWebCert, KeyWebKey -->
+<p><code>update data key &lt;key&gt; content &lt;base64&gt;</code> writes one runtime-state key while ze
+runs, creating it or replacing it with the bytes <code>content</code> decodes to, and
+answers <code>key</code> and <code>bytes</code>. <code>content</code> is base64 (RFC 4648 Section 4, with <code>=</code>
+padding), 4 to 261,120 characters: 1 to 195,840 bytes, the most one SSH packet
+carries with the command around it. The bound is the same on every surface. A
+longer content, an empty one and one that is not base64 are refused before the
+command runs, naming the bound or the encoding and never the value; a larger
+value is written with <code>ze data write</code> while ze is stopped. A configuration key
+and a key whose granted plugin runs are refused as <code>delete data key</code> refuses
+them, before the store is touched. The audit log, the accounting record, the
+SSH exec log and the session transcript record the command with
+<code>&lt;redacted&gt;</code> in place of the content. The built-in read-only profile is denied
+the command. The credential keys named above can be restored this way from a
+copy, without stopping ze.</p>
+<!-- source: internal/component/config/storage/cli/data_rpc.go -- handleDataKeyUpdate, configurationKeyError, runningOwnerError -->
+<!-- source: internal/component/config/storage/yang/ze-data-cmd.yang -- update data key, the content leaf -->
+<!-- source: internal/component/command/argvalidate.go -- outsideEveryLength -->
+<p><code>update data config name &lt;name&gt; content &lt;base64&gt;</code> imports one config while ze
+runs and answers <code>name</code>, <code>version</code> and <code>bytes</code>. <code>name</code> is a file name with no
+directory; a path, <code>.</code> and <code>..</code> are refused. For the daemon's own config, the
+content is staged as the candidate and the same reload a SIGHUP runs promotes
+it, as <code>request data restore ... config</code> does: the config becomes active only
+when the reload accepts it, and a config the reload refuses leaves the active
+config, its pointers and the daemon unchanged, with the reload's reason in the
+refusal. The import is refused while a <code>commit confirmed</code> window is open, with
+the window's own refusal, and while another change is staged, naming commit or
+discard. Any other name is committed as a new active version, the previous one
+kept as rollback, and nothing reloads; on a hub, a name of the form
+<code>client-&lt;name&gt;.conf</code> is the config the hub serves to that managed client, and
+the hub pushes <code>config-changed</code> to it. Such a name is refused, as
+<code>request data restore ... client</code> refuses it, when the hub has no client entry
+of that name or the daemon serves no managed client, because no client would
+fetch it. <code>content</code> has the bound and the
+encoding of <code>update data key</code>; a larger config is restored from a backup file
+on the daemon's host with <code>request data restore path &lt;file&gt; config</code>. The
+records hold <code>&lt;redacted&gt;</code> in place of the content, and the audit log records
+the import under <code>data-config-import</code>. The built-in read-only profile is
+denied the command.</p>
+<!-- source: internal/component/config/storage/cli/data_rpc_config.go -- handleDataConfigUpdate, importDaemonConfig, daemonConfigImportRefusal, importOtherConfig, unservedClientRefusal -->
+<!-- source: internal/component/config/storage/yang/ze-data-cmd.yang -- update data config, the content leaf -->
 <p>Both refuse a relative path, a <code>..</code> element and a symlink, each naming the
 rule. <code>backup</code> walks the daemon's own store under its write lock and answers
 <code>path</code>, <code>keys</code> and <code>bytes</code>. <code>force</code> replaces an existing file and never lifts
@@ -3052,7 +3516,8 @@ carries <code>client</code>.</p>
 <!-- source: internal/component/config/storage/cli/main.go -- Run, openStore, cmdWrite, cmdImport -->
 <!-- source: internal/component/config/storage/cli/cmd_restore.go -- cmdRestore, parseRestoreArgs -->
 <!-- source: internal/component/config/storage/restore.go -- ReadRestoreSource, RestoreConfig -->
-<!-- source: internal/component/config/storage/cli/data_rpc.go -- handleDataBackup, handleDataRestore, restoreClientConfig -->
+<!-- source: internal/component/config/storage/cli/data_rpc.go -- handleDataBackup, handleDataRestore, restoreClientConfig, handleDataKeyDelete, configurationKeyError, removeKeyError -->
+<!-- source: internal/component/config/storage/store.go -- RuntimeKey -->
 <!-- source: internal/component/config/storage/cli/cmd_backup.go -- cmdBackup, daemonAddress -->
 <!-- source: internal/component/config/storage/backup.go -- Backup, storeOwnedName -->
 <!-- source: internal/component/config/storage/cli/cmd_integrity.go -- cmdCheck, cmdRepair, cmdEncode -->
@@ -4118,10 +4583,18 @@ unicast; <code>mp &lt;family&gt; add &lt;prefixes&gt;</code>, <code>mp &lt;famil
 <tr>
 <td><code>show rib candidates [prefix &lt;prefix&gt;]</code></td>
 <td>read-only</td>
-<td>Every Loc-RIB path each protocol offered, selected, standing by or hidden by an import chain, with <code>hidden-by</code> and <code>chain</code> on a hidden path ("Seeing the hidden paths") <!-- source: internal/component/sysrib/candidates.go -- showRIBCandidates -->. <span class="ev-src"><span class="ev-ref"><code>docs/guide/route-policy.md</code></span></span></td>
+<td>Every Loc-RIB path each protocol offered, selected, standing by or hidden by an import chain, with <code>hidden-by</code> and <code>chain</code> on a hidden path ("Seeing the hidden paths") <!-- source: internal/component/sysrib/route_view_candidates.go -- readCandidates -->. <span class="ev-src"><span class="ev-ref"><code>docs/guide/route-policy.md</code></span></span></td>
 </tr>
 </tbody>
 </table>
+<p>The system RIB serves <code>show rib</code>, <code>show rib candidates</code>, <code>show nexthop-table</code>
+and <code>show ecmp-groups</code> in either internal or external placement. Candidate
+queries read the daemon's full Loc-RIB. The other commands read the selected
+worker's route cache, recursive next hops and equal-cost groups. An unavailable
+authority returns an error, rather than an empty candidate table.</p>
+<!-- source: internal/component/sysrib/register.go -- routeViewCommandHandler -->
+<!-- source: internal/component/sysrib/route_view_worker_operations.go -- candidates, enqueue, stoppedError -->
+<!-- source: internal/component/sysrib/route_view.go -- open -->
 <h3 id="irr-filter-commands">IRR Filter Commands</h3>
 <table>
 <thead>
@@ -5064,6 +5537,10 @@ reaches, where the daemon expands the chain.</p>
                         <span class="page-sidebar-link-label">Quickstart</span>
                         <small>Start from a minimal working setup.</small>
                     </a>
+                    <a class="page-sidebar-link" href="../../guides/ai-agent/">
+                        <span class="page-sidebar-link-label">Use Ze with an AI agent</span>
+                        <small>Let Claude Code or Codex drive Ze for you.</small>
+                    </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
                         <small>Install Ze, create the store, and start SSH.</small>
@@ -5093,7 +5570,7 @@ reaches, where the daemon expands the chain.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 22:40 UTC</span>
                 </div>
             </div>
         </footer>

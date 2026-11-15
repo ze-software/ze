@@ -1,6 +1,6 @@
 # RFC 4303 - IP Encapsulating Security Payload (ESP)
 
-ESP. Every requirement this repository extracted from RFC 4303, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+ESP. Every requirement listed for RFC 4303, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,24 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 8 | of 23 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 1 | of 23 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 23 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 23 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 31 | 31 of 41 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-
-### Neutral
-
-measures that are neither good news nor bad
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Gated MUSTs | 23 | of 27 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 23 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 23 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 23 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 23 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 23 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Tested both ways | 8 | of 23 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 1 | of 23 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 23 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 23 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Tests shown to detect a fault | 27 | 27 of 41 tests linked to requirements, 0 without a fault test and 4 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -35,55 +22,75 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 14 | of 23 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 11 | of 23 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+| Declared gap or no test | 14 | of 23 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Audit verdicts | 11 | of 23 mandatory requirements reviewed | 1 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id |
 
-The 9 counts marked as a part above are the whole of the 23 gated MUSTs: they add up to 23. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Neutral
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+measures that are neither good news nor bad
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Out of scope | 0 | of 23 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 23 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 23 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 23 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 23 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+
+### Totals
+
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 23 | of 27 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 23 mandatory requirements: they add up to 23. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | ESP |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 27 |
-| Gated MUST-level | 23 |
+| Mandatory requirements (MUST level) | 23 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 15 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 41 |
-| Tagged units | 41 |
+| Tests linked to requirements | 41 |
 | Recorded audit verdicts | 11 |
-| Discrimination records | 31 |
+| Fault test records | 31 |
 | Summary | `rfc/short/rfc4303.md` |
-| Requirement shard | `rfc/requirements/rfc4303.md` |
+| Requirement table | `rfc/requirements/rfc4303.md` |
 | RFC text | `rfc/full/rfc4303.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: IP Encapsulating Security Payload. Ze is the ESP sender and receiver: its Go builds and installs every SA, through Linux XFRM (internal/component/ike/dataplane/xfrm_linux.go::InstallSA, linux:CONFIG_INET_ESP, linux:CONFIG_INET6_ESP, linux:CONFIG_XFRM_USER) or, on the ze_vpp IPsec dataplane, in VPP's SAD (internal/component/ike/dataplane/vpp.go::InstallSA), and the dataplane performs every per-packet operation. The fourteen per-packet MUSTs are gaps, because the VPP ESP datapath is a shipped path whose real-VPP test shows only that the SA is installed. Two are also unmet on Linux: no dummy packet can be generated (2.6-1), and ze sets no packet limit, so it establishes no new SA before the counter runs out (2.2-3). The other twelve hold on Linux and owe tests
+Included in automatic checks: IP Encapsulating Security Payload. Ze is the ESP sender and receiver: its Go builds and installs every SA, through Linux XFRM (internal/component/ike/dataplane/xfrm_linux.go::InstallSA, linux:CONFIG_INET_ESP, linux:CONFIG_INET6_ESP, linux:CONFIG_XFRM_USER) or, on the ze_vpp IPsec dataplane, in VPP's SAD (internal/component/ike/dataplane/vpp.go::InstallSA), and the dataplane performs every per-packet operation. The fourteen per-packet MUSTs are gaps, because the VPP ESP datapath is a shipped path whose real-VPP test shows only that the SA is installed. Two are also unmet on Linux: no dummy packet can be generated (2.6-1), and ze sets no packet limit, so it establishes no new SA before the counter runs out (2.2-3). The other twelve hold on Linux and owe tests
 
-## What the public ledger says
+## Published support status
 
 **Area:** ESP
 
@@ -98,14 +105,14 @@ Enrolled: IP Encapsulating Security Payload. Ze is the ESP sender and receiver: 
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 8 | one part of the gated population |
-| Annotated (including scoped evidence) | 15 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **23** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 8 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 15 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **23** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (8):** [`RFC4303-1-1`](#rfc4303-1-1), [`RFC4303-1-2`](#rfc4303-1-2), [`RFC4303-2-1`](#rfc4303-2-1), [`RFC4303-2.1-1`](#rfc4303-2.1-1), [`RFC4303-2.1-2`](#rfc4303-2.1-2), [`RFC4303-3.2-1`](#rfc4303-3.2-1), [`RFC4303-3.4.3-2`](#rfc4303-3.4.3-2), [`RFC4303-2.2.1-2`](#rfc4303-2.2.1-2)
 
@@ -113,20 +120,23 @@ Enrolled: IP Encapsulating Security Payload. Ze is the ESP sender and receiver: 
 
 ## Figures
 
-- **MUST bar**: Ze proven 7, Ze correctness gap 16
-- **Overview bar**: Ze MUST proven 7, SHOULD not decided 4, Ze correctness gap 16
+- **MUST bar**: Ze proven 7, Proof pending 2, Not built 14
+- **Overview bar**: Ze MUST proven 7, Proof pending 3, Not assessed 2, Not built 15
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 23 |
 | MUST rows kept (the MUST bar) | 23 |
 | Ze proven | 7 |
 | OS verified | 0 |
+| Proof pending | 2 |
 | OS testing gap | 0 |
-| Ze correctness gap | 16 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 14 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -139,11 +149,12 @@ Enrolled: IP Encapsulating Security Payload. Ze is the ESP sender and receiver: 
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 4 |
+| SHOULD proof pending | 1 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 2 |
+| SHOULD not built | 1 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc4303.json](../../../data/rfc/rfc4303.json).
 
@@ -175,7 +186,7 @@ Source: [data/rfc/rfc4303.json](../../../data/rfc/rfc4303.json).
 | `RFC4303-3.4.4.1-2` | If the default padding scheme (see Section 2.4) has been employed, the receiver SHOULD inspect the Padding field before removing the padding prior to passing the decrypted data to the next layer. (§3.4.4.1) | SHOULD | 3.4.4.1 - Separate confidentiality and integrity algorithms, inbound | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze's Go performs no ESP packet processing. Both dataplane backends decrypt in a layer below Ze and remove the padding there: Linux XFRM for an SA installed through internal/component/ike/dataplane/xfrm_linux.go, and VPP's IPsec SAD for an SA installed through internal/component/ike/dataplane/vpp.go (vppBackend.InstallSA writes an ipsec_sad_entry_v3 whose fields and vppSAFlags flags carry no padding check). Ze installs no SA attribute on either backend that asks for the Padding bytes to be inspected, and nothing in this repository shows the kernel or VPP inspects them, so the SHOULD is recorded unmet rather than delegated |
 | `RFC4303-3.4.4.2-1` | Decrypts and integrity checks the ESP Payload Data, Padding, Pad Length, and Next Header, using the key, algorithm, algorithm mode, and cryptographic synchronization data (if any), indicated by the SA. (§3.4.4.2) | MUST | 3.4.4.2 - Combined confidentiality and integrity algorithms, inbound | **positive:** no positive test. **negative:** no negative test. **{gap}:** a gap in proof on one of the two IPsec dataplanes. The Linux path is the verified half: for a combined-mode SA, which internal/component/ike/dataplane/xfrm_linux.go::InstallSA installs with the AEAD algorithm and ICV length it negotiated, the kernel's ESP input (net/ipv4/esp4.c and net/ipv6/esp6.c, linux:CONFIG_INET_ESP, linux:CONFIG_INET6_ESP) decrypts and verifies the payload, padding, pad length and next header in one crypto_aead_decrypt call; no test covers it. The VPP half is unverified: the ze_vpp IPsec dataplane (internal/component/ike/dataplane/register_vpp.go, vpp.go::InstallSA, salt from vpp.go::vppCryptoKeyAndSalt) installs the SA in VPP, and no test shows VPP decrypts and verifies it |
 | `RFC4303-2.2.1-1` | To support high-speed IPsec implementations, Extended Sequence Numbers (ESNs) SHOULD be implemented, as an extension to the current, 32-bit sequence number field. (§2.2.1) | SHOULD | 2.2.1 - Extended (64-bit) Sequence Number | **positive:** no positive test. **negative:** no negative test |
-| `RFC4303-2.2.1-2` | Use of an ESN MUST be negotiated by an SA management protocol. (§2.2.1) | MUST | 2.2.1 - Extended (64-bit) Sequence Number | **positive:** `unit/verify` [`TestEsnInitiatorRefusesAnESNValueItNeverOffered`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_esn_test.go#L152). **negative:** `unit/verify` [`TestEsnInitiatorRefusesAnESNValueItNeverOffered`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_esn_test.go#L156) |
+| `RFC4303-2.2.1-2` | Use of an ESN MUST be negotiated by an SA management protocol. (§2.2.1) | MUST | 2.2.1 - Extended (64-bit) Sequence Number | **positive:** `unit/verify` [`TestEsnInitiatorRefusesAnESNValueItNeverOffered`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_esn_test.go#L153). **negative:** `unit/verify` [`TestEsnInitiatorRefusesAnESNValueItNeverOffered`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_esn_test.go#L157) |
 | `RFC4303-3.4.3-4` | a window size of 64 is preferred and SHOULD be employed as the default (§3.4.3) | SHOULD | 3.4.3 - Sequence Number verification, the anti-replay section | **positive:** `unit/verify` [`TestChildSAReplayWindowDefault`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L336). **negative:** no negative test. **{single-polarity}:** a default value has no conforming negative. The requirement is met or it is not, and there is no input a receiver must refuse, so the sibling rows -3.4.3-1 and -3.4.3-2 carry the same annotation. Proven by the production Child SA path installing ReplayWin=64 on both directions (internal/component/ike/engine/child.go:62, :377, :444) |
 | `RFC4303-3.3.4-3` | In tunnel mode, ESP is applied to an IP packet, which may be a fragment of an IP datagram. (§3.3.4) | MAY | 3.3.4 - Fragmentation | **positive:** no positive test. **negative:** no negative test |
 
@@ -201,7 +212,7 @@ Source: [data/rfc/rfc4303.json](../../../data/rfc/rfc4303.json).
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC4303-1-1`](#rfc4303-1-1)
 
@@ -218,7 +229,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 Integrity-only ESP MUST be offered as a service selection option, e.g., it must be negotiable in SA management protocols (§1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-08 (independent auditor) after 67700fd37e. TestRFC4303IntegrityOnlyESPIsNegotiated changed only the initiatorFirstChildSA call (peer config argument dropped); the integrity-only proposal is still negotiated and installed as two SAs. Records are current. Prior judgement: Independently re-judged 2026-10-28 after the ba03d7c2c7 ESP cipher change, from rfc/full/rfc4303.txt Section 1: "Integrity-only ESP MUST be offered as a service selection option, e.g., it must be negotiable in SA management protocols and MUST be configurable via management interfaces." This row covers service selection and negotiation; the management-interface clause is separately listed as RFC4303-1-1, not newly audited here. Read all four tagged units and their helpers, then independently re-read the approved crypto-test strengthening. TestRFC4303IntegrityOnlyESPIsAccepted now enumerates SupportedESPIntegrityNames and resolves each entry with LookupESPIntegrity, including ESP-only SHA1 alongside SHA256/384/512; it requires a nonempty registry and pins the selected NULL ID, zero key length and unchanged integrity ID for every entry. This closes the discovered mismatch between its universal ESP claim and the former IKE-only enumeration without removing or weakening an assertion. TestRFC4303IntegrityOnlyESPIsNegotiated drives real IKE_SA_INIT/IKE_AUTH handlers, asserts the NULL/no-attribute plus SHA256 offer, established state and both installed Child-SA parameter sets, including no encryption key and 32-octet SHA256 keys. TestRFC4303VPPIntegrityOnlyESPIsInstalled asserts the exact emitted SAD cipher and integrity enums; this is the VPP API boundary, not observed packet forwarding. TestIntegrityOnlyESPRefusals supplies distinct negative bounds, asserting ErrProposalIncomplete for NULL/NONE and ErrNoProposalChosen for a keyed NULL offer or an unoffered NULL suite; these bounds do not themselves prove service availability. The positives do: refusing NULL cannot satisfy their exact acceptance assertions. In the changed acceptESPEncryption, FixedKeyOctets recognizes NULL with zero key octets, matching IDs are required and a nonzero wire Key Length is rejected; espProposalComplete independently excludes NULL/NONE. The service remains implemented and these assertions discriminate its loss. Read the native engine recording: the clean control names TestRFC4303IntegrityOnlyESPIsNegotiated as PASS; adding remote.ID == ENCR_NULL to the admission refusal makes the same unit FAIL with state = dead rather than established. That break directly removes the required service, unlike a generic producer panic. No tests were launched by this auditor; the corrected crypto unit's fresh native observation belongs to the discrimination repair, not an inferred result here.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-10 (independent closure auditor, spec-ipsec-esp-offer-requires-esn) after affa3d8684 and da3ff616f6. crypto/proposal.go::espProposalComplete changed only its doc comment; acceptESPEncryption unchanged. The responder now refuses an ESP offer with no ESN transform (RFC 7296 Section 3.3.3), which does not withdraw integrity-only ESP: Ze's own offer (wireESPOffer) carries ESN 0, so TestRFC4303IntegrityOnlyESPIsNegotiated still negotiates NULL+SHA256 end to end (engine package green under full tags, main-thread run). Tagged units unchanged; judgement stands. Prior judgement: Re-judged 2026-11-08 (independent auditor) after 67700fd37e. TestRFC4303IntegrityOnlyESPIsNegotiated changed only the initiatorFirstChildSA call (peer config argument dropped); the integrity-only proposal is still negotiated and installed as two SAs. Records are current. Prior judgement: Independently re-judged 2026-10-28 after the ba03d7c2c7 ESP cipher change, from rfc/full/rfc4303.txt Section 1: "Integrity-only ESP MUST be offered as a service selection option, e.g., it must be negotiable in SA management protocols and MUST be configurable via management interfaces." This row covers service selection and negotiation; the management-interface clause is separately listed as RFC4303-1-1, not newly audited here. Read all four tagged units and their helpers, then independently re-read the approved crypto-test strengthening. TestRFC4303IntegrityOnlyESPIsAccepted now enumerates SupportedESPIntegrityNames and resolves each entry with LookupESPIntegrity, including ESP-only SHA1 alongside SHA256/384/512; it requires a nonempty registry and pins the selected NULL ID, zero key length and unchanged integrity ID for every entry. This closes the discovered mismatch between its universal ESP claim and the former IKE-only enumeration without removing or weakening an assertion. TestRFC4303IntegrityOnlyESPIsNegotiated drives real IKE_SA_INIT/IKE_AUTH handlers, asserts the NULL/no-attribute plus SHA256 offer, established state and both installed Child-SA parameter sets, including no encryption key and 32-octet SHA256 keys. TestRFC4303VPPIntegrityOnlyESPIsInstalled asserts the exact emitted SAD cipher and integrity enums; this is the VPP API boundary, not observed packet forwarding. TestIntegrityOnlyESPRefusals supplies distinct negative bounds, asserting ErrProposalIncomplete for NULL/NONE and ErrNoProposalChosen for a keyed NULL offer or an unoffered NULL suite; these bounds do not themselves prove service availability. The positives do: refusing NULL cannot satisfy their exact acceptance assertions. In the changed acceptESPEncryption, FixedKeyOctets recognizes NULL with zero key octets, matching IDs are required and a nonzero wire Key Length is rejected; espProposalComplete independently excludes NULL/NONE. The service remains implemented and these assertions discriminate its loss. Read the native engine recording: the clean control names TestRFC4303IntegrityOnlyESPIsNegotiated as PASS; adding remote.ID == ENCR_NULL to the admission refusal makes the same unit FAIL with state = dead rather than established. That break directly removes the required service, unlike a generic producer panic. No tests were launched by this auditor; the corrected crypto unit's fresh native observation belongs to the discrimination repair, not an inferred result here.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -236,7 +247,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC4303IntegrityOnlyESPOnTheWireIsNotAH`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_probe_linux_test.go#L195) | unit/verify | revert, verified |
-| positive | [`TestRFC4301ChildSAIsInstalledAsESP`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_esp_test.go#L20) | unit/verify | revert, verified |
+| positive | [`TestRFC4301ChildSAIsInstalledAsESP`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_esp_test.go#L20) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestIPsecSAProtocolNumber`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L364) | unit/verify | revert, verified |
 | positive | [`TestRFC4303ESPPacketOnTheWireCarriesProtocol50`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_probe_linux_test.go#L175) | unit/verify | revert, verified |
 
@@ -273,9 +284,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC4303InboundESPToAnotherLocalAddressMapsToNoSA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_inbound_key_linux_test.go#L59) | unit/verify | revert, verified |
+| negative | [`TestRFC4303InboundESPToAnotherLocalAddressMapsToNoSA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_inbound_key_linux_test.go#L59) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | negative | [`TestRFC4303InboundESPToUnconfiguredDestinationMapsToNoSA`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_probe_linux_test.go#L244) | unit/verify | revert, verified |
-| positive | [`TestRFC4303InboundChildSAKeyedOnNegotiatedSPIAndLocalAddress`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_inbound_key_test.go#L24) | unit/verify | revert, verified |
+| positive | [`TestRFC4303InboundChildSAKeyedOnNegotiatedSPIAndLocalAddress`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_inbound_key_test.go#L24) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestRFC4303InboundESPMapsByConfiguredDestination`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_probe_linux_test.go#L214) | unit/verify | revert, verified |
 | positive | [`TestRFC4303InboundESPSAKeyedOnConfiguredDestination`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_test.go#L148) | unit/verify | revert, verified |
 
@@ -283,55 +294,55 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 For a unicast SA or a single-sender multicast SA, the sender MUST increment this field for every transmitted packet. (§2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4303-2.2-1, so no unit is bound to it.
+No test carries RFC4303-2.2-1, so there is no linked test.
 
 ### [`RFC4303-2.2-2`](#rfc4303-2.2-2)
 
 In other words, the sender MUST NOT send a packet on an SA if doing so would cause the sequence number to cycle. (§3.3.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4303-2.2-2, so no unit is bound to it.
+No test carries RFC4303-2.2-2, so there is no linked test.
 
 ### [`RFC4303-2.2-3`](#rfc4303-2.2-3)
 
 Thus, the sender's counter and the receiver's counter MUST be reset (by establishing a new SA and thus a new key) prior to the transmission of the 2^32nd packet on an SA. (§2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4303-2.2-3, so no unit is bound to it.
+No test carries RFC4303-2.2-3, so there is no linked test.
 
 ### [`RFC4303-2.4-1`](#rfc4303-2.4-1)
 
 If an encryption algorithm is employed that requires the plaintext to be a multiple of some number of bytes, e.g., the block size of a block cipher, the Padding field is used to fill the plaintext (consisting of the Payload Data, Padding, Pad Length, and Next Header fields) to the size required by the algorithm. o Padding also may be required, irrespective of encryption algorithm requirements, to ensure that the resulting ciphertext terminates on a 4-byte boundary. Specifically, the Pad Length and Next Header fields must be right aligned within a 4-byte word, as illustrated in the ESP packet format figures above, to ensure that the ICV field (if present) is aligned on a 4-byte boundary. Padding beyond that required for the algorithm or alignment reasons cited above could be used to conceal the actual length of the payload, in support of TFC. However, the Padding field described is too limited to be effective for TFC and thus should not be used for that purpose. Instead, the separate mechanism described below (see Section 2.7) should be used when TFC is required. The sender MAY add 0 to 255 bytes of padding. Inclusion of the Padding field in an ESP packet is optional, subject to the requirements noted above, but all implementations MUST support generation and consumption of padding. (§2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4303-2.4-1, so no unit is bound to it.
+No test carries RFC4303-2.4-1, so there is no linked test.
 
 ### [`RFC4303-2.6-1`](#rfc4303-2.6-1)
 
 the protocol value 59 (which means "no next header") MUST be used to designate a "dummy" packet. A transmitter MUST be capable of generating dummy packets marked with this value in the next protocol field (§2.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4303-2.6-1, so no unit is bound to it.
+No test carries RFC4303-2.6-1, so there is no linked test.
 
 ### [`RFC4303-2.6-2`](#rfc4303-2.6-2)
 
 a receiver MUST be prepared to discard such packets, without indicating an error. (§2.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4303-2.6-2, so no unit is bound to it.
+No test carries RFC4303-2.6-2, so there is no linked test.
 
 ### [`RFC4303-3.2-1`](#rfc4303-3.2-1)
 
 Note that although both confidentiality and integrity are optional, at least one of these services MUST be selected, hence both algorithms MUST NOT be simultaneously NULL. (§3.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Independently re-judged 2026-10-28 after the ba03d7c2c7 ESP cipher change, from rfc/full/rfc4303.txt Section 3.2: "Note that although both confidentiality and integrity are optional, at least one of these services MUST be selected, hence both algorithms MUST NOT be simultaneously NULL." Read every tagged cover: TestIntegrityOnlyESPRefusals and both tags in TestIPsecESPRequiresIntegrity. The IKE test supplies an otherwise complete matching NULL/NONE proposal and requires the specific ErrProposalIncomplete, not an arbitrary refusal; espProposalComplete checks exactly that forbidden pair before matching. Its retained mutant disables that exact predicate rather than an unrelated parser error. The OSPF test's negative config has a valid ESP protocol and nonreserved SPI and requires ErrIPsecAuthAlgo for NULL/no integrity; its separate positive config adds valid SHA256 and a 32-octet key and requires successful validation. Thus its two tags name distinct inputs and assertions, not one assertion counted twice. validateIPsecInterface rejects absent/unknown integrity before any SA install. The changed parseESPProposal still requires a hash for every non-AEAD cipher, including NULL, and validates an explicitly provided hash through HashImplementedESP; the change admits ESP-only SHA1, not absent integrity. Read matchOfferedESP/espProposalMatches as well: non-AEAD responder selection resolves a configured integrity algorithm and requires it in the peer offer. Both halves of the sentence express the same exclusion; confidentiality-only support is optional, not an additional acceptance obligation. Retain enforced for the exact prohibition. Evidence boundary retained from the earlier judgment: the tagged IKE assertion exercises initiator answer validation, not the config parser or responder refusal directly; those latter guards were read, not newly execution-proven here. No test run or fresh red/green observation is claimed by this audit.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-10 (independent closure auditor, spec-ipsec-esp-offer-requires-esn) after affa3d8684 and da3ff616f6. crypto/proposal.go::espProposalComplete changed only its doc comment, so the NULL/NONE refusal TestIntegrityOnlyESPRefusals asserts is byte-identical in behaviour; parseESPProposal and validateIPsecInterface unchanged. Tagged units unchanged; judgement stands. Prior judgement: Independently re-judged 2026-10-28 after the ba03d7c2c7 ESP cipher change, from rfc/full/rfc4303.txt Section 3.2: "Note that although both confidentiality and integrity are optional, at least one of these services MUST be selected, hence both algorithms MUST NOT be simultaneously NULL." Read every tagged cover: TestIntegrityOnlyESPRefusals and both tags in TestIPsecESPRequiresIntegrity. The IKE test supplies an otherwise complete matching NULL/NONE proposal and requires the specific ErrProposalIncomplete, not an arbitrary refusal; espProposalComplete checks exactly that forbidden pair before matching. Its retained mutant disables that exact predicate rather than an unrelated parser error. The OSPF test's negative config has a valid ESP protocol and nonreserved SPI and requires ErrIPsecAuthAlgo for NULL/no integrity; its separate positive config adds valid SHA256 and a 32-octet key and requires successful validation. Thus its two tags name distinct inputs and assertions, not one assertion counted twice. validateIPsecInterface rejects absent/unknown integrity before any SA install. The changed parseESPProposal still requires a hash for every non-AEAD cipher, including NULL, and validates an explicitly provided hash through HashImplementedESP; the change admits ESP-only SHA1, not absent integrity. Read matchOfferedESP/espProposalMatches as well: non-AEAD responder selection resolves a configured integrity algorithm and requires it in the peer offer. Both halves of the sentence express the same exclusion; confidentiality-only support is optional, not an additional acceptance obligation. Retain enforced for the exact prohibition. Evidence boundary retained from the earlier judgment: the tagged IKE assertion exercises initiator answer validation, not the config parser or responder refusal directly; those latter guards were read, not newly execution-proven here. No test run or fresh red/green observation is claimed by this audit.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -343,25 +354,25 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 
 The sender's counter is initialized to 0 when an SA is established. The sender increments the sequence number (or ESN) counter for this SA and inserts the low-order 32 bits of the value into the Sequence Number field. Thus, the first packet sent using a given SA will contain a sequence number of 1. (§3.3.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4303-3.3.3-1, so no unit is bound to it.
+No test carries RFC4303-3.3.3-1, so there is no linked test.
 
 ### [`RFC4303-3.3.4-1`](#rfc4303-3.3.4-1)
 
 Thus, transport mode ESP is applied only to whole IP datagrams (not to IP fragments). (§3.3.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4303-3.3.4-1, so no unit is bound to it.
+No test carries RFC4303-3.3.4-1, so there is no linked test.
 
 ### [`RFC4303-3.3.4-2`](#rfc4303-3.3.4-2)
 
 In any case, an ESP implementation MUST support generation of ICMP PMTU messages (or equivalent internal signaling for native host implementations) to minimize the likelihood of fragmentation. (§3.3.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4303-3.3.4-2, so no unit is bound to it.
+No test carries RFC4303-3.3.4-2, so there is no linked test.
 
 ### [`RFC4303-3.4.3-1`](#rfc4303-3.4.3-1)
 
@@ -382,56 +393,56 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC4303ESPReplayWindowWithoutIntegrityIsRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_test.go#L98) | unit/verify | revert, verified |
-| positive | [`TestChildSAReplayRequiresIntegrity`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L359) | unit/verify | revert, verified |
+| positive | [`TestChildSAReplayRequiresIntegrity`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L359) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestRFC4303ESPReplayWindowCarriesIntegrity`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_test.go#L70) | unit/verify | revert, verified |
 
 ### [`RFC4303-3.4.3-3`](#rfc4303-3.4.3-3)
 
 The receive window is updated only if the integrity verification succeeds. (§3.4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4303-3.4.3-3, so no unit is bound to it.
+No test carries RFC4303-3.4.3-3, so there is no linked test.
 
 ### [`RFC4303-3.4.2-1`](#rfc4303-3.4.2-1)
 
 For a unicast SA, this determination is based on the SPI or the SPI plus protocol field, as described in Section 2.1. If an implementation supports multicast traffic, the destination address is also employed in the lookup (in addition to the SPI), and the sender address also may be employed, as described in Section 2.1. (This process is described in more detail in the Security Architecture document.) The SAD entry for the SA also indicates whether the Sequence Number field will be checked, whether 32- or 64-bit sequence numbers are employed for the SA, and whether the (explicit) ICV field should be present (and if so, its size). Also, the SAD entry will specify the algorithms and keys to be employed for decryption and ICV computation (if applicable). If no valid Security Association exists for this packet, the receiver MUST discard the packet; this is an auditable event. (§3.4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4303-3.4.2-1, so no unit is bound to it.
+No test carries RFC4303-3.4.2-1, so there is no linked test.
 
 ### [`RFC4303-3.4.2-2`](#rfc4303-3.4.2-2)
 
 If an implementation supports multicast traffic, the destination address is also employed in the lookup (in addition to the SPI), and the sender address also may be employed, as described in Section 2.1. (§3.4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4303-3.4.2-2, so no unit is bound to it.
+No test carries RFC4303-3.4.2-2, so there is no linked test.
 
 ### [`RFC4303-3.4.4.1-1`](#rfc4303-3.4.4.1-1)
 
 If separate confidentiality and integrity algorithms are employed processing proceeds as follows: 1. If integrity has been selected, the receiver computes the ICV over the ESP packet minus the ICV, using the specified integrity algorithm and verifies that it is the same as the ICV carried in the packet. Details of the computation are provided below. If the computed and received ICVs match, then the datagram is valid, and it is accepted. If the test fails, then the receiver MUST discard the received IP datagram as invalid; this is an auditable event. The log data SHOULD include the SPI value, date/time received, Source Address, Destination Address, the Sequence Number, and (for IPv6) the cleartext Flow ID. Implementation Note: Implementations can use any set of steps that results in the same result as the following set of steps. Begin by removing and saving the ICV field. Next check the overall length of the ESP packet minus the ICV field. If implicit padding is required, based on the block size of the integrity algorithm, append zero-filled bytes to the end of the ESP packet directly after the Next Header field, or after the high-order 32 bits of the sequence number if ESN is selected. Perform the ICV computation and compare the result with the saved value, using the comparison rules defined by the algorithm specification. 2. The receiver decrypts the ESP Payload Data, Padding, Pad Length, and Next Header using the key, encryption algorithm, algorithm mode, and cryptographic synchronization data (if any), indicated by the SA. As in Section 3.3.2, we speak here in terms of encryption always being applied because of the formatting implications. This is done with the understanding that "no confidentiality" is offered by using the NULL encryption algorithm (RFC 2410). - If explicit cryptographic synchronization data, e.g., an IV, is indicated, it is taken from the Payload field and input to the decryption algorithm as per the algorithm specification. - If implicit cryptographic synchronization data is indicated, a local version of the IV is constructed and input to the decryption algorithm as per the algorithm specification. 3. The receiver processes any Padding as specified in the encryption algorithm specification. (§3.4.4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4303-3.4.4.1-1, so no unit is bound to it.
+No test carries RFC4303-3.4.4.1-1, so there is no linked test.
 
 ### [`RFC4303-3.4.4.1-2`](#rfc4303-3.4.4.1-2)
 
 If the default padding scheme (see Section 2.4) has been employed, the receiver SHOULD inspect the Padding field before removing the padding prior to passing the decrypted data to the next layer. (§3.4.4.1)
 
-Audit verdict: unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-11-09 (child 20 closure) after the doc comment of dataplane/xfrm_linux.go::xfrmStateFromParams was corrected: it now says the builder sets no XFRM_STATE_NOECN and that ESN and AFUnspec are netlink.XfrmState's only flag fields. No statement of the function changed, so the judgement below stands. Prior judgement: Re-judged 2026-11-08 (independent auditor) after 0db8414cfd and c8e036be19 changed dataplane/xfrm_linux.go::xfrmStateFromParams: the only change sets state.AFUnspec for a tunnel-mode SA with no selector (XFRM_STATE_AF_UNSPEC, RFC 4301 Section 5.1.2 cross-family). It adds no padding-check attribute; Ze's Go still performs no ESP decryption on either backend. The gap stands. Prior judgement: Re-judged 2026-10-11 by an independent judge after 3c3792805f rewrote the {gap}. RFC 4303 3.4.4.1: "If the default padding scheme (see Section 2.4) has been employed, the receiver SHOULD inspect the Padding field before removing the padding prior to passing the decrypted data to the next layer." Ze's Go performs no ESP decryption on either backend. Linux XFRM: xfrmStateFromParams builds the netlink XfrmState and carries no attribute asking for the Padding bytes to be checked. VPP: vppBackend.InstallSA writes an ipsec_sad_entry_v3 whose flags come from vppSAFlags (IS_INBOUND, IS_TUNNEL, IS_TUNNEL_V6, USE_ANTI_REPLAY, USE_ESN, UDP_ENCAP), and the vendored govpp ipsec_types vocabulary (NONE, USE_ESN, USE_ANTI_REPLAY, IS_TUNNEL, IS_TUNNEL_V6, UDP_ENCAP, IS_INBOUND, ASYNC) has no padding check to ask for. Nothing in the repository shows either layer inspecting the padding values, so the SHOULD is unmet. The annotation now names both backends and their producers, resolving the earlier defect. No test tags the row, which is correct for a {gap}.
+Audit verdict: unimplemented (no code path enforces the requirement), stale-unit: internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams moved. Re-judged 2026-11-10 independently of producer authors. RFC 4303 Section 3.4.4.1 step 3 says the receiver SHOULD inspect default Padding before removal and delivery. xfrmStateFromParams builds SA selectors, replay, transforms, UDP encapsulation and PMTU/DSCP flags but requests no padding inspection. vppBackend.InstallSA builds the SAD request and vppSAFlags selects direction, tunnel, replay and UDP flags; neither requests padding-byte inspection. Ze performs no ESP decryption at these boundaries. No observed lower-layer proof establishes inspection, so the existing explicit gap remains unimplemented; no support claim is upgraded.
 
-No test carries RFC4303-3.4.4.1-2, so no unit is bound to it.
+No test carries RFC4303-3.4.4.1-2, so there is no linked test.
 
 ### [`RFC4303-3.4.4.2-1`](#rfc4303-3.4.4.2-1)
 
 Decrypts and integrity checks the ESP Payload Data, Padding, Pad Length, and Next Header, using the key, algorithm, algorithm mode, and cryptographic synchronization data (if any), indicated by the SA. (§3.4.4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4303-3.4.4.2-1, so no unit is bound to it.
+No test carries RFC4303-3.4.4.2-1, so there is no linked test.
 
 ### [`RFC4303-2.2.1-2`](#rfc4303-2.2.1-2)
 
@@ -441,8 +452,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestEsnInitiatorRefusesAnESNValueItNeverOffered`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_esn_test.go#L156) | unit/verify | unproven |
-| positive | [`TestEsnInitiatorRefusesAnESNValueItNeverOffered`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_esn_test.go#L152) | unit/verify | unproven |
+| negative | [`TestEsnInitiatorRefusesAnESNValueItNeverOffered`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_esn_test.go#L157) | unit/verify | unproven |
+| positive | [`TestEsnInitiatorRefusesAnESNValueItNeverOffered`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_esn_test.go#L153) | unit/verify | unproven |
 
 ### [`RFC4303-3.4.3-4`](#rfc4303-3.4.3-4)
 
@@ -454,7 +465,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 |---|---|---|---|
 | positive | [`TestChildSAReplayWindowDefault`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L336) | unit/verify | unproven |
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -474,57 +485,57 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
 | `front` | not stated | 0 | skipped (front-matter) | Title block, Status of this Memo, copyright notice, Abstract and table of contents. The Abstract summarises the protocol and states no obligation. |
-| `1` | Introduction | 2 | walked | Introduction. It states the service model and the three service combinations, and its two sites carry the integrity-only obligation this walk declares as RFC4303-1-1. The RFC 2119 key-words paragraph sits here too and binds nobody, which is why the derivation excludes it from the site inventory. Site 1:1 was split on 2026-09-30 (rfc/corrections/rfc4303.md): its negotiable-in-SA-management-protocols clause is RFC4303-1-2, which shares the site and so is declared unsourced here. |
-| `2` | Packet format | 2 | walked | Packet format. Site 2:1 is the protocol number 50 obligation and site 2:2 is the backward-compatibility sentence. The field figure and the coverage prose are descriptive. |
-| `2.1` | Security Parameters Index | 6 | walked | Security Parameters Index. Six sites: the unicast and multicast lookup obligations, the SAD search equivalence, the address-matching indication, and the SPI zero prohibition. |
-| `2.2` | Sequence Number | 5 | walked | Sequence Number. Five sites covering the sender increment, the mandatory presence of the field, the capability to perform the section 3.3.3 and 3.4.3 processing, and the counter reset before the 2^32nd packet. |
-| `2.2.1` | Extended (64-bit) Sequence Number | 1 | walked | Extended (64-bit) Sequence Number. Its one site is the negotiation MUST. The 'ESNs SHOULD be implemented' sentence in the same paragraph is advisory, so the capitalised keyword scan does not see it. |
-| `2.3` | Payload Data | 4 | walked | Payload Data. Four sites, three of which bind the author of an algorithm-definition RFC and one the packet builder's header alignment. |
-| `2.4` | Padding for encryption | 4 | walked | Padding for encryption. Four sites: the implementation's obligation to support padding, the default padding contents, and two obligations on the algorithm-definition RFC. |
-| `2.5` | Pad Length | 0 | walked | Pad Length. A field description with a value range and a mandatory-field statement. No obligation is directed at a speaker or a receiver. |
-| `2.6` | Next Header | 3 | walked | Next Header. Three sites: the value 59 convention, the transmitter and receiver dummy packet obligations fused in one sentence, and the field-presence rule for dummy packets. RFC4303-2.6-2 is the receiver half of site 2.6:2 and has no site of its own. |
-| `2.7` | Traffic Flow Confidentiality padding | 2 | walked | Traffic Flow Confidentiality padding. Both sites bind a transmitter that employs TFC padding, which Ze does not implement. |
-| `2.8` | Integrity Check Value | 1 | walked | Integrity Check Value. Its one site binds the integrity algorithm specification. |
-| `3` | Processing | 0 | walked | Processing. A heading with no text of its own. |
-| `3.1` | ESP header location | 0 | walked | ESP header location. Descriptive prose introducing the two modes. |
-| `3.1.1` | Transport mode processing | 0 | walked | Transport mode processing. Diagrams and placement prose, with no capitalised keyword and no obligation stated in indicative prose either. |
-| `3.1.2` | Tunnel mode processing | 0 | walked | Tunnel mode processing. Diagrams and placement prose. The outer and inner header rules it states are RFC 4301's, which the Security Architecture document owns. |
-| `3.2` | Algorithms | 1 | walked | Algorithms. Its one site is the prohibition on both algorithms being NULL, declared by this walk as RFC4303-3.2-1. |
-| `3.2.1` | Encryption algorithms | 0 | walked | Encryption algorithms. Descriptive, with lowercase 'must' statements binding the algorithm RFC to specify a padding modulus. |
-| `3.2.2` | Integrity algorithms | 0 | walked | Integrity algorithms. Descriptive, with the same lowercase obligation on the algorithm RFC as section 3.2.1. |
-| `3.2.3` | Combined mode algorithms | 0 | walked | Combined mode algorithms. Descriptive: it says a combined mode algorithm provides both services and that no payload substructure is defined. |
-| `3.3` | Outbound packet processing | 0 | walked | Outbound packet processing. A heading with an ordering list and no obligation. |
-| `3.3.1` | Outbound SA lookup | 0 | walked | Outbound SA lookup. It points at the Security Architecture document for how an SA is found for an outbound packet. |
-| `3.3.2` | Packet encryption and ICV calculation | 0 | walked | Packet encryption and ICV calculation. A heading introducing 3.3.2.1 and 3.3.2.2. |
-| `3.3.2.1` | Separate confidentiality and integrity algorithms, outbound | 3 | walked | Separate confidentiality and integrity algorithms, outbound. Three sites, all binding the ICV computation or the integrity algorithm's defining document. |
-| `3.3.2.2` | Combined confidentiality and integrity algorithms, outbound | 1 | walked | Combined confidentiality and integrity algorithms, outbound. Its one site binds the combined mode algorithm's defining RFC. |
-| `3.3.3` | Sequence Number generation | 2 | walked | Sequence Number generation. Two sites: the counter cycling prohibition and the manually keyed counter maintenance. RFC4303-3.3.3-1 renders the section's opening sentences, 'The sender's counter is initialized to 0 when an SA is established' and 'the first packet sent using a given SA will contain a sequence number of 1', which state the rule in indicative prose and carry no keyword for the site scan to see. |
-| `3.3.4` | Fragmentation | 1 | walked | Fragmentation. Its one site is the PMTU obligation. RFC4303-3.3.4-1 renders 'Thus, transport mode ESP is applied only to whole IP datagrams (not to IP fragments)', which is indicative prose, and RFC4303-3.3.4-3 renders the tunnel mode permission in the same paragraph. |
-| `3.4` | Inbound packet processing | 0 | walked | Inbound packet processing. A heading. |
-| `3.4.1` | Reassembly | 1 | walked | Reassembly. Its one site is the fragment discard obligation. |
-| `3.4.2` | Inbound SA lookup | 1 | walked | Inbound SA lookup. Its one site is the discard when no valid SA exists; the lookup rule itself is stated in section 2.1 and mapped from there. |
-| `3.4.3` | Sequence Number verification, the anti-replay section | 6 | walked | Sequence Number verification, the anti-replay section. Six sites: support for the service, the integrity precondition, the receive counter initialisation, the duplicate check, the discard on integrity failure, and the window size floor. RFC4303-3.4.3-3 renders 'The receive window is updated only if the integrity verification succeeds', which is indicative prose with no keyword. Read at the producer before classifying: every ESP SA Ze installs carries integrity (parseESPProposal refuses a non-AEAD proposal with no hash; planStateAlgos gives ESP Crypt+Auth or AEAD), the IKE Child SA path sets a 64-packet window on both directions, and the manually keyed OSPFv3 SA sets no window at all. The window check, the duplicate check and the ICV verification run in the kernel. |
-| `3.4.4` | ICV verification | 0 | walked | ICV verification. A heading introducing 3.4.4.1 and 3.4.4.2. |
-| `3.4.4.1` | Separate confidentiality and integrity algorithms, inbound | 2 | walked | Separate confidentiality and integrity algorithms, inbound. Two sites: the discard on ICV mismatch and the ordering rule that integrity completes before the decrypted packet goes on. |
-| `3.4.4.2` | Combined confidentiality and integrity algorithms, inbound | 1 | walked | Combined confidentiality and integrity algorithms, inbound. Its one site is the discard on integrity failure. RFC4303-3.4.4.2-1 renders step 1 of the numbered list, 'Decrypts and integrity checks the ESP Payload Data ... using the key, algorithm, algorithm mode', which is indicative prose. |
-| `4` | Auditing | 1 | walked | Auditing. Its one site binds the ESP implementation that processes packets and the audit subsystem of the system that hosts it. |
-| `5` | Conformance requirements | 4 | walked | Conformance requirements. Four sites: the conformance umbrella and the cross-reference to RFC 4301, the multicast restatement, the NULL integrity negotiation for a confidentiality-only implementation, and the both-NULL prohibition restated. |
-| `6` | Security Considerations | 0 | walked | Security Considerations. Two sentences saying security permeates the specification and pointing at the Security Architecture document. No countermeasure is directed at a speaker. |
-| `7` | Differences from RFC 2406 | 1 | walked | Differences from RFC 2406. A change log; its one site reports a level change rather than stating an obligation. |
-| `8` | Backward compatibility considerations | 0 | walked | Backward compatibility considerations. It explains that ESP has no version number and what an ESP v2 receiver may do with Next Header 59. Every statement is indicative and the normative half is site 2:2 in section 2. |
+| `1` | Introduction | 2 | reviewed | Introduction. It states the service model and the three service combinations, and its two sites carry the integrity-only obligation this walk declares as RFC4303-1-1. The RFC 2119 key-words paragraph sits here too and binds nobody, which is why the derivation excludes it from the site inventory. Site 1:1 was split on 2026-09-30 (rfc/corrections/rfc4303.md): its negotiable-in-SA-management-protocols clause is RFC4303-1-2, which shares the site and so is declared unsourced here. |
+| `2` | Packet format | 2 | reviewed | Packet format. Site 2:1 is the protocol number 50 obligation and site 2:2 is the backward-compatibility sentence. The field figure and the coverage prose are descriptive. |
+| `2.1` | Security Parameters Index | 6 | reviewed | Security Parameters Index. Six sites: the unicast and multicast lookup obligations, the SAD search equivalence, the address-matching indication, and the SPI zero prohibition. |
+| `2.2` | Sequence Number | 5 | reviewed | Sequence Number. Five sites covering the sender increment, the mandatory presence of the field, the capability to perform the section 3.3.3 and 3.4.3 processing, and the counter reset before the 2^32nd packet. |
+| `2.2.1` | Extended (64-bit) Sequence Number | 1 | reviewed | Extended (64-bit) Sequence Number. Its one site is the negotiation MUST. The 'ESNs SHOULD be implemented' sentence in the same paragraph is advisory, so the capitalised keyword scan does not see it. |
+| `2.3` | Payload Data | 4 | reviewed | Payload Data. Four sites, three of which bind the author of an algorithm-definition RFC and one the packet builder's header alignment. |
+| `2.4` | Padding for encryption | 4 | reviewed | Padding for encryption. Four sites: the implementation's obligation to support padding, the default padding contents, and two obligations on the algorithm-definition RFC. |
+| `2.5` | Pad Length | 0 | reviewed | Pad Length. A field description with a value range and a mandatory-field statement. No obligation is directed at a speaker or a receiver. |
+| `2.6` | Next Header | 3 | reviewed | Next Header. Three sites: the value 59 convention, the transmitter and receiver dummy packet obligations fused in one sentence, and the field-presence rule for dummy packets. RFC4303-2.6-2 is the receiver half of site 2.6:2 and has no site of its own. |
+| `2.7` | Traffic Flow Confidentiality padding | 2 | reviewed | Traffic Flow Confidentiality padding. Both sites bind a transmitter that employs TFC padding, which Ze does not implement. |
+| `2.8` | Integrity Check Value | 1 | reviewed | Integrity Check Value. Its one site binds the integrity algorithm specification. |
+| `3` | Processing | 0 | reviewed | Processing. A heading with no text of its own. |
+| `3.1` | ESP header location | 0 | reviewed | ESP header location. Descriptive prose introducing the two modes. |
+| `3.1.1` | Transport mode processing | 0 | reviewed | Transport mode processing. Diagrams and placement prose, with no capitalised keyword and no obligation stated in indicative prose either. |
+| `3.1.2` | Tunnel mode processing | 0 | reviewed | Tunnel mode processing. Diagrams and placement prose. The outer and inner header rules it states are RFC 4301's, which the Security Architecture document owns. |
+| `3.2` | Algorithms | 1 | reviewed | Algorithms. Its one site is the prohibition on both algorithms being NULL, declared by this walk as RFC4303-3.2-1. |
+| `3.2.1` | Encryption algorithms | 0 | reviewed | Encryption algorithms. Descriptive, with lowercase 'must' statements binding the algorithm RFC to specify a padding modulus. |
+| `3.2.2` | Integrity algorithms | 0 | reviewed | Integrity algorithms. Descriptive, with the same lowercase obligation on the algorithm RFC as section 3.2.1. |
+| `3.2.3` | Combined mode algorithms | 0 | reviewed | Combined mode algorithms. Descriptive: it says a combined mode algorithm provides both services and that no payload substructure is defined. |
+| `3.3` | Outbound packet processing | 0 | reviewed | Outbound packet processing. A heading with an ordering list and no obligation. |
+| `3.3.1` | Outbound SA lookup | 0 | reviewed | Outbound SA lookup. It points at the Security Architecture document for how an SA is found for an outbound packet. |
+| `3.3.2` | Packet encryption and ICV calculation | 0 | reviewed | Packet encryption and ICV calculation. A heading introducing 3.3.2.1 and 3.3.2.2. |
+| `3.3.2.1` | Separate confidentiality and integrity algorithms, outbound | 3 | reviewed | Separate confidentiality and integrity algorithms, outbound. Three sites, all binding the ICV computation or the integrity algorithm's defining document. |
+| `3.3.2.2` | Combined confidentiality and integrity algorithms, outbound | 1 | reviewed | Combined confidentiality and integrity algorithms, outbound. Its one site binds the combined mode algorithm's defining RFC. |
+| `3.3.3` | Sequence Number generation | 2 | reviewed | Sequence Number generation. Two sites: the counter cycling prohibition and the manually keyed counter maintenance. RFC4303-3.3.3-1 renders the section's opening sentences, 'The sender's counter is initialized to 0 when an SA is established' and 'the first packet sent using a given SA will contain a sequence number of 1', which state the rule in indicative prose and carry no keyword for the site scan to see. |
+| `3.3.4` | Fragmentation | 1 | reviewed | Fragmentation. Its one site is the PMTU obligation. RFC4303-3.3.4-1 renders 'Thus, transport mode ESP is applied only to whole IP datagrams (not to IP fragments)', which is indicative prose, and RFC4303-3.3.4-3 renders the tunnel mode permission in the same paragraph. |
+| `3.4` | Inbound packet processing | 0 | reviewed | Inbound packet processing. A heading. |
+| `3.4.1` | Reassembly | 1 | reviewed | Reassembly. Its one site is the fragment discard obligation. |
+| `3.4.2` | Inbound SA lookup | 1 | reviewed | Inbound SA lookup. Its one site is the discard when no valid SA exists; the lookup rule itself is stated in section 2.1 and mapped from there. |
+| `3.4.3` | Sequence Number verification, the anti-replay section | 6 | reviewed | Sequence Number verification, the anti-replay section. Six sites: support for the service, the integrity precondition, the receive counter initialisation, the duplicate check, the discard on integrity failure, and the window size floor. RFC4303-3.4.3-3 renders 'The receive window is updated only if the integrity verification succeeds', which is indicative prose with no keyword. Read at the producer before classifying: every ESP SA Ze installs carries integrity (parseESPProposal refuses a non-AEAD proposal with no hash; planStateAlgos gives ESP Crypt+Auth or AEAD), the IKE Child SA path sets a 64-packet window on both directions, and the manually keyed OSPFv3 SA sets no window at all. The window check, the duplicate check and the ICV verification run in the kernel. |
+| `3.4.4` | ICV verification | 0 | reviewed | ICV verification. A heading introducing 3.4.4.1 and 3.4.4.2. |
+| `3.4.4.1` | Separate confidentiality and integrity algorithms, inbound | 2 | reviewed | Separate confidentiality and integrity algorithms, inbound. Two sites: the discard on ICV mismatch and the ordering rule that integrity completes before the decrypted packet goes on. |
+| `3.4.4.2` | Combined confidentiality and integrity algorithms, inbound | 1 | reviewed | Combined confidentiality and integrity algorithms, inbound. Its one site is the discard on integrity failure. RFC4303-3.4.4.2-1 renders step 1 of the numbered list, 'Decrypts and integrity checks the ESP Payload Data ... using the key, algorithm, algorithm mode', which is indicative prose. |
+| `4` | Auditing | 1 | reviewed | Auditing. Its one site binds the ESP implementation that processes packets and the audit subsystem of the system that hosts it. |
+| `5` | Conformance requirements | 4 | reviewed | Conformance requirements. Four sites: the conformance umbrella and the cross-reference to RFC 4301, the multicast restatement, the NULL integrity negotiation for a confidentiality-only implementation, and the both-NULL prohibition restated. |
+| `6` | Security Considerations | 0 | reviewed | Security Considerations. Two sentences saying security permeates the specification and pointing at the Security Architecture document. No countermeasure is directed at a speaker. |
+| `7` | Differences from RFC 2406 | 1 | reviewed | Differences from RFC 2406. A change log; its one site reports a level change rather than stating an obligation. |
+| `8` | Backward compatibility considerations | 0 | reviewed | Backward compatibility considerations. It explains that ESP has no version number and what an ESP v2 receiver may do with Next Header 59. Every statement is indicative and the normative half is site 2:2 in section 2. |
 | `9` | Acknowledgements | 0 | skipped (acknowledgements) | Acknowledgements. |
 | `10` | References heading | 0 | skipped (references) | References heading. |
 | `10.1` | not stated | 0 | skipped (references) | Normative References: RFC 2119, RFC 4301, RFC 4302, RFC 2434 and the ESP algorithm requirements document. |
-| `10.2` | Informative References | 0 | walked | Informative References. A reference list: no capitalised MUST, SHALL or REQUIRED appears in it. Appendix A, which this span carried until the heading reader read its heading on 2026-09-27, is its own sections now. |
-| `A` | Appendix A | 0 | walked | Appendix A. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
-| `A1` | Appendix A1 | 0 | walked | Appendix A1. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
-| `A2` | Appendix A2 | 0 | walked | Appendix A2. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
-| `A2.1` | Appendix A2.1 | 0 | walked | Appendix A2.1. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
-| `A2.2` | Appendix A2.2 | 0 | walked | Appendix A2.2. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
-| `A2.3` | Appendix A2.3 | 0 | walked | Appendix A2.3. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
-| `A3` | Appendix A3 | 0 | walked | Appendix A3. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
-| `A3.1` | Appendix A3.1 | 0 | walked | Appendix A3.1. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
-| `A3.2` | Appendix A3.2 | 0 | walked | Appendix A3.2. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `10.2` | Informative References | 0 | reviewed | Informative References. A reference list: no capitalised MUST, SHALL or REQUIRED appears in it. Appendix A, which this span carried until the heading reader read its heading on 2026-09-27, is its own sections now. |
+| `A` | Appendix A | 0 | reviewed | Appendix A. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `A1` | Appendix A1 | 0 | reviewed | Appendix A1. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `A2` | Appendix A2 | 0 | reviewed | Appendix A2. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `A2.1` | Appendix A2.1 | 0 | reviewed | Appendix A2.1. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `A2.2` | Appendix A2.2 | 0 | reviewed | Appendix A2.2. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `A2.3` | Appendix A2.3 | 0 | reviewed | Appendix A2.3. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `A3` | Appendix A3 | 0 | reviewed | Appendix A3. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `A3.1` | Appendix A3.1 | 0 | reviewed | Appendix A3.1. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `A3.2` | Appendix A3.2 | 0 | reviewed | Appendix A3.2. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
 
 ### Excluded sentences
 

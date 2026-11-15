@@ -105,7 +105,7 @@
 </tr>
 </tbody>
 </table>
-<p>A good run proves a complete path: generated routes enter the DUT, pass through the DUT policy and RIB path, leave the DUT, and arrive at a real BGP receiver. A route count alone is wiring. A repeated run with zero loss and published inputs is evidence.</p>
+<p>A useful run checks the complete route path: generated routes enter the device under test, pass through its policy and routing table, leave the device, and arrive at a BGP receiver. A route count alone shows that the routers exchanged routes. Repeated runs with zero loss and published inputs let others assess the performance result.</p>
 <h2 id="topology">Topology</h2>
 <p>The test is three nodes: a sender and a receiver that Ze runs, with the device under test between them.</p>
 <pre><code>le perf sender  ---&gt;  DUT under test  ---&gt;  le perf receiver
@@ -293,7 +293,7 @@ birdc show route count
 <td>Policy and defaults change results</td>
 </tr>
 <tr>
-<td>Hardware or VM shape</td>
+<td>Hardware or VM resources</td>
 <td>CPU, memory, and virtualization dominate control-plane tests</td>
 </tr>
 <tr>
@@ -305,8 +305,8 @@ birdc show route count
 <td>Synthetic routes, MRT replay, and production captures stress different code paths</td>
 </tr>
 <tr>
-<td>Peer shape</td>
-<td>One large peer and many small peers find different bugs</td>
+<td>Number of peers and routes per peer</td>
+<td>One peer sending many routes and many peers sending fewer routes find different bugs</td>
 </tr>
 <tr>
 <td>Route count and family</td>
@@ -337,7 +337,7 @@ birdc show route count
 <table>
 <thead>
 <tr>
-<th>Missing shape</th>
+<th>Test not yet supported</th>
 <th>Feature to add</th>
 </tr>
 </thead>
@@ -441,7 +441,7 @@ birdc show route count
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 00:45 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 02:04 UTC</span>
                 </div>
             </div>
         </footer>

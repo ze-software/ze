@@ -1,6 +1,6 @@
 # RPKI
 
-Technology aggregate. RPKI, origin validation, and RPKI to router. The RFCs whose summary names the rpki aggregate, with the MUST bar and the overview bar of the set and of each RFC.
+Technology profile. RPKI, origin validation, and RPKI to router. The RFCs grouped under rpki, showing mandatory requirement coverage and overall coverage for the group and each RFC.
 
 [All profiles](../) · [All RFCs](../../)
 
@@ -10,20 +10,23 @@ Figures as of the last build, read from [data/rfc/profiles/rpki.json](../../../.
 
 ## Figures
 
-- **MUST bar**: Ze proven 13, Ze correctness gap 124
-- **Overview bar**: Ze MUST proven 13, SHOULD proven 6, Not owed 5, SHOULD not decided 74, Ze correctness gap 124
+- **MUST bar**: Ze proven 13, Proof pending 21, Not assessed 16, Not built 87
+- **Overview bar**: Ze MUST proven 13, SHOULD proven 6, Not owed 5, Proof pending 21, Not assessed 88, Not built 89
 
 | Figure | Rows |
 |---|---|
 | RFCs | 9 |
-| Not walked | 1 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 1 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 142 |
 | MUST rows kept (the MUST bar) | 137 |
 | Ze proven | 13 |
 | OS verified | 0 |
+| Proof pending | 21 |
 | OS testing gap | 0 |
-| Ze correctness gap | 124 |
+| Exclusion unchecked | 0 |
+| Not assessed | 16 |
+| Not built | 87 |
 | MUST rows not owed | 5 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -36,51 +39,52 @@ Figures as of the last build, read from [data/rfc/profiles/rpki.json](../../../.
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 74 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 72 |
+| SHOULD not built | 2 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 ## Tree
 
-Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each RFC carries the same two bars as the set above, from its own data file; an RFC that is not walked shows "not walked" and no bar.
+The RFCs are listed with the standards they build on first. An RFC appears one level after the highest level of its dependencies; RFCs that refer back to each other share a level. Each RFC has the same two coverage bars as the group above. An RFC whose requirement list has not been reviewed shows "requirements not reviewed" instead of a bar.
 
 ### Level 3
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 9582](../../rfc9582/) | A Profile for Route Origin Authorizations (ROAs) | Ze correctness gap 16 | SHOULD not decided 6, Ze correctness gap 16 |
+| [RFC 9582](../../rfc9582/) | A Profile for Route Origin Authorizations (ROAs) | Not assessed 16 | Not assessed 22 |
 
 ### Level 4
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 6482](../../rfc6482/) | A Profile for Route Origin Authorizations (ROAs) | Ze correctness gap 9 | SHOULD not decided 1, Ze correctness gap 9 |
+| [RFC 6482](../../rfc6482/) | A Profile for Route Origin Authorizations (ROAs) | Not built 9 | Not assessed 1, Not built 9 |
 
 ### Level 7
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 6811](../../rfc6811/) | BGP Prefix Origin Validation | Ze proven 1, Ze correctness gap 4 | Ze MUST proven 1, SHOULD not decided 4, Ze correctness gap 4 |
+| [RFC 6811](../../rfc6811/) | BGP Prefix Origin Validation | Ze proven 1, Proof pending 4 | Ze MUST proven 1, Proof pending 4, Not assessed 4 |
 
 ### Level 8
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 6810](../../rfc6810/) | The Resource Public Key Infrastructure (RPKI) to Router Protocol | Ze correctness gap 38 | Not owed 2, SHOULD not decided 28, Ze correctness gap 38 |
-| [RFC 8097](../../rfc8097/) | BGP Prefix Origin Validation State Extended Community | Ze correctness gap 5 | SHOULD not decided 5, Ze correctness gap 5 |
-| [RFC 8893](../../rfc8893/) | Resource Public Key Infrastructure (RPKI) Origin Validation for BGP Export | Ze correctness gap 4 | SHOULD not decided 2, Ze correctness gap 4 |
-| [RFC 9319](../../rfc9319/) | The Use of maxLength in the Resource Public Key Infrastructure (RPKI) | Ze correctness gap 4 | SHOULD not decided 7, Ze correctness gap 4 |
+| [RFC 6810](../../rfc6810/) | The Resource Public Key Infrastructure (RPKI) to Router Protocol | Not built 38 | Not owed 2, Not assessed 28, Not built 38 |
+| [RFC 8097](../../rfc8097/) | BGP Prefix Origin Validation State Extended Community | Not built 5 | Not assessed 5, Not built 5 |
+| [RFC 8893](../../rfc8893/) | Resource Public Key Infrastructure (RPKI) Origin Validation for BGP Export | Not built 4 | Not assessed 2, Not built 4 |
+| [RFC 9319](../../rfc9319/) | The Use of maxLength in the Resource Public Key Infrastructure (RPKI) | Not built 4 | Not assessed 7, Not built 4 |
 
 ### Level 9
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 8210](../../rfc8210/) | The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 1 | Ze proven 12, Ze correctness gap 44 | Ze MUST proven 12, SHOULD proven 6, Not owed 3, SHOULD not decided 21, Ze correctness gap 44 |
+| [RFC 8210](../../rfc8210/) | The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 1 | Ze proven 12, Proof pending 17, Not built 27 | Ze MUST proven 12, SHOULD proven 6, Not owed 3, Proof pending 17, Not assessed 19, Not built 29 |
 
 ### Level 10
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [DRAFT-IETF-SIDROPS-8210BIS](../../draft-ietf-sidrops-8210bis/) | The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 2 | not walked | not walked |
+| [DRAFT-IETF-SIDROPS-8210BIS](../../draft-ietf-sidrops-8210bis/) | The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 2 | requirements not reviewed | requirements not reviewed |

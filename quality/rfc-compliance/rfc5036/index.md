@@ -1,6 +1,6 @@
 # RFC 5036 - LDP Specification
 
-LDP. Every requirement this repository extracted from RFC 5036, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+LDP. Every requirement listed for RFC 5036, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,24 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 29 | of 91 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 3 | of 91 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 91 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 91 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 57 | 57 of 64 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-
-### Neutral
-
-measures that are neither good news nor bad
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Gated MUSTs | 91 | of 95 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 91 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 91 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 91 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 91 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 91 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Tested both ways | 29 | of 91 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 3 | of 91 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 91 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 91 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Tests shown to detect a fault | 57 | 57 of 64 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -35,55 +22,75 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 59 | of 91 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 26 | of 91 gated MUSTs judged | 2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+| Declared gap or no test | 59 | of 91 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Audit verdicts | 26 | of 91 mandatory requirements reviewed | 2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
-The 9 counts marked as a part above are the whole of the 91 gated MUSTs: they add up to 91. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Neutral
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+measures that are neither good news nor bad
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Out of scope | 0 | of 91 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 91 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 91 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 91 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 91 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+
+### Totals
+
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 91 | of 95 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 91 mandatory requirements: they add up to 91. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | LDP |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 95 |
-| Gated MUST-level | 91 |
+| Mandatory requirements (MUST level) | 91 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 60 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 64 |
-| Tagged units | 64 |
+| Tests linked to requirements | 64 |
 | Recorded audit verdicts | 26 |
-| Discrimination records | 57 |
+| Fault test records | 57 |
 | Summary | `rfc/short/rfc5036.md` |
-| Requirement shard | `rfc/requirements/rfc5036.md` |
+| Requirement table | `rfc/requirements/rfc5036.md` |
 | RFC text | `rfc/full/rfc5036.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: LDP Specification
+Included in automatic checks: LDP Specification
 
-## What the public ledger says
+## Published support status
 
 **Area:** LDP
 
@@ -98,14 +105,14 @@ Enrolled: LDP Specification
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 29 | one part of the gated population |
-| Annotated (including scoped evidence) | 62 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **91** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 29 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 62 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **91** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (29):** [`RFC5036-x-1`](#rfc5036-x-1), [`RFC5036-x-2`](#rfc5036-x-2), [`RFC5036-x-3`](#rfc5036-x-3), [`RFC5036-2.5.1-1`](#rfc5036-2.5.1-1), [`RFC5036-2.5.3-1`](#rfc5036-2.5.3-1), [`RFC5036-2.5.1-2`](#rfc5036-2.5.1-2), [`RFC5036-3.5.3-1`](#rfc5036-3.5.3-1), [`RFC5036-2.5.3-5`](#rfc5036-2.5.3-5), [`RFC5036-2.5.3-6`](#rfc5036-2.5.3-6), [`RFC5036-2.5.3-8`](#rfc5036-2.5.3-8), [`RFC5036-2.5.3-9`](#rfc5036-2.5.3-9), [`RFC5036-2.5.4-1`](#rfc5036-2.5.4-1), [`RFC5036-2.5.4-2`](#rfc5036-2.5.4-2), [`RFC5036-2.5.4-3`](#rfc5036-2.5.4-3), [`RFC5036-3.5.2-1`](#rfc5036-3.5.2-1), [`RFC5036-2.5.3-3`](#rfc5036-2.5.3-3), [`RFC5036-2.5.3-4`](#rfc5036-2.5.3-4), [`RFC5036-2.5.2-1`](#rfc5036-2.5.2-1), [`RFC5036-2.6.1.2-2`](#rfc5036-2.6.1.2-2), [`RFC5036-3.1-1`](#rfc5036-3.1-1), [`RFC5036-3.3-1`](#rfc5036-3.3-1), [`RFC5036-3.4.4.1-1`](#rfc5036-3.4.4.1-1), [`RFC5036-3.4.4.1-2`](#rfc5036-3.4.4.1-2), [`RFC5036-3.5.3-3`](#rfc5036-3.5.3-3), [`RFC5036-3.5.3-5`](#rfc5036-3.5.3-5), [`RFC5036-3.5.3-6`](#rfc5036-3.5.3-6), [`RFC5036-3.5.3-7`](#rfc5036-3.5.3-7), [`RFC5036-3.5.3-9`](#rfc5036-3.5.3-9), [`RFC5036-3.5.4.1-1`](#rfc5036-3.5.4.1-1)
 
@@ -113,20 +120,23 @@ Enrolled: LDP Specification
 
 ## Figures
 
-- **MUST bar**: Ze proven 29, Ze correctness gap 62
-- **Overview bar**: Ze MUST proven 29, SHOULD not decided 4, Ze correctness gap 62
+- **MUST bar**: Ze proven 29, Proof pending 3, Not built 59
+- **Overview bar**: Ze MUST proven 29, Proof pending 3, Not assessed 3, Not built 60
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 91 |
 | MUST rows kept (the MUST bar) | 91 |
 | Ze proven | 29 |
 | OS verified | 0 |
+| Proof pending | 3 |
 | OS testing gap | 0 |
-| Ze correctness gap | 62 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 59 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -139,11 +149,12 @@ Enrolled: LDP Specification
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 4 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 3 |
+| SHOULD not built | 1 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc5036.json](../../../data/rfc/rfc5036.json).
 
@@ -314,7 +325,7 @@ Source: [data/rfc/rfc5036.json](../../../data/rfc/rfc5036.json).
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC5036-x-1`](#rfc5036-x-1)
 
@@ -364,7 +375,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. The 
 
 An LSR MUST arrange that its peer receive an LDP message from it at least every KeepAlive Time period. Any LDP protocol message will do but, in circumstances where no other LDP protocol messages have been sent within the period, a KeepAlive message MUST be sent. (§3.5.4.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-28 after d9fa580dce changed runSession: the only change adds `defer ldpPanics().session.Contain(sess.describeSession, sess.notifyInternalError)` as the third defer, which acts only when a panic is recovered. The KeepAlive scheduling, handleInit negotiation and both tagged units are unchanged, so the judgement below stands. Re-judged 2026-10-14 after TestRFC5036KeepalivesSentPeriodically changed. Positive: runSession to operational with both sides at 1s and an empty LIB; each of the next three PDUs must be a KeepAlive and each gap at most 1s; the test peer now writes a KeepAlive after each one so ze's 1s KeepAlive Timer is fed, which removes no assertion. Negative (dual-tagged with RFC5036-3.5.4.1-1, unit unchanged): TestRFC5036KeepalivePacingFollowsNegotiatedTime has ze propose 60s and the peer 1s, then requires each of the next three PDUs within 1s of the previous; it does not check their type, which the row allows (any LDP message will do), and a sender pacing from the 60s proposal fails it because the session ends after the 1s timer and the next read fails. Row-quality: the first sentence duplicates RFC5036-3.5.4.1-1 verbatim.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-12 after runSession changed to take onDone func(operational bool): a local operational is set true in the on-operational callback just before SessionUp is published, and the first defer became func() { onDone(operational) }(). The defer order (kaCancel, panic guard, Stop, onDone) is unchanged, and the KeepAlive sender goroutine (waits on accepted, re-reads currentKeepalive()/3 each cycle, re-arms on KeepaliveChanged, SendKeepalive on each tick), the accepting KeepAlive in the on-init callback, and handleInit's negotiation are byte-identical, so ze's KeepAlive behaviour and the judgement below stand; both tagged units are unchanged (only the runSessionForTest helper's onDone literal took the new signature). RFC 5036 Section 3.5.4.1: "An LSR MUST arrange that its peer receive an LDP message from it at least every KeepAlive Time period." Re-judged 2026-10-28 after d9fa580dce added the panic-guard defer, which acts only on a recovered panic. Re-judged 2026-10-14 after TestRFC5036KeepalivesSentPeriodically changed. Positive: runSession to operational with both sides at 1s and an empty LIB; each of the next three PDUs must be a KeepAlive and each gap at most 1s; the test peer writes a KeepAlive after each one so ze's 1s KeepAlive Timer is fed, which removes no assertion. Negative (dual-tagged with RFC5036-3.5.4.1-1): TestRFC5036KeepalivePacingFollowsNegotiatedTime has ze propose 60s and the peer 1s, then requires each of the next three PDUs within 1s of the previous; it does not check their type, which the row allows (any LDP message will do), and a sender pacing from the 60s proposal fails it because the session ends after the 1s timer and the next read fails. Row-quality: the first sentence duplicates RFC5036-3.5.4.1-1 verbatim.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -375,17 +386,17 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 Whenever an LSR breaks the binding between a label and a FEC, it MUST withdraw the FEC label mapping from all LDP peers to which it has previously sent the mapping. (§A)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-2.6.1.2-1, so no unit is bound to it.
+No test carries RFC5036-2.6.1.2-1, so there is no linked test.
 
 ### [`RFC5036-2.6.1.3-1`](#rfc5036-2.6.1.3-1)
 
 An LSR that receives a Label Withdraw message MUST respond with a Label Release message. (§3.5.10.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-2.6.1.3-1, so no unit is bound to it.
+No test carries RFC5036-2.6.1.3-1, so there is no linked test.
 
 ### [`RFC5036-2.5.1-2`](#rfc5036-2.5.1-2)
 
@@ -402,7 +413,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 Two octet unsigned non zero integer that indicates the number of seconds that the sending LSR proposes for the value of the KeepAlive Time. (§3.5.3)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-28 after d9fa580dce changed processMessages: the only change stores the decoded message type in s.handlingType (read solely by the session panic guard's log line) after the header decode. Initialization KeepAlive Time handling, handleInit and both tagged units are unchanged, so the judgement below stands. Re-judged 2026-10-14 after TestRFC5036InitNonZeroKeepaliveTimeAccepted changed. Positive: processMessages over an Initialization proposing 30s plus the peer's KeepAlive reaches operational, negotiated KeepAlive Time and armed KeepAlive Timer are both 30s, and no byte arrives on the peer side within 200ms (no Notification). Negative, unchanged: TestRFC5036InitZeroKeepaliveTimeRejected sends KeepAlive Time 0 and asserts a Session Rejected/Bad KeepAlive Time status referring to message id 7 of type Initialization, processMessages returning errBadKeepaliveTime, a non-operational state, and non-zero hold and keepalive times.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-13 (independent auditor) after 95f99add59 changed processMessages: the only change raises the 'ldp: session operational' log line in the KeepAlive case from Debug to Info. The KeepAlive Time zero check and its rejectInit(statusSessionRejectedBadKeepaliveTime) call, handleInit and both tagged units are byte-identical, so the judgement stands. Negative: KeepAlive Time 0 yields Session Rejected/Bad KeepAlive Time referring to message id 7 of type Initialization, errBadKeepaliveTime (isolates this check), non-operational state, non-zero hold and keepalive. Positive: a 30s proposal plus the peer's KeepAlive reaches operational with negotiated and armed KeepAlive 30s and no Notification within 200ms.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -413,9 +424,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 Next LSR1 checks whether the session parameters proposed in the message are acceptable. If they are, LSR1 replies with an Initialization message of its own to propose the parameters it wishes to use and a KeepAlive message to signal acceptance of LSR2's parameters. (§2.5.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-2.5.1-3, so no unit is bound to it.
+No test carries RFC5036-2.5.1-3, so there is no linked test.
 
 ### [`RFC5036-2.5.3-5`](#rfc5036-2.5.3-5)
 
@@ -443,9 +454,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Posi
 
 If the parameters are not acceptable, LSR1 responds by sending a Session Rejected/Parameters Error Notification message and closing the TCP connection. (§2.5.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-2.5.3-7, so no unit is bound to it.
+No test carries RFC5036-2.5.3-7, so there is no linked test.
 
 ### [`RFC5036-2.5.3-8`](#rfc5036-2.5.3-8)
 
@@ -496,7 +507,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. OPEN
 
 Timeout NON EXISTENT Action: Transmit Shutdown msg and close transport connection (§2.5.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -519,39 +530,39 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 
 If LSR1 receives an Initialization message, it attempts to match the LDP Identifier carried by the message PDU with a Hello adjacency. (§2.5.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-2.5.1-4, so no unit is bound to it.
+No test carries RFC5036-2.5.1-4, so there is no linked test.
 
 ### [`RFC5036-2.5.3-2`](#rfc5036-2.5.3-2)
 
 If an LSR encounters a condition requiring it to notify its peer with advisory or error information, it sends the peer a Notification message containing a Status TLV that encodes the information and optionally additional TLVs that provide more information about the condition. If the condition is one that is a fatal error, the Status Code carried in the Notification will indicate that. (§3.5.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-2.5.3-2, so no unit is bound to it.
+No test carries RFC5036-2.5.3-2, so there is no linked test.
 
 ### [`RFC5036-2.7-1`](#rfc5036-2.7-1)
 
 To retrieve the label, the LSR must be able to map the next hop address for the prefix to an LDP Identifier. Similarly, when the LSR learns a label for a prefix from an LDP peer, it must be able to determine whether that peer is currently a next hop for the prefix to determine whether it needs to start using the newly learned label when forwarding packets that match the prefix. To make that decision, the LSR must be able to map an LDP Identifier to the peer's addresses to check whether any are a next hop for the prefix. To enable LSRs to map between a peer LDP Identifier and the peer's addresses, LSRs advertise their addresses using LDP Address and Withdraw Address messages. (§2.7)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-2.7-1, so no unit is bound to it.
+No test carries RFC5036-2.7-1, so there is no linked test.
 
 ### [`RFC5036-2.9-1`](#rfc5036-2.9-1)
 
 This section specifies a mechanism to protect against the introduction of spoofed TCP segments into LDP session connection streams. The use of this mechanism MUST be supported as a configurable option. (§2.9)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-2.9-1, so no unit is bound to it.
+No test carries RFC5036-2.9-1, so there is no linked test.
 
 ### [`RFC5036-2.5.3-3`](#rfc5036-2.5.3-3)
 
 An LSR MUST throttle its session setup retry attempts with an exponential backoff in situations where Initialization messages are being NAK'd (§2.5.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -562,7 +573,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The session establishment setup attempt following a NAK'd Initialization message MUST be delayed no less than 15 seconds, and subsequent delays MUST grow to a maximum delay of no less than 2 minutes (§2.5.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -573,7 +584,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 An LSR MUST advertise the same transport address in all Hellos that advertise the same label space (§2.5.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -595,161 +606,161 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 - The Label Request message MUST include a Hop Count TLV. (§2.8.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-2.8.1-1, so no unit is bound to it.
+No test carries RFC5036-2.8.1-1, so there is no linked test.
 
 ### [`RFC5036-2.8.1-2`](#rfc5036-2.8.1-2)
 
 - If R is sending the Label Request because it is a FEC ingress, it MUST include a Hop Count TLV with hop count value 1. (§2.8.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-2.8.1-2, so no unit is bound to it.
+No test carries RFC5036-2.8.1-2, so there is no linked test.
 
 ### [`RFC5036-2.8.1-3`](#rfc5036-2.8.1-3)
 
 - If R is sending the Label Request as a result of having received a Label Request from an upstream LSR, and if the received Label Request contains a Hop Count TLV, R MUST increment the received hop count value by 1 and MUST pass the resulting value in a Hop Count TLV to its next hop along with the Label Request message. (§2.8.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-2.8.1-3, so no unit is bound to it.
+No test carries RFC5036-2.8.1-3, so there is no linked test.
 
 ### [`RFC5036-2.8.1-4`](#rfc5036-2.8.1-4)
 
 - If R is sending the Label Request because it is a FEC ingress, then if R is non-merge capable, it MUST include a Path Vector TLV of length 1 containing its own LSR Id. (§2.8.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-2.8.1-4, so no unit is bound to it.
+No test carries RFC5036-2.8.1-4, so there is no linked test.
 
 ### [`RFC5036-2.8.1-5`](#rfc5036-2.8.1-5)
 
 R MUST add its own LSR Id to the Path Vector, and MUST pass the resulting Path Vector to its next hop along with the Label Request message. (§2.8.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-2.8.1-5, so no unit is bound to it.
+No test carries RFC5036-2.8.1-5, so there is no linked test.
 
 ### [`RFC5036-2.8.1-6`](#rfc5036-2.8.1-6)
 
 If the Label Request contains no Path Vector TLV, R MUST include a Path Vector TLV of length 1 containing its own LSR Id. (§2.8.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-2.8.1-6, so no unit is bound to it.
+No test carries RFC5036-2.8.1-6, so there is no linked test.
 
 ### [`RFC5036-2.8.1-7`](#rfc5036-2.8.1-7)
 
 When R detects a loop, it MUST send a Loop Detected Notification message to the source of the Label Request message and drop the Label Request message. (§2.8.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-2.8.1-7, so no unit is bound to it.
+No test carries RFC5036-2.8.1-7, so there is no linked test.
 
 ### [`RFC5036-2.8.2-1`](#rfc5036-2.8.2-1)
 
 The rules that govern the use of the Hop Count TLV in Label Mapping messages sent by an LSR R when Loop Detection is enabled are the following: - R MUST include a Hop Count TLV. (§2.8.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-2.8.2-1, so no unit is bound to it.
+No test carries RFC5036-2.8.2-1, so there is no linked test.
 
 ### [`RFC5036-2.8.2-2`](#rfc5036-2.8.2-2)
 
 - If R is the egress, the hop count value MUST be 1. (§2.8.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-2.8.2-2, so no unit is bound to it.
+No test carries RFC5036-2.8.2-2, so there is no linked test.
 
 ### [`RFC5036-2.8.2-3`](#rfc5036-2.8.2-3)
 
 If the Label Mapping message is being sent to propagate a Label Mapping message received from the next hop to an upstream peer, the hop count value MUST be determined as follows: (§2.8.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-2.8.2-3, so no unit is bound to it.
+No test carries RFC5036-2.8.2-3, so there is no linked test.
 
 ### [`RFC5036-2.8.2-4`](#rfc5036-2.8.2-4)
 
 o If R is a member of the edge set of an LSR domain whose LSRs do not perform 'TTL-decrement' (e.g., an ATM LSR domain or a Frame Relay LSR domain) and the upstream peer is within that domain, R MUST reset the hop count to 1 before propagating the message. (§2.8.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-2.8.2-4, so no unit is bound to it.
+No test carries RFC5036-2.8.2-4, so there is no linked test.
 
 ### [`RFC5036-2.8.2-5`](#rfc5036-2.8.2-5)
 
 Otherwise, R MUST increment the hop count received from the next hop before propagating the message. (§2.8.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-2.8.2-5, so no unit is bound to it.
+No test carries RFC5036-2.8.2-5, so there is no linked test.
 
 ### [`RFC5036-2.8.2-6`](#rfc5036-2.8.2-6)
 
 - If the Label Mapping message is not being sent to propagate a Label Mapping message, the hop count value MUST be the result of incrementing R's current knowledge of the hop count learned from previous Label Mapping messages. (§2.8.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-2.8.2-6, so no unit is bound to it.
+No test carries RFC5036-2.8.2-6, so there is no linked test.
 
 ### [`RFC5036-2.8.2-7`](#rfc5036-2.8.2-7)
 
 - If R is sending the Label Mapping message to propagate a Label Mapping message received from the next hop to an upstream peer, then: o If R is merge capable and if R has not previously sent a Label Mapping message to the upstream peer, then it MUST include a Path Vector TLV. (§2.8.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-2.8.2-7, so no unit is bound to it.
+No test carries RFC5036-2.8.2-7, so there is no linked test.
 
 ### [`RFC5036-2.8.2-8`](#rfc5036-2.8.2-8)
 
 o If the received message contains an unknown hop count, then R MUST include a Path Vector TLV. (§2.8.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-2.8.2-8, so no unit is bound to it.
+No test carries RFC5036-2.8.2-8, so there is no linked test.
 
 ### [`RFC5036-2.8.2-9`](#rfc5036-2.8.2-9)
 
 o If R has previously sent a Label Mapping message to the upstream peer, then it MUST include a Path Vector TLV if the received message reports an LSP hop count increase, a change in hop count from unknown to known, or a change from known to unknown. (§2.8.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-2.8.2-9, so no unit is bound to it.
+No test carries RFC5036-2.8.2-9, so there is no linked test.
 
 ### [`RFC5036-2.8.2-10`](#rfc5036-2.8.2-10)
 
 o If the received Label Mapping message included a Path Vector, the Path Vector sent upstream MUST be the result of adding R's LSR Id to the received Path Vector. (§2.8.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-2.8.2-10, so no unit is bound to it.
+No test carries RFC5036-2.8.2-10, so there is no linked test.
 
 ### [`RFC5036-2.8.2-11`](#rfc5036-2.8.2-11)
 
 o If the received message had no Path Vector, the Path Vector sent upstream MUST be a Path Vector of length 1 containing R's LSR Id. (§2.8.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-2.8.2-11, so no unit is bound to it.
+No test carries RFC5036-2.8.2-11, so there is no linked test.
 
 ### [`RFC5036-2.8.2-12`](#rfc5036-2.8.2-12)
 
 - If the Label Mapping message is not being sent to propagate a received message upstream, the Label Mapping message MUST include a Path Vector of length 1 containing R's LSR Id. (§2.8.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-2.8.2-12, so no unit is bound to it.
+No test carries RFC5036-2.8.2-12, so there is no linked test.
 
 ### [`RFC5036-2.8.2-13`](#rfc5036-2.8.2-13)
 
 When R detects a loop, it MUST stop using the label for forwarding, drop the Label Mapping message, and signal Loop Detected status to the source of the Label Mapping message. (§2.8.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-2.8.2-13, so no unit is bound to it.
+No test carries RFC5036-2.8.2-13, so there is no linked test.
 
 ### [`RFC5036-3.1-1`](#rfc5036-3.1-1)
 
@@ -778,33 +789,33 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 It MUST be set to zero on transmission and MUST be ignored on receipt. (§3.4.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-3.4.2.2-1, so no unit is bound to it.
+No test carries RFC5036-3.4.2.2-1, so there is no linked test.
 
 ### [`RFC5036-3.4.2.2-2`](#rfc5036-3.4.2.2-2)
 
 If the VCI is less than 16-bits, it SHOULD be right justified in the field and the preceding bits MUST be set to 0. (§3.4.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-3.4.2.2-2, so no unit is bound to it.
+No test carries RFC5036-3.4.2.2-2, so there is no linked test.
 
 ### [`RFC5036-3.4.2.2-3`](#rfc5036-3.4.2.2-3)
 
 If Virtual Path switching is indicated in the V-bits field, then this field MUST be ignored by the receiver and set to 0 by the sender. (§3.4.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-3.4.2.2-3, so no unit is bound to it.
+No test carries RFC5036-3.4.2.2-3, so there is no linked test.
 
 ### [`RFC5036-3.4.2.3-1`](#rfc5036-3.4.2.3-1)
 
 This field is reserved. It MUST be set to zero on transmission and MUST be ignored on receipt. (§3.4.2.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-3.4.2.3-1, so no unit is bound to it.
+No test carries RFC5036-3.4.2.3-1, so there is no linked test.
 
 ### [`RFC5036-3.4.4.1-1`](#rfc5036-3.4.4.1-1)
 
@@ -832,63 +843,63 @@ Audit verdict: weak (the tests pass over code that does not enforce the requirem
 
 If Loop Detection is configured, the LSR MUST follow the procedures specified in Section "Loop Detection". (§3.4.4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-3.4.4.1-3, so no unit is bound to it.
+No test carries RFC5036-3.4.4.1-3, so there is no linked test.
 
 ### [`RFC5036-3.4.5.1.1-1`](#rfc5036-3.4.5.1.1-1)
 
 An LSR that receives a Path Vector in a Label Request message MUST perform the procedures described in Section "Loop Detection". (§3.4.5.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-3.4.5.1.1-1, so no unit is bound to it.
+No test carries RFC5036-3.4.5.1.1-1, so there is no linked test.
 
 ### [`RFC5036-3.4.5.1.1-2`](#rfc5036-3.4.5.1.1-2)
 
 If the LSR detects a loop, it MUST reject the Label Request message. (§3.4.5.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-3.4.5.1.1-2, so no unit is bound to it.
+No test carries RFC5036-3.4.5.1.1-2, so there is no linked test.
 
 ### [`RFC5036-3.4.5.1.1-3`](#rfc5036-3.4.5.1.1-3)
 
 If the LSR detects a loop, it MUST reject the Label Request message. The LSR MUST: 1. Transmit a Notification message to the sending LSR signaling "Loop Detected". 2. Not propagate the Label Request message further. (§3.4.5.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-3.4.5.1.1-3, so no unit is bound to it.
+No test carries RFC5036-3.4.5.1.1-3, so there is no linked test.
 
 ### [`RFC5036-3.4.5.1.2-1`](#rfc5036-3.4.5.1.2-1)
 
 An LSR that receives a Path Vector in a Label Mapping message MUST perform the procedures described in Section "Loop Detection". (§3.4.5.1.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-3.4.5.1.2-1, so no unit is bound to it.
+No test carries RFC5036-3.4.5.1.2-1, so there is no linked test.
 
 ### [`RFC5036-3.4.5.1.2-2`](#rfc5036-3.4.5.1.2-2)
 
 If the LSR detects a loop, it MUST reject the Label Mapping message in order to prevent a forwarding loop. (§3.4.5.1.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-3.4.5.1.2-2, so no unit is bound to it.
+No test carries RFC5036-3.4.5.1.2-2, so there is no linked test.
 
 ### [`RFC5036-3.4.5.1.2-3`](#rfc5036-3.4.5.1.2-3)
 
 If the LSR detects a loop, it MUST reject the Label Mapping message in order to prevent a forwarding loop. The LSR MUST: 1. Transmit a Label Release message carrying a Status TLV to the sending LSR to signal "Loop Detected". 2. Not propagate the message further. 3. Check whether the Label Mapping message is for an existing LSP. If so, the LSR must unsplice any upstream labels that are spliced to the downstream label for the FEC. (§3.4.5.1.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-3.4.5.1.2-3, so no unit is bound to it.
+No test carries RFC5036-3.4.5.1.2-3, so there is no linked test.
 
 ### [`RFC5036-3.5-1`](#rfc5036-3.5-1)
 
 For messages that have required parameters, the required parameters MUST appear in the order specified by the individual message specifications (§3.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -898,9 +909,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 If the session is for a label-controlled ATM link or a label-controlled Frame Relay link, then Downstream on Demand MUST be used (§3.5.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-3.5.3-2, so no unit is bound to it.
+No test carries RFC5036-3.5.3-2, so there is no linked test.
 
 ### [`RFC5036-3.5.3-3`](#rfc5036-3.5.3-3)
 
@@ -981,47 +992,47 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 
 A receiving LSR MUST calculate the intersection between the received range and its own supported label range. (§3.5.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-3.5.3-10, so no unit is bound to it.
+No test carries RFC5036-3.5.3-10, so there is no linked test.
 
 ### [`RFC5036-3.5.3-11`](#rfc5036-3.5.3-11)
 
 LSRs MUST NOT establish a session with neighbors for which the intersection of ranges is NULL. (§3.5.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-3.5.3-11, so no unit is bound to it.
+No test carries RFC5036-3.5.3-11, so there is no linked test.
 
 ### [`RFC5036-3.5.3-12`](#rfc5036-3.5.3-12)
 
 In this case, the LSR MUST send a Session Rejected/Parameters Label Range Notification message in response to the Initialization message and not establish the session. (§3.5.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-3.5.3-12, so no unit is bound to it.
+No test carries RFC5036-3.5.3-12, so there is no linked test.
 
 ### [`RFC5036-3.5.3-13`](#rfc5036-3.5.3-13)
 
 This field is reserved. It MUST be set to zero on transmission and MUST be ignored on receipt. (§3.5.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-3.5.3-13, so no unit is bound to it.
+No test carries RFC5036-3.5.3-13, so there is no linked test.
 
 ### [`RFC5036-3.5.3-14`](#rfc5036-3.5.3-14)
 
 When peer LSRs are connected indirectly by means of an ATM VP, the sending LSR SHOULD set the Minimum and Maximum VPI fields to 0, and the receiving LSR MUST ignore the Minimum and Maximum VPI fields. (§3.5.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-3.5.3-14, so no unit is bound to it.
+No test carries RFC5036-3.5.3-14, so there is no linked test.
 
 ### [`RFC5036-3.5.4.1-1`](#rfc5036-3.5.4.1-1)
 
 An LSR MUST arrange that its peer receive an LDP message from it at least every KeepAlive Time period (§3.5.4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1032,115 +1043,115 @@ Audit verdict: not audited: no reader has judged these tests
 
 Label Request Message ID If this Label Mapping message is a response to a Label Request message, it MUST include the Label Request Message ID optional parameter. (§3.5.7)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-3.5.7-1, so no unit is bound to it.
+No test carries RFC5036-3.5.7-1, so there is no linked test.
 
 ### [`RFC5036-3.5.8.1-1`](#rfc5036-3.5.8.1-1)
 
 Unless its routing table includes an entry that exactly matches the requested Prefix, the LSR MUST respond with a No Route Notification message. (§3.5.8.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-3.5.8.1-1, so no unit is bound to it.
+No test carries RFC5036-3.5.8.1-1, so there is no linked test.
 
 ### [`RFC5036-3.5.8.1-2`](#rfc5036-3.5.8.1-2)
 
 When the receiving LSR responds with a Label Mapping message, the mapping message MUST include a Label Request/Returned Message ID TLV optional parameter that includes the message ID of the Label Request message. (§3.5.8.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-3.5.8.1-2, so no unit is bound to it.
+No test carries RFC5036-3.5.8.1-2, so there is no linked test.
 
 ### [`RFC5036-3.5.8.1-3`](#rfc5036-3.5.8.1-3)
 
 When resources become available, the LSR MUST notify the requesting LSR by sending a Notification message with the Label Resources Available Status Code. (§3.5.8.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-3.5.8.1-3, so no unit is bound to it.
+No test carries RFC5036-3.5.8.1-3, so there is no linked test.
 
 ### [`RFC5036-3.5.8.1-4`](#rfc5036-3.5.8.1-4)
 
 An LSR that receives a No Label Resources response to a Label Request message MUST NOT issue further Label Request messages until it receives a Notification message with the Label Resources Available Status Code (§3.5.8.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-3.5.8.1-4, so no unit is bound to it.
+No test carries RFC5036-3.5.8.1-4, so there is no linked test.
 
 ### [`RFC5036-3.5.9.1-1`](#rfc5036-3.5.9.1-1)
 
 When an LSR receives a Label Abort Request message, if it has not previously responded to the Label Request being aborted with a Label Mapping message or some other Notification message, it MUST acknowledge the abort by responding with a Label Request Aborted Notification message (§3.5.9.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-3.5.9.1-1, so no unit is bound to it.
+No test carries RFC5036-3.5.9.1-1, so there is no linked test.
 
 ### [`RFC5036-3.5.9.1-2`](#rfc5036-3.5.9.1-2)
 
 The Notification MUST include a Label Request Message ID TLV that carries the message ID of the aborted Label Request message. (§3.5.9.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-3.5.9.1-2, so no unit is bound to it.
+No test carries RFC5036-3.5.9.1-2, so there is no linked test.
 
 ### [`RFC5036-3.5.9.1-3`](#rfc5036-3.5.9.1-3)
 
 An LSR receiving a Label Abort Request message MUST process it immediately, regardless of the downstream state of the LSP, responding with a Label Request Aborted Notification or ignoring it, as appropriate (§3.5.9.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-3.5.9.1-3, so no unit is bound to it.
+No test carries RFC5036-3.5.9.1-3, so there is no linked test.
 
 ### [`RFC5036-3.5.11.1-1`](#rfc5036-3.5.11.1-1)
 
 An LSR transmits a Label Release message to a peer when it no longer needs a label previously received from or requested of that peer. An LSR MUST transmit a Label Release message under any of the following conditions: 1. The LSR that sent the label mapping is no longer the next hop for the mapped FEC, and the LSR is configured for conservative operation. 2. The LSR receives a label mapping from an LSR that is not the next hop for the FEC, and the LSR is configured for conservative operation. 3. The LSR receives a Label Withdraw message. (§3.5.11.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-3.5.11.1-1, so no unit is bound to it.
+No test carries RFC5036-3.5.11.1-1, so there is no linked test.
 
 ### [`RFC5036-3.6.1.1-1`](#rfc5036-3.6.1.1-1)
 
 Implementations that support vendor-private TLVs MUST support a user-accessible configuration interface that causes the U-bit to be set on all transmitted vendor-private TLVs; this requirement MAY be satisfied by a user-accessible configuration interface that prevents transmission of all vendor-private TLVs for which the U- bit is clear. (§3.6.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-3.6.1.1-1, so no unit is bound to it.
+No test carries RFC5036-3.6.1.1-1, so there is no linked test.
 
 ### [`RFC5036-3.6.1.2-1`](#rfc5036-3.6.1.2-1)
 
 Implementations that support Vendor-Private messages MUST support a user-accessible configuration interface that causes the U-bit to be set on all transmitted Vendor-Private messages; this requirement MAY be satisfied by a user-accessible configuration interface that prevents transmission of all Vendor-Private messages for which the U-bit is clear. (§3.6.1.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-3.6.1.2-1, so no unit is bound to it.
+No test carries RFC5036-3.6.1.2-1, so there is no linked test.
 
 ### [`RFC5036-A.1.2-1`](#rfc5036-a.1.2-1)
 
 An LSR operating in Downstream Unsolicited mode MUST process any Label Request messages it receives (§A.1.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-A.1.2-1, so no unit is bound to it.
+No test carries RFC5036-A.1.2-1, so there is no linked test.
 
 ### [`RFC5036-A.1.7-1`](#rfc5036-a.1.7-1)
 
 Regardless of the Label Request procedure in use by the LSR, it MUST send a label request if the conditions in NH.13 hold (§A.1.7)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-A.1.7-1, so no unit is bound to it.
+No test carries RFC5036-A.1.7-1, so there is no linked test.
 
 ### [`RFC5036-A.1-1`](#rfc5036-a.1-1)
 
 The requirement on an LDP implementation is that its event handling must have the effect specified by the algorithms. That is, an implementation need not follow exactly the steps specified by the algorithms as long as the effect is identical. (§A.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5036-A.1-1, so no unit is bound to it.
+No test carries RFC5036-A.1-1, so there is no linked test.
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -1160,156 +1171,156 @@ No test carries RFC5036-A.1-1, so no unit is bound to it.
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
 | `front` | the RFC title block, status-of-memo and copyright notice | 0 | skipped (front-matter) | the RFC title block, status-of-memo and copyright notice |
-| `1` | not stated | 0 | walked | not stated |
-| `1.1` | not stated | 0 | walked | not stated |
-| `1.2` | not stated | 0 | walked | not stated |
-| `1.3` | not stated | 0 | walked | not stated |
-| `1.4` | not stated | 0 | walked | not stated |
-| `1.5` | not stated | 0 | walked | not stated |
-| `1.6` | not stated | 0 | walked | not stated |
-| `2` | not stated | 0 | walked | not stated |
-| `2.1` | not stated | 0 | walked | not stated |
-| `2.2` | not stated | 0 | walked | not stated |
-| `2.2.1` | not stated | 0 | walked | not stated |
-| `2.2.2` | not stated | 0 | walked | not stated |
-| `2.2.3` | not stated | 0 | walked | not stated |
-| `2.2.4` | not stated | 0 | walked | not stated |
-| `2.3` | not stated | 0 | walked | not stated |
-| `2.4` | not stated | 0 | walked | not stated |
-| `2.4.1` | not stated | 0 | walked | not stated |
-| `2.4.2` | not stated | 0 | walked | not stated |
-| `2.5` | not stated | 0 | walked | not stated |
-| `2.5.1` | not stated | 0 | walked | not stated |
-| `2.5.2` | not stated | 1 | walked | not stated |
-| `2.5.3` | not stated | 3 | walked | not stated |
-| `2.5.4` | not stated | 0 | walked | not stated |
-| `2.5.5` | not stated | 0 | walked | not stated |
-| `2.5.6` | not stated | 0 | walked | not stated |
-| `2.6` | not stated | 0 | walked | not stated |
-| `2.6.1` | not stated | 0 | walked | not stated |
-| `2.6.1.1` | not stated | 0 | walked | not stated |
-| `2.6.1.2` | not stated | 1 | walked | not stated |
-| `2.6.2` | not stated | 0 | walked | not stated |
-| `2.6.2.1` | not stated | 0 | walked | not stated |
-| `2.6.2.2` | not stated | 0 | walked | not stated |
-| `2.6.3` | not stated | 0 | walked | not stated |
-| `2.7` | not stated | 0 | walked | not stated |
-| `2.8` | not stated | 2 | walked | not stated |
-| `2.8.1` | not stated | 7 | walked | not stated |
-| `2.8.2` | not stated | 13 | walked | not stated |
-| `2.8.3` | not stated | 0 | walked | not stated |
-| `2.9` | not stated | 1 | walked | not stated |
-| `2.9.1` | not stated | 0 | walked | not stated |
-| `2.9.2` | not stated | 0 | walked | not stated |
-| `2.10` | not stated | 0 | walked | not stated |
-| `3` | not stated | 0 | walked | not stated |
-| `3.1` | not stated | 1 | walked | not stated |
-| `3.2` | not stated | 0 | walked | not stated |
-| `3.3` | not stated | 1 | walked | not stated |
-| `3.4` | not stated | 0 | walked | not stated |
-| `3.4.1` | not stated | 0 | walked | not stated |
-| `3.4.1.1` | not stated | 0 | walked | not stated |
-| `3.4.2` | not stated | 0 | walked | not stated |
-| `3.4.2.1` | not stated | 0 | walked | not stated |
-| `3.4.2.2` | not stated | 3 | walked | not stated |
-| `3.4.2.3` | not stated | 1 | walked | not stated |
-| `3.4.3` | not stated | 0 | walked | not stated |
-| `3.4.4` | not stated | 0 | walked | not stated |
-| `3.4.4.1` | not stated | 6 | walked | not stated |
-| `3.4.5` | not stated | 0 | walked | not stated |
-| `3.4.5.1` | not stated | 0 | walked | not stated |
-| `3.4.5.1.1` | not stated | 3 | walked | not stated |
-| `3.4.5.1.2` | not stated | 3 | walked | not stated |
-| `3.4.6` | not stated | 0 | walked | not stated |
-| `3.5` | not stated | 1 | walked | not stated |
-| `3.5.1` | not stated | 0 | walked | not stated |
-| `3.5.1.1` | not stated | 0 | walked | not stated |
-| `3.5.1.2` | not stated | 0 | walked | not stated |
-| `3.5.1.2.1` | not stated | 0 | walked | not stated |
-| `3.5.1.2.2` | not stated | 0 | walked | not stated |
-| `3.5.1.2.3` | not stated | 0 | walked | not stated |
-| `3.5.1.2.4` | not stated | 0 | walked | not stated |
-| `3.5.1.2.5` | not stated | 0 | walked | not stated |
-| `3.5.1.2.6` | not stated | 0 | walked | not stated |
-| `3.5.1.2.7` | not stated | 0 | walked | not stated |
-| `3.5.1.2.8` | not stated | 0 | walked | not stated |
-| `3.5.2` | not stated | 1 | walked | not stated |
-| `3.5.2.1` | not stated | 0 | walked | not stated |
-| `3.5.3` | not stated | 20 | walked | not stated |
-| `3.5.3.1` | not stated | 0 | walked | not stated |
-| `3.5.4` | not stated | 0 | walked | not stated |
-| `3.5.4.1` | not stated | 2 | walked | not stated |
-| `3.5.5` | not stated | 0 | walked | not stated |
-| `3.5.5.1` | not stated | 0 | walked | not stated |
-| `3.5.6` | not stated | 0 | walked | not stated |
-| `3.5.6.1` | not stated | 0 | walked | not stated |
-| `3.5.7` | not stated | 1 | walked | not stated |
-| `3.5.7.1` | not stated | 0 | walked | not stated |
-| `3.5.7.1.1` | not stated | 0 | walked | not stated |
-| `3.5.7.1.2` | not stated | 0 | walked | not stated |
-| `3.5.7.1.3` | not stated | 0 | walked | not stated |
-| `3.5.7.1.4` | not stated | 0 | walked | not stated |
-| `3.5.8` | not stated | 0 | walked | not stated |
-| `3.5.8.1` | not stated | 4 | walked | not stated |
-| `3.5.9` | not stated | 0 | walked | not stated |
-| `3.5.9.1` | not stated | 3 | walked | not stated |
-| `3.5.10` | not stated | 0 | walked | not stated |
-| `3.5.10.1` | not stated | 1 | walked | not stated |
-| `3.5.11` | not stated | 0 | walked | not stated |
-| `3.5.11.1` | not stated | 1 | walked | not stated |
-| `3.6` | not stated | 0 | walked | not stated |
-| `3.6.1` | not stated | 0 | walked | not stated |
-| `3.6.1.1` | not stated | 2 | walked | not stated |
-| `3.6.1.2` | not stated | 1 | walked | not stated |
-| `3.6.2` | not stated | 0 | walked | not stated |
-| `3.7` | not stated | 0 | walked | not stated |
-| `3.8` | not stated | 0 | walked | not stated |
-| `3.9` | not stated | 0 | walked | not stated |
-| `3.10` | not stated | 0 | walked | not stated |
-| `3.10.1` | not stated | 0 | walked | not stated |
-| `3.10.2` | not stated | 0 | walked | not stated |
+| `1` | not stated | 0 | reviewed | not stated |
+| `1.1` | not stated | 0 | reviewed | not stated |
+| `1.2` | not stated | 0 | reviewed | not stated |
+| `1.3` | not stated | 0 | reviewed | not stated |
+| `1.4` | not stated | 0 | reviewed | not stated |
+| `1.5` | not stated | 0 | reviewed | not stated |
+| `1.6` | not stated | 0 | reviewed | not stated |
+| `2` | not stated | 0 | reviewed | not stated |
+| `2.1` | not stated | 0 | reviewed | not stated |
+| `2.2` | not stated | 0 | reviewed | not stated |
+| `2.2.1` | not stated | 0 | reviewed | not stated |
+| `2.2.2` | not stated | 0 | reviewed | not stated |
+| `2.2.3` | not stated | 0 | reviewed | not stated |
+| `2.2.4` | not stated | 0 | reviewed | not stated |
+| `2.3` | not stated | 0 | reviewed | not stated |
+| `2.4` | not stated | 0 | reviewed | not stated |
+| `2.4.1` | not stated | 0 | reviewed | not stated |
+| `2.4.2` | not stated | 0 | reviewed | not stated |
+| `2.5` | not stated | 0 | reviewed | not stated |
+| `2.5.1` | not stated | 0 | reviewed | not stated |
+| `2.5.2` | not stated | 1 | reviewed | not stated |
+| `2.5.3` | not stated | 3 | reviewed | not stated |
+| `2.5.4` | not stated | 0 | reviewed | not stated |
+| `2.5.5` | not stated | 0 | reviewed | not stated |
+| `2.5.6` | not stated | 0 | reviewed | not stated |
+| `2.6` | not stated | 0 | reviewed | not stated |
+| `2.6.1` | not stated | 0 | reviewed | not stated |
+| `2.6.1.1` | not stated | 0 | reviewed | not stated |
+| `2.6.1.2` | not stated | 1 | reviewed | not stated |
+| `2.6.2` | not stated | 0 | reviewed | not stated |
+| `2.6.2.1` | not stated | 0 | reviewed | not stated |
+| `2.6.2.2` | not stated | 0 | reviewed | not stated |
+| `2.6.3` | not stated | 0 | reviewed | not stated |
+| `2.7` | not stated | 0 | reviewed | not stated |
+| `2.8` | not stated | 2 | reviewed | not stated |
+| `2.8.1` | not stated | 7 | reviewed | not stated |
+| `2.8.2` | not stated | 13 | reviewed | not stated |
+| `2.8.3` | not stated | 0 | reviewed | not stated |
+| `2.9` | not stated | 1 | reviewed | not stated |
+| `2.9.1` | not stated | 0 | reviewed | not stated |
+| `2.9.2` | not stated | 0 | reviewed | not stated |
+| `2.10` | not stated | 0 | reviewed | not stated |
+| `3` | not stated | 0 | reviewed | not stated |
+| `3.1` | not stated | 1 | reviewed | not stated |
+| `3.2` | not stated | 0 | reviewed | not stated |
+| `3.3` | not stated | 1 | reviewed | not stated |
+| `3.4` | not stated | 0 | reviewed | not stated |
+| `3.4.1` | not stated | 0 | reviewed | not stated |
+| `3.4.1.1` | not stated | 0 | reviewed | not stated |
+| `3.4.2` | not stated | 0 | reviewed | not stated |
+| `3.4.2.1` | not stated | 0 | reviewed | not stated |
+| `3.4.2.2` | not stated | 3 | reviewed | not stated |
+| `3.4.2.3` | not stated | 1 | reviewed | not stated |
+| `3.4.3` | not stated | 0 | reviewed | not stated |
+| `3.4.4` | not stated | 0 | reviewed | not stated |
+| `3.4.4.1` | not stated | 6 | reviewed | not stated |
+| `3.4.5` | not stated | 0 | reviewed | not stated |
+| `3.4.5.1` | not stated | 0 | reviewed | not stated |
+| `3.4.5.1.1` | not stated | 3 | reviewed | not stated |
+| `3.4.5.1.2` | not stated | 3 | reviewed | not stated |
+| `3.4.6` | not stated | 0 | reviewed | not stated |
+| `3.5` | not stated | 1 | reviewed | not stated |
+| `3.5.1` | not stated | 0 | reviewed | not stated |
+| `3.5.1.1` | not stated | 0 | reviewed | not stated |
+| `3.5.1.2` | not stated | 0 | reviewed | not stated |
+| `3.5.1.2.1` | not stated | 0 | reviewed | not stated |
+| `3.5.1.2.2` | not stated | 0 | reviewed | not stated |
+| `3.5.1.2.3` | not stated | 0 | reviewed | not stated |
+| `3.5.1.2.4` | not stated | 0 | reviewed | not stated |
+| `3.5.1.2.5` | not stated | 0 | reviewed | not stated |
+| `3.5.1.2.6` | not stated | 0 | reviewed | not stated |
+| `3.5.1.2.7` | not stated | 0 | reviewed | not stated |
+| `3.5.1.2.8` | not stated | 0 | reviewed | not stated |
+| `3.5.2` | not stated | 1 | reviewed | not stated |
+| `3.5.2.1` | not stated | 0 | reviewed | not stated |
+| `3.5.3` | not stated | 20 | reviewed | not stated |
+| `3.5.3.1` | not stated | 0 | reviewed | not stated |
+| `3.5.4` | not stated | 0 | reviewed | not stated |
+| `3.5.4.1` | not stated | 2 | reviewed | not stated |
+| `3.5.5` | not stated | 0 | reviewed | not stated |
+| `3.5.5.1` | not stated | 0 | reviewed | not stated |
+| `3.5.6` | not stated | 0 | reviewed | not stated |
+| `3.5.6.1` | not stated | 0 | reviewed | not stated |
+| `3.5.7` | not stated | 1 | reviewed | not stated |
+| `3.5.7.1` | not stated | 0 | reviewed | not stated |
+| `3.5.7.1.1` | not stated | 0 | reviewed | not stated |
+| `3.5.7.1.2` | not stated | 0 | reviewed | not stated |
+| `3.5.7.1.3` | not stated | 0 | reviewed | not stated |
+| `3.5.7.1.4` | not stated | 0 | reviewed | not stated |
+| `3.5.8` | not stated | 0 | reviewed | not stated |
+| `3.5.8.1` | not stated | 4 | reviewed | not stated |
+| `3.5.9` | not stated | 0 | reviewed | not stated |
+| `3.5.9.1` | not stated | 3 | reviewed | not stated |
+| `3.5.10` | not stated | 0 | reviewed | not stated |
+| `3.5.10.1` | not stated | 1 | reviewed | not stated |
+| `3.5.11` | not stated | 0 | reviewed | not stated |
+| `3.5.11.1` | not stated | 1 | reviewed | not stated |
+| `3.6` | not stated | 0 | reviewed | not stated |
+| `3.6.1` | not stated | 0 | reviewed | not stated |
+| `3.6.1.1` | not stated | 2 | reviewed | not stated |
+| `3.6.1.2` | not stated | 1 | reviewed | not stated |
+| `3.6.2` | not stated | 0 | reviewed | not stated |
+| `3.7` | not stated | 0 | reviewed | not stated |
+| `3.8` | not stated | 0 | reviewed | not stated |
+| `3.9` | not stated | 0 | reviewed | not stated |
+| `3.10` | not stated | 0 | reviewed | not stated |
+| `3.10.1` | not stated | 0 | reviewed | not stated |
+| `3.10.2` | not stated | 0 | reviewed | not stated |
 | `4` | not stated | 0 | skipped (iana) | IANA Considerations: name space management guidelines addressed to IANA |
 | `4.1` | message type name space allocation policy | 0 | skipped (iana) | message type name space allocation policy |
 | `4.2` | TLV type name space allocation policy | 0 | skipped (iana) | TLV type name space allocation policy |
 | `4.3` | FEC type name space allocation policy | 0 | skipped (iana) | FEC type name space allocation policy |
 | `4.4` | status code name space allocation policy | 0 | skipped (iana) | status code name space allocation policy |
 | `4.5` | experiment ID name space allocation policy | 0 | skipped (iana) | experiment ID name space allocation policy |
-| `5` | not stated | 0 | walked | not stated |
-| `5.1` | not stated | 0 | walked | not stated |
-| `5.2` | not stated | 0 | walked | not stated |
-| `5.3` | not stated | 0 | walked | not stated |
-| `6` | not stated | 0 | walked | not stated |
-| `7` | not stated | 0 | walked | not stated |
+| `5` | not stated | 0 | reviewed | not stated |
+| `5.1` | not stated | 0 | reviewed | not stated |
+| `5.2` | not stated | 0 | reviewed | not stated |
+| `5.3` | not stated | 0 | reviewed | not stated |
+| `6` | not stated | 0 | reviewed | not stated |
+| `7` | not stated | 0 | reviewed | not stated |
 | `8` | Acknowledgments | 0 | skipped (acknowledgements) | Acknowledgments |
 | `9` | References | 0 | skipped (references) | References |
 | `9.1` | Normative References | 0 | skipped (references) | Normative References |
 | `9.2` | Informative References | 0 | skipped (references) | Informative References |
-| `A` | not stated | 1 | walked | not stated |
-| `A.1` | not stated | 0 | walked | not stated |
-| `A.1.1` | not stated | 0 | walked | not stated |
-| `A.1.2` | not stated | 1 | walked | not stated |
-| `A.1.3` | not stated | 0 | walked | not stated |
-| `A.1.4` | not stated | 0 | walked | not stated |
-| `A.1.5` | not stated | 0 | walked | not stated |
-| `A.1.6` | not stated | 0 | walked | not stated |
-| `A.1.7` | not stated | 1 | walked | not stated |
-| `A.1.8` | not stated | 0 | walked | not stated |
-| `A.1.9` | not stated | 0 | walked | not stated |
-| `A.1.10` | not stated | 0 | walked | not stated |
-| `A.1.11` | not stated | 0 | walked | not stated |
-| `A.1.12` | not stated | 0 | walked | not stated |
-| `A.1.13` | not stated | 0 | walked | not stated |
-| `A.1.14` | not stated | 1 | walked | not stated |
-| `A.1.15` | not stated | 0 | walked | not stated |
-| `A.2` | not stated | 0 | walked | not stated |
-| `A.2.1` | not stated | 0 | walked | not stated |
-| `A.2.2` | not stated | 0 | walked | not stated |
-| `A.2.3` | not stated | 0 | walked | not stated |
-| `A.2.4` | not stated | 0 | walked | not stated |
-| `A.2.5` | not stated | 0 | walked | not stated |
-| `A.2.6` | not stated | 0 | walked | not stated |
-| `A.2.7` | not stated | 0 | walked | not stated |
-| `A.2.8` | not stated | 0 | walked | not stated |
+| `A` | not stated | 1 | reviewed | not stated |
+| `A.1` | not stated | 0 | reviewed | not stated |
+| `A.1.1` | not stated | 0 | reviewed | not stated |
+| `A.1.2` | not stated | 1 | reviewed | not stated |
+| `A.1.3` | not stated | 0 | reviewed | not stated |
+| `A.1.4` | not stated | 0 | reviewed | not stated |
+| `A.1.5` | not stated | 0 | reviewed | not stated |
+| `A.1.6` | not stated | 0 | reviewed | not stated |
+| `A.1.7` | not stated | 1 | reviewed | not stated |
+| `A.1.8` | not stated | 0 | reviewed | not stated |
+| `A.1.9` | not stated | 0 | reviewed | not stated |
+| `A.1.10` | not stated | 0 | reviewed | not stated |
+| `A.1.11` | not stated | 0 | reviewed | not stated |
+| `A.1.12` | not stated | 0 | reviewed | not stated |
+| `A.1.13` | not stated | 0 | reviewed | not stated |
+| `A.1.14` | not stated | 1 | reviewed | not stated |
+| `A.1.15` | not stated | 0 | reviewed | not stated |
+| `A.2` | not stated | 0 | reviewed | not stated |
+| `A.2.1` | not stated | 0 | reviewed | not stated |
+| `A.2.2` | not stated | 0 | reviewed | not stated |
+| `A.2.3` | not stated | 0 | reviewed | not stated |
+| `A.2.4` | not stated | 0 | reviewed | not stated |
+| `A.2.5` | not stated | 0 | reviewed | not stated |
+| `A.2.6` | not stated | 0 | reviewed | not stated |
+| `A.2.7` | not stated | 0 | reviewed | not stated |
+| `A.2.8` | not stated | 0 | reviewed | not stated |
 
 ### Excluded sentences
 

@@ -1,6 +1,6 @@
 # RFC 2759 - Microsoft PPP CHAP Extensions, Version 2
 
-MS-CHAPv2 (PPP and EAP inside IKEv2). Every requirement this repository extracted from RFC 2759, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+MS-CHAPv2 (PPP and EAP inside IKEv2). Every requirement listed for RFC 2759, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,13 +10,13 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 6 | of 7 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 1 | of 7 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 7 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 7 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| No test at all | 0 | of 7 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 21 | 21 of 26 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-| Audit verdicts | 9 | of 7 gated MUSTs judged | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+| Tested both ways | 6 | of 7 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 1 | of 7 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 7 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 7 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Declared gap or no test | 0 | of 7 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Tests shown to detect a fault | 21 | 21 of 26 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Audit verdicts | 9 | of 7 mandatory requirements reviewed | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
 
@@ -24,59 +24,66 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 7 | of 11 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 7 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 7 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 7 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 7 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 7 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Out of scope | 0 | of 7 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 7 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 7 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 7 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 7 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
 
-The 9 counts marked as a part above are the whole of the 7 gated MUSTs: they add up to 7. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Totals
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 7 | of 11 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 7 mandatory requirements: they add up to 7. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | ok | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | ok | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | ok | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | MS-CHAPv2 (PPP and EAP inside IKEv2) |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 11 |
-| Gated MUST-level | 7 |
+| Mandatory requirements (MUST level) | 7 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 26 |
-| Tagged units | 26 |
+| Tests linked to requirements | 26 |
 | Recorded audit verdicts | 9 |
-| Discrimination records | 21 |
+| Fault test records | 21 |
 | Summary | `rfc/short/rfc2759.md` |
-| Requirement shard | `rfc/requirements/rfc2759.md` |
+| Requirement table | `rfc/requirements/rfc2759.md` |
 | RFC text | `rfc/full/rfc2759.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: MS-CHAPv2 (EAP inside IKEv2): 6 MET (Response field validation, DOMAIN-strip, UTF-16LE hash) + 3 single-polarity positive (uppercase S=, 16-octet random challenges) + 3 gap (no MS-CHAPv2 Failure/C= packet, peer skips authenticator-response check, no E=691)
+Included in automatic checks: MS-CHAPv2 (EAP inside IKEv2): 6 MET (Response field validation, DOMAIN-strip, UTF-16LE hash) + 3 single-polarity positive (uppercase S=, 16-octet random challenges) + 3 gap (no MS-CHAPv2 Failure/C= packet, peer skips authenticator-response check, no E=691)
 
-## What the public ledger says
+## Published support status
 
 **Area:** MS-CHAPv2 (PPP and EAP inside IKEv2)
 
@@ -91,14 +98,14 @@ Enrolled: MS-CHAPv2 (EAP inside IKEv2): 6 MET (Response field validation, DOMAIN
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 6 | one part of the gated population |
-| Annotated (including scoped evidence) | 1 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **7** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 6 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 1 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **7** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (6):** [`RFC2759-x-1`](#rfc2759-x-1), [`RFC2759-x-2`](#rfc2759-x-2), [`RFC2759-x-3`](#rfc2759-x-3), [`RFC2759-x-4`](#rfc2759-x-4), [`RFC2759-x-6`](#rfc2759-x-6), [`RFC2759-x-7`](#rfc2759-x-7)
 
@@ -106,20 +113,23 @@ Enrolled: MS-CHAPv2 (EAP inside IKEv2): 6 MET (Response field validation, DOMAIN
 
 ## Figures
 
-- **MUST bar**: Ze proven 4, Ze correctness gap 3
-- **Overview bar**: Ze MUST proven 4, SHOULD proven 2, SHOULD not decided 2, Ze correctness gap 3
+- **MUST bar**: Ze proven 4, Proof pending 3
+- **Overview bar**: Ze MUST proven 4, SHOULD proven 2, Proof pending 3, Not assessed 2
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 7 |
 | MUST rows kept (the MUST bar) | 7 |
 | Ze proven | 4 |
 | OS verified | 0 |
+| Proof pending | 3 |
 | OS testing gap | 0 |
-| Ze correctness gap | 3 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 0 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -132,11 +142,12 @@ Enrolled: MS-CHAPv2 (EAP inside IKEv2): 6 MET (Response field validation, DOMAIN
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 2 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 2 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc2759.json](../../../data/rfc/rfc2759.json).
 
@@ -158,11 +169,11 @@ Source: [data/rfc/rfc2759.json](../../../data/rfc/rfc2759.json).
 
 ## Gaps and untested MUSTs
 
-RFC 2759 declares no gap, and every gated MUST it carries has a test bound to it.
+RFC 2759 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC2759-x-1`](#rfc2759-x-1)
 
@@ -271,7 +282,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Row 
 | positive | [`TestRFC2759PeerChallengeEntersTheNTResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_clause_test.go#L191) | unit/verify | revert, verified |
 | positive | [`TestRFC2759PeerChallengeComesFromCryptoRand`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_peer_challenge_test.go#L37) | unit/verify | revert, verified |
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -291,43 +302,43 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Row 
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
 | `front` | not stated | 0 | skipped (front-matter) | Title block, Status of this Memo, Copyright Notice, Abstract and Table of Contents. The Abstract names the document as a description of MS-CHAP-V2 and states no obligation. |
-| `1` | Introduction | 0 | walked | Introduction. A bulleted list of the six differences from MS-CHAP-V1: CHAP Algorithm 0x81, mutual authentication by piggybacking a peer challenge and an authenticator response, the changed NT-Response calculation, the Peer-Challenge replacing the LAN Manager response, the changed Failure Message format, and the single Change-Password packet. Every sentence is indicative, and each obligation it previews is stated normatively in sections 3 to 7. |
-| `2` | LCP Configuration | 0 | walked | LCP Configuration. Assigns the CHAP Algorithm field the value 0x81 and observes that a PPP implementation which answers with LCP Config-Rej has no problem. A value assignment is not a directive, which is the reading the RFC 4486 sign-off took of its own subcode table. The obligation to USE the value would belong to a PPP speaker, and the ledger scopes this summary to MS-CHAPv2 carried in EAP inside IKEv2, where no LCP option is negotiated at all. |
-| `3` | Challenge Packet | 0 | walked | Challenge Packet. Two sentences carry content: 'MS-CHAP-V2 authenticators send an 16-octet challenge Value field', which is indicative, and 'the standard guidelines on randomness [1,2,7] SHOULD be observed', which is advisory. The site scan reads no site from either, and RFC2759-x-8 is read from the pair. |
-| `4` | Response Packet | 2 | walked | Response Packet. The Value sub-format list is site 4:1 and the Flag rule is site 4:2. Three further ids are read from prose here. RFC2759-x-3 states the Value-Size as 49, which the RFC never writes as a number: it is the sum of the sub-format list, 16 + 8 + 24 + 1. RFC2759-x-9 is read from 'The Peer-Challenge field is a 16-octet random number' together with the same randomness advisory as section 3. RFC2759-x-11 is the receiver-side counterpart of the two sender rules the sites carry: the RFC states that Reserved and Flags must be zero and never states the duty to reject a packet in which they are not. The domain-stripping rule is stated here too, in 'only the user name is used, without any associated Windows NT domain name'; it is attributed to section 8.2, where the pseudocode states it as a constraint on the hash input. |
-| `5` | Success Packet | 3 | walked | Success Packet. Three sites: the uppercase-hex rule (5:1), the peer's duty to verify the authenticator response (5:2), and the peer's duty to end the session when that response is missing or incorrect (5:3). The summary carries one row for the verify-and-disconnect duty, RFC2759-x-7, so site 5:3 maps it and site 5:2 is excluded as its duplicate. The method the section points at is section 8.8. |
-| `6` | Failure Packet | 1 | walked | Failure Packet. The C= field rule is site 6:1. The error-code table, the retry flag and the <msg> text are indicative. One lowercase advisory sits here that the summary does not declare, 'implementations should deal with codes not on this list gracefully', and it binds a reader of a Failure packet; ze's IKEv2 EAP path never parses one. RFC2759-x-13 is read from 'For MS-CHAP-V2, this value SHOULD always be 3'. |
-| `7` | Change-Password Packet | 1 | walked | Change-Password Packet. The packet is 586 octets and is sent by a peer whose password the authenticator reported expired. Its Reserved field rule is site 7:1, excluded below: ze implements the password-change exchange in neither direction. The Peer-Challenge and NT-Response fields are defined by reference to the Response packet and add no obligation of their own, and the Flags field is 'Reserved, always clear (0)', an indicative bit-field description. |
-| `8` | Pseudocode | 0 | walked | Pseudocode. One sentence naming what the subsections describe. No obligation. |
-| `8.1` | GenerateNTResponse() | 0 | walked | GenerateNTResponse(). Pseudocode composing ChallengeHash, NtPasswordHash and ChallengeResponse into the 24-octet NT-Response. Indicative throughout. GenerateNTResponse (internal/core/eap/mschapv2.go) is the same composition in the same order. |
-| `8.2` | ChallengeHash() | 0 | walked | ChallengeHash(). SHA-1 over PeerChallenge, AuthenticatorChallenge and UserName, truncated to 8 octets. Its comment states the constraint RFC2759-x-4 renders: 'Only the user name (as presented by the peer and excluding any prepended domain name) is used as input to SHAUpdate()'. A pseudocode comment carries no capitalised keyword, so the scan reads no site from it. |
-| `8.3` | NtPasswordHash() | 0 | walked | NtPasswordHash(). MD4 over the password, with the comment 'Only the password is hashed without including any terminating 0'. The UTF-16LE encoding is stated by the declared input type '0-to-256-unicode-char Password' and pinned by the worked vector in section 9.2, where the password 'clientPass' appears as 63 00 6C 00 69 00 ... with no terminator. Neither statement is a keyword site. The row once read from them, RFC2759-x-10, was retired on 2026-10-11 by owner decision as example data. |
-| `8.4` | HashNtPasswordHash() | 0 | walked | HashNtPasswordHash(). MD4 over the 16-octet PasswordHash. Indicative. |
-| `8.5` | ChallengeResponse() | 0 | walked | ChallengeResponse(). Zero-pads the PasswordHash to 21 octets, splits it into three 7-octet DES keys and encrypts the 8-octet Challenge under each. Indicative; the summary renders it in its Crypto Operations table. |
-| `8.6` | DesEncrypt() | 0 | walked | DesEncrypt(). DES in ECB mode, with the note that the caller inserts the parity bits itself because the algorithm ignores them. Indicative. |
-| `8.7` | GenerateAuthenticatorResponse() | 0 | walked | GenerateAuthenticatorResponse(). The Magic1 and Magic2 constants and the two SHA-1 passes that produce the 20-octet value the S= field carries. Indicative. GenerateAuthenticatorResponse (internal/core/eap/mschapv2.go) implements it and the authenticator calls it in handleResponse. |
-| `8.8` | CheckAuthenticatorResponse() | 0 | walked | CheckAuthenticatorResponse(). The procedure section 5 points at: recompute the authenticator response from the peer's own inputs and compare. Pseudocode, so no site; the obligation to RUN it is stated in section 5 and mapped there as RFC2759-x-7. Ze has no implementation of this routine: the peer's handleMSCHAPv2Success (internal/core/eap/peer.go) hex-decodes the S= field and never calls GenerateAuthenticatorResponse. |
-| `8.9` | NewPasswordEncryptedWithOldNtPasswordHash() | 0 | walked | NewPasswordEncryptedWithOldNtPasswordHash(). Change-Password crypto, building the PWBLOCK. Indicative pseudocode for the exchange section 7 defines and ze does not implement. |
-| `8.10` | EncryptPwBlockWithPasswordHash() | 0 | walked | EncryptPwBlockWithPasswordHash(). Change-Password crypto. Indicative pseudocode for the exchange ze does not implement. |
-| `8.11` | Rc4Encrypt() | 0 | walked | Rc4Encrypt(). Change-Password crypto, naming RC4 as a licensed proprietary algorithm. Indicative pseudocode for the exchange ze does not implement. |
-| `8.12` | OldNtPasswordHashEncryptedWithNewNtPasswordHash() | 0 | walked | OldNtPasswordHashEncryptedWithNewNtPasswordHash(). Change-Password crypto. Indicative pseudocode for the exchange ze does not implement. |
-| `8.13` | NtPasswordHashEncryptedWithBlock() | 0 | walked | NtPasswordHashEncryptedWithBlock(). Change-Password crypto, two DES blocks over the password hash. Indicative pseudocode for the exchange ze does not implement. |
-| `9` | Examples | 0 | walked | Examples. One sentence naming what the subsections show. No obligation. |
-| `9.1` | Negotiation Examples | 0 | walked | Negotiation Examples. States indicatively that the packet sequence ID increments on each retry response and on the change-password response, that retry is never allowed after a password change, and that a password change may follow a retry. Descriptions of the flows below, not directives. |
-| `9.1.1` | Successful authentication | 0 | walked | Successful authentication. A three-message flow diagram. Non-normative. |
-| `9.1.2` | Authenticator authentication failure | 0 | walked | Authenticator authentication failure. The flow diagram for the case RFC2759-x-7 governs: 'Authenticator Response verification fails, peer disconnects'. A worked example of the section 5 obligation, not a second statement of it. |
-| `9.1.3` | Failed authentication with no retry allowed | 0 | walked | Failed authentication with no retry allowed. The flow diagram showing Failure (E=691 R=0) followed by an authenticator disconnect. Example data, no obligation: the row once read from it, RFC2759-x-12, was retired on 2026-10-11 by owner decision. |
-| `9.1.4` | Successful authentication after retry | 0 | walked | Successful authentication after retry. A flow diagram. Non-normative. |
-| `9.1.5` | Failed hack attack with 3 attempts allowed | 0 | walked | Failed hack attack with 3 attempts allowed. A flow diagram illustrating the retry limit that section 10 states as an advisory. Non-normative. |
-| `9.1.6` | Successful authentication with password change | 0 | walked | Successful authentication with password change. A flow diagram for the exchange section 7 defines. Non-normative. |
-| `9.1.7` | Successful authentication with retry and password change | 0 | walked | Successful authentication with retry and password change. A flow diagram. Non-normative. |
-| `9.2` | Hash Example | 0 | walked | Hash Example. The known-answer vectors for user name 'User' and password 'clientPass', from the UTF-16LE password bytes through to 'S=407A5589115FD0D6209F510FE9C04566932CDA56'. No obligation; these are the vectors the RFC2759-x-4 tests and the password-hash known-answer tests drive (internal/core/eap/rfc2759_clause_test.go, internal/core/eap/rfc2759_mschapv2_test.go). |
-| `9.3` | Example of DES Key Generation | 0 | walked | Example of DES Key Generation. Shows the two parity-corrected DES keys derived from the password 'MyPw', and notes that many DES engines strip the parity bits rather than check them. A worked example of section 8.6, with no obligation of its own. |
-| `10` | Security Considerations | 0 | walked | Security Considerations. One sentence, an advisory: 'As an implementation detail, the authenticator SHOULD limit the number of password retries allowed to make brute-force password guessing attacks more difficult.' RFC2759-x-14 renders it. The scan reads no site because the sentence is SHOULD-level. |
+| `1` | Introduction | 0 | reviewed | Introduction. A bulleted list of the six differences from MS-CHAP-V1: CHAP Algorithm 0x81, mutual authentication by piggybacking a peer challenge and an authenticator response, the changed NT-Response calculation, the Peer-Challenge replacing the LAN Manager response, the changed Failure Message format, and the single Change-Password packet. Every sentence is indicative, and each obligation it previews is stated normatively in sections 3 to 7. |
+| `2` | LCP Configuration | 0 | reviewed | LCP Configuration. Assigns the CHAP Algorithm field the value 0x81 and observes that a PPP implementation which answers with LCP Config-Rej has no problem. A value assignment is not a directive, which is the reading the RFC 4486 sign-off took of its own subcode table. The obligation to USE the value would belong to a PPP speaker, and the ledger scopes this summary to MS-CHAPv2 carried in EAP inside IKEv2, where no LCP option is negotiated at all. |
+| `3` | Challenge Packet | 0 | reviewed | Challenge Packet. Two sentences carry content: 'MS-CHAP-V2 authenticators send an 16-octet challenge Value field', which is indicative, and 'the standard guidelines on randomness [1,2,7] SHOULD be observed', which is advisory. The site scan reads no site from either, and RFC2759-x-8 is read from the pair. |
+| `4` | Response Packet | 2 | reviewed | Response Packet. The Value sub-format list is site 4:1 and the Flag rule is site 4:2. Three further ids are read from prose here. RFC2759-x-3 states the Value-Size as 49, which the RFC never writes as a number: it is the sum of the sub-format list, 16 + 8 + 24 + 1. RFC2759-x-9 is read from 'The Peer-Challenge field is a 16-octet random number' together with the same randomness advisory as section 3. RFC2759-x-11 is the receiver-side counterpart of the two sender rules the sites carry: the RFC states that Reserved and Flags must be zero and never states the duty to reject a packet in which they are not. The domain-stripping rule is stated here too, in 'only the user name is used, without any associated Windows NT domain name'; it is attributed to section 8.2, where the pseudocode states it as a constraint on the hash input. |
+| `5` | Success Packet | 3 | reviewed | Success Packet. Three sites: the uppercase-hex rule (5:1), the peer's duty to verify the authenticator response (5:2), and the peer's duty to end the session when that response is missing or incorrect (5:3). The summary carries one row for the verify-and-disconnect duty, RFC2759-x-7, so site 5:3 maps it and site 5:2 is excluded as its duplicate. The method the section points at is section 8.8. |
+| `6` | Failure Packet | 1 | reviewed | Failure Packet. The C= field rule is site 6:1. The error-code table, the retry flag and the <msg> text are indicative. One lowercase advisory sits here that the summary does not declare, 'implementations should deal with codes not on this list gracefully', and it binds a reader of a Failure packet; ze's IKEv2 EAP path never parses one. RFC2759-x-13 is read from 'For MS-CHAP-V2, this value SHOULD always be 3'. |
+| `7` | Change-Password Packet | 1 | reviewed | Change-Password Packet. The packet is 586 octets and is sent by a peer whose password the authenticator reported expired. Its Reserved field rule is site 7:1, excluded below: ze implements the password-change exchange in neither direction. The Peer-Challenge and NT-Response fields are defined by reference to the Response packet and add no obligation of their own, and the Flags field is 'Reserved, always clear (0)', an indicative bit-field description. |
+| `8` | Pseudocode | 0 | reviewed | Pseudocode. One sentence naming what the subsections describe. No obligation. |
+| `8.1` | GenerateNTResponse() | 0 | reviewed | GenerateNTResponse(). Pseudocode composing ChallengeHash, NtPasswordHash and ChallengeResponse into the 24-octet NT-Response. Indicative throughout. GenerateNTResponse (internal/core/eap/mschapv2.go) is the same composition in the same order. |
+| `8.2` | ChallengeHash() | 0 | reviewed | ChallengeHash(). SHA-1 over PeerChallenge, AuthenticatorChallenge and UserName, truncated to 8 octets. Its comment states the constraint RFC2759-x-4 renders: 'Only the user name (as presented by the peer and excluding any prepended domain name) is used as input to SHAUpdate()'. A pseudocode comment carries no capitalised keyword, so the scan reads no site from it. |
+| `8.3` | NtPasswordHash() | 0 | reviewed | NtPasswordHash(). MD4 over the password, with the comment 'Only the password is hashed without including any terminating 0'. The UTF-16LE encoding is stated by the declared input type '0-to-256-unicode-char Password' and pinned by the worked vector in section 9.2, where the password 'clientPass' appears as 63 00 6C 00 69 00 ... with no terminator. Neither statement is a keyword site. The row once read from them, RFC2759-x-10, was retired on 2026-10-11 by owner decision as example data. |
+| `8.4` | HashNtPasswordHash() | 0 | reviewed | HashNtPasswordHash(). MD4 over the 16-octet PasswordHash. Indicative. |
+| `8.5` | ChallengeResponse() | 0 | reviewed | ChallengeResponse(). Zero-pads the PasswordHash to 21 octets, splits it into three 7-octet DES keys and encrypts the 8-octet Challenge under each. Indicative; the summary renders it in its Crypto Operations table. |
+| `8.6` | DesEncrypt() | 0 | reviewed | DesEncrypt(). DES in ECB mode, with the note that the caller inserts the parity bits itself because the algorithm ignores them. Indicative. |
+| `8.7` | GenerateAuthenticatorResponse() | 0 | reviewed | GenerateAuthenticatorResponse(). The Magic1 and Magic2 constants and the two SHA-1 passes that produce the 20-octet value the S= field carries. Indicative. GenerateAuthenticatorResponse (internal/core/eap/mschapv2.go) implements it and the authenticator calls it in handleResponse. |
+| `8.8` | CheckAuthenticatorResponse() | 0 | reviewed | CheckAuthenticatorResponse(). The procedure section 5 points at: recompute the authenticator response from the peer's own inputs and compare. Pseudocode, so no site; the obligation to RUN it is stated in section 5 and mapped there as RFC2759-x-7. Ze has no implementation of this routine: the peer's handleMSCHAPv2Success (internal/core/eap/peer.go) hex-decodes the S= field and never calls GenerateAuthenticatorResponse. |
+| `8.9` | NewPasswordEncryptedWithOldNtPasswordHash() | 0 | reviewed | NewPasswordEncryptedWithOldNtPasswordHash(). Change-Password crypto, building the PWBLOCK. Indicative pseudocode for the exchange section 7 defines and ze does not implement. |
+| `8.10` | EncryptPwBlockWithPasswordHash() | 0 | reviewed | EncryptPwBlockWithPasswordHash(). Change-Password crypto. Indicative pseudocode for the exchange ze does not implement. |
+| `8.11` | Rc4Encrypt() | 0 | reviewed | Rc4Encrypt(). Change-Password crypto, naming RC4 as a licensed proprietary algorithm. Indicative pseudocode for the exchange ze does not implement. |
+| `8.12` | OldNtPasswordHashEncryptedWithNewNtPasswordHash() | 0 | reviewed | OldNtPasswordHashEncryptedWithNewNtPasswordHash(). Change-Password crypto. Indicative pseudocode for the exchange ze does not implement. |
+| `8.13` | NtPasswordHashEncryptedWithBlock() | 0 | reviewed | NtPasswordHashEncryptedWithBlock(). Change-Password crypto, two DES blocks over the password hash. Indicative pseudocode for the exchange ze does not implement. |
+| `9` | Examples | 0 | reviewed | Examples. One sentence naming what the subsections show. No obligation. |
+| `9.1` | Negotiation Examples | 0 | reviewed | Negotiation Examples. States indicatively that the packet sequence ID increments on each retry response and on the change-password response, that retry is never allowed after a password change, and that a password change may follow a retry. Descriptions of the flows below, not directives. |
+| `9.1.1` | Successful authentication | 0 | reviewed | Successful authentication. A three-message flow diagram. Non-normative. |
+| `9.1.2` | Authenticator authentication failure | 0 | reviewed | Authenticator authentication failure. The flow diagram for the case RFC2759-x-7 governs: 'Authenticator Response verification fails, peer disconnects'. A worked example of the section 5 obligation, not a second statement of it. |
+| `9.1.3` | Failed authentication with no retry allowed | 0 | reviewed | Failed authentication with no retry allowed. The flow diagram showing Failure (E=691 R=0) followed by an authenticator disconnect. Example data, no obligation: the row once read from it, RFC2759-x-12, was retired on 2026-10-11 by owner decision. |
+| `9.1.4` | Successful authentication after retry | 0 | reviewed | Successful authentication after retry. A flow diagram. Non-normative. |
+| `9.1.5` | Failed hack attack with 3 attempts allowed | 0 | reviewed | Failed hack attack with 3 attempts allowed. A flow diagram illustrating the retry limit that section 10 states as an advisory. Non-normative. |
+| `9.1.6` | Successful authentication with password change | 0 | reviewed | Successful authentication with password change. A flow diagram for the exchange section 7 defines. Non-normative. |
+| `9.1.7` | Successful authentication with retry and password change | 0 | reviewed | Successful authentication with retry and password change. A flow diagram. Non-normative. |
+| `9.2` | Hash Example | 0 | reviewed | Hash Example. The known-answer vectors for user name 'User' and password 'clientPass', from the UTF-16LE password bytes through to 'S=407A5589115FD0D6209F510FE9C04566932CDA56'. No obligation; these are the vectors the RFC2759-x-4 tests and the password-hash known-answer tests drive (internal/core/eap/rfc2759_clause_test.go, internal/core/eap/rfc2759_mschapv2_test.go). |
+| `9.3` | Example of DES Key Generation | 0 | reviewed | Example of DES Key Generation. Shows the two parity-corrected DES keys derived from the password 'MyPw', and notes that many DES engines strip the parity bits rather than check them. A worked example of section 8.6, with no obligation of its own. |
+| `10` | Security Considerations | 0 | reviewed | Security Considerations. One sentence, an advisory: 'As an implementation detail, the authenticator SHOULD limit the number of password retries allowed to make brute-force password guessing attacks more difficult.' RFC2759-x-14 renders it. The scan reads no site because the sentence is SHOULD-level. |
 | `11` | References | 0 | skipped (references) | References. Twelve citations, including RFC 2119 at [3]. No obligation of this document. |
 | `12` | Acknowledgements | 0 | skipped (acknowledgements) | Acknowledgements. Credits the reviewers of the document. |
 | `13` | Author's Address | 0 | skipped (front-matter) | Author's Address. Document furniture: postal address, telephone number and e-mail address for the author. |
-| `14` | Full Copyright Statement | 1 | walked | Full Copyright Statement. Walked rather than skipped because the prose scan attributes its one site here; that site is the Internet Society boilerplate and is excluded below. |
+| `14` | Full Copyright Statement | 1 | reviewed | Full Copyright Statement. Walked rather than skipped because the prose scan attributes its one site here; that site is the Internet Society boilerplate and is excluded below. |
 
 ### Excluded sentences
 

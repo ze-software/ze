@@ -1,6 +1,6 @@
 # RFC 4360 - BGP Extended Communities Attribute
 
-Extended communities. Every requirement this repository extracted from RFC 4360, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+Extended communities. Every requirement listed for RFC 4360, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,24 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 2 | of 5 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0 | of 5 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 5 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 5 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 4 | 4 of 8 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-
-### Neutral
-
-measures that are neither good news nor bad
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Gated MUSTs | 5 | of 9 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 5 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 5 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 5 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 5 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 5 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Tested both ways | 2 | of 5 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0 | of 5 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 5 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 5 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Tests shown to detect a fault | 4 | 4 of 8 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -35,54 +22,74 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 3 | of 5 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Declared gap or no test | 3 | of 5 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 
-The 9 counts marked as a part above are the whole of the 5 gated MUSTs: they add up to 5. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Neutral
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+measures that are neither good news nor bad
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Out of scope | 0 | of 5 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 5 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 5 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 5 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 5 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+
+### Totals
+
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 5 | of 9 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 5 mandatory requirements: they add up to 5. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | Extended communities |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 9 |
-| Gated MUST-level | 5 |
+| Mandatory requirements (MUST level) | 5 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 3 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 8 |
-| Tagged units | 8 |
+| Tests linked to requirements | 8 |
 | Recorded audit verdicts | 2 |
-| Discrimination records | 4 |
+| Fault test records | 4 |
 | Summary | `rfc/short/rfc4360.md` |
-| Requirement shard | `rfc/requirements/rfc4360.md` |
+| Requirement table | `rfc/requirements/rfc4360.md` |
 | RFC text | `rfc/full/rfc4360.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: BGP Extended Communities: five MUST-level requirements. Two are tested with both polarities over the codec (internal/core/bgp/attribute/community.go): RFC4360-2-1 (equal only when all 8 octets match) via ExtendedCommunity [8]byte equality, RFC4360-x-1 (length a multiple of 8) via ParseExtendedCommunities (wired at wire.go:412). Three are gaps: RFC4360-6-1, which ze's decision process meets (rib/bestpath.go reads no Extended Community) with no test and with operator policy free to steer selection from one, and RFC4360-7-1 and 7-2, IANA type-allocation rules no sentence scopes to a role, which no test checks against ze's type table. A non-supporting speaker's pass-through is RFC 4271's rule (RFC4271-5-3), so no RFC 4360 row carries it (rfc/corrections/rfc4360.md). The 6-2 SHOULD, 6-3 SHOULD NOT and 6-4/6-5 MAYs are not gated.
+Included in automatic checks: BGP Extended Communities: five MUST-level requirements. Two are tested with both polarities over the codec (internal/core/bgp/attribute/community.go): RFC4360-2-1 (equal only when all 8 octets match) via ExtendedCommunity [8]byte equality, RFC4360-x-1 (length a multiple of 8) via ParseExtendedCommunities (wired at wire.go:412). Three are gaps: RFC4360-6-1, which ze's decision process meets (rib/bestpath.go reads no Extended Community) with no test and with operator policy free to steer selection from one, and RFC4360-7-1 and 7-2, IANA type-allocation rules no sentence scopes to a role, which no test checks against ze's type table. A non-supporting speaker's pass-through is RFC 4271's rule (RFC4271-5-3), so no RFC 4360 row carries it (rfc/corrections/rfc4360.md). The 6-2 SHOULD, 6-3 SHOULD NOT and 6-4/6-5 MAYs are not gated.
 
-## What the public ledger says
+## Published support status
 
 **Area:** Extended communities
 
@@ -97,14 +104,14 @@ Enrolled: BGP Extended Communities: five MUST-level requirements. Two are tested
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 2 | one part of the gated population |
-| Annotated (including scoped evidence) | 3 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **5** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 2 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 3 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **5** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (2):** [`RFC4360-2-1`](#rfc4360-2-1), [`RFC4360-x-1`](#rfc4360-x-1)
 
@@ -112,20 +119,23 @@ Enrolled: BGP Extended Communities: five MUST-level requirements. Two are tested
 
 ## Figures
 
-- **MUST bar**: Ze proven 2, Ze correctness gap 3
-- **Overview bar**: Ze MUST proven 2, SHOULD not decided 4, Ze correctness gap 3
+- **MUST bar**: Ze proven 2, Not built 3
+- **Overview bar**: Ze MUST proven 2, Not assessed 4, Not built 3
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 5 |
 | MUST rows kept (the MUST bar) | 5 |
 | Ze proven | 2 |
 | OS verified | 0 |
+| Proof pending | 0 |
 | OS testing gap | 0 |
-| Ze correctness gap | 3 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 3 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -138,11 +148,12 @@ Enrolled: BGP Extended Communities: five MUST-level requirements. Two are tested
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 4 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 4 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc4360.json](../../../data/rfc/rfc4360.json).
 
@@ -170,31 +181,31 @@ Source: [data/rfc/rfc4360.json](../../../data/rfc/rfc4360.json).
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC4360-6-1`](#rfc4360-6-1)
 
 The Extended Community attribute MUST NOT be used to modify the BGP best path selection algorithm in a way that leads to forwarding loops. (§6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4360-6-1, so no unit is bound to it.
+No test carries RFC4360-6-1, so there is no linked test.
 
 ### [`RFC4360-7-1`](#rfc4360-7-1)
 
 The value allocated for a regular Type MUST NOT be reused as the value of the high-order octet when allocating an extended Type. (§7)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4360-7-1, so no unit is bound to it.
+No test carries RFC4360-7-1, so there is no linked test.
 
 ### [`RFC4360-7-2`](#rfc4360-7-2)
 
 The value of the high-order octet allocated for an extended Type MUST NOT be reused when allocating a regular Type (§7)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4360-7-2, so no unit is bound to it.
+No test carries RFC4360-7-2, so there is no linked test.
 
 ### [`RFC4360-2-1`](#rfc4360-2-1)
 
@@ -222,7 +233,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 | positive | [`TestExtendedCommunitiesParse`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L280) | unit/verify | unproven |
 | positive | [`TestRFC4360ExtendedCommunitiesAreWholeEightOctetQuantities`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4360_length_test.go#L20) | unit/verify | revert, verified |
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -242,18 +253,18 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
 | `front` | not stated | 0 | skipped (front-matter) | Title block, Status of This Memo, Copyright Notice and Abstract. The Abstract restates section 1: the attribute labels information carried in BGP-4 and the labels can control its distribution. No sentence directs a speaker. |
-| `1` | Introduction | 0 | walked | Introduction. Indicative prose: the two enhancements over RFC 1997 (an extended range and a Type field), and what structure buys a policy writer. No directive. |
-| `1.1` | Specification of Requirements | 0 | walked | Specification of Requirements. The RFC 2119 key-words paragraph. It tells a reader how to read the other sections and binds no speaker, which is why the derivation excludes it from the site inventory. Unlike RFC 7313 section 2 it does not add the 'only when in all upper case' sentence, so this walk reads a lowercase modal on its own merits rather than as a key word. |
-| `2` | BGP Extended Communities Attribute | 0 | walked | BGP Extended Communities Attribute. The document's wire-format section, written entirely in the indicative, so the site scan sees nothing in it and two declared MUST-level rows are read from here. It states the attribute is transitive optional with Type Code 16 (the pass-through a non-supporting speaker owes that class is RFC 4271's rule, row RFC4271-5-3, so the RFC4360 row that claimed it was retired 2026-09-27), that each extended community is an 8-octet quantity, that the Type Field is 1 octet for a Regular type and 2 for an Extended type, that the high-order octet carries the I (IANA authority) and T (transitive) bits with T=0 transitive and T=1 non-transitive across ASes, and that 'Two extended communities are declared equal only when all 8 octets of the community are equal.' The two unsourced ids below are the 8-octet and the equality obligations. The remaining sentences are value definitions carried by the Wire Formats and Type Classification tables of rfc/short/rfc4360.md, and the closing 'The two members in the tuple <Type, Value> should be enumerated to specify any community value' is a lowercase modal describing how a value is written down, not a directive to a speaker. |
-| `3` | Defined BGP Extended Community Types | 0 | walked | Defined BGP Extended Community Types. One paragraph naming what 3.1 to 3.3 define: templates identified by the high-order octet, with the low-order octet as sub-type. No directive. |
-| `3.1` | Two-Octet AS Specific Extended Community | 0 | walked | Two-Octet AS Specific Extended Community. Value assignment: high-order octet 0x00 or 0x40, a 2-octet Global Administrator holding an IANA-assigned AS number and a 4-octet Local Administrator. Its one modal, 'The format and meaning of the value encoded in this sub-field should be defined by the sub-type of the community', is lowercase and binds whoever defines a future sub-type, not a speaker encoding one. The layout is carried by the Two-Octet AS Specific table of rfc/short/rfc4360.md. |
-| `3.2` | IPv4 Address Specific Extended Community | 0 | walked | IPv4 Address Specific Extended Community. Value assignment: high-order octet 0x01 or 0x41, a 4-octet Global Administrator holding a registry-assigned IPv4 address and a 2-octet Local Administrator. Its lowercase 'should be defined by the sub-type' sentence binds a future sub-type definition, as in 3.1. The layout is carried by the IPv4 Address Specific table of rfc/short/rfc4360.md. |
-| `3.3` | Opaque Extended Community | 0 | walked | Opaque Extended Community. Value assignment: high-order octet 0x03 or 0x43 and a 6-octet opaque Value. States that the sub-type defining the Value Field is to be assigned by IANA, which is an allocation fact rather than a directive to a speaker. The layout is carried by the Opaque Extended Community table of rfc/short/rfc4360.md. |
-| `4` | Route Target Community | 0 | walked | Route Target Community. Value assignment: an extended type whose high-order octet is 0x00, 0x01 or 0x02 and whose low-order octet is 0x02, transitive across the AS boundary, with the Local Administrator drawn from the numbering space of the organization holding the AS number or IP address in the Global Administrator sub-field. Every sentence is indicative, and the use is deferred to RFC 4364. Carried by the Sub-Types table of rfc/short/rfc4360.md. |
-| `5` | Route Origin Community | 0 | walked | Route Origin Community. The same shape as section 4 with low-order octet 0x03: an extended type, transitive across the AS boundary, Local Administrator drawn from the holder's numbering space, use deferred to RFC 4364. Indicative throughout. Carried by the Sub-Types table of rfc/short/rfc4360.md. |
-| `6` | Operations | 1 | walked | Operations. The only section that directs a BGP speaker. Its one MUST-level site is 6:1, mapped below to RFC4360-6-1. Its four remaining directives are the two MAYs (append the attribute to a route that lacks it, modify the attribute per local policy) and the SHOULD and SHOULD NOT that bracket a non-transitive community at an AS boundary against a Confederation boundary; those are the four unsourced ids below, advisory and never gated. Two further sentences the site scan does not see are not obligations: the aggregation paragraph states a lowercase-'should' DEFAULT that the same paragraph says 'could be overridden via local configuration', and the closing paragraph is indicative division of labour, saying a route may carry both attributes and that the RFC 1997 one is handled per RFC 1997. |
-| `7` | IANA Considerations | 3 | walked | IANA Considerations. Walked rather than skipped because two of its three sites are MUST-level sentences the summary declares as rows (RFC4360-7-1 and RFC4360-7-2), so an `iana` skip would hide two gated ids behind a skip kind. Both are mapped below, and both bind the registry: rfc/short/rfc4360.md records that as their {not-applicable} annotation, which is the summary's judgement and not this walk's. The rest of the section creates the 'BGP Extended Communities Type' registry and the three per-class registries, fixes the Standards Action, Early IANA Allocation, First Come First Served and Experimental ranges, and assigns 0x0002, 0x0003, 0x0102 and 0x0103. Those ranges and values are carried by the Type Classification and IANA Registered Type Values tables of rfc/short/rfc4360.md. |
-| `8` | Security Considerations | 1 | walked | Security Considerations. States that the extension has security implications similar to RFC 1997 and changes no underlying security issue, then places one condition on the operator (site 8:1), and puts the mechanism providing that trust relationship out of scope. No countermeasure is directed at a speaker. |
+| `1` | Introduction | 0 | reviewed | Introduction. Indicative prose: the two enhancements over RFC 1997 (an extended range and a Type field), and what structure buys a policy writer. No directive. |
+| `1.1` | Specification of Requirements | 0 | reviewed | Specification of Requirements. The RFC 2119 key-words paragraph. It tells a reader how to read the other sections and binds no speaker, which is why the derivation excludes it from the site inventory. Unlike RFC 7313 section 2 it does not add the 'only when in all upper case' sentence, so this walk reads a lowercase modal on its own merits rather than as a key word. |
+| `2` | BGP Extended Communities Attribute | 0 | reviewed | BGP Extended Communities Attribute. The document's wire-format section, written entirely in the indicative, so the site scan sees nothing in it and two declared MUST-level rows are read from here. It states the attribute is transitive optional with Type Code 16 (the pass-through a non-supporting speaker owes that class is RFC 4271's rule, row RFC4271-5-3, so the RFC4360 row that claimed it was retired 2026-09-27), that each extended community is an 8-octet quantity, that the Type Field is 1 octet for a Regular type and 2 for an Extended type, that the high-order octet carries the I (IANA authority) and T (transitive) bits with T=0 transitive and T=1 non-transitive across ASes, and that 'Two extended communities are declared equal only when all 8 octets of the community are equal.' The two unsourced ids below are the 8-octet and the equality obligations. The remaining sentences are value definitions carried by the Wire Formats and Type Classification tables of rfc/short/rfc4360.md, and the closing 'The two members in the tuple <Type, Value> should be enumerated to specify any community value' is a lowercase modal describing how a value is written down, not a directive to a speaker. |
+| `3` | Defined BGP Extended Community Types | 0 | reviewed | Defined BGP Extended Community Types. One paragraph naming what 3.1 to 3.3 define: templates identified by the high-order octet, with the low-order octet as sub-type. No directive. |
+| `3.1` | Two-Octet AS Specific Extended Community | 0 | reviewed | Two-Octet AS Specific Extended Community. Value assignment: high-order octet 0x00 or 0x40, a 2-octet Global Administrator holding an IANA-assigned AS number and a 4-octet Local Administrator. Its one modal, 'The format and meaning of the value encoded in this sub-field should be defined by the sub-type of the community', is lowercase and binds whoever defines a future sub-type, not a speaker encoding one. The layout is carried by the Two-Octet AS Specific table of rfc/short/rfc4360.md. |
+| `3.2` | IPv4 Address Specific Extended Community | 0 | reviewed | IPv4 Address Specific Extended Community. Value assignment: high-order octet 0x01 or 0x41, a 4-octet Global Administrator holding a registry-assigned IPv4 address and a 2-octet Local Administrator. Its lowercase 'should be defined by the sub-type' sentence binds a future sub-type definition, as in 3.1. The layout is carried by the IPv4 Address Specific table of rfc/short/rfc4360.md. |
+| `3.3` | Opaque Extended Community | 0 | reviewed | Opaque Extended Community. Value assignment: high-order octet 0x03 or 0x43 and a 6-octet opaque Value. States that the sub-type defining the Value Field is to be assigned by IANA, which is an allocation fact rather than a directive to a speaker. The layout is carried by the Opaque Extended Community table of rfc/short/rfc4360.md. |
+| `4` | Route Target Community | 0 | reviewed | Route Target Community. Value assignment: an extended type whose high-order octet is 0x00, 0x01 or 0x02 and whose low-order octet is 0x02, transitive across the AS boundary, with the Local Administrator drawn from the numbering space of the organization holding the AS number or IP address in the Global Administrator sub-field. Every sentence is indicative, and the use is deferred to RFC 4364. Carried by the Sub-Types table of rfc/short/rfc4360.md. |
+| `5` | Route Origin Community | 0 | reviewed | Route Origin Community. The same shape as section 4 with low-order octet 0x03: an extended type, transitive across the AS boundary, Local Administrator drawn from the holder's numbering space, use deferred to RFC 4364. Indicative throughout. Carried by the Sub-Types table of rfc/short/rfc4360.md. |
+| `6` | Operations | 1 | reviewed | Operations. The only section that directs a BGP speaker. Its one MUST-level site is 6:1, mapped below to RFC4360-6-1. Its four remaining directives are the two MAYs (append the attribute to a route that lacks it, modify the attribute per local policy) and the SHOULD and SHOULD NOT that bracket a non-transitive community at an AS boundary against a Confederation boundary; those are the four unsourced ids below, advisory and never gated. Two further sentences the site scan does not see are not obligations: the aggregation paragraph states a lowercase-'should' DEFAULT that the same paragraph says 'could be overridden via local configuration', and the closing paragraph is indicative division of labour, saying a route may carry both attributes and that the RFC 1997 one is handled per RFC 1997. |
+| `7` | IANA Considerations | 3 | reviewed | IANA Considerations. Walked rather than skipped because two of its three sites are MUST-level sentences the summary declares as rows (RFC4360-7-1 and RFC4360-7-2), so an `iana` skip would hide two gated ids behind a skip kind. Both are mapped below, and both bind the registry: rfc/short/rfc4360.md records that as their {not-applicable} annotation, which is the summary's judgement and not this walk's. The rest of the section creates the 'BGP Extended Communities Type' registry and the three per-class registries, fixes the Standards Action, Early IANA Allocation, First Come First Served and Experimental ranges, and assigns 0x0002, 0x0003, 0x0102 and 0x0103. Those ranges and values are carried by the Type Classification and IANA Registered Type Values tables of rfc/short/rfc4360.md. |
+| `8` | Security Considerations | 1 | reviewed | Security Considerations. States that the extension has security implications similar to RFC 1997 and changes no underlying security issue, then places one condition on the operator (site 8:1), and puts the mechanism providing that trust relationship out of scope. No countermeasure is directed at a speaker. |
 | `9` | Acknowledgements | 0 | skipped (acknowledgements) | Acknowledgements. |
 | `10` | not stated | 0 | skipped (references) | Normative References: RFC 4271, RFC 1997, RFC 2119, RFC 2434, RFC 4020. |
 | `11` | Informative References: RFC 4364 | 1 | skipped (references) | Informative References: RFC 4364. The derived section span runs to the end of the document, so it also holds Authors' Addresses, the Full Copyright Statement, the Intellectual Property boilerplate and the RFC Editor funding note. Site 11:1 is one sentence of that IPR boilerplate and is excluded below; nothing in the span states an obligation on a BGP speaker. |

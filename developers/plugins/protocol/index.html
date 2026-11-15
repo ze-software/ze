@@ -75,7 +75,10 @@ plugins connect back via TLS.</p>
 <li><a href="#the-sets-of-a-filter-update-answer">The Sets of a filter-update answer</a></li>
 <li><a href="#filter-run-occasions">Filter Run Occasions</a></li>
 </ol></li>
-<li><a href="#runtime-rpcs-plugin-to-engine">Runtime RPCs (Plugin to Engine)</a></li>
+<li><a href="#runtime-rpcs-plugin-to-engine">Runtime RPCs (Plugin to Engine)</a>
+<ol>
+<li><a href="#system-routing-views">System routing views</a></li>
+</ol></li>
 <li><a href="#message-flow-example">Message Flow Example</a></li>
 <li><a href="#error-handling">Error Handling</a></li>
 <li><a href="#batched-event-delivery">Batched Event Delivery</a></li>
@@ -303,7 +306,7 @@ reader goroutine routes incoming lines by verb: <code>ok</code>/<code>error</cod
 #1 ze-plugin-engine:declare-registration {"protocol-version":1,"families":[{"name":"ipv4/flow","mode":"both","afi":1,"safi":133}]}
 
 # Engine answers the protocol version both sides speak
-#1 ok {"protocol-version":1}
+#1 ok {"protocol-version":1,"plugin-name":"flow-export"}
 
 # Engine sends configure to plugin (Stage 2)
 #1 ze-plugin-callback:configure {"sections":[{"root":"bgp","data":"{...}"}]}
@@ -403,7 +406,7 @@ reader goroutine routes incoming lines by verb: <code>ok</code>/<code>error</cod
 <tr>
 <td><code>doctor-checks</code></td>
 <td><code>[]DoctorCheckDecl</code></td>
-<td>Doctor checks the plugin provides</td>
+<td>Doctor checks the plugin provides, each with a <code>phase</code>: <code>pre-config</code>, <code>missing-config</code>, <code>parsed-config</code>, <code>post-config</code>, or <code>runtime</code>. Declare <code>runtime</code> (<code>sdk.DoctorPhaseRuntime</code>) for a check that reads your plugin's live state: only <code>show doctor</code> on the running daemon runs it, never a local <code>ze doctor</code> process, which holds no live state. A <code>runtime</code> check only reads; it changes nothing</td>
 </tr>
 <tr>
 <td><code>resolver-caches</code></td>
@@ -429,6 +432,11 @@ reader goroutine routes incoming lines by verb: <code>ok</code>/<code>error</cod
 <td><code>failure-policy</code></td>
 <td><code>string</code></td>
 <td>What ze does when this plugin fails: <code>restart</code>, <code>ignore</code> or <code>fatal</code>. Omitting it means <code>ignore</code></td>
+</tr>
+<tr>
+<td><code>signals-session-ready</code></td>
+<td><code>bool</code></td>
+<td>Your routes belong to a peer's initial routing update, and you report <code>plugin session ready</code> once they are out ("The session-ready report")</td>
 </tr>
 </tbody>
 </table>
@@ -470,6 +478,56 @@ started again. An operator whose <code>plugin { external &lt;name&gt; }</code> b
 error naming your plugin and the policy it declared. Declare <code>restart</code> when
 your plugin can come back from a crash, which usually means its state lives
 outside the process.</p>
+<p><strong>The session-ready report says your share of a peer's initial routing update
+is out.</strong> It is voluntary. Declare <code>signals-session-ready</code> only when your
+plugin pushes routes into a peer from that peer's peer-up event. A plugin that
+pushes on its own schedule leaves it false and owes no report.</p>
+<p>A peer counts your plugin only when three facts hold: its <code>attach process</code>
+block grants you <code>send [ update ]</code> or <code>send [ raw ]</code>, you declared
+<code>signals-session-ready</code>, and it grants you <code>receive [ state ]</code>, so you see the
+peer-up event. Once your routes for that session are sent, dispatch:</p>
+<pre><code>request peer &lt;address&gt; plugin session ready session &lt;initial-replay&gt;
+</code></pre>
+<p><code>&lt;initial-replay&gt;</code> is the token from that peer-up event's <code>initial-replay</code>
+field (<code>docs/architecture/api/json-format.md</code>). Send one report per peer-up,
+even when you had nothing to send.</p>
+<p>What the report does:</p>
+<table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>What ze does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>You report</td>
+<td>ze credits the report to your process for that session, once. A second report is not credited again</td>
+</tr>
+<tr>
+<td>You report with a token from an older session, or for a session that is going down</td>
+<td>ze refuses it with an error naming the problem</td>
+</tr>
+<tr>
+<td>You report for a peer ze does not have</td>
+<td>ze credits it to nothing and logs a WARN naming the peer</td>
+</tr>
+<tr>
+<td>You never report</td>
+<td>Nothing waits for you. ze never holds its End-of-RIB for a report: it sends the marker once its own table is out</td>
+</tr>
+</tbody>
+</table>
+<p>The report's effect inside ze is to lower the replay fence, which holds a
+peer's live forwarded changes while a route server or RIB plugin compiled into
+ze replays that peer's table. Only a plugin compiled into ze can own that
+fence, so today a report from an external plugin is credited and changes
+nothing on the wire. Declaring it still tells ze that your routes belong to the
+initial update.</p>
+<!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput.SignalsSessionReady -->
+<!-- source: internal/component/bgp/reactor/peer.go -- Peer.SignalAPIReady, Peer.creditAPIReady -->
+<!-- source: internal/component/bgp/reactor/peer_run.go -- Peer.initialUpdateReporters, Peer.replayFenceOwners -->
+<!-- source: internal/component/plugin/registry/registry.go -- registry.FencesLiveForwards -->
 <p>Each <code>CommandDecl</code> has these fields:</p>
 <!-- source: pkg/plugin/rpc/types.go -- CommandDecl -->
 <!-- source: internal/component/plugin/server/startup.go -- validateShapeDecls, validateHelpDecls, registerPluginShapes -->
@@ -626,7 +684,7 @@ obligation.</p>
 <p>Set <code>afi</code> and <code>safi</code> for a custom family. A built-in family can omit both numeric fields.</p>
 <p><strong>Wire example:</strong></p>
 <pre><code>#1 ze-plugin-engine:declare-registration {"protocol-version":1,"families":[{"name":"ipv4/flow","mode":"both","afi":1,"safi":133}],"commands":[{"name":"flowspec status","short-help":"Show FlowSpec status"}],"wants-config":["bgp"]}
-#1 ok {"protocol-version":1}
+#1 ok {"protocol-version":1,"plugin-name":"flow-export"}
 </code></pre>
 <p><strong>The protocol version.</strong> The engine answers Stage 1 with the version both
 sides speak from then on: the lower of the plugin's <code>protocol-version</code> and its
@@ -639,6 +697,13 @@ contract. The Go SDK declares it and refuses an engine that answers any other.</
 <!-- source: pkg/plugin/rpc/declaration.go -- NegotiateProtocolVersion -->
 <!-- source: internal/component/plugin/server/startup_driver.go -- runStartupHandshake -->
 <!-- source: pkg/plugin/sdk/sdk_version.go -- acceptProtocolVersion -->
+<p>The answer also includes <code>plugin-name</code>, the configured instance name of the
+authenticated process. It can differ from the implementation's name. The Go
+SDK exposes this through <code>Plugin.InstanceName()</code> before <code>OnConfigure</code> runs;
+before the Stage 1 answer it is empty. Use that configured identity in recovery
+commands that restart the plugin.</p>
+<!-- source: pkg/plugin/rpc/declaration.go -- DeclareRegistrationOutput -->
+<!-- source: pkg/plugin/sdk/sdk_identity.go -- InstanceName -->
 <h3 id="stage-2-config-engine-to-plugin">Stage 2: Config (Engine to Plugin)</h3>
 <p>Engine sends <code>ze-plugin-callback:configure</code> with a <code>ConfigureInput</code>:</p>
 <!-- source: pkg/plugin/rpc/types.go -- ConfigureInput -->
@@ -1061,7 +1126,7 @@ each wire method to its registered handler.</p>
 <td><code>OnDoctorCheck</code></td>
 <td><code>DoctorCheckInput</code></td>
 <td><code>DoctorCheckOutput</code></td>
-<td>Run a doctor check</td>
+<td>Run a doctor check. Each answered diagnostic carries <code>code</code>, <code>severity</code>, <code>message</code>, and <code>fix</code>: the command or config statement that clears the problem, alone and with no label (<code>show rpki cache</code>, not <code>fix: show rpki cache</code>). Set <code>fix</code> on every finding a command can clear; ze draws it on a line of its own under the message on every surface, and omits the key when you leave it empty</td>
 </tr>
 <tr>
 <td><code>ze-plugin-callback:resolver-cache-clear</code></td>
@@ -1763,6 +1828,13 @@ run, so it cannot count routes.</li>
 <td>Declare metrics and publish their changes, at the plugin's interval. <span class="ev-src"><span class="ev-ref"><code>docs/plugin-development/metrics.md</code></span></span></td>
 </tr>
 <tr>
+<td><code>ze-plugin-engine:report-issue</code></td>
+<td><code>RaiseIssue</code>, <code>ClearIssue</code></td>
+<td><code>ReportIssueInput</code></td>
+<td>None</td>
+<td>Raise or clear a problem on the daemon's report bus, where <code>show doctor</code> reads it ("Plugin problems"). <span class="ev-src"><span class="ev-ref"><code>docs/architecture/api/process-protocol.md</code></span></span></td>
+</tr>
+<tr>
 <td><code>ze-plugin-engine:dispatch-command</code></td>
 <td><code>DispatchCommand</code></td>
 <td><code>DispatchCommandInput</code></td>
@@ -1834,6 +1906,163 @@ run, so it cannot count routes.</li>
 </tr>
 </tbody>
 </table>
+<h3 id="system-routing-views">System routing views</h3>
+<p>Each selected path's <code>ecmp</code> list retains the owning source of every member.
+The optional member <code>protocol</code> is a registered name for an owner different from
+the primary. Omission means the primary's protocol owns that member. Consumers
+resolve supplied names from existing registrations and reject an unknown name.
+The authority keeps same-target members with different owners until the
+consumer applies each owner's FIB permission, then renders the target group.
+Member ownership never changes the primary protocol credited with the prefix.</p>
+<!-- source: pkg/plugin/rpc/route_view.go -- RouteViewNextHop -->
+<!-- source: internal/component/sysrib/projection_path.go -- projectionPath -->
+<p>The system RIB owns the <code>ze-sysrib</code> namespace. Its routing view transfers the
+daemon's selected routes as values to either an internal or an external
+consumer. The daemon remains the authority for route admission, import policy,
+administrative distance and selection.</p>
+<!-- source: pkg/plugin/rpc/route_view.go -- routing-view values and method names -->
+<!-- source: pkg/plugin/rpc/route_view_codec.go -- reply presence and atomic decoding -->
+<!-- source: internal/component/sysrib/yang/ze-sysrib-api.yang -- native RPC schema -->
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>SDK method</th>
+<th>Input/output types</th>
+<th>Available</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze-sysrib:route-view-open</code></td>
+<td><code>RouteViewOpen</code></td>
+<td><code>RouteViewOpenInput</code> / <code>RouteViewOpenOutput</code></td>
+<td>Stage 2 and runtime</td>
+</tr>
+<tr>
+<td><code>ze-sysrib:route-view-read</code></td>
+<td><code>RouteViewRead</code></td>
+<td><code>RouteViewReadInput</code> / <code>RouteViewReadOutput</code></td>
+<td>Runtime</td>
+</tr>
+<tr>
+<td><code>ze-sysrib:route-view-candidates</code></td>
+<td><code>RouteViewCandidates</code></td>
+<td><code>RouteViewCandidatesInput</code> / <code>RouteViewCandidatesOutput</code></td>
+<td>Runtime</td>
+</tr>
+<tr>
+<td><code>ze-sysrib:route-view-distances</code></td>
+<td><code>RouteViewDistances</code></td>
+<td><code>RouteViewDistancesInput</code> / <code>RouteViewDistancesOutput</code></td>
+<td>Stage 2 and runtime</td>
+</tr>
+<tr>
+<td><code>ze-sysrib:route-view-publish</code></td>
+<td><code>RouteViewPublish</code></td>
+<td><code>RouteViewPublishInput</code> / <code>RouteViewPublishOutput</code></td>
+<td>Runtime</td>
+</tr>
+<tr>
+<td><code>ze-sysrib:route-view-close</code></td>
+<td><code>RouteViewClose</code></td>
+<td><code>RouteViewCloseInput</code> / <code>RouteViewCloseOutput</code></td>
+<td>Runtime</td>
+</tr>
+</tbody>
+</table>
+<!-- source: pkg/plugin/sdk/sdk_route_view.go -- RouteViewOpen, RouteViewRead, RouteViewCandidates, RouteViewDistances, RouteViewPublish, RouteViewClose -->
+<!-- source: internal/component/sysrib/register_route_view.go -- init -->
+<!-- source: internal/component/sysrib/register_route_view_policy.go -- init -->
+<!-- source: internal/component/sysrib/register_route_view_output.go -- init -->
+<p><code>open</code> accepts an optional <code>reader</code>: <code>selected-feed</code> or <code>local-authority</code>.
+An empty input selects <code>selected-feed</code>. The authenticated process generation owns
+the returned session token. Subsequent requests carry that token and cannot choose
+another plugin's identity. A selected page carries the server epoch, cursor, explicit
+<code>snapshot</code>, <code>delta</code> or <code>reset</code> phase, and completion flag. The consumer MUST finish
+the initial snapshot before forwarding and MUST discard its projection on reset.
+An empty delta preserves the current projection.
+An explicit reset can advance the cursor to a newer fenced marker. It clears
+readiness and authorizes no forwarding. Older reset cursors remain invalid.</p>
+<!-- source: internal/component/sysrib/projection.go -- validateSequence, Apply -->
+<p>A refused publication does not by itself authorize reopening. For a benign
+selected-feed retention reset, a subsequent read on the exact refused session
+may return <code>rejected-publication</code>, a positive operation identity. The consumer
+MUST require its exact refused operation and validate the complete Reset page
+before rebuilding. The proof cannot carry entries, a snapshot or completion.
+Omission grants no proof; explicit zero and null are invalid. The daemon
+retains one fully validated refused batch, and only its exact operation,
+cursor and values can repeat that proof. Malformed attempts, output delivery
+errors and foreign or replaced leases cannot acquire it. Internal local readers
+do not use selected-feed publication recovery.</p>
+<!-- source: pkg/plugin/rpc/route_view.go -- RouteViewReadOutput -->
+<!-- source: pkg/plugin/rpc/route_view_codec.go -- RouteViewReadOutput.UnmarshalJSON -->
+<!-- source: internal/component/sysrib/route_view_output.go -- provePublicationReset -->
+<!-- source: internal/component/sysrib/route_view_worker_output.go -- publicationReset -->
+<p><code>local-authority</code> requires an authenticated internal system RIB with direct access
+to the daemon's Loc-RIB. It retains no selected snapshot or delta journal.
+Its direct reader is ready at logical cursor zero. Distance acknowledgment follows
+authoritative reselection and returns zero. Selected reads require reopening with
+<code>selected-feed</code>. Both transports provide the same reader choices and refusals.
+External system RIBs use <code>selected-feed</code>.</p>
+<!-- source: internal/component/sysrib/route_view.go -- open, read -->
+<!-- source: internal/component/sysrib/route_view_feed.go -- synchronize, validateConsumed -->
+<p>Requests require every mandatory field even when its value is zero. <code>read</code>
+requires explicit <code>cursor</code> and <code>wait-ms</code> fields. Candidate reads and publications
+also require an explicit cursor. Unknown request fields and null mandatory
+fields fail before the session changes. An omitted distance list remains empty.</p>
+<!-- source: pkg/plugin/rpc/route_view_input_codec.go -- routing-view input decoding -->
+<p>The complete request must fit <code>rpc.MaxMessageSize</code>, including its method and
+correlation ID. <code>rpc.RouteViewRequestBudget</code> reserves the widest ID and the
+method header. Direct calls enforce the same bound.</p>
+<!-- source: pkg/plugin/rpc/route_view_input_codec.go -- RouteViewRequestBudget -->
+<p><code>read</code> accepts a record limit from 1 through 4096 and a wait from 0 through
+1000 milliseconds. The producer MUST also keep the complete encoded reply within
+<code>rpc.MaxMessageSize</code>; <code>rpc.RouteViewResultBudget()</code> reserves framing for the
+widest correlation ID. The same bounds apply to Direct calls. A selected path
+includes its protocol name and instance, resolved distance, recursive metric and
+BGP/AIGP metadata, primary and equal-cost targets, labels, SID and repair target.
+Presence flags preserve zero tags and zero AIGP. Protocol IDs local to a process
+never cross this boundary.
+The selected path requires non-null <code>protocol</code>, <code>instance</code>, <code>distance</code> and
+<code>metric</code> fields. Explicit zero ranking values remain valid. A distance row
+requires non-null <code>protocol</code> and <code>distance</code>, including an explicit zero distance.
+Malformed values leave the current decoded value unchanged.</p>
+<!-- source: pkg/plugin/rpc/route_view_codec.go -- RouteViewPath.UnmarshalJSON, RouteViewDistance.UnmarshalJSON -->
+<p>Candidate scans use their own snapshot and cursor. Their entries preserve the
+existing <code>show rib candidates</code> JSON, including hidden paths and a present zero
+tag. A candidate scan does not feed selection. <code>distances</code> carries a complete
+protocol distance declaration and an ordered operation ID. Its acknowledgment
+follows authoritative application and reselection.</p>
+<!-- source: internal/component/sysrib/route_view_candidates.go -- readCandidates -->
+<!-- source: internal/component/sysrib/route_view_distances.go -- applyDistances -->
+<p><code>publish</code> wraps the unchanged system <code>best-change</code> JSON with the consumed cursor
+and operation ID. The consumer MUST retain this operation until acknowledgment.
+The owner MUST fence stale generations before emission and return an identical
+retry's acknowledgment without emitting twice. A newer completed read preserves
+that original acknowledgment. A new operation requires the latest consumed cursor.</p>
+<!-- source: internal/component/sysrib/route_view_output.go -- publish -->
+<p>Each publication accepts at most 4096 changes. The JSON adapter refuses
+an excess row before decoding the remaining rows. Device and gateway-zone names
+must contain valid UTF-8 through both transports.</p>
+<!-- source: internal/component/sysrib/register_route_view_output.go -- routeViewDecodeOutputBatch, routeViewOutputRows -->
+<!-- source: internal/component/sysrib/route_view_output.go -- routeViewValidateOutputTarget -->
+<p>Publication withdrawals retain an explicit empty <code>protocol</code> field. Device-only
+<code>ecmp-paths</code> and <code>backup</code> members retain an explicit empty <code>next-hop</code> and name
+their <code>interface</code>. The publication schema accepts these existing event values.
+Add and update still require a registered protocol, and each member requires a
+gateway or interface. Selected-view addresses keep their nonempty address type.</p>
+<!-- source: internal/component/sysrib/events/events.go -- BestChangeEntry, ECMPPath -->
+<!-- source: internal/component/sysrib/yang/ze-sysrib-api.yang -- route-view-publish, publication-member, next-hop -->
+<!-- source: internal/component/sysrib/route_view_output.go -- routeViewValidateOutputEntry -->
+<p><code>close</code> fences the session and releases its readers and pinned values before
+acknowledgment. Its cleanup withdraws only owned prefixes, in separate family
+batches of at most 4096 entries. Every emitted batch retains independent storage.
+A failed withdrawal keeps its ledger entries and blocks replacement until retry
+succeeds. Fencing releases the retained publication, and successful cleanup
+releases the empty ledger.</p>
+<!-- source: internal/component/sysrib/route_view.go -- cleanupLocked -->
+<!-- source: internal/component/sysrib/route_view_output.go -- withdraw -->
 <h2 id="message-flow-example">Message Flow Example</h2>
 <pre><code>Plugin                                             Engine
    |                                                  |
@@ -1927,7 +2156,7 @@ config-verify, etc.) and bye.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 20:44 UTC</span>
                 </div>
             </div>
         </footer>

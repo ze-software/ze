@@ -4,7 +4,7 @@ The CLI grammar rollout finished, MRT tooling arrived, and a handful of quiet-bu
 
 ## 🖥️ CLI
 
-The verb-first, show-a-noun command grammar reached the rest of the command surface this week: interfaces, process lifecycle, cache, log, metrics, MPLS, DNS, traffic/QoS, IKE, traceroute, ping, monitor, and BGP peer/cache/commit commands all follow the same pattern now. Bare list/summary commands without an explicit verb are gone. Interface commands also got smarter: creating a sub-interface auto-creates its parent, and the MAC address setting moved under a `mac { }` container.
+The remaining commands now start with a verb, such as `show`: interfaces, process lifecycle, cache, log, metrics, MPLS, DNS, traffic/QoS, IKE, traceroute, ping, monitor, and BGP peer/cache/commit commands all follow the same pattern. Bare list/summary commands without an explicit verb are gone. Creating a sub-interface now creates its parent automatically, and the MAC address setting moved under a `mac { }` container.
 
 ## 📊 MRT tooling
 

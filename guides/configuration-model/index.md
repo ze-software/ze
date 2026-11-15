@@ -345,8 +345,9 @@ ospf {
 <!-- source: internal/plugins/ospf/sr_config.go -- parseSegmentRouting, applySRConfig -->
 
 The `fast-reroute` container enables RFC 5286 LFA / TI-LFA IP fast reroute: SPF
-pre-computes a loop-free backup next-hop per primary and programs it into the FIB
-as a link-down backup. `enable` (default `false`) turns it on; `mode` selects
+pre-computes a loop-free backup next-hop per primary. The backup is not yet
+programmed into the kernel FIB, so it is not used when the primary link fails
+(see the fast reroute section of the OSPF guide). `enable` (default `false`) turns it on; `mode` selects
 `lfa` (default, base loop-free alternates only) or `ti-lfa` (adds a Segment-Routing
 repair-list fallback, which requires `segment-routing` and carries repair labels on
 IPv4 only); `node-protection` (default `true`) prefers node-protecting alternates.
@@ -604,7 +605,8 @@ Peers are keyed by name (`peer <name> { }`) where the name must start with a let
 | `connection { ttl { min; } }` | Minimum TTL for incoming packets | No |
 | `connection { ttl { set; } }` | TTL for outgoing packets | No |
 | `group-updates` | Enable/disable UPDATE grouping | No (default: enable) |
-| `rs-fast-path` | Enable reactor-native RS forwarding, which bypasses plugin dispatch for UPDATE forwarding. The fast path runs each destination's active export filters itself, not a bypass. Destinations with an effective export reject, including absent EBGP export policy, or whose export filters could not run, or whose export filters refused an UPDATE that must be withdrawn one address family at a time, return on the skipped list, and `bgp-rs` applies policy to them on the cached path. Both peers must attach that plugin: the source grants `receive [ update-received ]`, and the destination grants `send [ update ]` ([Route Reflection, Plugin Bindings](https://github.com/ze-software/ze/blob/main/docs/guide/route-reflection.md#plugin-bindings)) | No (default: disable) |
+| `behavior { manual-eor; }` | `true` withholds every automatic End-of-RIB marker from this peer: the one its initial sync sends after Ze's own table, and the one a plugin's replay (the route server's, the route reflector's) sends when it ends. A marker a process or the operator asks for (`update text nlri eor`, `mp <family> eor`, or an ExaBGP script's `announce eor`) is always written, during the initial sync too, after the routes already queued for the peer. Set it when a process that originates every route decides when the table is complete. RFC 4724 Section 4 still owes the peer the marker once the initial routing update completes, so that process must ask for it | No (default: `false`) |
+| `behavior { rs-fast-path; }` | Enable reactor-native RS forwarding, which bypasses plugin dispatch for UPDATE forwarding. The fast path runs each destination's active export filters itself, not a bypass. Destinations with an effective export reject, including absent EBGP export policy, or whose export filters could not run, or whose export filters refused an UPDATE that must be withdrawn one address family at a time, return on the skipped list, and `bgp-rs` applies policy to them on the cached path. Both peers must attach that plugin: the source grants `receive [ update-received ]`, and the destination grants `send [ update ]` ([Route Reflection, Plugin Bindings](https://github.com/ze-software/ze/blob/main/docs/guide/route-reflection.md#plugin-bindings)) | No (default: `false`) |
 | `blackhole { }` | Honor RFC 7999's BLACKHOLE community from this peer. See [Blackhole Honoring](#blackhole-honoring-rfc-7999) | No (default: off) |
 | `flowspec-redirect-check { enabled }` | The draft-simpson-idr-flowspec-redirect-02 Section 3 check on a FlowSpec rule from an EBGP peer that carries a redirect-to-IP action (0x0800) to next hop X. Ze finds the longest unicast match for X in the rule's own domain (a flow-vpn rule's Route Distinguisher); when its origin AS is not the peer's AS, Ze keeps the rule but drops the action: it installs the rule without 0x0800 and forwards it without 0x0800 and with a zero next-hop length. `false` turns the check off for the session. Also settable at the bgp and group levels; the peer's value beats the group's, and the group's beats the bgp level's | No (default: the check runs) |
 <!-- source: internal/component/bgp/reactor/config.go -- parsePeerFromTree, parsePeerSettings; internal/component/bgp/yang/ze-bgp-conf.yang -- peer-fields, container timer -->
@@ -2230,17 +2232,18 @@ holds every peer's routes in the RIB and serves them on the plugin API. It
 forwards no traffic, so a kernel route for each prefix is work with no reader.
 `fib-withhold [ bgp ]` programs none of them. The RIB is untouched, and so is
 `bgp-rib/best-change`, the stream the plugin API serves those routes on.
-Withholding is the one verdict that refuses the write outright. Ze reaches the
-same install decision by three doors, a route arriving live, the permission
-sweep and a next-hop cascade, and only that verdict makes any of them decline.
-The other two decide what the install RECORDS rather than whether it happens,
-so a route whose next-hop the resolver cannot reach is still programmed: the
+Withholding refuses the write outright. Ze reaches the same install decision
+by four doors, a route arriving live, the permission sweep, a next-hop cascade
+and a replay, and besides withholding only an SRv6 Service SID that no route
+reaches (RFC 9252) makes any of them decline. Whether the resolver proved the
+next-hop decides what the install RECORDS rather than whether it happens, so a
+route whose next-hop the resolver cannot reach is still programmed: the
 Loc-RIB is not the router's whole picture of reachability, and an IGP next-hop
 on a link whose connected route no plugin inserted is on-link all the same.
 
 <!-- source: internal/component/sysrib/yang/ze-rib-conf.yang -- fib-withhold leaf-list -->
 <!-- source: internal/component/sysrib/fibimport.go -- recordWithheldWinner, applyFIBImport, fibStateChange -->
-<!-- source: internal/component/sysrib/sysrib.go -- recomputeBest, cascadeRecompute, fibInstall -->
+<!-- source: internal/component/sysrib/sysrib.go -- recomputeForwarding, cascadeRecompute, replayChanges, fibEntry, fibInstall -->
 
 ## Static Routes
 
@@ -2873,7 +2876,27 @@ The counter `ze_pppoe_client_renegotiations_total` uses the configured client
 so repeated access-network renegotiation remains visible when IPCP cannot finish.
 <!-- source: internal/component/l2tp/pppoeclient/metrics.go -- bindClientMetrics, countRenegotiation -->
 
-Two blocks tune dead-peer detection and the redial hold-off of each client.
+The `lcp` block sets the Configure-Request Restart timer and request budget.
+`restart-timer` accepts 100 to 60000 milliseconds (default 3000), and
+`max-configure` accepts 1 to 255 requests (default 10). The first request
+counts toward the budget. A valid negotiation reply renews the budget where
+the LCP state machine requires it. A convergence deadline of twice the timer
+times the request budget bounds a peer that repeatedly refuses negotiation.
+`max-failure` accepts 1 to 255 consecutive Configure-Naks (default 5). After
+that limit, further unacceptable peer options are rejected with their original
+bytes. A sent Configure-Ack renews the Nak budget. A change applies to the next
+session and its later LCP renegotiations.
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- pppoe-client lcp -->
+<!-- source: internal/component/l2tp/pppoeclient/session.go -- negotiateLCP -->
+
+The `ipv6cp restart-timer` leaf controls IPv6CP retries separately from IPCP.
+It accepts 100 to 60000 milliseconds and defaults to 3000. IPv6CP stops after
+ten unanswered requests while IPv4 can continue. Changes apply to the next
+session, including later renegotiations on that session.
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- pppoe-client ipv6cp -->
+<!-- source: internal/component/l2tp/pppoeclient/ipv6cp_client.go -- newClientIPv6CP, tick -->
+
+Two more blocks tune dead-peer detection and the redial hold-off of each client.
 `keepalive interval` (1 to 3600 seconds, default 10) is the time between two
 LCP Echo-Requests, and `keepalive failures` (1 to 255, default 3) ends the
 session on that many unanswered requests in a row; any Echo-Reply resets the
@@ -2890,12 +2913,18 @@ interface {
     pppoe-client pppoe0 {
         source-interface eth2;
         authentication { username user; password secret; }
+        lcp {
+            restart-timer 500;
+            max-configure 3;
+            max-failure 2;
+        }
+        ipv6cp { restart-timer 500; }
         keepalive { interval 5; failures 4; }
         reconnect { delay-min 5; delay-max 120; }
     }
 }
 ```
-<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- pppoe-client keepalive, reconnect -->
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- pppoe-client lcp, keepalive, reconnect -->
 <!-- source: internal/component/iface/pppoe_client_timing.go -- PPPoEClientTiming, parsePPPoEClientTiming, reconnectDelay -->
 
 The `ipv6` container of a `pppoe-client` takes `enabled` (boolean, default
@@ -3079,7 +3108,7 @@ an existing VLAN resolves to, through an inline map edit or an edit to the
 profile the unit uses, reprograms that VLAN in place, and a commit that fails
 afterwards writes the previous maps back.
 
-<!-- source: internal/plugins/cos/yang/ze-cos-conf.yang -- ingress-qos-map, egress-qos-map lists (qos-maps grouping) -->
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- ingress-qos-map, egress-qos-map lists (qos-maps grouping) -->
 <!-- source: internal/plugins/iface/netlink/manage_linux.go -- CreateVLAN IngressQosMap/EgressQosMap, UpdateVLANQoSMap -->
 <!-- source: internal/component/iface/config_apply.go -- applyConfig, indexUnitQoS -->
 
@@ -3553,7 +3582,12 @@ sysctl {
 
 Keys use kernel-native names (e.g., the `/proc/sys/` path with `/` replaced by `.`
 on Linux, or MIB names on Darwin). Known keys get type and range validation on
-commit; unknown keys are validated by attempting the write.
+commit; unknown keys are validated by attempting the write. A few known keys
+also refuse a value Ze cannot run with: `net.mpls.ip_ttl_propagate 0` is
+refused, because with it Linux writes `net.mpls.default_ttl` into every MPLS
+label Ze pushes instead of the packet's IP TTL, which RFC 3032 Section 2.4.3
+forbids. Leave the key unset (the kernel default is 1) or set it to 1.
+<!-- source: internal/core/sysctl/known_linux.go -- refuseMPLSTTLNoPropagate -->
 
 The sysctl plugin uses three-layer precedence: config values (above) are authoritative
 and override both transient values (`set sysctl` from CLI) and plugin defaults
@@ -3828,9 +3862,10 @@ username, and remote host. Transcript writes are best-effort and never block
 CLI operation. Default is `disabled`.
 
 A credential typed at the prompt is not written. The command line goes through
-the same redaction the SSH command log uses, so a bcrypt-shaped token and the
-value after a password-family keyword are each replaced with `<redacted>`
-before the line reaches the file. The answer needs no pass of its own: a
+the same redaction the SSH command log uses, so a bcrypt-shaped token, the
+value after a password-family keyword and the value after `content` (the
+base64 bytes a daemon data command carries) are each replaced with
+`<redacted>` before the line reaches the file. The answer needs no pass of its own: a
 command that echoes a config value masks it where it is written.
 
 The `mtu { reference-address }` leaf names the address `show mtu` measures
@@ -4652,6 +4687,19 @@ pppoe {
 | `interface / service-name` | leaf-list | (global) | Per-interface Service-Name filter, overrides global list. |
 | `interface / max-sessions` | uint16 | (global) | Per-interface session limit, defaults to global max-sessions. |
 | `interface / max-sessions-per-mac` | uint16 | (global) | Per-interface override for max-sessions-per-mac. |
+| `lcp / restart-timer` | uint16 | 3000 | Wait in milliseconds after each LCP request, 100..60000. |
+| `lcp / max-terminate` | uint8 | 2 | Terminate-Requests without a Terminate-Ack, 1..255, including the first. |
+| `lcp / max-configure` | uint8 | 10 | Configure-Requests without a valid Configure-Ack, Nak or Reject, 1..255. |
+| `lcp / max-failure` | uint8 | 5 | Configure-Naks without a Configure-Ack before rejecting unacceptable options, 1..255. |
+
+The same four `lcp` leaves are available under `l2tp`. Their defaults are
+declared once in the shared PPP schema. Both transports copy the values into a
+new session; reload changes the next admission and preserves existing sessions.
+The Restart timer applies to Configure-Request, Terminate-Request and the
+Zero-Restart-Count action. The default silent-peer negotiation budget is 30 seconds.
+
+<!-- source: internal/component/l2tp/ppp/yang/ze-ppp-lcp.yang -- shared server LCP defaults -->
+<!-- source: internal/component/l2tp/ppp/lcp_config.go -- LCPConfig -->
 
 Without `authentication-allow`, the effective policy is `[chap-md5]` for
 `chap-md5`, `[ms-chap-v2]` for `ms-chap-v2`, `[chap-md5 pap]` for `pap`,
@@ -4825,6 +4873,26 @@ ze config validate myconfig.conf
 
 Unknown keys are rejected with a suggestion for the closest valid key.
 
+A value the schema does not accept is refused the same way wherever it is
+written: a config file, `ze start`, a reload, the editor, the web, REST, gRPC
+and gNMI. The refusal names the setting's full path and the value, lists what
+the leaf accepts, proposes the closest value when one is close, and ends with
+the exact line that fixes it:
+
+```text
+line 18: bgp peer peer1 session capability route-refresh: "requre" is not an accepted value (did you mean require?)
+route-refresh accepts only these values:
+  enable   Advertise the capability; no enforcement
+  disable  Do not advertise the capability; no enforcement
+  require  Advertise the capability; refuse the session when the peer does not offer it
+  refuse   Do not advertise the capability; refuse the session when the peer offers it
+fix: route-refresh require;
+```
+
+A range gives its bounds and a pattern the format in words, never a regular
+expression. The forms each surface prints are in
+[Value refusals](https://github.com/ze-software/ze/blob/main/docs/architecture/config/yang-config-design.md#value-refusals).
+
 ### Upgrading from a release that validated only on demand
 
 The daemon now applies the same value rules at startup that `ze config validate`
@@ -4878,7 +4946,7 @@ cleared, and the daemon keeps serving the config it already runs. The listeners
 do not rebind and open sessions are not disturbed. The refusal is on stderr:
 
 ```
-reload error: reload: parse config: config validation failed: isis: isis/net: "49.0001.00" is not a valid IS-IS NET for isis/net: length 4 octets, want 8..20
+reload error: reload: config validation failed: isis: isis/net: "49.0001.00" is not a valid IS-IS NET for isis/net: length 4 octets, want 8..20
 ```
 
 There is no override and no force flag. Fix the value and send SIGHUP again.

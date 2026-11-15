@@ -4,18 +4,18 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
-        <title>RFC 5216 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 5216: The EAP-TLS Authentication Protocol. 47 gated MUST-level requirements, 9 declared gaps (0 demonstrated by a test), 0 with no test." />
-        <meta property="og:title" content="RFC 5216 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 5216: The EAP-TLS Authentication Protocol. 47 gated MUST-level requirements, 9 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <title>RFC 5216 requirements and tests - Ze</title>
+        <meta name="description" content="RFC 5216: The EAP-TLS Authentication Protocol. 47 mandatory requirements included in automatic checks, 9 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:title" content="RFC 5216 requirements and tests - Ze" />
+        <meta property="og:description" content="RFC 5216: The EAP-TLS Authentication Protocol. 47 mandatory requirements included in automatic checks, 9 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="RFC 5216 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 5216: The EAP-TLS Authentication Protocol. 47 gated MUST-level requirements, 9 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:title" content="RFC 5216 requirements and tests - Ze" />
+        <meta name="twitter:description" content="RFC 5216: The EAP-TLS Authentication Protocol. 47 mandatory requirements included in automatic checks, 9 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -47,7 +47,7 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">EAP-TLS (EAP inside IKEv2)</span>
     <h1 id="rfc-detail-title">RFC 5216 - The EAP-TLS Authentication Protocol</h1>
-    <p>Every requirement this repository extracted from RFC 5216, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
+    <p>Every requirement listed for RFC 5216, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.</p>
 </div>
 <style>
 .rfc-table-wrap { overflow-x: auto; }
@@ -57,16 +57,25 @@
 .rfc-verdict p:last-child { margin-bottom: 0; }
 .rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
-.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
-.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: block; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
 .rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
-.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
-.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-card b { display: block; margin: 0; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: .5rem 0 0; color: var(--muted); font-size: .92rem; line-height: 1.6; }
+.rfc-card.rfc-total-card { grid-column: 1 / -1; display: grid; grid-template-columns: 15rem minmax(0, 1fr); column-gap: 1.5rem; align-items: start; }
+.rfc-card.rfc-total-card span, .rfc-card.rfc-total-card strong, .rfc-card.rfc-total-card b { grid-column: 1; }
+.rfc-card.rfc-total-card p { grid-column: 2; grid-row: 1 / span 3; margin: 0; }
+@media (max-width: 760px) {
+  .rfc-card-grid { grid-template-columns: minmax(0, 1fr); }
+  .rfc-card.rfc-total-card { display: block; }
+  .rfc-card.rfc-total-card p { margin: .5rem 0 0; }
+}
 .rfc-ok { border-left: 7px solid var(--green); }
 .rfc-neutral { border-left: 7px solid var(--line-strong); }
 .rfc-warn { border-left: 7px solid var(--amber); }
 .rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-card.rfc-total-card { background: var(--bg-soft); border: 1px solid var(--line-strong); box-shadow: none; }
 .rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
 .rfc-tape span { width: var(--w); min-width: 0; display: block; }
 .rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
@@ -87,6 +96,7 @@
 .rfc-swatch.rfc-neutral { background: var(--line-strong); }
 .rfc-swatch.rfc-warn { background: var(--amber); }
 .rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-swatch.rfc-total-card { background: var(--bg-soft); }
 .rfc-total td { border-top: 2px solid var(--line-strong); }
 .rfc-prose { max-width: 46rem; }
 ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
@@ -118,39 +128,39 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>33</strong><b>of 47 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>4</strong><b>of 47 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 47 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 47 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>87</strong><b>87 of 101 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
-</div>
-<h3>Neutral</h3>
-<p>measures that are neither good news nor bad</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>47</strong><b>of 54 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 47 gated MUSTs</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 47 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>2</strong><b>of 47 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 47 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 47 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>33</strong><b>of 47 mandatory requirements</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>4</strong><b>of 47 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 47 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 47 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>85</strong><b>85 of 101 tests linked to requirements, 0 without a fault test and 2 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>8</strong><b>of 47 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>40</strong><b>of 47 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Declared gap or no test</span><strong>8</strong><b>of 47 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>40</strong><b>of 47 mandatory requirements reviewed</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
-<p>The 9 counts marked as a part above are the whole of the 47 gated MUSTs: they add up to 47. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.</p>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 47 mandatory requirements</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 47 mandatory requirements</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>2</strong><b>of 47 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 47 mandatory requirements</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 47 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit</p></article>
+</div>
+<h3>Totals</h3>
+<p>what the cards above are counted against</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-total-card"><span>Mandatory requirements (MUST level)</span><strong>47</strong><b>of 54 requirements this summary lists, at all levels</b><p>The RFC&#39;s MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements.</p></article>
+</div>
+<p>The 9 counts marked as a part above are the whole of the 47 mandatory requirements: they add up to 47. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
-<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
 <tbody>
-<tr><td>Gated MUSTs</td>
-<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
-</tr>
 <tr><td>Out of scope</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
 <td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
@@ -171,9 +181,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
-<tr><td>No test at all</td>
+<tr><td>Declared gap or no test</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
-<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+<td>green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
@@ -191,13 +201,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
 <td>neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption</td>
 </tr>
-<tr><td>Proven by a recorded break</td>
+<tr><td>Tests shown to detect a fault</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above</td>
+<td>green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
-<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current</td>
+</tr>
+<tr><td>Mandatory requirements (MUST level)</td>
+<td><span class="rfc-swatch rfc-total-card"></span> outlined</td>
+<td>outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad</td>
 </tr>
 </tbody>
 </table>
@@ -212,13 +226,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Public row</td>
 <td>EAP-TLS (EAP inside IKEv2)</td>
 </tr>
-<tr><td>Enrolment</td>
-<td>Enrolled</td>
+<tr><td>Automatic checks</td>
+<td>Included</td>
 </tr>
 <tr><td>Requirements</td>
 <td>54</td>
 </tr>
-<tr><td>Gated MUST-level</td>
+<tr><td>Mandatory requirements (MUST level)</td>
 <td>47</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
@@ -230,7 +244,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
 </tr>
-<tr><td>Gated with no test</td>
+<tr><td>Mandatory requirements with no test and no annotation</td>
 <td>0</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
@@ -239,19 +253,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Test tags</td>
 <td>101</td>
 </tr>
-<tr><td>Tagged units</td>
+<tr><td>Tests linked to requirements</td>
 <td>101</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>40</td>
 </tr>
-<tr><td>Discrimination records</td>
+<tr><td>Fault test records</td>
 <td>87</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc5216.md</code></td>
 </tr>
-<tr><td>Requirement shard</td>
+<tr><td>Requirement table</td>
 <td><code>rfc/requirements/rfc5216.md</code></td>
 </tr>
 <tr><td>RFC text</td>
@@ -261,10 +275,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 </section>
-<section><h2>Enrolment</h2>
-<p>Enrolled: EAP-TLS (RFC 5216, EAP inside IKEv2): 52 rows, 47 of them MUST-level. 11 are MET in both polarities (fragmentation, L-bit, mutual-auth handshake, and all seven Section 2.1.3 termination MUSTs: EAP-Failure answers a peer TLS alert, the authenticator waits for the peer reply after its own alert, that reply is answered with EAP-Failure, the authenticator sends its change_cipher_spec and Finished closing flight before it concludes, the peer replies to the authenticator before it terminates, the peer answers the closing flight with a no-data EAP-Response, and the authenticator answers that with EAP-Success), and 5 carry a single-polarity positive proof (reserved flags, TLS&gt;=1.0 both sides, no cipher-leak, MSK label); no compression (RFC5216-2.4-3) is proven in both polarities since 2026-09-29. RFC5216-2.4-5, the mandatory TLS_RSA_WITH_3DES_EDE_CBC_SHA ciphersuite, is a gap. The 2026-09-21 extraction walk read the document against this checklist and added 27 MUST-level rows it did not carry: the Section 2.1.1 base-case flight and the Section 2.1.2 resumption flight, the six Section 2.1.5 fragment-ACK and Identifier obligations, TLS v1.0 support (2.4-7), the four Section 3 packet-field obligations, the five Section 5.2 certificate naming obligations, and the two Section 5.3 authorization obligations. None of the 27 carries a tagged test, so each is an open gap. The same walk corrected RFC5216-5.3-1 from MUST to SHOULD, which is the level Section 5.3 states for RFC 3280 path validation, and moved the section reference of RFC5216-2.4-1 and RFC5216-2.4-2 to Section 2.1.1, where the two TLS version sentences are written. Handshake harness enabled by the eap deadlock+cert-validation fix (commit 0816c2b74)</p>
+<section><h2>Automatic checks</h2>
+<p>Included in automatic checks: EAP-TLS (RFC 5216, EAP inside IKEv2): 52 rows, 47 of them MUST-level. 11 are MET in both polarities (fragmentation, L-bit, mutual-auth handshake, and all seven Section 2.1.3 termination MUSTs: EAP-Failure answers a peer TLS alert, the authenticator waits for the peer reply after its own alert, that reply is answered with EAP-Failure, the authenticator sends its change_cipher_spec and Finished closing flight before it concludes, the peer replies to the authenticator before it terminates, the peer answers the closing flight with a no-data EAP-Response, and the authenticator answers that with EAP-Success), and 5 carry a single-polarity positive proof (reserved flags, TLS&gt;=1.0 both sides, no cipher-leak, MSK label); no compression (RFC5216-2.4-3) is proven in both polarities since 2026-09-29. RFC5216-2.4-5, the mandatory TLS_RSA_WITH_3DES_EDE_CBC_SHA ciphersuite, is a gap. The 2026-09-21 extraction walk read the document against this checklist and added 27 MUST-level rows it did not carry: the Section 2.1.1 base-case flight and the Section 2.1.2 resumption flight, the six Section 2.1.5 fragment-ACK and Identifier obligations, TLS v1.0 support (2.4-7), the four Section 3 packet-field obligations, the five Section 5.2 certificate naming obligations, and the two Section 5.3 authorization obligations. None of the 27 carries a tagged test, so each is an open gap. The same walk corrected RFC5216-5.3-1 from MUST to SHOULD, which is the level Section 5.3 states for RFC 3280 path validation, and moved the section reference of RFC5216-2.4-1 and RFC5216-2.4-2 to Section 2.1.1, where the two TLS version sentences are written. Handshake harness enabled by the eap deadlock+cert-validation fix (commit 0816c2b74)</p>
 </section>
-<section><h2>What the public ledger says</h2>
+<section><h2>Published support status</h2>
 <p><strong>Area:</strong> EAP-TLS (EAP inside IKEv2)</p>
 <p><strong>Proof:</strong> 30 of 47 MUST proven</p>
 <p><strong>Evidence:</strong> unit 30</p>
@@ -278,33 +292,33 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td>Positive and negative tests</td>
 <td><strong>33</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
 <td><strong>14</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
-<tr><td>One polarity only</td>
+<tr><td>Only a positive or negative test</td>
 <td><strong>0</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
 <td><strong>0</strong></td>
-<td>an overlay: each of these is also counted by the part it falls in</td>
+<td>also counted in one of the groups above</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
-<td>an overlay: each of these is also counted by the part it falls in</td>
+<td>also counted in one of the groups above</td>
 </tr>
 <tr><td>Derived from other rows</td>
 <td><strong>0</strong></td>
-<td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
+<td>excluded from the total: each summarizes the status of other requirements, which are already counted above</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>47</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Mandatory requirements (MUST level)</strong></td><td><strong>47</strong></td><td>every mandatory requirement appears in exactly one group above</td></tr>
 </tbody>
 </table>
 </div>
@@ -313,9 +327,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc5216:must">Ze proven 30, OS testing gap 2, Ze correctness gap 15</div>
+<div data-ze-rfc-bar="rfc5216:must">Ze proven 30, Proof pending 7, OS testing gap 2, Not built 8</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc5216:overview">Ze MUST proven 30, SHOULD proven 2, SHOULD not decided 5, OS testing gap 2, Ze correctness gap 15</div>
+<div data-ze-rfc-bar="rfc5216:overview">Ze MUST proven 30, SHOULD proven 2, Proof pending 7, OS testing gap 2, Not assessed 4, Not built 9</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -323,10 +337,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>RFCs</td>
 <td><span data-ze-rfc="rfc5216:rfcs">1</span></td>
 </tr>
-<tr><td>Not walked</td>
+<tr><td>Requirements not reviewed</td>
 <td><span data-ze-rfc="rfc5216:not-walked">0</span></td>
 </tr>
-<tr><td>Mandatory register</td>
+<tr><td>Mandatory requirements complete</td>
 <td><span data-ze-rfc="rfc5216:register">not complete</span></td>
 </tr>
 <tr><td>MUST rows</td>
@@ -341,11 +355,20 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc5216:must.os-verified">0</span></td>
 </tr>
+<tr><td>Proof pending</td>
+<td><span data-ze-rfc="rfc5216:must.proof-pending">7</span></td>
+</tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc5216:must.os-gap">2</span></td>
 </tr>
-<tr><td>Ze correctness gap</td>
-<td><span data-ze-rfc="rfc5216:must.ze-gap">15</span></td>
+<tr><td>Exclusion unchecked</td>
+<td><span data-ze-rfc="rfc5216:must.exclusion-unchecked">0</span></td>
+</tr>
+<tr><td>Not assessed</td>
+<td><span data-ze-rfc="rfc5216:must.not-assessed">0</span></td>
+</tr>
+<tr><td>Not built</td>
+<td><span data-ze-rfc="rfc5216:must.not-built">8</span></td>
 </tr>
 <tr><td>MUST rows not owed</td>
 <td><span data-ze-rfc="rfc5216:must.not-owed">0</span></td>
@@ -383,19 +406,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD not owed: not-applicable</td>
 <td><span data-ze-rfc="rfc5216:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
-<tr><td>SHOULD not ever</td>
-<td><span data-ze-rfc="rfc5216:should.not-ever">0</span></td>
+<tr><td>SHOULD proof pending</td>
+<td><span data-ze-rfc="rfc5216:should.proof-pending">0</span></td>
 </tr>
-<tr><td>SHOULD not yet</td>
-<td><span data-ze-rfc="rfc5216:should.not-yet">0</span></td>
+<tr><td>SHOULD exclusion unchecked</td>
+<td><span data-ze-rfc="rfc5216:should.exclusion-unchecked">0</span></td>
 </tr>
-<tr><td>SHOULD not decided</td>
-<td><span data-ze-rfc="rfc5216:should.not-decided">5</span></td>
+<tr><td>SHOULD not assessed</td>
+<td><span data-ze-rfc="rfc5216:should.not-assessed">4</span></td>
+</tr>
+<tr><td>SHOULD not built</td>
+<td><span data-ze-rfc="rfc5216:should.not-built">1</span></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.</p>
+<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
 
 </section>
 <section><h2>Requirements</h2>
@@ -974,7 +1000,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Proof state</h2>
-<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<p>A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.</p>
 <h3><a href="#rfc5216-3-1"><code>RFC5216-3-1</code></a></h3>
 <p>The L bit (length included) is set to indicate the presence of the four-octet TLS Message Length field, and MUST be set for the first fragment of a fragmented TLS message or set of messages. (§3, Flags)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-01 (owner ruling 5, ruling 2 reading). Positive TestTLSFragmenterFirstFragmentHasLength: Ze&#39;s first fragment of a multi-fragment message carries L, M and the exact 4-octet TLS Message Length (2000). Negative TestRFC5216FirstFragmentWithoutLengthIsRefused (new, D-8 fix in reassemble): the peer&#39;s handleTLSRequest refuses a first fragment with M set and L clear, isolated from a clean state, with an error naming the L bit, no fragment ACK and 0 octets buffered; the same payload with L+M is ACKed as control. Producer checked: the guard fires only when no message is in progress (inExpected 0, inBuf empty), so middle fragments of an L-opened train and unfragmented messages without L pass; shared by authenticator Process and peer. TestTLSFragmenterMiddleAndLastFragmentsHaveNoLength stays tagged negative as supplementary: its prose now states L-only-on-first is Ze&#39;s choice, not an RFC ban. All three units hold observed-red revert records.</p>
@@ -1085,12 +1111,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5216_data_cipher_test.go#L111" title="internal/component/ike/engine/rfc5216_data_cipher_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSSessionDoesNotChooseTheDataCipher</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5216_data_cipher_test.go#L89" title="internal/component/ike/engine/rfc5216_data_cipher_test.go" target="_blank" rel="noopener"><code>TestRFC5216DataCipherComesFromTheESPProposal</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_eap_tls_handshake_test.go#L374" title="internal/core/eap/rfc5216_eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSMutualAuthHandshakeSucceeds</code></a></td>
@@ -1102,8 +1128,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc5216-2.4-5"><code>RFC5216-2.4-5</code></a></h3>
 <p>To ensure interoperability, EAP-TLS peers and servers MUST support the TLS [RFC4346] mandatory-to-implement ciphersuite: TLS_RSA_WITH_3DES_EDE_CBC_SHA (§2.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5216-2.4-5, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC5216-2.4-5, so there is no linked test.</p>
 <h3><a href="#rfc5216-2.1.1-1"><code>RFC5216-2.1.1-1</code></a></h3>
 <p>If the EAP server sent a certificate_request message in the preceding EAP-Request packet, then unless the peer is configured for privacy (see Section 2.1.4) the peer MUST send, in addition, certificate and certificate_verify messages. (§2.1.1)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-12 (independent auditor) after 37dbe54095, where the authenticator with resumption on installs redeemTLS13Only (resumption.go), which refuses every TLS 1.2 ticket. This unit is byte-identical; the file around it changed. Its helpers (tls12Exchange, fullTLS12Flights) gained a tune argument passed as nil to driveTunedEAPTLSFlight, which driveEAPTLSFlight itself calls with nil, and fresh stores offer no ticket, so the producer change never runs here. Verdict stands. Re-judged 2026-09-30 after the D-8 peer certificate fix (answerCertificateRequest). D-8 fixed: tlsClientConfig answers every certificate_request through GetClientCertificate (answerCertificateRequest, peer.go), so the peer no longer drops to an empty certificate_list when the request names another CA. Positive: TestRFC5216PeerSendsItsCertificateWhateverTheRequestNames reads the TLS 1.2 peer flight off the wire after a certificate_request naming a CA other than the peer certificate&#39;s issuer: a certificate message whose first entry is the configured DER, and a certificate_verify (red before the fix, record on answerCertificateRequest); TestRFC5216PeerFlightAnswersTheCertificateRequest keeps the exact compliant flight. Negative (R1 a, non-compliant form on the wire): TestRFC5216AuthenticatorRefusesAPeerThatSendsNoCertificate configures a TRUSTED client cert, empties the peer&#39;s answer after the TLS client starts, asserts the empty certificate_list and absent certificate_verify on the wire, and the authenticator sends no EAP-Success, does not succeed or complete its handshake, and refuses with an error that is not a certificate verification failure. Privacy (Section 2.1.4) is not implemented, so the unless-clause never applies. Every tagged unit carries an observed-red record.</p>
@@ -1251,8 +1277,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc5216-5.3-5"><code>RFC5216-5.3-5</code></a></h3>
 <p>including the ability to retrieve intermediate certificates that may be necessary to validate the peer certificate. (§5.3)</p>
-<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-18 (independent auditor, after f6c2374f02). RFC 5216 Section 5.3: &#34;it SHOULD support validating the peer certificate using RFC 3280 [RFC3280] compliant path validation, including the ability to retrieve intermediate certificates that may be necessary to validate the peer certificate.  For details, see Section 4.2.2.1 of [RFC3280].&#34; The cited section is Authority Information Access, the fetch. The next paragraph names the alternatives for a server that does NOT meet this: &#34;Where the EAP-TLS server is unable to retrieve intermediate certificates, either it will need to be pre-configured with the necessary intermediate certificates to complete path validation or it will rely on the EAP-TLS peer to provide this information&#34;. f6c2374f02 implements the first alternative: the intermediate-certificate list (responder_eap.go eapTLSServerConfig) feeds clientChainVerifier.verify (client_chain.go), which path-validates against ca-certificate roots only, with configured plus peer-sent certificates as Intermediates, clientAuth EKU and the current time, and newTLSMethod (eap_tls.go) runs it in VerifyConnection on TLS 1.2, 1.3 and resumed sessions before checkChainRevocation. The tagged tests prove that alternative well (mutants putting the pool in Roots, dropping EKU, time or revocation, or ignoring the verify error each go red). They do not prove retrieval, because the code performs none: no AIA caIssuers lookup exists in internal/core/eap or internal/component/ike, and verify&#39;s own comment says Ze retrieves nothing over the network. Pre-configuration is the RFC&#39;s named fallback for a server unable to retrieve, not this SHOULD, so the row stays an implementation gap (a SHOULD deviation, not a defect). The row needs its {gap} annotation restored (naming AIA retrieval absent and pre-configuration implemented), and Support remaining must stop saying RFC5216-5.3-5 is no longer among the gaps.</p>
-<p>No test carries RFC5216-5.3-5, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-11-10 independently of the producer authors. RFC 5216 Section 5.3 requires support for retrieving intermediate certificates and then explicitly names pre-configuration or peer-provided intermediates as fallbacks for a server unable to retrieve them. clientChainVerifier.verify constructs Intermediates from configured and peer-sent certificates and calls x509.Certificate.Verify. newTLSMethod installs that verifier when configured intermediates exist, otherwise uses crypto/tls path validation; its remaining callbacks control revocation and TLS session tickets, not AIA retrieval. Neither boundary fetches caIssuers. The gap annotation accurately distinguishes the implemented fallback from absent retrieval; retain unimplemented, not enforced.</p>
+<p>No test carries RFC5216-5.3-5, so there is no linked test.</p>
 <h3><a href="#rfc5216-5.4-1"><code>RFC5216-5.4-1</code></a></h3>
 <p>EAP-TLS peer and server implementations MUST support the use of Certificate Revocation Lists (CRLs); for details, see Section 3.3 of [RFC3280]. (§5.4)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-12 (independent auditor) after 37dbe54095, where the authenticator with resumption on installs redeemTLS13Only (resumption.go), which refuses every TLS 1.2 ticket. This unit is byte-identical; the file around it changed. Its helpers (tls12Exchange, fullTLS12Flights) gained a tune argument passed as nil to driveTunedEAPTLSFlight, which driveEAPTLSFlight itself calls with nil, and fresh stores offer no ticket, so the producer change never runs here. Verdict stands. Server half: a CRL revoking the client certificate refuses the TLS 1.2 exchange, a CRL naming nobody completes. Peer half (new, TestRFC5216PeerRefusesARevokedServerCertificateOverTLS12): a peer CRL revoking the authenticator certificate over TLS 1.2 gives a peer error, no EAP-Success, no MSK; isolated by TestEAPTLS12CompletesWithAnUnrevokedChain, where the peer holds a CRL that revokes nothing and completes. Every tagged unit carries a record.</p>
@@ -1580,8 +1606,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc5216-2.1.1-7"><code>RFC5216-2.1.1-7</code></a></h3>
 <p>The certificate message contains a public key certificate chain for either a key exchange public key (such as an RSA or Diffie-Hellman key exchange public key) or a signature public key (such as an RSA or Digital Signature Standard (DSS) signature public key). In the latter case, a TLS server_key_exchange handshake message MUST also be included to allow the key exchange to take place. (§2.1.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5216-2.1.1-7, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC5216-2.1.1-7, so there is no linked test.</p>
 <h3><a href="#rfc5216-2.1.1-8"><code>RFC5216-2.1.1-8</code></a></h3>
 <p>If the peer supports EAP-TLS and is configured to use it, it MUST respond to the EAP-Request with an EAP-Response packet of EAP- Type=EAP-TLS. (§2.1.1)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a peer configured for EAP-TLS answering the EAP-TLS Request with anything but an EAP-TLS Response (a Nak, another type). TestRFC5216ConfiguredPeerAnswersEAPTLSWithEAPTLS fatals on Code != CodeResponse or Type != TypeTLS and on TypeData without a handshake record. Negative for the condition: TestRFC5216PeerNotConfiguredForEAPTLSDoesNotAnswerWithEAPTLS fatals if an MS-CHAPv2 peer answers with Type 13 and wantLegacyNak requires the Nak.</p>
@@ -1799,8 +1825,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc5216-2.4-7"><code>RFC5216-2.4-7</code></a></h3>
 <p>EAP-TLS implementations MUST support TLS v1.0. (§2.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5216-2.4-7, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC5216-2.4-7, so there is no linked test.</p>
 <h3><a href="#rfc5216-3-3"><code>RFC5216-3-3</code></a></h3>
 <p>The Identifier field MUST be changed on each Request packet. (§3)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a Request that repeats the Identifier of the packet before it. TestRFC5216IdentifierChangesOnEveryRequest errors on cur.Identifier == prev.Identifier for every Request of a full TLS 1.2 conversation and fatals if fewer than 3 Requests ran; the negative pins that EAP-Success (not a Request) repeats the answered Identifier.</p>
@@ -1888,34 +1914,34 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc5216-5.2-1"><code>RFC5216-5.2-1</code></a></h3>
 <p>Where the subjectAltName field is present in the peer or server certificate, the Peer-Id or Server-Id MUST be set to the contents of the subjectAltName. (§5.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5216-5.2-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC5216-5.2-1, so there is no linked test.</p>
 <h3><a href="#rfc5216-5.2-2"><code>RFC5216-5.2-2</code></a></h3>
 <p>If subject naming information is present only in the subjectAltName extension of a peer or server certificate, then the subject field MUST be an empty sequence and the subjectAltName extension MUST be critical. (§5.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5216-5.2-2, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC5216-5.2-2, so there is no linked test.</p>
 <h3><a href="#rfc5216-5.2-3"><code>RFC5216-5.2-3</code></a></h3>
 <p>Conforming implementations generating new certificates with Network Access Identifiers (NAIs) MUST use the rfc822Name in the subject alternative name field to describe such identities. (§5.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5216-5.2-3, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC5216-5.2-3, so there is no linked test.</p>
 <h3><a href="#rfc5216-5.2-4"><code>RFC5216-5.2-4</code></a></h3>
 <p>The use of the subject name field to contain an emailAddress Relative Distinguished Name (RDN) is deprecated, and MUST NOT be used. (§5.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5216-5.2-4, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC5216-5.2-4, so there is no linked test.</p>
 <h3><a href="#rfc5216-5.2-5"><code>RFC5216-5.2-5</code></a></h3>
 <p>Where it is non-empty, the subject name field MUST contain an X.500 distinguished name (DN). (§5.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5216-5.2-5, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC5216-5.2-5, so there is no linked test.</p>
 <h3><a href="#rfc5216-5.3-2"><code>RFC5216-5.3-2</code></a></h3>
 <p>Once a TLS session is established, EAP-TLS peer and server implementations MUST validate that the identities represented in the certificate are appropriate and authorized for use with EAP-TLS. (§5.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5216-5.3-2, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC5216-5.3-2, so there is no linked test.</p>
 <h3><a href="#rfc5216-5.3-3"><code>RFC5216-5.3-3</code></a></h3>
 <p>When performing this comparison, implementations MUST follow the validation rules specified in Section 3.1 of [RFC2818]. (§5.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5216-5.3-3, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC5216-5.3-3, so there is no linked test.</p>
 </section>
-<section><h2>Extraction sign-off</h2>
+<section><h2>Requirement list review</h2>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
@@ -1961,163 +1987,163 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td><code>front</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>1.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>1.2</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>2</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>2.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>2.1.1</code></td>
 <td>not stated</td>
 <td>11</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>2.1.2</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>2.1.3</code></td>
 <td>not stated</td>
 <td>7</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>2.1.4</code></td>
 <td>not stated</td>
 <td>5</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>2.1.5</code></td>
 <td>not stated</td>
 <td>8</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>2.2</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>2.3</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>2.4</code></td>
 <td>not stated</td>
 <td>4</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>3</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>3.1</code></td>
 <td>not stated</td>
 <td>4</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>3.2</code></td>
 <td>not stated</td>
 <td>4</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>4</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>5</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>5.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>5.2</code></td>
 <td>not stated</td>
 <td>5</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>5.3</code></td>
 <td>not stated</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>5.4</code></td>
 <td>not stated</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>5.5</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>6</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>6.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>6.2</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 </tbody>
@@ -2188,7 +2214,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     </a>
                     <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
                         <span class="page-sidebar-link-label">Verify debugging</span>
-                        <small>How failed checks route to evidence.</small>
+                        <small>How to investigate failed checks using their logs.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -2207,7 +2233,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 01:56 UTC</span>
                 </div>
             </div>
         </footer>

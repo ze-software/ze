@@ -55,8 +55,19 @@ start. Details: `docs/architecture/mpls/mpls-kernel.md`, "On a kernel without
 the patch".
 
 A VPP or P4 FIB backend is never judged on the kernel's AF_MPLS table. The
-`fib { kernel { } }` block is what activates the plugin that programs kernel
-labels, and it is that plugin that carries the requirement.
+requirement belongs to fib-kernel, the plugin that programs kernel labels.
+LDP and RSVP-TE load it under `interface { backend netlink; }` with no
+`fib { }` block, and a `fib { kernel { } }` block loads it too.
+
+On `interface { backend vpp; }`, fib-vpp programs the same LDP and RSVP-TE
+swap and pop entries into VPP's MPLS table 0, and `mpls { enable true; }`
+enables MPLS input on the VPP interface instead of only writing the sysctl.
+`show mpls fib` in `vppctl` lists each label twice, as `eos` and `neos`. VPP
+has no per-route MTU, so labeled frames are bounded by the interface MTU, and
+an RSVP-TE facility-backup push into a private table is refused. The details
+are in [VPP](../vpp/index.md), row vpp-3.
+<!-- source: internal/plugins/fib/vpp/mplsentry.go -- handleMPLSEntry -->
+<!-- source: internal/plugins/iface/vpp/mplsinput.go -- ReplaceMPLSInput -->
 
 ## Inspecting the forwarding table
 
@@ -131,12 +142,25 @@ Rejected/No Hello.
 <!-- source: internal/plugins/ldp/session.go -- processMessages, rejectInit -->
 <!-- source: internal/plugins/ldp/register.go -- sessionConfigForAdj -->
 
+With the LDP log at info (`environment { log { ldp info } }`), ze logs
+`ldp: session operational` with the peer address when a session reaches
+OPERATIONAL, and `ldp: session ended` with the peer and the cause when a session
+ends on an error, so the log shows when each session came up and went down.
+
+<!-- source: internal/plugins/ldp/session.go -- processMessages -->
+<!-- source: internal/plugins/ldp/register.go -- runSession -->
+
 Inspect LDP state with `show ldp neighbor` (session state, transport address)
 and `show ldp binding` (FEC-to-label bindings). A label binding learned from a
-neighbor programs an ingress push entry in the kernel MPLS FIB toward that
-neighbor.
+neighbor programs an ingress push entry toward that neighbor, in the kernel MPLS
+FIB under `interface { backend netlink; }` and in VPP under `backend vpp`.
+`show mpls forwarding` reads the data plane the backend selects: under
+`backend vpp` it lists the labels in VPP MPLS table 0 and VPP's labeled IP
+routes, in the same row format as the kernel table. When VPP does not answer,
+the command fails and names `ze doctor`. It does not answer an empty table.
 
-<!-- source: internal/plugins/fib/kernel/mpls.go -- label validation -->
+<!-- source: internal/plugins/fib/vpp/mplsforwarding.go -- readMPLSForwarding -->
+<!-- source: internal/core/mplsfib/label.go -- label validation -->
 <!-- source: internal/plugins/fib/kernel/nexthop_linux.go -- buildMPLSEncap (push) -->
 <!-- source: internal/component/iface/config_sysctl.go -- net.mpls.conf.<iface>.input -->
 <!-- source: internal/component/mpls/show_forwarding.go -- show mpls forwarding -->

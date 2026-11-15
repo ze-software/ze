@@ -1,6 +1,6 @@
 # RFC 7950 - The YANG 1.1 Data Modeling Language
 
-YANG 1.1 data modeling. Every requirement this repository extracted from RFC 7950, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+YANG 1.1 data modeling. Every requirement listed for RFC 7950, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,23 +10,10 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 36 | of 91 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 1 | of 91 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 91 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 144 | 144 of 156 tagged units, 0 escaped and 6 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-
-### Neutral
-
-measures that are neither good news nor bad
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Gated MUSTs | 91 | of 91 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 91 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 91 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 91 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 91 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 91 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Tested both ways | 36 | of 91 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 1 | of 91 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 91 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Tests shown to detect a fault | 150 | 150 of 156 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -34,56 +21,76 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Partial proof; remaining gap | 3 | of 91 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| No test at all | 51 | of 91 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 39 | of 91 gated MUSTs judged | 10 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+| Partial proof; remaining gap | 3 | of 91 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Declared gap or no test | 51 | of 91 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Audit verdicts | 39 | of 91 mandatory requirements reviewed | 11 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
-The 9 counts marked as a part above are the whole of the 91 gated MUSTs: they add up to 91. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Neutral
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+measures that are neither good news nor bad
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Out of scope | 0 | of 91 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 91 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 91 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 91 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 91 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+
+### Totals
+
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 91 | of 91 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 91 mandatory requirements: they add up to 91. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | bad | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | YANG 1.1 data modeling |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 91 |
-| Gated MUST-level | 91 |
+| Mandatory requirements (MUST level) | 91 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 51 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 156 |
-| Tagged units | 156 |
+| Tests linked to requirements | 156 |
 | Recorded audit verdicts | 39 |
-| Discrimination records | 150 |
+| Fault test records | 150 |
 | Summary | `rfc/short/rfc7950.md` |
-| Requirement shard | `rfc/requirements/rfc7950.md` |
+| Requirement table | `rfc/requirements/rfc7950.md` |
 | RFC text | `rfc/full/rfc7950.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: The YANG 1.1 Data Modeling Language (ze config validator). The extraction walk of 2026-09-21 read all 227 MUST sites and rewrote this ledger: it added 67 MUST rows the checklist did not carry, covering module and submodule structure, identifier and prefix scoping, typedef and leaf definition rules, list keys and unique constraints, choice, grouping, augment, identity, feature, deviation, status and when rules, the Section 8.1 validity conditions and the Section 8.3 enforcement windows, the built-in type restrictions of Section 9, the module update rules of Section 11 and the YANG 1/1.1 coexistence rules of Section 12. On 2026-09-21 twelve of the added rows gained positive and negative tags (seven at the loader boundary in internal/component/config/yang/rfc7950_loader_test.go, decimal64 and default validation in the validator and the schema builder), one is single-polarity, and the forty-eight left carry {gap} rows naming their specs. Of the nine rows that stood before the walk, four are met with positive+negative tags in internal/component/config: 8.3.1-1 (a value violating a range, length, or pattern restriction is an error), 9.6-1 (an enum value must be one of the defined enums), 9.12-1 (a union value must match at least one member type), and 7.6.5-1 (a missing mandatory node is an error). Five more are gaps: 7.5.3-1 (no must statement is evaluated, and a plugin's own module may carry one), 9.2.4-1 (no check that a derived range is equally or more limiting), 9.4.5-1 (every pattern is checked in turn, but no module carries two and no test proves the AND), x-1 (ze's models declare no yang-version and nothing refuses a 1.1 construct without it), and x-2 (no repository check compares enumerations across revisions). The walk excluded 32 sites as the NETCONF protocol binding, the XML encoding and the YIN syntax, none of which ze uses: ze serves its YANG-modeled config over gNMI and its own CLI, and no Go file in internal/ references NETCONF except a port-name table. Three further sites delegate module-name and namespace assignment to the IANA procedure of the earlier YANG specification they cite.
+Included in automatic checks: The YANG 1.1 Data Modeling Language (ze config validator). The extraction walk of 2026-09-21 read all 227 MUST sites and rewrote this ledger: it added 67 MUST rows the checklist did not carry, covering module and submodule structure, identifier and prefix scoping, typedef and leaf definition rules, list keys and unique constraints, choice, grouping, augment, identity, feature, deviation, status and when rules, the Section 8.1 validity conditions and the Section 8.3 enforcement windows, the built-in type restrictions of Section 9, the module update rules of Section 11 and the YANG 1/1.1 coexistence rules of Section 12. On 2026-09-21 twelve of the added rows gained positive and negative tags (seven at the loader boundary in internal/component/config/yang/rfc7950_loader_test.go, decimal64 and default validation in the validator and the schema builder), one is single-polarity, and the forty-eight left carry {gap} rows naming their specs. Of the nine rows that stood before the walk, four are met with positive+negative tags in internal/component/config: 8.3.1-1 (a value violating a range, length, or pattern restriction is an error), 9.6-1 (an enum value must be one of the defined enums), 9.12-1 (a union value must match at least one member type), and 7.6.5-1 (a missing mandatory node is an error). Five more are gaps: 7.5.3-1 (no must statement is evaluated, and a plugin's own module may carry one), 9.2.4-1 (no check that a derived range is equally or more limiting), 9.4.5-1 (every pattern is checked in turn, but no module carries two and no test proves the AND), x-1 (ze's models declare no yang-version and nothing refuses a 1.1 construct without it), and x-2 (no repository check compares enumerations across revisions). The walk excluded 32 sites as the NETCONF protocol binding, the XML encoding and the YIN syntax, none of which ze uses: ze serves its YANG-modeled config over gNMI and its own CLI, and no Go file in internal/ references NETCONF except a port-name table. Three further sites delegate module-name and namespace assignment to the IANA procedure of the earlier YANG specification they cite.
 
-## What the public ledger says
+## Published support status
 
 **Area:** YANG 1.1 data modeling
 
@@ -98,14 +105,14 @@ Enrolled: The YANG 1.1 Data Modeling Language (ze config validator). The extract
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 36 | one part of the gated population |
-| Annotated (including scoped evidence) | 55 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 3 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **91** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 36 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 55 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 3 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **91** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (36):** [`RFC7950-9.6-1`](#rfc7950-9.6-1), [`RFC7950-9.12-1`](#rfc7950-9.12-1), [`RFC7950-7.6.5-2`](#rfc7950-7.6.5-2), [`RFC7950-7.6.5-3`](#rfc7950-7.6.5-3), [`RFC7950-6.1.3-1`](#rfc7950-6.1.3-1), [`RFC7950-6.5-1`](#rfc7950-6.5-1), [`RFC7950-7.3.4-1`](#rfc7950-7.3.4-1), [`RFC7950-7.6.1-1`](#rfc7950-7.6.1-1), [`RFC7950-7.6.1-2`](#rfc7950-7.6.1-2), [`RFC7950-7.6.1-3`](#rfc7950-7.6.1-3), [`RFC7950-7.6.3-1`](#rfc7950-7.6.3-1), [`RFC7950-7.6.4-2`](#rfc7950-7.6.4-2), [`RFC7950-7.7.4-1`](#rfc7950-7.7.4-1), [`RFC7950-7.7.5-1`](#rfc7950-7.7.5-1), [`RFC7950-7.19-1`](#rfc7950-7.19-1), [`RFC7950-8.1-3`](#rfc7950-8.1-3), [`RFC7950-8.1-2`](#rfc7950-8.1-2), [`RFC7950-8.3-1`](#rfc7950-8.3-1), [`RFC7950-8.3.3-1`](#rfc7950-8.3.3-1), [`RFC7950-9.1-1`](#rfc7950-9.1-1), [`RFC7950-9.3.1-1`](#rfc7950-9.3.1-1), [`RFC7950-9.3.4-1`](#rfc7950-9.3.4-1), [`RFC7950-9.4.4-1`](#rfc7950-9.4.4-1), [`RFC7950-9.5.1-1`](#rfc7950-9.5.1-1), [`RFC7950-9.6.4-2`](#rfc7950-9.6.4-2), [`RFC7950-9.6.4.2-1`](#rfc7950-9.6.4.2-1), [`RFC7950-9.9-1`](#rfc7950-9.9-1), [`RFC7950-9.9.2-1`](#rfc7950-9.9.2-1), [`RFC7950-9.9.3-1`](#rfc7950-9.9.3-1), [`RFC7950-9.10.3-1`](#rfc7950-9.10.3-1), [`RFC7950-9.13-1`](#rfc7950-9.13-1), [`RFC7950-7.2.2-1`](#rfc7950-7.2.2-1), [`RFC7950-7.3.2-1`](#rfc7950-7.3.2-1), [`RFC7950-7.9.2-2`](#rfc7950-7.9.2-2), [`RFC7950-9.1-2`](#rfc7950-9.1-2), [`RFC7950-9.4.4-2`](#rfc7950-9.4.4-2)
 
@@ -115,20 +122,23 @@ Enrolled: The YANG 1.1 Data Modeling Language (ze config validator). The extract
 
 ## Figures
 
-- **MUST bar**: Ze proven 37, Ze correctness gap 54
-- **Overview bar**: Ze MUST proven 37, Ze correctness gap 54
+- **MUST bar**: Ze proven 37, Not built 54
+- **Overview bar**: Ze MUST proven 37, Not built 54
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 91 |
 | MUST rows kept (the MUST bar) | 91 |
 | Ze proven | 37 |
 | OS verified | 0 |
+| Proof pending | 0 |
 | OS testing gap | 0 |
-| Ze correctness gap | 54 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 54 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -141,11 +151,12 @@ Enrolled: The YANG 1.1 Data Modeling Language (ze config validator). The extract
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 0 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 0 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc7950.json](../../../data/rfc/rfc7950.json).
 
@@ -155,7 +166,7 @@ Source: [data/rfc/rfc7950.json](../../../data/rfc/rfc7950.json).
 |---|---|---|---|---|
 | `RFC7950-9.6-1` | The enumeration built-in type represents values from a set of assigned names. (§9.6) | MUST | 9.6 | **positive:** `unit/verify` [`TestISISAuthAlgorithmEnumAcceptsAll`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_isis_auth_algorithm_enum_test.go#L64). **positive:** `unit/verify` [`TestRadiusAuthMethodEnum`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_radius_auth_method_enum_test.go#L53). **positive:** `unit/verify` [`TestValidateTree_AddPathDirectionEnum`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L619). **positive:** `unit/verify` [`TestValidateTree_FamilyModeEnum`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L553). **negative:** `unit/verify` [`TestISISAuthAlgorithmEnumAcceptsAll`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_isis_auth_algorithm_enum_test.go#L81). **negative:** `unit/verify` [`TestRadiusAuthMethodEnum`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_radius_auth_method_enum_test.go#L64). **negative:** `unit/verify` [`TestValidateTree_AddPathDirectionEnum`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L620). **negative:** `unit/verify` [`TestValidateTree_FamilyModeEnum`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L554) |
 | `RFC7950-9.12-1` | The union built-in type represents a value that corresponds to one of its member types. (§9.12) | MUST | 9.12 | **positive:** `unit/verify` [`TestRFC7950UnionAcceptsEveryMemberType`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_union_test.go#L32). **positive:** `unit/verify` [`TestValidateTree_ValidConfig`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L47). **negative:** `unit/verify` [`TestValidateTree_UnionViolation`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L367) |
-| `RFC7950-7.6.5-1` | If "mandatory" is "true", the behavior of the constraint depends on the type of the leaf's closest ancestor node in the schema tree that is not a non-presence container (see Section 7.5.1): o If no such ancestor exists in the schema tree, the leaf MUST exist. (§7.6.5) | MUST | 7.6.5 | **positive:** `unit/verify` [`TestRFC7950MandatoryRefusesBGPConfig`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_mandatory_bgp_test.go#L31). **positive:** `unit/verify` [`TestRFC7950MandatoryWithNoQualifyingAncestor`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_mandatory_test.go#L70). **positive:** `unit/verify` [`TestValidator_MandatoryField`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L943). **negative:** `unit/verify` [`TestRFC7950MandatoryRefusesBGPConfig`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_mandatory_bgp_test.go#L30). **negative:** `unit/verify` [`TestRFC7950MandatoryWithNoQualifyingAncestor`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_mandatory_test.go#L69). **negative:** `unit/verify` [`TestValidateTree_MandatoryMissing`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L339). **negative:** `unit/verify` [`TestValidator_MandatoryField`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L944). **{partial}:** tested "the leaf MUST exist"; gap "If no such ancestor exists in the schema tree"; internal/component/config/validate_sections.go::ValidateCustomSections is the boundary: Tested covers a mandatory leaf whose ancestors are all non-presence containers, required whenever its top-level section is present in the config (bgp/router-id, bgp/session/asn/local, once the bgp section holds a peer or a group); Gap is the same leaf when the whole top-level section is absent, which Ze does not require, because its top-level sections are non-presence containers that stand for an enabled feature and requiring their leaves would refuse every config that omits bgp; owner-approved deviation, OWNER RULING 6 of 2026-10-12 (Thomas, "Like FRR/libyang (Recommended)"): mandatory leaves are checked only in sections present in the config, as libyang's LYD_VALIDATE_PRESENT ("Validate only modules whose data actually exist") does when FRR sets it in nb_candidate_validate_yang (lib/northbound.c) and yang_parse_data (lib/yang.c); Gap also holds bgp/router-id and bgp/session/asn/local absent at the bgp level while every BGP session carries the value itself or from its group, which bgpMandatoryFailures counts as present through EverySessionCarries: a second owner-approved deviation, ruling of 2026-10-12 (Thomas, "yes enforce", spec AC-2); that ruling binds only once a session exists: a bgp section with no peer and no group is accepted and does nothing, so EverySessionCarries counts both leaves as present there (Thomas, 2026-10-16, spec AC-2 RULING 7); a deviation is never counted conformant; plan/release/fixes/spec-config-yang-when-unique-choice.md. **Scoped evidence:** Tests and tag-claim records apply only to Tested; zero whole-requirement credit. partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. Re-judged 2026-10-25 after the row went stale. The only change to the row since the 2026-10-23 verdict is the spec path in its Reason, plan/pre-release/ moved to plan/release/fixes/ (commit 666f1bc521); Tested, Gap, Producer, the owner-approved deviations and the requirement text are byte-identical, and reseal reported the tagged units unchanged. RFC 7950 Section 7.6.5: "If "mandatory" is "true", the behavior of the constraint depends on the type of the leaf's closest ancestor node in the schema tree that is not a non-presence container (see Section 7.5.1): o If no such ancestor exists in the schema tree, the leaf MUST exist." Tested "the leaf MUST exist"; Gap "If no such ancestor exists in the schema tree"; Producer internal/component/config/validate_sections.go::ValidateCustomSections. The earlier judgement stands: the direct validator requires the exact missing path under an absent non-presence ancestor and accepts the supplied leaf; the config carriers require LoadConfig to refuse a missing local ASN or router-id and to accept the complete config. The whole absent top-level section stays unwalked and EverySessionCarries implements the declared deviations, none of which counts as conformance. Zero whole-requirement credit. |
+| `RFC7950-7.6.5-1` | If "mandatory" is "true", the behavior of the constraint depends on the type of the leaf's closest ancestor node in the schema tree that is not a non-presence container (see Section 7.5.1): o If no such ancestor exists in the schema tree, the leaf MUST exist. (§7.6.5) | MUST | 7.6.5 | **positive:** `unit/verify` [`TestRFC7950MandatoryRefusesBGPConfig`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_mandatory_bgp_test.go#L31). **positive:** `unit/verify` [`TestRFC7950MandatoryWithNoQualifyingAncestor`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_mandatory_test.go#L70). **positive:** `unit/verify` [`TestValidator_MandatoryField`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L943). **negative:** `unit/verify` [`TestRFC7950MandatoryRefusesBGPConfig`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_mandatory_bgp_test.go#L30). **negative:** `unit/verify` [`TestRFC7950MandatoryWithNoQualifyingAncestor`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_mandatory_test.go#L69). **negative:** `unit/verify` [`TestValidateTree_MandatoryMissing`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L339). **negative:** `unit/verify` [`TestValidator_MandatoryField`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L944). **{partial}:** tested "the leaf MUST exist"; gap "If no such ancestor exists in the schema tree"; internal/component/config/validate_sections.go::ValidateCustomSections is the boundary: Tested covers a mandatory leaf whose ancestors are all non-presence containers, required whenever its top-level section is present in the config (bgp/router-id, bgp/session/asn/local, once the bgp section holds a peer or a group); Gap is the same leaf when the whole top-level section is absent, which Ze does not require, because its top-level sections are non-presence containers that stand for an enabled feature and requiring their leaves would refuse every config that omits bgp; owner-approved deviation, OWNER RULING 6 of 2026-10-12 (Thomas, "Like FRR/libyang (Recommended)"): mandatory leaves are checked only in sections present in the config, as libyang's LYD_VALIDATE_PRESENT ("Validate only modules whose data actually exist") does when FRR sets it in nb_candidate_validate_yang (lib/northbound.c) and yang_parse_data (lib/yang.c); Gap also holds bgp/router-id and bgp/session/asn/local absent at the bgp level while every BGP session carries the value itself or from its group, which bgpMandatoryFailures counts as present through EverySessionCarries: a second owner-approved deviation, ruling of 2026-10-12 (Thomas, "yes enforce", spec AC-2); that ruling binds only once a session exists: a bgp section with no peer and no group is accepted and does nothing, so EverySessionCarries counts both leaves as present there (Thomas, 2026-10-16, spec AC-2 RULING 7); a deviation is never counted conformant; plan/release/fixes/spec-config-yang-when-unique-choice.md. **Partial test coverage:** Tests and fault test records cover only the part marked Tested; they do not prove the whole requirement. partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. Re-judged 2026-10-25 after the row went stale. The only change to the row since the 2026-10-23 verdict is the spec path in its Reason, plan/pre-release/ moved to plan/release/fixes/ (commit 666f1bc521); Tested, Gap, Producer, the owner-approved deviations and the requirement text are byte-identical, and reseal reported the tagged units unchanged. RFC 7950 Section 7.6.5: "If "mandatory" is "true", the behavior of the constraint depends on the type of the leaf's closest ancestor node in the schema tree that is not a non-presence container (see Section 7.5.1): o If no such ancestor exists in the schema tree, the leaf MUST exist." Tested "the leaf MUST exist"; Gap "If no such ancestor exists in the schema tree"; Producer internal/component/config/validate_sections.go::ValidateCustomSections. The earlier judgement stands: the direct validator requires the exact missing path under an absent non-presence ancestor and accepts the supplied leaf; the config carriers require LoadConfig to refuse a missing local ASN or router-id and to accept the complete config. The whole absent top-level section stays unwalked and EverySessionCarries implements the declared deviations, none of which counts as conformance. Zero whole-requirement credit. |
 | `RFC7950-7.6.5-2` | Otherwise, if this ancestor is a case node, the leaf MUST exist if any node from the case exists in the data tree. (§7.6.5) | MUST | 7.6.5 | **positive:** `unit/verify` [`TestRFC7950MandatoryNotRequiredForAbsentCase`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_mandatory_case_test.go#L111). **negative:** `unit/verify` [`TestRFC7950MandatoryRequiredWhenCaseExists`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_mandatory_case_test.go#L69). **negative:** `functional/verify` [`iface-tunnel-invalid-gre-no-remote.ci`](https://github.com/ze-software/ze/blob/main/test/parse/iface-tunnel-invalid-gre-no-remote.ci#L16) |
 | `RFC7950-7.6.5-3` | Otherwise, the leaf MUST exist if the ancestor node exists in the data tree. (§7.6.5) | MUST | 7.6.5 | **positive:** `unit/verify` [`TestRFC7950MandatoryOutsideValidatedSections`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_mandatory_sections_test.go#L34). **positive:** `unit/verify` [`TestRFC7950MandatoryRequiredWhenAncestorExists`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_mandatory_test.go#L105). **negative:** `unit/verify` [`TestRFC7950MandatoryOutsideValidatedSections`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_mandatory_sections_test.go#L33). **negative:** `unit/verify` [`TestRFC7950MandatoryRequiredWhenAncestorExists`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_mandatory_test.go#L104) |
 | `RFC7950-7.5.3-1` | All such constraints MUST evaluate to "true" for the data to be valid. (§7.5.3) | MUST | 7.5.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze evaluates no must statement: goyang parses it and evaluates no XPath, and ze checks cross-field constraints with Go ze:validate functions (internal/component/config/yang/validator_registry.go) instead; ze's own modules carry none, but a plugin may register a YANG module of its own (SetSchema in pkg/plugin) and nothing refuses or enforces a must statement in it; full YANG coverage runs after the first release |
@@ -191,7 +202,7 @@ Source: [data/rfc/rfc7950.json](../../../data/rfc/rfc7950.json).
 | `RFC7950-7.8.3-1` | The "unique" statement is used to put constraints on valid list entries. It takes as an argument a string that contains a space- separated list of schema node identifiers, which MUST be given in the descendant form (see the rule "descendant-schema-nodeid" in Section 14). Each such schema node identifier MUST refer to a leaf. If one of the referenced leafs represents configuration data, then all of the referenced leafs MUST represent configuration data. The "unique" constraint specifies that the combined values of all the leaf instances specified in the argument string, including leafs with default values, MUST be unique within all list entry instances in which all referenced leafs exist or have default values. (§7.8.3) | MUST | 7.8.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** walkTree evaluates no when, unique or choice; plan/release/fixes/spec-config-yang-when-unique-choice.md |
 | `RFC7950-7.9.2-1` | The identifiers of all these child nodes MUST be unique within all cases in a choice. (§7.9.2) | MUST | 7.9.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** goyang accepts the violating module and Ze adds no check of its own; plan/release/fixes/spec-config-yang-loader-structural-checks.md |
 | `RFC7950-7.9.3-1` | The "default" statement MUST NOT be present on choices where "mandatory" is "true". The default case is only important when considering the "default" statements of nodes under the cases (i.e., default values of leafs and leaf-lists, and default cases of nested choices). The default values and nested default cases under the default case are used if none of the nodes under any of the cases are present. There MUST NOT be any mandatory nodes (Section 3) directly under the default case. (§7.9.3) | MUST | 7.9.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** goyang accepts the violating module and Ze adds no check of its own; plan/release/fixes/spec-config-yang-loader-structural-checks.md |
-| `RFC7950-7.9.4-1` | If "mandatory" is "true", at least one node from exactly one of the choice's case branches MUST exist. (Section 7.9.4) | MUST | 7.9.4 | **positive:** `unit/verify` [`TestMandatoryChoiceSatisfiedByACaseNode`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_mandatory_test.go#L151). **negative:** `unit/verify` [`TestMandatoryChoiceSatisfiedByACaseNode`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_mandatory_test.go#L150). **{partial}:** tested "at least one node from"; gap "exactly one of the choice's case branches"; internal/component/config/yang/validator_mandatory.go::mandatoryPresent is the boundary: Tested covers a mandatory choice reported missing when no data node of any of its cases exists, and satisfied by a node of one case, nested choices included; Gap is data holding nodes from two cases of one choice, which mandatoryPresent accepts at the first case node it finds, and no other check compares the cases; plan/release/fixes/spec-config-yang-when-unique-choice.md. **Scoped evidence:** Tests and tag-claim records apply only to Tested; zero whole-requirement credit. partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. Re-judged 2026-10-25 after the row went stale. The only change to the row since the verdict is the spec path in its Reason, plan/pre-release/ moved to plan/release/fixes/ (commit 666f1bc521); Tested, Gap, Producer and the requirement text are byte-identical, and reseal reported the tagged units unchanged. Section 7.9.4: "If "mandatory" is "true", at least one node from exactly one of the choice's case branches MUST exist." Tested "at least one node from"; Gap "exactly one of the choice's case branches"; Producer internal/component/config/yang/validator_mandatory.go::mandatoryPresent. Tested holds: TestMandatoryChoiceSatisfiedByACaseNode reports the missing choice for a container with no node of any case and accepts a node of one case and of a nested choice's case. Gap holds, re-read at the producer: mandatoryPresent returns true at the first case node it finds and no other check compares the cases, so data from two cases is accepted. Whole requirement earns no credit; spec-config-yang-when-unique-choice. |
+| `RFC7950-7.9.4-1` | If "mandatory" is "true", at least one node from exactly one of the choice's case branches MUST exist. (Section 7.9.4) | MUST | 7.9.4 | **positive:** `unit/verify` [`TestMandatoryChoiceSatisfiedByACaseNode`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_mandatory_test.go#L151). **negative:** `unit/verify` [`TestMandatoryChoiceSatisfiedByACaseNode`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_mandatory_test.go#L150). **{partial}:** tested "at least one node from"; gap "exactly one of the choice's case branches"; internal/component/config/yang/validator_mandatory.go::mandatoryPresent is the boundary: Tested covers a mandatory choice reported missing when no data node of any of its cases exists, and satisfied by a node of one case, nested choices included; Gap is data holding nodes from two cases of one choice, which mandatoryPresent accepts at the first case node it finds, and no other check compares the cases; plan/release/fixes/spec-config-yang-when-unique-choice.md. **Partial test coverage:** Tests and fault test records cover only the part marked Tested; they do not prove the whole requirement. partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. Re-judged 2026-10-25 after the row went stale. The only change to the row since the verdict is the spec path in its Reason, plan/pre-release/ moved to plan/release/fixes/ (commit 666f1bc521); Tested, Gap, Producer and the requirement text are byte-identical, and reseal reported the tagged units unchanged. Section 7.9.4: "If "mandatory" is "true", at least one node from exactly one of the choice's case branches MUST exist." Tested "at least one node from"; Gap "exactly one of the choice's case branches"; Producer internal/component/config/yang/validator_mandatory.go::mandatoryPresent. Tested holds: TestMandatoryChoiceSatisfiedByACaseNode reports the missing choice for a container with no node of any case and accepts a node of one case and of a nested choice's case. Gap holds, re-read at the producer: mandatoryPresent returns true at the first case node it finds and no other check compares the cases, so data from two cases is accepted. Whole requirement earns no credit; spec-config-yang-when-unique-choice. |
 | `RFC7950-7.12-1` | A grouping MUST NOT reference itself, neither directly nor indirectly through a chain of other groupings. If the grouping is defined at the top level of a YANG module or submodule, the grouping's identifier MUST be unique within the module. (§7.12) | MUST | 7.12 | **positive:** no positive test. **negative:** no negative test. **{gap}:** goyang accepts the violating module and Ze adds no check of its own; plan/release/fixes/spec-config-yang-loader-structural-checks.md |
 | `RFC7950-7.14.2-1` | If a leaf in the input tree has a "mandatory" statement with the value "true", the leaf MUST be present in an RPC invocation. If a leaf in the input tree has a default value, the server MUST use this value in the same cases as those described in Section 7.6.1. In these cases, the server MUST operationally behave as if the leaf was present in the RPC invocation with the default value as its value. If a leaf-list in the input tree has one or more default values, the server MUST use these values in the same cases as those described in Section 7.7.2. In these cases, the server MUST operationally behave as if the leaf-list was present in the RPC invocation with the default values as its values. Since the input tree is not part of any datastore, all "config" statements for nodes in the input tree are ignored. If any node has a "when" statement that would evaluate to "false", then this node MUST NOT be present in the input tree. (§7.14.2) | MUST | 7.14.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** no invocation or reply path reads mandatory or default on rpc input and output; plan/release/fixes/spec-config-yang-rpc-mandatory-defaults.md |
 | `RFC7950-7.14.3-1` | If a leaf in the output tree has a "mandatory" statement with the value "true", the leaf MUST be present in an RPC reply. If a leaf in the output tree has a default value, the client MUST use this value in the same cases as those described in Section 7.6.1. In these cases, the client MUST operationally behave as if the leaf was present in the RPC reply with the default value as its value. If a leaf-list in the output tree has one or more default values, the client MUST use these values in the same cases as those described in Section 7.7.2. In these cases, the client MUST operationally behave as if the leaf-list was present in the RPC reply with the default values as its values. Since the output tree is not part of any datastore, all "config" statements for nodes in the output tree are ignored. If any node has a "when" statement that would evaluate to "false", then this node MUST NOT be present in the output tree. (§7.14.3) | MUST | 7.14.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** no invocation or reply path reads mandatory or default on rpc input and output; plan/release/fixes/spec-config-yang-rpc-mandatory-defaults.md |
@@ -230,7 +241,7 @@ Source: [data/rfc/rfc7950.json](../../../data/rfc/rfc7950.json).
 | `RFC7950-9.9-1` | If the "require-instance" property (Section 9.9.3) is "true", there MUST exist a node in the data tree, or a node with a default value in use (see Sections 7.6.1 and 7.7.2), of the referred schema tree leaf or leaf-list node with the same value as the leafref value in a valid data tree. If the referring node represents configuration data and the "require-instance" property (Section 9.9.3) is "true", the referred node MUST also represent configuration. There MUST NOT be any circular chains of leafrefs. If the leaf that the leafref refers to is conditional based on one or more features (see Section 7.20.2), then the leaf with the leafref type MUST also be conditional based on at least the same set of features. (§9.9) | MUST | 9.9 | **positive:** `unit/verify` [`TestRFC7950LeafrefDefaultInUse`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_walk_test.go#L64). **positive:** `unit/verify` [`TestRFC7950LeafrefPredicateCanonicalValue`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_canonical_test.go#L98). **positive:** `unit/verify` [`TestRFC7950LeafrefValueAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L85). **negative:** `unit/verify` [`TestRFC7950LeafrefConfigAndLoop`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L190). **negative:** `unit/verify` [`TestRFC7950LeafrefDefaultNotInUse`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_walk_test.go#L77). **negative:** `unit/verify` [`TestRFC7950LeafrefInstanceRefused`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L100). **negative:** `unit/verify` [`TestRFC7950LeafrefUnionLoop`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_walk_test.go#L183) |
 | `RFC7950-9.9.2-1` | The "path" statement, which is a substatement to the "type" statement, MUST be present if the type is "leafref". It takes as an argument a string that MUST refer to a leaf or leaf-list node. The syntax for a path argument is a subset of the XPath abbreviated syntax. Predicates are used only for constraining the values for the key nodes for list entries. Each predicate consists of exactly one equality test per key, and multiple adjacent predicates MAY be present if a list has multiple keys. The syntax is formally defined by the rule "path-arg" in Section 14. The predicates are only used when more than one key reference is needed to uniquely identify a leaf instance. This occurs if a list has multiple keys or a reference to a leaf other than the key in a list is needed. In these cases, multiple leafrefs are typically specified, and predicates are used to tie them together. The "path" expression evaluates to a node set consisting of zero, one, or more nodes. If the "require-instance" property is "true", this node set MUST be non-empty. (§9.9.2) | MUST | 9.9.2 | **positive:** `unit/verify` [`TestRFC7950LeafrefPathAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L179). **negative:** `unit/verify` [`TestRFC7950LeafrefPathRefused`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L161) |
 | `RFC7950-9.9.3-1` | If "require-instance" is "true", it means that the instance being referred to MUST exist for the data to be valid. (Section 9.9.3) | MUST | 9.9.3 | **positive:** `unit/verify` [`TestRFC7950LeafrefRequireInstance`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L112). **negative:** `unit/verify` [`TestRFC7950LeafrefRequireInstanceMissing`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L122) |
-| `RFC7950-9.10.2-1` | The "base" statement, which is a substatement to the "type" statement, MUST be present at least once if the type is "identityref". The argument is the name of an identity, as defined by an "identity" statement. If a prefix is present on the identity name, it refers to an identity defined in the module that was imported with that prefix. Otherwise, an identity with the matching name MUST be defined in the current module or an included submodule. (§9.10.2) | MUST | 9.10.2 | **positive:** `unit/verify` [`TestRFC7950IdentityrefAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L205). **negative:** `unit/verify` [`TestRFC7950IdentityrefRefused`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L216). **{partial}:** tested "If a prefix is present on the identity name, it refers to an identity defined in the module that was imported with that prefix"; gap "MUST be present at least once"; internal/component/config/yang/validator_reference.go::validateIdentityref is the boundary: Tested covers an identityref with one base, prefixed by an imported module's prefix or local, resolved by goyang (which refuses an identityref with no base or a base it cannot resolve), whose value must name an identity derived from it; Gap is a type naming the base statement more than once, because goyang keeps one base statement per identityref type (Type.IdentityBase holds one value), so the values derived from every base are not computed; plan/post-release/features/spec-config-yang-reference-types.md. **Scoped evidence:** Tests and tag-claim records apply only to Tested; zero whole-requirement credit. not audited: no reader has judged these tests |
+| `RFC7950-9.10.2-1` | The "base" statement, which is a substatement to the "type" statement, MUST be present at least once if the type is "identityref". The argument is the name of an identity, as defined by an "identity" statement. If a prefix is present on the identity name, it refers to an identity defined in the module that was imported with that prefix. Otherwise, an identity with the matching name MUST be defined in the current module or an included submodule. (§9.10.2) | MUST | 9.10.2 | **positive:** `unit/verify` [`TestRFC7950IdentityrefAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L205). **negative:** `unit/verify` [`TestRFC7950IdentityrefRefused`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L216). **{partial}:** tested "If a prefix is present on the identity name, it refers to an identity defined in the module that was imported with that prefix"; gap "MUST be present at least once"; internal/component/config/yang/validator_reference.go::validateIdentityref is the boundary: Tested covers an identityref with one base, prefixed by an imported module's prefix or local, resolved by goyang (which refuses an identityref with no base or a base it cannot resolve), whose value must name an identity derived from it; Gap is a type naming the base statement more than once, because goyang keeps one base statement per identityref type (Type.IdentityBase holds one value), so the values derived from every base are not computed; plan/post-release/features/spec-config-yang-reference-types.md. **Partial test coverage:** Tests and fault test records cover only the part marked Tested; they do not prove the whole requirement. not reviewed: no reviewer has checked whether these tests enforce the requirement |
 | `RFC7950-9.10.3-1` | Otherwise, an identity with the matching name MUST be defined in the current module or one of its submodules. (Section 9.10.3) | MUST | 9.10.3 | **positive:** `unit/verify` [`TestRFC7950IdentityrefOtherModule`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L228). **negative:** `unit/verify` [`TestRFC7950IdentityrefPrefixRefused`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L134) |
 | `RFC7950-9.12-2` | When the type is "union", the "type" statement (Section 7.4) MUST be present. (Section 9.12) | MUST | 9.12 | **positive:** no positive test. **negative:** no negative test. **{gap}:** goyang accepts the violating module and Ze adds no check of its own; plan/release/fixes/spec-config-yang-loader-structural-checks.md |
 | `RFC7950-9.13-1` | For identifying list entries with keys, each predicate consists of one equality test per key, and each key MUST have a corresponding predicate. If a key is of type "empty", it is represented as a zero-length string (""). If the leaf with the instance-identifier type represents configuration data and the "require-instance" property (Section 9.9.3) is "true", the node it refers to MUST also represent configuration. Such a leaf puts a constraint on valid data. All such leaf nodes MUST reference existing nodes or leaf or leaf-list nodes with their default value in use (see Sections 7.6.1 and 7.7.2) for the data to be valid. (§9.13) | MUST | 9.13 | **positive:** `unit/verify` [`TestRFC7950InstanceIdentifierCanonicalValue`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_canonical_test.go#L73). **positive:** `unit/verify` [`TestRFC7950InstanceIdentifierDefaultInUse`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_walk_test.go#L88). **positive:** `unit/verify` [`TestRFC7950InstanceIdentifierExists`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L278). **negative:** `unit/verify` [`TestRFC7950InstanceIdentifierKeys`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L267) |
@@ -306,7 +317,7 @@ Source: [data/rfc/rfc7950.json](../../../data/rfc/rfc7950.json).
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC7950-9.6-1`](#rfc7950-9.6-1)
 
@@ -341,7 +352,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 If "mandatory" is "true", the behavior of the constraint depends on the type of the leaf's closest ancestor node in the schema tree that is not a non-presence container (see Section 7.5.1): o If no such ancestor exists in the schema tree, the leaf MUST exist. (§7.6.5)
 
-Scoped tag-claim records only: tested "the leaf MUST exist"; gap "If no such ancestor exists in the schema tree"; internal/component/config/validate_sections.go::ValidateCustomSections is the boundary: Tested covers a mandatory leaf whose ancestors are all non-presence containers, required whenever its top-level section is present in the config (bgp/router-id, bgp/session/asn/local, once the bgp section holds a peer or a group); Gap is the same leaf when the whole top-level section is absent, which Ze does not require, because its top-level sections are non-presence containers that stand for an enabled feature and requiring their leaves would refuse every config that omits bgp; owner-approved deviation, OWNER RULING 6 of 2026-10-12 (Thomas, "Like FRR/libyang (Recommended)"): mandatory leaves are checked only in sections present in the config, as libyang's LYD_VALIDATE_PRESENT ("Validate only modules whose data actually exist") does when FRR sets it in nb_candidate_validate_yang (lib/northbound.c) and yang_parse_data (lib/yang.c); Gap also holds bgp/router-id and bgp/session/asn/local absent at the bgp level while every BGP session carries the value itself or from its group, which bgpMandatoryFailures counts as present through EverySessionCarries: a second owner-approved deviation, ruling of 2026-10-12 (Thomas, "yes enforce", spec AC-2); that ruling binds only once a session exists: a bgp section with no peer and no group is accepted and does nothing, so EverySessionCarries counts both leaves as present there (Thomas, 2026-10-16, spec AC-2 RULING 7); a deviation is never counted conformant; plan/release/fixes/spec-config-yang-when-unique-choice.md; zero whole-requirement credit.
+Records cover only part of this requirement: tested "the leaf MUST exist"; gap "If no such ancestor exists in the schema tree"; internal/component/config/validate_sections.go::ValidateCustomSections is the boundary: Tested covers a mandatory leaf whose ancestors are all non-presence containers, required whenever its top-level section is present in the config (bgp/router-id, bgp/session/asn/local, once the bgp section holds a peer or a group); Gap is the same leaf when the whole top-level section is absent, which Ze does not require, because its top-level sections are non-presence containers that stand for an enabled feature and requiring their leaves would refuse every config that omits bgp; owner-approved deviation, OWNER RULING 6 of 2026-10-12 (Thomas, "Like FRR/libyang (Recommended)"): mandatory leaves are checked only in sections present in the config, as libyang's LYD_VALIDATE_PRESENT ("Validate only modules whose data actually exist") does when FRR sets it in nb_candidate_validate_yang (lib/northbound.c) and yang_parse_data (lib/yang.c); Gap also holds bgp/router-id and bgp/session/asn/local absent at the bgp level while every BGP session carries the value itself or from its group, which bgpMandatoryFailures counts as present through EverySessionCarries: a second owner-approved deviation, ruling of 2026-10-12 (Thomas, "yes enforce", spec AC-2); that ruling binds only once a session exists: a bgp section with no peer and no group is accepted and does nothing, so EverySessionCarries counts both leaves as present there (Thomas, 2026-10-16, spec AC-2 RULING 7); a deviation is never counted conformant; plan/release/fixes/spec-config-yang-when-unique-choice.md; they do not prove the whole requirement.
 
 Audit verdict: partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. Re-judged 2026-10-25 after the row went stale. The only change to the row since the 2026-10-23 verdict is the spec path in its Reason, plan/pre-release/ moved to plan/release/fixes/ (commit 666f1bc521); Tested, Gap, Producer, the owner-approved deviations and the requirement text are byte-identical, and reseal reported the tagged units unchanged. RFC 7950 Section 7.6.5: "If "mandatory" is "true", the behavior of the constraint depends on the type of the leaf's closest ancestor node in the schema tree that is not a non-presence container (see Section 7.5.1): o If no such ancestor exists in the schema tree, the leaf MUST exist." Tested "the leaf MUST exist"; Gap "If no such ancestor exists in the schema tree"; Producer internal/component/config/validate_sections.go::ValidateCustomSections. The earlier judgement stands: the direct validator requires the exact missing path under an absent non-presence ancestor and accepts the supplied leaf; the config carriers require LoadConfig to refuse a missing local ASN or router-id and to accept the complete config. The whole absent top-level section stays unwalked and EverySessionCarries implements the declared deviations, none of which counts as conformance. Zero whole-requirement credit.
 
@@ -384,73 +395,73 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 All such constraints MUST evaluate to "true" for the data to be valid. (§7.5.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-7.5.3-1, so no unit is bound to it.
+No test carries RFC7950-7.5.3-1, so there is no linked test.
 
 ### [`RFC7950-9.2.4-1`](#rfc7950-9.2.4-1)
 
 If a range restriction is applied to a type that is already range-restricted, the new restriction MUST be equally limiting or more limiting, i.e., raising the lower bounds, reducing the upper bounds, removing explicit values or ranges, or splitting ranges into multiple ranges with intermediate gaps. (§9.2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-9.2.4-1, so no unit is bound to it.
+No test carries RFC7950-9.2.4-1, so there is no linked test.
 
 ### [`RFC7950-9.4.5-1`](#rfc7950-9.4.5-1)
 
 If the type has multiple "pattern" statements, the expressions are ANDed together, i.e., all such expressions have to match. (§9.4.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-9.4.5-1, so no unit is bound to it.
+No test carries RFC7950-9.4.5-1, so there is no linked test.
 
 ### [`RFC7950-x-1`](#rfc7950-x-1)
 
 The "yang-version" statement specifies which version of the YANG language was used in developing the module. The statement's argument is a string. It MUST contain the value "1.1" for YANG modules defined based on this specification. (§7.1.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-x-1, so no unit is bound to it.
+No test carries RFC7950-x-1, so there is no linked test.
 
 ### [`RFC7950-x-2`](#rfc7950-x-2)
 
 An "enumeration" type may have new enums added, provided the old enums's values do not change. (§11)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-x-2, so no unit is bound to it.
+No test carries RFC7950-x-2, so there is no linked test.
 
 ### [`RFC7950-5.1-1`](#rfc7950-5.1-1)
 
 Within a server, all module names MUST be unique. A module uses the "include" statement to list all its submodules. A module, or submodule belonging to that module, can reference definitions in the module and all submodules included by the module. A module or submodule uses the "import" statement to reference external modules. Statements in the module or submodule can reference definitions in the external module using the prefix specified in the "import" statement. For backward compatibility with YANG version 1, a submodule MAY use the "include" statement to reference other submodules within its module, but this is not necessary in YANG version 1.1. A submodule can reference any definition in the module it belongs to and in all submodules included by the module. A submodule MUST NOT include different revisions of other submodules than the revisions that its module includes. A module or submodule MUST NOT include submodules from other modules, and a submodule MUST NOT import its own module. The "import" and "include" statements are used to make definitions available from other modules: o For a module or submodule to reference definitions in an external module, the external module MUST be imported. o A module MUST include all its submodules. o A module, or submodule belonging to that module, MAY reference definitions in the module and all submodules included by the module. There MUST NOT be any circular chains of imports. For example, if module "a" imports module "b", "b" cannot import "a". When a definition in an external module is referenced, a locally defined prefix MUST be used, followed by a colon (":") and then the external identifier. (§5.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-5.1-1, so no unit is bound to it.
+No test carries RFC7950-5.1-1, so there is no linked test.
 
 ### [`RFC7950-5.3-1`](#rfc7950-5.3-1)
 
 Namespace URIs MUST be chosen so they cannot collide with standard or other enterprise namespaces -- for example, by using the enterprise or organization name in the namespace. (Section 5.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-5.3-1, so no unit is bound to it.
+No test carries RFC7950-5.3-1, so there is no linked test.
 
 ### [`RFC7950-5.5-1`](#rfc7950-5.5-1)
 
 Scoped definitions MUST NOT shadow definitions at a higher scope. (§5.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-5.5-1, so no unit is bound to it.
+No test carries RFC7950-5.5-1, so there is no linked test.
 
 ### [`RFC7950-5.6.5-1`](#rfc7950-5.6.5-1)
 
 A server MUST NOT implement more than one revision of a module. If a server implements a module A that imports a module B, and A uses any node from B in an "augment" or "path" statement that the server supports, then the server MUST implement a revision of module B that has these nodes defined. (§5.6.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-5.6.5-1, so no unit is bound to it.
+No test carries RFC7950-5.6.5-1, so there is no linked test.
 
 ### [`RFC7950-6.1.3-1`](#rfc7950-6.1.3-1)
 
@@ -477,33 +488,33 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 All identifiers defined in a namespace MUST be unique. o All module and submodule names share the same global module identifier namespace. o All extension names defined in a module and its submodules share the same extension identifier namespace. o All feature names defined in a module and its submodules share the same feature identifier namespace. o All identity names defined in a module and its submodules share the same identity identifier namespace. o All derived type names defined within a parent node or at the top level of the module or its submodules share the same type identifier namespace. This namespace is scoped to all descendant nodes of the parent node or module. This means that any descendant node may use that typedef, and it MUST NOT define a typedef with the same name. o All grouping names defined within a parent node or at the top level of the module or its submodules share the same grouping identifier namespace. This namespace is scoped to all descendant nodes of the parent node or module. This means that any descendant node may use that grouping, and it MUST NOT define a grouping with the same name. (§6.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-6.2.1-1, so no unit is bound to it.
+No test carries RFC7950-6.2.1-1, so there is no linked test.
 
 ### [`RFC7950-6.3.1-1`](#rfc7950-6.3.1-1)
 
 When an imported extension is used, the extension's keyword MUST be qualified using the prefix with which the extension's module was imported. If an extension is used in the module where it is defined, the extension's keyword MUST be qualified with the prefix of this module. The processing of extensions depends on whether support for those extensions is claimed for a given YANG parser or the tool set in which it is embedded. An unsupported extension appearing in a YANG module as an unknown-statement (see Section 14) MAY be ignored in its entirety. Any supported extension MUST be processed in accordance with the specification governing that extension. (§6.3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-6.3.1-1, so no unit is bound to it.
+No test carries RFC7950-6.3.1-1, so there is no linked test.
 
 ### [`RFC7950-6.4-1`](#rfc7950-6.4-1)
 
 An implementation is not required to implement an XPath interpreter but MUST ensure that the requirements encoded in the data model are enforced. (Section 6.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-6.4-1, so no unit is bound to it.
+No test carries RFC7950-6.4-1, so there is no linked test.
 
 ### [`RFC7950-6.4-2`](#rfc7950-6.4-2)
 
 The XPath expressions MUST be syntactically correct, and all prefixes used MUST be present in the XPath context (see Section 6.4.1). (§6.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-6.4-2, so no unit is bound to it.
+No test carries RFC7950-6.4-2, so there is no linked test.
 
 ### [`RFC7950-6.5-1`](#rfc7950-6.5-1)
 
@@ -520,17 +531,17 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 If there is a conflict, i.e., two different modules that both have defined the same prefix are imported, at least one of them MUST be imported with a different prefix. All prefixes, including the prefix for the module itself, MUST be unique within the module or submodule. (§7.1.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-7.1.4-1, so no unit is bound to it.
+No test carries RFC7950-7.1.4-1, so there is no linked test.
 
 ### [`RFC7950-7.3-1`](#rfc7950-7.3-1)
 
 The "typedef" statement's argument is an identifier that is the name of the type to be defined and MUST be followed by a block of substatements that holds detailed typedef information. The name of the type MUST NOT be one of the YANG built-in types. If the typedef is defined at the top level of a YANG module or submodule, the name of the type to be defined MUST be unique within the module. (§7.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-7.3-1, so no unit is bound to it.
+No test carries RFC7950-7.3-1, so there is no linked test.
 
 ### [`RFC7950-7.3.4-1`](#rfc7950-7.3.4-1)
 
@@ -585,7 +596,7 @@ In these cases, the default value is said to be in use. Note that if the leaf or
 
 Audit verdict: unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-20 (independent judge, after 7f34543a08). Section 7.6.1: "Note that if the leaf or any of its ancestors has a \"when\" condition or \"if-feature\" expression that evaluates to \"false\", then the default value is not in use." ApplyDefaults changed only to skip children whose case is not in effect (choiceMembers.skipsDefaults -> yang.CaseInEffect); it still evaluates no when and no if-feature, so a default under a false when stays in use. The {gap} annotation remains accurate. Owned by plan/pre-release/spec-config-yang-when-unique-choice.md.
 
-No test carries RFC7950-7.6.1-4, so no unit is bound to it.
+No test carries RFC7950-7.6.1-4, so there is no linked test.
 
 ### [`RFC7950-7.6.3-1`](#rfc7950-7.6.3-1)
 
@@ -619,17 +630,17 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. all 
 
 In configuration data, the values in a leaf-list MUST be unique. The definitions of the default values MUST NOT be marked with an "if-feature" statement. Conceptually, the values in the data tree MUST be in the canonical form (see Section 9.1). (§7.7)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-7.7-1, so no unit is bound to it.
+No test carries RFC7950-7.7-1, so there is no linked test.
 
 ### [`RFC7950-7.7.2-1`](#rfc7950-7.7.2-1)
 
 The usage of the default values depends on the leaf-list's closest ancestor node in the schema tree that is not a non-presence container (see Section 7.5.1): o If no such ancestor exists in the schema tree, the default values MUST be used. o Otherwise, if this ancestor is a case node, the default values MUST be used if any node from the case exists in the data tree or the case node is the choice's default case, and if no nodes from any other case exist in the data tree. o Otherwise, the default values MUST be used if the ancestor node exists in the data tree. In these cases, the default values are said to be in use. Note that if the leaf-list or any of its ancestors has a "when" condition or "if-feature" expression that evaluates to "false", then the default values are not in use. When the default values are in use, the server MUST operationally behave as if the leaf-list was present in the data tree with the default values as its values. (§7.7.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-7.7.2-1, so no unit is bound to it.
+No test carries RFC7950-7.7.2-1, so there is no linked test.
 
 ### [`RFC7950-7.7.4-1`](#rfc7950-7.7.4-1)
 
@@ -657,39 +668,39 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) 
 
 The "key" statement, which MUST be present if the list represents configuration and MAY be present otherwise, takes as an argument a string that specifies a space-separated list of one or more leaf identifiers of this list. A leaf identifier MUST NOT appear more than once in the key. Each such leaf identifier MUST refer to a child leaf of the list. The leafs can be defined directly in substatements to the list or in groupings used in the list. The combined values of all the leafs specified in the key are used to uniquely identify a list entry. All key leafs MUST be given values when a list entry is created. Thus, any default values in the key leafs or their types are ignored. Any "mandatory" statements in the key leafs are ignored. A leaf that is part of the key can be of any built-in or derived type. All key leafs in a list MUST have the same value for their "config" as the list itself. (§7.8.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-7.8.2-1, so no unit is bound to it.
+No test carries RFC7950-7.8.2-1, so there is no linked test.
 
 ### [`RFC7950-7.8.3-1`](#rfc7950-7.8.3-1)
 
 The "unique" statement is used to put constraints on valid list entries. It takes as an argument a string that contains a space- separated list of schema node identifiers, which MUST be given in the descendant form (see the rule "descendant-schema-nodeid" in Section 14). Each such schema node identifier MUST refer to a leaf. If one of the referenced leafs represents configuration data, then all of the referenced leafs MUST represent configuration data. The "unique" constraint specifies that the combined values of all the leaf instances specified in the argument string, including leafs with default values, MUST be unique within all list entry instances in which all referenced leafs exist or have default values. (§7.8.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-7.8.3-1, so no unit is bound to it.
+No test carries RFC7950-7.8.3-1, so there is no linked test.
 
 ### [`RFC7950-7.9.2-1`](#rfc7950-7.9.2-1)
 
 The identifiers of all these child nodes MUST be unique within all cases in a choice. (§7.9.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-7.9.2-1, so no unit is bound to it.
+No test carries RFC7950-7.9.2-1, so there is no linked test.
 
 ### [`RFC7950-7.9.3-1`](#rfc7950-7.9.3-1)
 
 The "default" statement MUST NOT be present on choices where "mandatory" is "true". The default case is only important when considering the "default" statements of nodes under the cases (i.e., default values of leafs and leaf-lists, and default cases of nested choices). The default values and nested default cases under the default case are used if none of the nodes under any of the cases are present. There MUST NOT be any mandatory nodes (Section 3) directly under the default case. (§7.9.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-7.9.3-1, so no unit is bound to it.
+No test carries RFC7950-7.9.3-1, so there is no linked test.
 
 ### [`RFC7950-7.9.4-1`](#rfc7950-7.9.4-1)
 
 If "mandatory" is "true", at least one node from exactly one of the choice's case branches MUST exist. (Section 7.9.4)
 
-Scoped tag-claim records only: tested "at least one node from"; gap "exactly one of the choice's case branches"; internal/component/config/yang/validator_mandatory.go::mandatoryPresent is the boundary: Tested covers a mandatory choice reported missing when no data node of any of its cases exists, and satisfied by a node of one case, nested choices included; Gap is data holding nodes from two cases of one choice, which mandatoryPresent accepts at the first case node it finds, and no other check compares the cases; plan/release/fixes/spec-config-yang-when-unique-choice.md; zero whole-requirement credit.
+Records cover only part of this requirement: tested "at least one node from"; gap "exactly one of the choice's case branches"; internal/component/config/yang/validator_mandatory.go::mandatoryPresent is the boundary: Tested covers a mandatory choice reported missing when no data node of any of its cases exists, and satisfied by a node of one case, nested choices included; Gap is data holding nodes from two cases of one choice, which mandatoryPresent accepts at the first case node it finds, and no other check compares the cases; plan/release/fixes/spec-config-yang-when-unique-choice.md; they do not prove the whole requirement.
 
 Audit verdict: partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. Re-judged 2026-10-25 after the row went stale. The only change to the row since the verdict is the spec path in its Reason, plan/pre-release/ moved to plan/release/fixes/ (commit 666f1bc521); Tested, Gap, Producer and the requirement text are byte-identical, and reseal reported the tagged units unchanged. Section 7.9.4: "If "mandatory" is "true", at least one node from exactly one of the choice's case branches MUST exist." Tested "at least one node from"; Gap "exactly one of the choice's case branches"; Producer internal/component/config/yang/validator_mandatory.go::mandatoryPresent. Tested holds: TestMandatoryChoiceSatisfiedByACaseNode reports the missing choice for a container with no node of any case and accepts a node of one case and of a nested choice's case. Gap holds, re-read at the producer: mandatoryPresent returns true at the first case node it finds and no other check compares the cases, so data from two cases is accepted. Whole requirement earns no credit; spec-config-yang-when-unique-choice.
 
@@ -702,57 +713,57 @@ Audit verdict: partial (the tests enforce only the declared tested scope; the wh
 
 A grouping MUST NOT reference itself, neither directly nor indirectly through a chain of other groupings. If the grouping is defined at the top level of a YANG module or submodule, the grouping's identifier MUST be unique within the module. (§7.12)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-7.12-1, so no unit is bound to it.
+No test carries RFC7950-7.12-1, so there is no linked test.
 
 ### [`RFC7950-7.14.2-1`](#rfc7950-7.14.2-1)
 
 If a leaf in the input tree has a "mandatory" statement with the value "true", the leaf MUST be present in an RPC invocation. If a leaf in the input tree has a default value, the server MUST use this value in the same cases as those described in Section 7.6.1. In these cases, the server MUST operationally behave as if the leaf was present in the RPC invocation with the default value as its value. If a leaf-list in the input tree has one or more default values, the server MUST use these values in the same cases as those described in Section 7.7.2. In these cases, the server MUST operationally behave as if the leaf-list was present in the RPC invocation with the default values as its values. Since the input tree is not part of any datastore, all "config" statements for nodes in the input tree are ignored. If any node has a "when" statement that would evaluate to "false", then this node MUST NOT be present in the input tree. (§7.14.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-7.14.2-1, so no unit is bound to it.
+No test carries RFC7950-7.14.2-1, so there is no linked test.
 
 ### [`RFC7950-7.14.3-1`](#rfc7950-7.14.3-1)
 
 If a leaf in the output tree has a "mandatory" statement with the value "true", the leaf MUST be present in an RPC reply. If a leaf in the output tree has a default value, the client MUST use this value in the same cases as those described in Section 7.6.1. In these cases, the client MUST operationally behave as if the leaf was present in the RPC reply with the default value as its value. If a leaf-list in the output tree has one or more default values, the client MUST use these values in the same cases as those described in Section 7.7.2. In these cases, the client MUST operationally behave as if the leaf-list was present in the RPC reply with the default values as its values. Since the output tree is not part of any datastore, all "config" statements for nodes in the output tree are ignored. If any node has a "when" statement that would evaluate to "false", then this node MUST NOT be present in the output tree. (§7.14.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-7.14.3-1, so no unit is bound to it.
+No test carries RFC7950-7.14.3-1, so there is no linked test.
 
 ### [`RFC7950-7.15-1`](#rfc7950-7.15-1)
 
 An action MUST NOT be defined within an rpc, another action, or a notification, i.e., an action node MUST NOT have an rpc, action, or a notification node as one of its ancestors in the schema tree. For example, this means that it is an error if a grouping that contains an action somewhere in its node hierarchy is used in a notification definition. An action MUST NOT have any ancestor node that is a list node without a "key" statement. (§7.15)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-7.15-1, so no unit is bound to it.
+No test carries RFC7950-7.15-1, so there is no linked test.
 
 ### [`RFC7950-7.16-1`](#rfc7950-7.16-1)
 
 A notification MUST NOT be defined within an rpc, action, or another notification, i.e., a notification node MUST NOT have an rpc, action, or a notification node as one of its ancestors in the schema tree. For example, this means that it is an error if a grouping that contains a notification somewhere in its node hierarchy is used in an rpc definition. A notification MUST NOT have any ancestor node that is a list node without a "key" statement. Since a notification cannot be defined in a "case" statement, it is an error if a grouping that contains a notification at the top of its node hierarchy is used in a case definition. If a leaf in the notification tree has a "mandatory" statement with the value "true", the leaf MUST be present in a notification instance. If a leaf in the notification tree has a default value, the client MUST use this value in the same cases as those described in Section 7.6.1. In these cases, the client MUST operationally behave as if the leaf was present in the notification instance with the default value as its value. If a leaf-list in the notification tree has one or more default values, the client MUST use these values in the same cases as those described in Section 7.7.2. In these cases, the client MUST operationally behave as if the leaf-list was present in the notification instance with the default values as its values. (§7.16)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-7.16-1, so no unit is bound to it.
+No test carries RFC7950-7.16-1, so there is no linked test.
 
 ### [`RFC7950-7.17-1`](#rfc7950-7.17-1)
 
 The target node MUST be either a container, list, choice, case, input, output, or notification node. It is augmented with the nodes defined in the substatements that follow the "augment" statement. The argument string is a schema node identifier (see Section 6.5). If the "augment" statement is on the top level in a module or submodule, the absolute form (defined by the rule "absolute-schema-nodeid" in Section 14) of a schema node identifier MUST be used. If the "augment" statement is a substatement to the "uses" statement, the descendant form (defined by the rule "descendant-schema-nodeid" in Section 14) MUST be used. If the target node is a container, list, case, input, output, or notification node, the "container", "leaf", "list", "leaf-list", "uses", and "choice" statements can be used within the "augment" statement. If the target node is a container or list node, the "action" and "notification" statements can be used within the "augment" statement. If the target node is a choice node, the "case" statement or a shorthand "case" statement (see Section 7.9.2) can be used within the "augment" statement. The "augment" statement MUST NOT add multiple nodes with the same name from the same module to the target node. If the augmentation adds mandatory nodes (see Section 3) that represent configuration to a target node in another module, the augmentation MUST be made conditional with a "when" statement. (§7.17)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-7.17-1, so no unit is bound to it.
+No test carries RFC7950-7.17-1, so there is no linked test.
 
 ### [`RFC7950-7.18.2-1`](#rfc7950-7.18.2-1)
 
 If a prefix is present on the base name, it refers to an identity defined in the module that was imported with that prefix, or the local module if the prefix matches the local module's prefix. Otherwise, an identity with the matching name MUST be defined in the current module or an included submodule. An identity MUST NOT reference itself, neither directly nor indirectly through a chain of other identities. (§7.18.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-7.18.2-1, so no unit is bound to it.
+No test carries RFC7950-7.18.2-1, so there is no linked test.
 
 ### [`RFC7950-7.19-1`](#rfc7950-7.19-1)
 
@@ -779,49 +790,49 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 A feature MUST NOT reference itself, neither directly nor indirectly through a chain of other features. In order for a server to support a feature that is dependent on any other features (i.e., the feature has one or more "if-feature" substatements), the server MUST also support all the dependent features. (§7.20.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-7.20.1-1, so no unit is bound to it.
+No test carries RFC7950-7.20.1-1, so there is no linked test.
 
 ### [`RFC7950-7.20.2-1`](#rfc7950-7.20.2-1)
 
 If a prefix is present on a feature name in the boolean expression, the prefixed name refers to a feature defined in the module that was imported with that prefix, or the local module if the prefix matches the local module's prefix. Otherwise, a feature with the matching name MUST be defined in the current module or an included submodule. A leaf that is a list key MUST NOT have any "if-feature" statements. (§7.20.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-7.20.2-1, so no unit is bound to it.
+No test carries RFC7950-7.20.2-1, so there is no linked test.
 
 ### [`RFC7950-7.20.3-1`](#rfc7950-7.20.3-1)
 
 This means that deviations MUST never be part of a published standard, since they are the mechanism for learning how implementations vary from the standards. Server deviations are strongly discouraged and MUST only be used as a last resort. Telling the application how a server fails to follow a standard is no substitute for implementing the standard correctly. A server that deviates from a module is not fully compliant with the module. However, in some cases, a particular device may not have the hardware or software ability to support parts of a standard module. When this occurs, the server makes a choice to either treat attempts to configure unsupported parts of the module as an error that is reported back to the unsuspecting application or ignore those incoming requests. Neither choice is acceptable. Instead, YANG allows servers to document portions of a base module that are not supported, or that are supported but with different syntax, by using the "deviation" statement. After applying all deviations announced by a server, in any order, the resulting data model MUST still be valid. (§7.20.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-7.20.3-1, so no unit is bound to it.
+No test carries RFC7950-7.20.3-1, so there is no linked test.
 
 ### [`RFC7950-7.20.3.2-1`](#rfc7950-7.20.3.2-1)
 
 The argument "add" adds properties to the target node. The properties to add are identified by substatements to the "deviate" statement. If a property can only appear once, the property MUST NOT exist in the target node. The argument "replace" replaces properties of the target node. The properties to replace are identified by substatements to the "deviate" statement. The properties to replace MUST exist in the target node. The argument "delete" deletes properties from the target node. The properties to delete are identified by substatements to the "delete" statement. The substatement's keyword MUST match a corresponding keyword in the target node, and the argument's string MUST be equal to the corresponding keyword's argument string in the target node. (§7.20.3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-7.20.3.2-1, so no unit is bound to it.
+No test carries RFC7950-7.20.3.2-1, so there is no linked test.
 
 ### [`RFC7950-7.21.2-1`](#rfc7950-7.21.2-1)
 
 If a definition is "current", it MUST NOT reference a "deprecated" or "obsolete" definition within the same module. If a definition is "deprecated", it MUST NOT reference an "obsolete" definition within the same module. (§7.21.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-7.21.2-1, so no unit is bound to it.
+No test carries RFC7950-7.21.2-1, so there is no linked test.
 
 ### [`RFC7950-7.21.5-1`](#rfc7950-7.21.5-1)
 
 A leaf that is a list key MUST NOT have a "when" statement. If a key leaf is defined in a grouping that is used in a list, the "uses" statement MUST NOT have a "when" statement. (§7.21.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-7.21.5-1, so no unit is bound to it.
+No test carries RFC7950-7.21.5-1, so there is no linked test.
 
 ### [`RFC7950-8.1-1`](#rfc7950-8.1-1)
 
@@ -829,7 +840,7 @@ These constraints are enforced in different ways, depending on what type of data
 
 Audit verdict: unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-20 (independent judge, after 4bf9935e38). Section 8.1: "If the constraint is defined on configuration data, it MUST be true in a valid configuration data tree." walkTree now resolves data keys through schemaChild (case data is type-checked and walked) and moves the mandatory scan into requireMandatoryChildren, which also checks cases holding data. It still evaluates no unique (ListNode.Unique is read only by the web UI for display), no choice exclusivity and no when. Judge probe via -overlay: ValidateTree over a choice with data in two cases (alpha and gamma, mandatory leaves supplied) returns zero errors, so a configuration violating Section 8.1's choice constraint is accepted. {gap} stands. Owned by spec-config-yang-when-unique-choice.
 
-No test carries RFC7950-8.1-1, so no unit is bound to it.
+No test carries RFC7950-8.1-1, so there is no linked test.
 
 ### [`RFC7950-8.1-3`](#rfc7950-8.1-3)
 
@@ -839,13 +850,13 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestValidateTree_LengthViolation`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L418) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| negative | [`TestValidateTree_PatternViolation`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L317) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestValidateTree_LengthViolation`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L418) | unit/verify | revert, verified |
+| negative | [`TestValidateTree_PatternViolation`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L317) | unit/verify | revert, verified |
 | negative | [`TestValidateTree_RangeViolation`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L176) | unit/verify | revert, verified |
 | negative | [`TestValidator_HoldTimeRange`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L901) | unit/verify | revert, verified |
-| negative | [`TestValidator_ValidatePattern`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L852) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestValidator_ValidatePattern`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L852) | unit/verify | revert, verified |
 | positive | [`TestValidator_HoldTimeRange`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L900) | unit/verify | revert, verified |
-| positive | [`TestValidator_ValidatePattern`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L851) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestValidator_ValidatePattern`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L851) | unit/verify | revert, verified |
 
 ### [`RFC7950-8.1-4`](#rfc7950-8.1-4)
 
@@ -853,7 +864,7 @@ All key leafs MUST be present for all list entries. o Nodes MUST be present for 
 
 Audit verdict: unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-20 (independent judge, after 4bf9935e38). Section 8.1: "Nodes MUST be present for at most one case branch in all choices." walkTree's change (schemaChild descent into case data, requireMandatoryChildren/requireMandatoryInPresentCases) checks each case holding data for its mandatory nodes but never counts the cases: judge probe ValidateTree("wrap", {a-flag, a-need, g-one, g-need}) with two cases of one choice present returns no error. unique constraints are extracted into ListNode.Unique and consumed only by the web UI, never validated; Ze modules declare no when or if-feature, and walkTree evaluates neither. {gap} stands. Owned by spec-config-yang-when-unique-choice.
 
-No test carries RFC7950-8.1-4, so no unit is bound to it.
+No test carries RFC7950-8.1-4, so there is no linked test.
 
 ### [`RFC7950-8.1-2`](#rfc7950-8.1-2)
 
@@ -879,25 +890,25 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 |---|---|---|---|
 | negative | [`TestRFC7950WebCommitRefusesAConstraintViolation`](https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc7950_web_commit_validation_test.go#L81) | unit/verify | revert, verified |
 | negative | [`TestRFC7950RunningDatastoreRefusesAViolationAfterParse`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_datastore_test.go#L78) | unit/verify | revert, verified |
-| negative | [`TestRFC7950RunningDatastoreRefusesAViolationAtParse`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_datastore_test.go#L53) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC7950RunningDatastoreRefusesAViolationAtParse`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_datastore_test.go#L53) | unit/verify | revert, verified |
 | positive | [`TestRFC7950WebCommitWritesAValidEdit`](https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc7950_web_commit_validation_test.go#L58) | unit/verify | revert, verified |
-| positive | [`TestRFC7950RunningDatastoreAcceptsAValidConfig`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_datastore_test.go#L34) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC7950RunningDatastoreAcceptsAValidConfig`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_datastore_test.go#L34) | unit/verify | revert, verified |
 
 ### [`RFC7950-8.3.1-2`](#rfc7950-8.3.1-2)
 
 If data for more than one case branch of a choice is present, the server MUST reply with a "bad-element" <error-tag> in the <rpc-error>. o If data for a node tagged with "if-feature" is present and the "if-feature" expression evaluates to "false" in the server, the server MUST reply with an "unknown-element" <error-tag> in the <rpc-error>. o If data for a node tagged with "when" is present and the "when" condition evaluates to "false", the server MUST reply with an "unknown-element" <error-tag> in the <rpc-error>. (§8.3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-8.3.1-2, so no unit is bound to it.
+No test carries RFC7950-8.3.1-2, so there is no linked test.
 
 ### [`RFC7950-8.3.2-1`](#rfc7950-8.3.2-1)
 
 During this processing, the following errors MUST be detected: o Delete requests for non-existent data. o Create requests for existent data. o Insert requests with "before" or "after" parameters that do not exist. o Modification requests for nodes tagged with "when", and the "when" condition evaluates to "false". In this case, the server MUST reply with an "unknown-element" <error-tag> in the <rpc-error>. (§8.3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-8.3.2-1, so no unit is bound to it.
+No test carries RFC7950-8.3.2-1, so there is no linked test.
 
 ### [`RFC7950-8.3.3-1`](#rfc7950-8.3.3-1)
 
@@ -914,15 +925,15 @@ Audit verdict: weak (the tests pass over code that does not enforce the requirem
 
 If the datastore is "running" or "startup", these constraints MUST be enforced at the end of the <edit-config> or <copy-config> operation. (§8.3.3)
 
-Audit verdict: unimplemented (no code path enforces the requirement), fresh. Independently rejudged 2026-10-22; no execution or stamping. RFC 7950 Section 8.3.3: "If the datastore is "running" or "startup", these constraints MUST be enforced at the end of the <edit-config> or <copy-config> operation." Section 8.1 includes the complete obligations "Nodes MUST be present for at most one case branch in all choices.", "There MUST be no nodes tagged with "when" present if the "when" condition evaluates to "false" in the data tree.", and "All "unique" constraints on lists MUST be satisfied." This gap row has no tagged tests. Read internal/component/config/loader.go::LoadConfig/refuseInvalidCustomSections, config/validate_sections.go::ValidateCustomSections and referenceFailures, cli/validator.go::sectionErrors and cli/editor_commit.go::validateStagedTree. Load/validation/editor surfaces reach the shared boundary; referenceFailures walks ToPluginMap and the SSH editor retains BGP reference failures. The new original-tree validator registered in bgp/config/register.go and implemented by redistribution.go::validateFilterPolicies/parsePolicyDisposition rejects malformed explicit policy layers, but is not general evaluation of when, list unique or choice exclusivity. config/yang/validator.go::walkTree validates supplied values, cardinality and mandatory nodes; validator_mandatory.go::requireMandatoryInPresentCases visits each present case without rejecting multiple cases. The schema still declares unique mac/address and mac/match on interface ethernet and unique mac/address on veth/bridge in internal/component/iface/yang/ze-iface-conf.yang. Thus the existing unmet general constraints remain unmet and the verdict stays unimplemented. Correct an unsupported current-state claim in the prior note: its 174/200 versus 26/200 overlay observation is historical, not evidence of present nondeterministic default-reference acceptance. Current config/yang/validator_default.go::activeBranch counts present branches and CaseInEffect explicitly returns false when holding > 1, so no conflicting-case default is in effect. That correction does not enforce choice exclusivity itself: it withholds defaults, rather than refusing the conflicting data tree. Preserve the declared gap and do not claim any new test, overlay or conformance credit.
+Audit verdict: unimplemented (no code path enforces the requirement), fresh. Rejudged against RFC 7950 Sections 8.1 and 8.3.3, the checklist gap annotation, and the current end-of-operation producers. validateStagedTree invokes the supplied pre-commit validation; sectionErrors invokes ValidateCustomSections on the active tree. ValidateCustomSections checks registered original-tree validators, listed sections' type and custom validators, mandatory nodes and whole-tree references through referenceFailures. The changed sectionErrors renders typed refusal details but adds no general when, unique or choice-exclusivity enforcement. walkTree and requireMandatoryChildren validate values, cardinality and mandatory choice presence; requireMandatoryInPresentCases checks every present case but does not reject two cases. CaseInEffect suppresses defaults when multiple cases hold data rather than rejecting that data. ze-iface-conf still declares ethernet unique mac/address and mac/match constraints. The existing gap annotation remains accurate: the final running/startup contents do not receive all Section 8.1 constraint checks. This row has no tagged tests; this is missing behavior, not a claim that the entire YANG constraint model is implemented. Source review only; no tests executed by this reviewer.
 
-No test carries RFC7950-8.3.3-2, so no unit is bound to it.
+No test carries RFC7950-8.3.3-2, so there is no linked test.
 
 ### [`RFC7950-9.1-1`](#rfc7950-9.1-1)
 
 Implementations MUST support all lexical representations specified in this document. (§9.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent source rejudgment against RFC 7950 Section 9.1: "Implementations MUST support all lexical representations specified in this document." Read all tagged units, their type/default/reference helpers and cited producers. Integer tags exercise +17/17/-17 and legal signed hexadecimal/octal module defaults, with exact normalized values and malformed-notation refusals. Decimal64 tags require the declared signed/integral/fraction forms and exact error classes for invalid forms and restrictions. Binary and bits tags distinguish accepted defined representations from malformed alphabet/padding, lengths and unknown bit names. Reference tags exercise type loading, leafref lexical validation, union-default member selection and both quoted leaf-list-predicate forms versus absent target. canonicalValue still canonicalizes signed/unsigned decimal integers and decimal64, returning other representations unchanged; canonicalKey, sameValue and referenceWalk.instanceExists use it for comparison. Its current exhaustive-ignore directive documents that deliberately narrow normalization switch; no new grammar is introduced. Canonical-comparison-specific tests under other IDs are not silently counted as 9.1-1 tags. Verdict enforced. No execution or recorded-proof freshness was verified here.
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Independently reread Section 9.1 and the applicable built-in lexical clauses, all fourteen tagged units, and the cited current producers. The tags discriminate selected integer and module-default representations, decimal64 forms, binary padding/length, bit names, leafref target lexical validation, union-default member selection and both quote styles in instance-identifier leaf-list predicates. The changed validateDecimal64 still checks string lexical form and fraction digits before range. This does not justify the previous whole-requirement enforced verdict. TestRFC7950ReferenceTypesLoad resolves declarations without submitting lexical values. TestRFC7950InstanceIdentifierLeafListPredicateAbsent first accepts the lexical value, then rejects its absent target, so its negative proves require-instance rather than Section 9.1 lexical support. The integer runtime control never exercises unsigned negative zero: validateUnsigned removes only a leading plus and passes minus-zero to ParseUint, refusing a representation of zero admitted by Section 9.2.1's optional plus or minus sign. canonicalValue has the same unsigned parsing boundary. The module-default test already accepts unsigned minus-zero because parseModuleInteger removes the sign and CanonicalModuleDefault normalizes zero. This source-level counterexample was not executed by this reviewer and needs a focused main-thread regression and producer correction; it must not be hidden by restamping enforced. The remaining tagged examples establish their specific cases, not all lexical representations required by Section 9.1. No tests executed by this reviewer.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -945,9 +956,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 
 If multiple values or ranges are given, they all MUST be disjoint and MUST be in ascending order. If a range restriction is applied to a type that is already range-restricted, the new restriction MUST be equally limiting or more limiting, i.e., raising the lower bounds, reducing the upper bounds, removing explicit values or ranges, or splitting ranges into multiple ranges with intermediate gaps. Each explicit value and range boundary value given in the range expression MUST match the type being restricted or be one of the special values "min" or "max". (§9.2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-9.2.4-2, so no unit is bound to it.
+No test carries RFC7950-9.2.4-2, so there is no linked test.
 
 ### [`RFC7950-9.3.1-1`](#rfc7950-9.3.1-1)
 
@@ -1001,15 +1012,15 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 The "enum" statement, which is a substatement to the "type" statement, MUST be present if the type is "enumeration". It is repeatedly used to specify each assigned name of an enumeration type. It takes as an argument a string that is the assigned name. The string MUST NOT be zero-length and MUST NOT have any leading or trailing whitespace characters (any Unicode character with the "White_Space" property). The use of Unicode control codes SHOULD be avoided. The statement is optionally followed by a block of substatements that holds detailed enum information. All assigned names in an enumeration MUST be unique. (§9.6.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-9.6.4-1, so no unit is bound to it.
+No test carries RFC7950-9.6.4-1, so there is no linked test.
 
 ### [`RFC7950-9.6.4-2`](#rfc7950-9.6.4-2)
 
 When an existing enumeration type is restricted, the set of assigned names in the new type MUST be a subset of the base type's set of assigned names. The value of such an assigned name MUST NOT be changed. (§9.6.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1039,31 +1050,31 @@ Audit verdict: weak (the tests pass over code that does not enforce the requirem
 
 When an existing bits type is restricted, the set of assigned names in the new type MUST be a subset of the base type's set of assigned names. The bit position of such an assigned name MUST NOT be changed. (§9.7)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-9.7-1, so no unit is bound to it.
+No test carries RFC7950-9.7-1, so there is no linked test.
 
 ### [`RFC7950-9.7.4-1`](#rfc7950-9.7.4-1)
 
 The "bit" statement, which is a substatement to the "type" statement, MUST be present if the type is "bits". It is repeatedly used to specify each assigned named bit of a bits type. It takes as an argument a string that is the assigned name of the bit. It is followed by a block of substatements that holds detailed bit information. The assigned name follows the same syntax rules as an identifier (see Section 6.2). All assigned names in a bits type MUST be unique. (§9.7.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-9.7.4-1, so no unit is bound to it.
+No test carries RFC7950-9.7.4-1, so there is no linked test.
 
 ### [`RFC7950-9.7.4.2-1`](#rfc7950-9.7.4.2-1)
 
 The position value MUST be in the range 0 to 4294967295, and it MUST be unique within the bits type. If a bit position is not specified, then one will be automatically assigned. If the "bit" substatement is the first one defined, the assigned value is zero (0); otherwise, the assigned value is one greater than the current highest bit position (i.e., the highest bit position, implicit or explicit, prior to the current "bit" substatement in the parent "type" statement). Note that the presence of an "if-feature" statement in a "bit" statement does not affect the automatically assigned position. If the current highest bit position value is equal to 4294967295, then a position value MUST be specified for "bit" substatements following the one with the current highest position value. When an existing bits type is restricted, the "position" statement MUST either have the same value as in the base type or not be present, in which case the value is the same as in the base type. (§9.7.4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-9.7.4.2-1, so no unit is bound to it.
+No test carries RFC7950-9.7.4.2-1, so there is no linked test.
 
 ### [`RFC7950-9.9-1`](#rfc7950-9.9-1)
 
 If the "require-instance" property (Section 9.9.3) is "true", there MUST exist a node in the data tree, or a node with a default value in use (see Sections 7.6.1 and 7.7.2), of the referred schema tree leaf or leaf-list node with the same value as the leafref value in a valid data tree. If the referring node represents configuration data and the "require-instance" property (Section 9.9.3) is "true", the referred node MUST also represent configuration. There MUST NOT be any circular chains of leafrefs. If the leaf that the leafref refers to is conditional based on one or more features (see Section 7.20.2), then the leaf with the leafref type MUST also be conditional based on at least the same set of features. (§9.9)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1079,7 +1090,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The "path" statement, which is a substatement to the "type" statement, MUST be present if the type is "leafref". It takes as an argument a string that MUST refer to a leaf or leaf-list node. The syntax for a path argument is a subset of the XPath abbreviated syntax. Predicates are used only for constraining the values for the key nodes for list entries. Each predicate consists of exactly one equality test per key, and multiple adjacent predicates MAY be present if a list has multiple keys. The syntax is formally defined by the rule "path-arg" in Section 14. The predicates are only used when more than one key reference is needed to uniquely identify a leaf instance. This occurs if a list has multiple keys or a reference to a leaf other than the key in a list is needed. In these cases, multiple leafrefs are typically specified, and predicates are used to tie them together. The "path" expression evaluates to a node set consisting of zero, one, or more nodes. If the "require-instance" property is "true", this node set MUST be non-empty. (§9.9.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1090,7 +1101,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If "require-instance" is "true", it means that the instance being referred to MUST exist for the data to be valid. (Section 9.9.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1101,9 +1112,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 The "base" statement, which is a substatement to the "type" statement, MUST be present at least once if the type is "identityref". The argument is the name of an identity, as defined by an "identity" statement. If a prefix is present on the identity name, it refers to an identity defined in the module that was imported with that prefix. Otherwise, an identity with the matching name MUST be defined in the current module or an included submodule. (§9.10.2)
 
-Scoped tag-claim records only: tested "If a prefix is present on the identity name, it refers to an identity defined in the module that was imported with that prefix"; gap "MUST be present at least once"; internal/component/config/yang/validator_reference.go::validateIdentityref is the boundary: Tested covers an identityref with one base, prefixed by an imported module's prefix or local, resolved by goyang (which refuses an identityref with no base or a base it cannot resolve), whose value must name an identity derived from it; Gap is a type naming the base statement more than once, because goyang keeps one base statement per identityref type (Type.IdentityBase holds one value), so the values derived from every base are not computed; plan/post-release/features/spec-config-yang-reference-types.md; zero whole-requirement credit.
+Records cover only part of this requirement: tested "If a prefix is present on the identity name, it refers to an identity defined in the module that was imported with that prefix"; gap "MUST be present at least once"; internal/component/config/yang/validator_reference.go::validateIdentityref is the boundary: Tested covers an identityref with one base, prefixed by an imported module's prefix or local, resolved by goyang (which refuses an identityref with no base or a base it cannot resolve), whose value must name an identity derived from it; Gap is a type naming the base statement more than once, because goyang keeps one base statement per identityref type (Type.IdentityBase holds one value), so the values derived from every base are not computed; plan/post-release/features/spec-config-yang-reference-types.md; they do not prove the whole requirement.
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1114,7 +1125,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Otherwise, an identity with the matching name MUST be defined in the current module or one of its submodules. (Section 9.10.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1125,15 +1136,15 @@ Audit verdict: not audited: no reader has judged these tests
 
 When the type is "union", the "type" statement (Section 7.4) MUST be present. (Section 9.12)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-9.12-2, so no unit is bound to it.
+No test carries RFC7950-9.12-2, so there is no linked test.
 
 ### [`RFC7950-9.13-1`](#rfc7950-9.13-1)
 
 For identifying list entries with keys, each predicate consists of one equality test per key, and each key MUST have a corresponding predicate. If a key is of type "empty", it is represented as a zero-length string (""). If the leaf with the instance-identifier type represents configuration data and the "require-instance" property (Section 9.9.3) is "true", the node it refers to MUST also represent configuration. Such a leaf puts a constraint on valid data. All such leaf nodes MUST reference existing nodes or leaf or leaf-list nodes with their default value in use (see Sections 7.6.1 and 7.7.2) for the data to be valid. (§9.13)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1146,17 +1157,17 @@ Audit verdict: not audited: no reader has judged these tests
 
 For any published change, a new "revision" statement (Section 7.1.9) MUST be included in front of the existing "revision" statements. If there are no existing "revision" statements, then one MUST be added to identify the new revision. Furthermore, any necessary changes MUST be applied to any metadata statements, including the "organization" and "contact" statements (Sections 7.1.7 and 7.1.8). Note that definitions contained in a module are available to be imported by any other module and are referenced in "import" statements via the module name. Thus, a module name MUST NOT be changed. Furthermore, the "namespace" statement MUST NOT be changed, since all XML elements are qualified by the namespace. Obsolete definitions MUST NOT be removed from published modules, since their identifiers may still be referenced by other modules. (§11)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-11-1, so no unit is bound to it.
+No test carries RFC7950-11-1, so there is no linked test.
 
 ### [`RFC7950-11-2`](#rfc7950-11-2)
 
 Otherwise, if the semantics of any previous definition are changed (i.e., if a non-editorial change is made to any definition other than those specifically allowed above), then this MUST be achieved by a new definition with a new identifier. (§11)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-11-2, so no unit is bound to it.
+No test carries RFC7950-11-2, so there is no linked test.
 
 ### [`RFC7950-11-3`](#rfc7950-11-3)
 
@@ -1164,7 +1175,7 @@ In statements that have any data definition statements as substatements, those d
 
 Audit verdict: unimplemented (no code path enforces the requirement), fresh. {gap} stands, re-judged 2026-10-09 after 180df07922: LoadEmbedded only gained the refuseLoad guard and still parses ze-extensions.yang and ze-types.yang with no comparison against a previous revision, so a reordering of data definition substatements passes. RFC 11: 'In statements that have any data definition statements as substatements, those data definition substatements MUST NOT be reordered.' Recorded under OWNER RULING 4 (2026-09-30), not closed.
 
-No test carries RFC7950-11-3, so no unit is bound to it.
+No test carries RFC7950-11-3, so there is no linked test.
 
 ### [`RFC7950-7.2.2-1`](#rfc7950-7.2.2-1)
 
@@ -1205,7 +1216,7 @@ If the XPath expression references any node that also has associated "when" stat
 
 Audit verdict: unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-20 (independent judge, after 4bf9935e38). Section 7.21.5: "There MUST NOT be any circular dependencies among \"when\" expressions." walkTree's change is the case-data descent through schemaChild and the mandatory checks in requireMandatoryChildren; no when expression is parsed, ordered or evaluated anywhere in config/yang, so neither the evaluation order nor the cycle rule is applied. Ze's modules declare no when today. {gap} stands. Owned by spec-config-yang-when-unique-choice.
 
-No test carries RFC7950-7.21.5-2, so no unit is bound to it.
+No test carries RFC7950-7.21.5-2, so there is no linked test.
 
 ### [`RFC7950-9.1-2`](#rfc7950-9.1-2)
 
@@ -1234,11 +1245,11 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. nega
 
 A YANG version 1.1 module MUST NOT include a YANG version 1 submodule, and a YANG version 1 module MUST NOT include a YANG version 1.1 submodule. A YANG version 1 module or submodule MUST NOT import a YANG version 1.1 module by revision. (§12)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7950-12-1, so no unit is bound to it.
+No test carries RFC7950-12-1, so there is no linked test.
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -1258,322 +1269,322 @@ No test carries RFC7950-12-1, so no unit is bound to it.
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
 | `front` | boilerplate and bibliography carrying no protocol obligation | 0 | skipped (front-matter) | boilerplate and bibliography carrying no protocol obligation |
-| `1` | not stated | 0 | walked | not stated |
-| `1.1` | not stated | 0 | walked | not stated |
-| `2` | not stated | 0 | walked | not stated |
-| `3` | not stated | 0 | walked | not stated |
-| `3.1` | not stated | 0 | walked | not stated |
-| `4` | not stated | 0 | walked | not stated |
-| `4.1` | not stated | 0 | walked | not stated |
-| `4.2` | not stated | 0 | walked | not stated |
-| `4.2.1` | not stated | 0 | walked | not stated |
-| `4.2.2` | not stated | 0 | walked | not stated |
-| `4.2.2.1` | not stated | 0 | walked | not stated |
-| `4.2.2.2` | not stated | 0 | walked | not stated |
-| `4.2.2.3` | not stated | 0 | walked | not stated |
-| `4.2.2.4` | not stated | 0 | walked | not stated |
-| `4.2.2.5` | not stated | 0 | walked | not stated |
-| `4.2.3` | not stated | 0 | walked | not stated |
-| `4.2.4` | not stated | 0 | walked | not stated |
-| `4.2.5` | not stated | 0 | walked | not stated |
-| `4.2.6` | not stated | 0 | walked | not stated |
-| `4.2.7` | not stated | 0 | walked | not stated |
-| `4.2.8` | not stated | 0 | walked | not stated |
-| `4.2.9` | not stated | 0 | walked | not stated |
-| `4.2.10` | not stated | 0 | walked | not stated |
-| `5` | not stated | 0 | walked | not stated |
-| `5.1` | not stated | 7 | walked | not stated |
-| `5.1.1` | not stated | 0 | walked | not stated |
-| `5.1.2` | not stated | 0 | walked | not stated |
-| `5.1.2.1` | not stated | 0 | walked | not stated |
-| `5.2` | not stated | 0 | walked | not stated |
-| `5.3` | not stated | 2 | walked | not stated |
-| `5.3.1` | not stated | 0 | walked | not stated |
-| `5.4` | not stated | 0 | walked | not stated |
-| `5.5` | not stated | 1 | walked | not stated |
-| `5.6` | not stated | 0 | walked | not stated |
-| `5.6.1` | not stated | 0 | walked | not stated |
-| `5.6.2` | not stated | 0 | walked | not stated |
-| `5.6.3` | not stated | 0 | walked | not stated |
-| `5.6.4` | not stated | 4 | walked | not stated |
-| `5.6.5` | not stated | 4 | walked | not stated |
-| `5.7` | not stated | 0 | walked | not stated |
-| `6` | not stated | 0 | walked | not stated |
-| `6.1` | not stated | 0 | walked | not stated |
-| `6.1.1` | not stated | 0 | walked | not stated |
-| `6.1.2` | not stated | 0 | walked | not stated |
-| `6.1.3` | not stated | 1 | walked | not stated |
-| `6.1.3.1` | not stated | 0 | walked | not stated |
-| `6.2` | not stated | 1 | walked | not stated |
-| `6.2.1` | not stated | 3 | walked | not stated |
-| `6.3` | not stated | 0 | walked | not stated |
-| `6.3.1` | not stated | 3 | walked | not stated |
-| `6.4` | not stated | 2 | walked | not stated |
-| `6.4.1` | not stated | 0 | walked | not stated |
-| `6.4.1.1` | not stated | 0 | walked | not stated |
-| `6.5` | not stated | 1 | walked | not stated |
-| `7` | not stated | 0 | walked | not stated |
-| `7.1` | not stated | 1 | walked | not stated |
-| `7.1.1` | not stated | 0 | walked | not stated |
-| `7.1.2` | not stated | 1 | walked | not stated |
-| `7.1.3` | not stated | 0 | walked | not stated |
-| `7.1.4` | not stated | 2 | walked | not stated |
-| `7.1.5` | not stated | 0 | walked | not stated |
-| `7.1.5.1` | not stated | 0 | walked | not stated |
-| `7.1.6` | not stated | 1 | walked | not stated |
-| `7.1.7` | not stated | 0 | walked | not stated |
-| `7.1.8` | not stated | 0 | walked | not stated |
-| `7.1.9` | not stated | 0 | walked | not stated |
-| `7.1.9.1` | not stated | 0 | walked | not stated |
-| `7.1.10` | not stated | 0 | walked | not stated |
-| `7.2` | not stated | 1 | walked | not stated |
-| `7.2.1` | not stated | 0 | walked | not stated |
-| `7.2.2` | not stated | 1 | walked | not stated |
-| `7.2.3` | not stated | 0 | walked | not stated |
-| `7.3` | not stated | 3 | walked | not stated |
-| `7.3.1` | not stated | 0 | walked | not stated |
-| `7.3.2` | not stated | 1 | walked | not stated |
-| `7.3.3` | not stated | 0 | walked | not stated |
-| `7.3.4` | not stated | 2 | walked | not stated |
-| `7.3.5` | not stated | 0 | walked | not stated |
-| `7.4` | not stated | 0 | walked | not stated |
-| `7.4.1` | not stated | 0 | walked | not stated |
-| `7.5` | not stated | 0 | walked | not stated |
-| `7.5.1` | not stated | 0 | walked | not stated |
-| `7.5.2` | not stated | 0 | walked | not stated |
-| `7.5.3` | not stated | 1 | walked | not stated |
-| `7.5.4` | not stated | 0 | walked | not stated |
-| `7.5.4.1` | not stated | 0 | walked | not stated |
-| `7.5.4.2` | not stated | 0 | walked | not stated |
-| `7.5.4.3` | not stated | 0 | walked | not stated |
-| `7.5.5` | not stated | 0 | walked | not stated |
-| `7.5.6` | not stated | 0 | walked | not stated |
-| `7.5.7` | not stated | 0 | walked | not stated |
-| `7.5.8` | not stated | 0 | walked | not stated |
-| `7.5.9` | not stated | 0 | walked | not stated |
-| `7.6` | not stated | 0 | walked | not stated |
-| `7.6.1` | not stated | 4 | walked | not stated |
-| `7.6.2` | not stated | 0 | walked | not stated |
-| `7.6.3` | not stated | 1 | walked | not stated |
-| `7.6.4` | not stated | 3 | walked | not stated |
-| `7.6.5` | not stated | 3 | walked | not stated |
-| `7.6.6` | not stated | 0 | walked | not stated |
-| `7.6.7` | not stated | 0 | walked | not stated |
-| `7.6.8` | not stated | 0 | walked | not stated |
-| `7.7` | not stated | 3 | walked | not stated |
-| `7.7.1` | not stated | 0 | walked | not stated |
-| `7.7.2` | not stated | 4 | walked | not stated |
-| `7.7.3` | not stated | 0 | walked | not stated |
-| `7.7.4` | not stated | 2 | walked | not stated |
-| `7.7.5` | not stated | 1 | walked | not stated |
-| `7.7.6` | not stated | 0 | walked | not stated |
-| `7.7.7` | not stated | 0 | walked | not stated |
-| `7.7.7.1` | not stated | 0 | walked | not stated |
-| `7.7.7.2` | not stated | 0 | walked | not stated |
-| `7.7.8` | not stated | 1 | walked | not stated |
-| `7.7.9` | not stated | 1 | walked | not stated |
-| `7.7.10` | not stated | 0 | walked | not stated |
-| `7.8` | not stated | 0 | walked | not stated |
-| `7.8.1` | not stated | 0 | walked | not stated |
-| `7.8.2` | not stated | 5 | walked | not stated |
-| `7.8.3` | not stated | 4 | walked | not stated |
-| `7.8.3.1` | not stated | 0 | walked | not stated |
-| `7.8.4` | not stated | 0 | walked | not stated |
-| `7.8.5` | not stated | 1 | walked | not stated |
-| `7.8.6` | not stated | 1 | walked | not stated |
-| `7.8.7` | not stated | 0 | walked | not stated |
-| `7.9` | not stated | 0 | walked | not stated |
-| `7.9.1` | not stated | 0 | walked | not stated |
-| `7.9.2` | not stated | 3 | walked | not stated |
-| `7.9.2.1` | not stated | 0 | walked | not stated |
-| `7.9.3` | not stated | 2 | walked | not stated |
-| `7.9.4` | not stated | 1 | walked | not stated |
-| `7.9.5` | not stated | 1 | walked | not stated |
-| `7.9.6` | not stated | 0 | walked | not stated |
-| `7.10` | not stated | 0 | walked | not stated |
-| `7.10.1` | not stated | 0 | walked | not stated |
-| `7.10.2` | not stated | 0 | walked | not stated |
-| `7.10.3` | not stated | 0 | walked | not stated |
-| `7.10.4` | not stated | 0 | walked | not stated |
-| `7.11` | not stated | 0 | walked | not stated |
-| `7.11.1` | not stated | 0 | walked | not stated |
-| `7.11.2` | not stated | 0 | walked | not stated |
-| `7.11.3` | not stated | 0 | walked | not stated |
-| `7.11.4` | not stated | 0 | walked | not stated |
-| `7.12` | not stated | 2 | walked | not stated |
-| `7.12.1` | not stated | 0 | walked | not stated |
-| `7.12.2` | not stated | 0 | walked | not stated |
-| `7.13` | not stated | 0 | walked | not stated |
-| `7.13.1` | not stated | 0 | walked | not stated |
-| `7.13.2` | not stated | 0 | walked | not stated |
-| `7.13.3` | not stated | 0 | walked | not stated |
-| `7.13.4` | not stated | 0 | walked | not stated |
-| `7.14` | not stated | 0 | walked | not stated |
-| `7.14.1` | not stated | 0 | walked | not stated |
-| `7.14.2` | not stated | 6 | walked | not stated |
-| `7.14.2.1` | not stated | 0 | walked | not stated |
-| `7.14.3` | not stated | 6 | walked | not stated |
-| `7.14.3.1` | not stated | 0 | walked | not stated |
-| `7.14.4` | not stated | 0 | walked | not stated |
-| `7.14.5` | not stated | 0 | walked | not stated |
-| `7.15` | not stated | 2 | walked | not stated |
-| `7.15.1` | not stated | 0 | walked | not stated |
-| `7.15.2` | not stated | 3 | walked | not stated |
-| `7.15.3` | not stated | 0 | walked | not stated |
-| `7.16` | not stated | 7 | walked | not stated |
-| `7.16.1` | not stated | 0 | walked | not stated |
-| `7.16.2` | not stated | 2 | walked | not stated |
-| `7.16.3` | not stated | 0 | walked | not stated |
-| `7.17` | not stated | 5 | walked | not stated |
-| `7.17.1` | not stated | 0 | walked | not stated |
-| `7.17.2` | not stated | 0 | walked | not stated |
-| `7.17.3` | not stated | 0 | walked | not stated |
-| `7.18` | not stated | 0 | walked | not stated |
-| `7.18.1` | not stated | 0 | walked | not stated |
-| `7.18.2` | not stated | 2 | walked | not stated |
-| `7.18.3` | not stated | 0 | walked | not stated |
-| `7.19` | not stated | 2 | walked | not stated |
-| `7.19.1` | not stated | 0 | walked | not stated |
-| `7.19.2` | not stated | 0 | walked | not stated |
-| `7.19.2.1` | not stated | 0 | walked | not stated |
-| `7.19.2.2` | not stated | 0 | walked | not stated |
-| `7.19.3` | not stated | 0 | walked | not stated |
-| `7.20` | not stated | 0 | walked | not stated |
-| `7.20.1` | not stated | 2 | walked | not stated |
-| `7.20.1.1` | not stated | 0 | walked | not stated |
-| `7.20.2` | not stated | 2 | walked | not stated |
-| `7.20.2.1` | not stated | 0 | walked | not stated |
-| `7.20.3` | not stated | 3 | walked | not stated |
-| `7.20.3.1` | not stated | 0 | walked | not stated |
-| `7.20.3.2` | not stated | 3 | walked | not stated |
-| `7.20.3.3` | not stated | 0 | walked | not stated |
-| `7.21` | not stated | 0 | walked | not stated |
-| `7.21.1` | not stated | 0 | walked | not stated |
-| `7.21.2` | not stated | 2 | walked | not stated |
-| `7.21.3` | not stated | 0 | walked | not stated |
-| `7.21.4` | not stated | 0 | walked | not stated |
-| `7.21.5` | not stated | 4 | walked | not stated |
-| `8` | not stated | 0 | walked | not stated |
-| `8.1` | not stated | 14 | walked | not stated |
-| `8.2` | not stated | 0 | walked | not stated |
-| `8.3` | not stated | 1 | walked | not stated |
-| `8.3.1` | not stated | 7 | walked | not stated |
-| `8.3.2` | not stated | 2 | walked | not stated |
-| `8.3.3` | not stated | 2 | walked | not stated |
-| `9` | not stated | 0 | walked | not stated |
-| `9.1` | not stated | 3 | walked | not stated |
-| `9.2` | not stated | 0 | walked | not stated |
-| `9.2.1` | not stated | 0 | walked | not stated |
-| `9.2.2` | not stated | 0 | walked | not stated |
-| `9.2.3` | not stated | 0 | walked | not stated |
-| `9.2.4` | not stated | 3 | walked | not stated |
-| `9.2.4.1` | not stated | 0 | walked | not stated |
-| `9.2.5` | not stated | 0 | walked | not stated |
-| `9.3` | not stated | 0 | walked | not stated |
-| `9.3.1` | not stated | 0 | walked | not stated |
-| `9.3.2` | not stated | 1 | walked | not stated |
-| `9.3.3` | not stated | 0 | walked | not stated |
-| `9.3.4` | not stated | 1 | walked | not stated |
-| `9.3.5` | not stated | 0 | walked | not stated |
-| `9.4` | not stated | 0 | walked | not stated |
-| `9.4.1` | not stated | 0 | walked | not stated |
-| `9.4.2` | not stated | 0 | walked | not stated |
-| `9.4.3` | not stated | 0 | walked | not stated |
-| `9.4.4` | not stated | 3 | walked | not stated |
-| `9.4.4.1` | not stated | 0 | walked | not stated |
-| `9.4.5` | not stated | 0 | walked | not stated |
-| `9.4.5.1` | not stated | 0 | walked | not stated |
-| `9.4.6` | not stated | 0 | walked | not stated |
-| `9.4.7` | not stated | 0 | walked | not stated |
-| `9.5` | not stated | 0 | walked | not stated |
-| `9.5.1` | not stated | 1 | walked | not stated |
-| `9.5.2` | not stated | 0 | walked | not stated |
-| `9.5.3` | not stated | 0 | walked | not stated |
-| `9.6` | not stated | 0 | walked | not stated |
-| `9.6.1` | not stated | 0 | walked | not stated |
-| `9.6.2` | not stated | 0 | walked | not stated |
-| `9.6.3` | not stated | 0 | walked | not stated |
-| `9.6.4` | not stated | 5 | walked | not stated |
-| `9.6.4.1` | not stated | 0 | walked | not stated |
-| `9.6.4.2` | not stated | 3 | walked | not stated |
-| `9.6.5` | not stated | 0 | walked | not stated |
-| `9.7` | not stated | 2 | walked | not stated |
-| `9.7.1` | not stated | 0 | walked | not stated |
-| `9.7.2` | not stated | 0 | walked | not stated |
-| `9.7.3` | not stated | 0 | walked | not stated |
-| `9.7.4` | not stated | 2 | walked | not stated |
-| `9.7.4.1` | not stated | 0 | walked | not stated |
-| `9.7.4.2` | not stated | 3 | walked | not stated |
-| `9.7.5` | not stated | 0 | walked | not stated |
-| `9.8` | not stated | 0 | walked | not stated |
-| `9.8.1` | not stated | 0 | walked | not stated |
-| `9.8.2` | not stated | 0 | walked | not stated |
-| `9.8.3` | not stated | 0 | walked | not stated |
-| `9.9` | not stated | 4 | walked | not stated |
-| `9.9.1` | not stated | 0 | walked | not stated |
-| `9.9.2` | not stated | 3 | walked | not stated |
-| `9.9.3` | not stated | 1 | walked | not stated |
-| `9.9.4` | not stated | 0 | walked | not stated |
-| `9.9.5` | not stated | 0 | walked | not stated |
-| `9.9.6` | not stated | 0 | walked | not stated |
-| `9.10` | not stated | 0 | walked | not stated |
-| `9.10.1` | not stated | 0 | walked | not stated |
-| `9.10.2` | not stated | 2 | walked | not stated |
-| `9.10.3` | not stated | 1 | walked | not stated |
-| `9.10.4` | not stated | 0 | walked | not stated |
-| `9.10.5` | not stated | 0 | walked | not stated |
-| `9.11` | not stated | 0 | walked | not stated |
-| `9.11.1` | not stated | 0 | walked | not stated |
-| `9.11.2` | not stated | 0 | walked | not stated |
-| `9.11.3` | not stated | 0 | walked | not stated |
-| `9.11.4` | not stated | 0 | walked | not stated |
-| `9.12` | not stated | 1 | walked | not stated |
-| `9.12.1` | not stated | 0 | walked | not stated |
-| `9.12.2` | not stated | 0 | walked | not stated |
-| `9.12.3` | not stated | 0 | walked | not stated |
-| `9.12.4` | not stated | 0 | walked | not stated |
-| `9.13` | not stated | 3 | walked | not stated |
-| `9.13.1` | not stated | 0 | walked | not stated |
-| `9.13.2` | not stated | 1 | walked | not stated |
-| `9.13.3` | not stated | 0 | walked | not stated |
-| `9.13.4` | not stated | 0 | walked | not stated |
-| `10` | not stated | 0 | walked | not stated |
-| `10.1` | not stated | 0 | walked | not stated |
-| `10.1.1` | not stated | 0 | walked | not stated |
-| `10.1.1.1` | not stated | 0 | walked | not stated |
-| `10.2` | not stated | 0 | walked | not stated |
-| `10.2.1` | not stated | 0 | walked | not stated |
-| `10.2.1.1` | not stated | 0 | walked | not stated |
-| `10.3` | not stated | 0 | walked | not stated |
-| `10.3.1` | not stated | 0 | walked | not stated |
-| `10.3.1.1` | not stated | 0 | walked | not stated |
-| `10.4` | not stated | 0 | walked | not stated |
-| `10.4.1` | not stated | 0 | walked | not stated |
-| `10.4.1.1` | not stated | 0 | walked | not stated |
-| `10.4.2` | not stated | 0 | walked | not stated |
-| `10.4.2.1` | not stated | 0 | walked | not stated |
-| `10.5` | not stated | 0 | walked | not stated |
-| `10.5.1` | not stated | 0 | walked | not stated |
-| `10.5.1.1` | not stated | 0 | walked | not stated |
-| `10.6` | not stated | 0 | walked | not stated |
-| `10.6.1` | not stated | 0 | walked | not stated |
-| `10.6.1.1` | not stated | 0 | walked | not stated |
-| `11` | not stated | 8 | walked | not stated |
-| `12` | not stated | 3 | walked | not stated |
-| `13` | not stated | 0 | walked | not stated |
-| `13.1` | not stated | 3 | walked | not stated |
-| `13.1.1` | not stated | 0 | walked | not stated |
-| `14` | not stated | 0 | walked | not stated |
-| `15` | not stated | 0 | walked | not stated |
-| `15.1` | not stated | 1 | walked | not stated |
-| `15.2` | not stated | 1 | walked | not stated |
-| `15.3` | not stated | 1 | walked | not stated |
-| `15.4` | not stated | 1 | walked | not stated |
-| `15.5` | not stated | 1 | walked | not stated |
-| `15.6` | not stated | 1 | walked | not stated |
-| `15.7` | not stated | 1 | walked | not stated |
+| `1` | not stated | 0 | reviewed | not stated |
+| `1.1` | not stated | 0 | reviewed | not stated |
+| `2` | not stated | 0 | reviewed | not stated |
+| `3` | not stated | 0 | reviewed | not stated |
+| `3.1` | not stated | 0 | reviewed | not stated |
+| `4` | not stated | 0 | reviewed | not stated |
+| `4.1` | not stated | 0 | reviewed | not stated |
+| `4.2` | not stated | 0 | reviewed | not stated |
+| `4.2.1` | not stated | 0 | reviewed | not stated |
+| `4.2.2` | not stated | 0 | reviewed | not stated |
+| `4.2.2.1` | not stated | 0 | reviewed | not stated |
+| `4.2.2.2` | not stated | 0 | reviewed | not stated |
+| `4.2.2.3` | not stated | 0 | reviewed | not stated |
+| `4.2.2.4` | not stated | 0 | reviewed | not stated |
+| `4.2.2.5` | not stated | 0 | reviewed | not stated |
+| `4.2.3` | not stated | 0 | reviewed | not stated |
+| `4.2.4` | not stated | 0 | reviewed | not stated |
+| `4.2.5` | not stated | 0 | reviewed | not stated |
+| `4.2.6` | not stated | 0 | reviewed | not stated |
+| `4.2.7` | not stated | 0 | reviewed | not stated |
+| `4.2.8` | not stated | 0 | reviewed | not stated |
+| `4.2.9` | not stated | 0 | reviewed | not stated |
+| `4.2.10` | not stated | 0 | reviewed | not stated |
+| `5` | not stated | 0 | reviewed | not stated |
+| `5.1` | not stated | 7 | reviewed | not stated |
+| `5.1.1` | not stated | 0 | reviewed | not stated |
+| `5.1.2` | not stated | 0 | reviewed | not stated |
+| `5.1.2.1` | not stated | 0 | reviewed | not stated |
+| `5.2` | not stated | 0 | reviewed | not stated |
+| `5.3` | not stated | 2 | reviewed | not stated |
+| `5.3.1` | not stated | 0 | reviewed | not stated |
+| `5.4` | not stated | 0 | reviewed | not stated |
+| `5.5` | not stated | 1 | reviewed | not stated |
+| `5.6` | not stated | 0 | reviewed | not stated |
+| `5.6.1` | not stated | 0 | reviewed | not stated |
+| `5.6.2` | not stated | 0 | reviewed | not stated |
+| `5.6.3` | not stated | 0 | reviewed | not stated |
+| `5.6.4` | not stated | 4 | reviewed | not stated |
+| `5.6.5` | not stated | 4 | reviewed | not stated |
+| `5.7` | not stated | 0 | reviewed | not stated |
+| `6` | not stated | 0 | reviewed | not stated |
+| `6.1` | not stated | 0 | reviewed | not stated |
+| `6.1.1` | not stated | 0 | reviewed | not stated |
+| `6.1.2` | not stated | 0 | reviewed | not stated |
+| `6.1.3` | not stated | 1 | reviewed | not stated |
+| `6.1.3.1` | not stated | 0 | reviewed | not stated |
+| `6.2` | not stated | 1 | reviewed | not stated |
+| `6.2.1` | not stated | 3 | reviewed | not stated |
+| `6.3` | not stated | 0 | reviewed | not stated |
+| `6.3.1` | not stated | 3 | reviewed | not stated |
+| `6.4` | not stated | 2 | reviewed | not stated |
+| `6.4.1` | not stated | 0 | reviewed | not stated |
+| `6.4.1.1` | not stated | 0 | reviewed | not stated |
+| `6.5` | not stated | 1 | reviewed | not stated |
+| `7` | not stated | 0 | reviewed | not stated |
+| `7.1` | not stated | 1 | reviewed | not stated |
+| `7.1.1` | not stated | 0 | reviewed | not stated |
+| `7.1.2` | not stated | 1 | reviewed | not stated |
+| `7.1.3` | not stated | 0 | reviewed | not stated |
+| `7.1.4` | not stated | 2 | reviewed | not stated |
+| `7.1.5` | not stated | 0 | reviewed | not stated |
+| `7.1.5.1` | not stated | 0 | reviewed | not stated |
+| `7.1.6` | not stated | 1 | reviewed | not stated |
+| `7.1.7` | not stated | 0 | reviewed | not stated |
+| `7.1.8` | not stated | 0 | reviewed | not stated |
+| `7.1.9` | not stated | 0 | reviewed | not stated |
+| `7.1.9.1` | not stated | 0 | reviewed | not stated |
+| `7.1.10` | not stated | 0 | reviewed | not stated |
+| `7.2` | not stated | 1 | reviewed | not stated |
+| `7.2.1` | not stated | 0 | reviewed | not stated |
+| `7.2.2` | not stated | 1 | reviewed | not stated |
+| `7.2.3` | not stated | 0 | reviewed | not stated |
+| `7.3` | not stated | 3 | reviewed | not stated |
+| `7.3.1` | not stated | 0 | reviewed | not stated |
+| `7.3.2` | not stated | 1 | reviewed | not stated |
+| `7.3.3` | not stated | 0 | reviewed | not stated |
+| `7.3.4` | not stated | 2 | reviewed | not stated |
+| `7.3.5` | not stated | 0 | reviewed | not stated |
+| `7.4` | not stated | 0 | reviewed | not stated |
+| `7.4.1` | not stated | 0 | reviewed | not stated |
+| `7.5` | not stated | 0 | reviewed | not stated |
+| `7.5.1` | not stated | 0 | reviewed | not stated |
+| `7.5.2` | not stated | 0 | reviewed | not stated |
+| `7.5.3` | not stated | 1 | reviewed | not stated |
+| `7.5.4` | not stated | 0 | reviewed | not stated |
+| `7.5.4.1` | not stated | 0 | reviewed | not stated |
+| `7.5.4.2` | not stated | 0 | reviewed | not stated |
+| `7.5.4.3` | not stated | 0 | reviewed | not stated |
+| `7.5.5` | not stated | 0 | reviewed | not stated |
+| `7.5.6` | not stated | 0 | reviewed | not stated |
+| `7.5.7` | not stated | 0 | reviewed | not stated |
+| `7.5.8` | not stated | 0 | reviewed | not stated |
+| `7.5.9` | not stated | 0 | reviewed | not stated |
+| `7.6` | not stated | 0 | reviewed | not stated |
+| `7.6.1` | not stated | 4 | reviewed | not stated |
+| `7.6.2` | not stated | 0 | reviewed | not stated |
+| `7.6.3` | not stated | 1 | reviewed | not stated |
+| `7.6.4` | not stated | 3 | reviewed | not stated |
+| `7.6.5` | not stated | 3 | reviewed | not stated |
+| `7.6.6` | not stated | 0 | reviewed | not stated |
+| `7.6.7` | not stated | 0 | reviewed | not stated |
+| `7.6.8` | not stated | 0 | reviewed | not stated |
+| `7.7` | not stated | 3 | reviewed | not stated |
+| `7.7.1` | not stated | 0 | reviewed | not stated |
+| `7.7.2` | not stated | 4 | reviewed | not stated |
+| `7.7.3` | not stated | 0 | reviewed | not stated |
+| `7.7.4` | not stated | 2 | reviewed | not stated |
+| `7.7.5` | not stated | 1 | reviewed | not stated |
+| `7.7.6` | not stated | 0 | reviewed | not stated |
+| `7.7.7` | not stated | 0 | reviewed | not stated |
+| `7.7.7.1` | not stated | 0 | reviewed | not stated |
+| `7.7.7.2` | not stated | 0 | reviewed | not stated |
+| `7.7.8` | not stated | 1 | reviewed | not stated |
+| `7.7.9` | not stated | 1 | reviewed | not stated |
+| `7.7.10` | not stated | 0 | reviewed | not stated |
+| `7.8` | not stated | 0 | reviewed | not stated |
+| `7.8.1` | not stated | 0 | reviewed | not stated |
+| `7.8.2` | not stated | 5 | reviewed | not stated |
+| `7.8.3` | not stated | 4 | reviewed | not stated |
+| `7.8.3.1` | not stated | 0 | reviewed | not stated |
+| `7.8.4` | not stated | 0 | reviewed | not stated |
+| `7.8.5` | not stated | 1 | reviewed | not stated |
+| `7.8.6` | not stated | 1 | reviewed | not stated |
+| `7.8.7` | not stated | 0 | reviewed | not stated |
+| `7.9` | not stated | 0 | reviewed | not stated |
+| `7.9.1` | not stated | 0 | reviewed | not stated |
+| `7.9.2` | not stated | 3 | reviewed | not stated |
+| `7.9.2.1` | not stated | 0 | reviewed | not stated |
+| `7.9.3` | not stated | 2 | reviewed | not stated |
+| `7.9.4` | not stated | 1 | reviewed | not stated |
+| `7.9.5` | not stated | 1 | reviewed | not stated |
+| `7.9.6` | not stated | 0 | reviewed | not stated |
+| `7.10` | not stated | 0 | reviewed | not stated |
+| `7.10.1` | not stated | 0 | reviewed | not stated |
+| `7.10.2` | not stated | 0 | reviewed | not stated |
+| `7.10.3` | not stated | 0 | reviewed | not stated |
+| `7.10.4` | not stated | 0 | reviewed | not stated |
+| `7.11` | not stated | 0 | reviewed | not stated |
+| `7.11.1` | not stated | 0 | reviewed | not stated |
+| `7.11.2` | not stated | 0 | reviewed | not stated |
+| `7.11.3` | not stated | 0 | reviewed | not stated |
+| `7.11.4` | not stated | 0 | reviewed | not stated |
+| `7.12` | not stated | 2 | reviewed | not stated |
+| `7.12.1` | not stated | 0 | reviewed | not stated |
+| `7.12.2` | not stated | 0 | reviewed | not stated |
+| `7.13` | not stated | 0 | reviewed | not stated |
+| `7.13.1` | not stated | 0 | reviewed | not stated |
+| `7.13.2` | not stated | 0 | reviewed | not stated |
+| `7.13.3` | not stated | 0 | reviewed | not stated |
+| `7.13.4` | not stated | 0 | reviewed | not stated |
+| `7.14` | not stated | 0 | reviewed | not stated |
+| `7.14.1` | not stated | 0 | reviewed | not stated |
+| `7.14.2` | not stated | 6 | reviewed | not stated |
+| `7.14.2.1` | not stated | 0 | reviewed | not stated |
+| `7.14.3` | not stated | 6 | reviewed | not stated |
+| `7.14.3.1` | not stated | 0 | reviewed | not stated |
+| `7.14.4` | not stated | 0 | reviewed | not stated |
+| `7.14.5` | not stated | 0 | reviewed | not stated |
+| `7.15` | not stated | 2 | reviewed | not stated |
+| `7.15.1` | not stated | 0 | reviewed | not stated |
+| `7.15.2` | not stated | 3 | reviewed | not stated |
+| `7.15.3` | not stated | 0 | reviewed | not stated |
+| `7.16` | not stated | 7 | reviewed | not stated |
+| `7.16.1` | not stated | 0 | reviewed | not stated |
+| `7.16.2` | not stated | 2 | reviewed | not stated |
+| `7.16.3` | not stated | 0 | reviewed | not stated |
+| `7.17` | not stated | 5 | reviewed | not stated |
+| `7.17.1` | not stated | 0 | reviewed | not stated |
+| `7.17.2` | not stated | 0 | reviewed | not stated |
+| `7.17.3` | not stated | 0 | reviewed | not stated |
+| `7.18` | not stated | 0 | reviewed | not stated |
+| `7.18.1` | not stated | 0 | reviewed | not stated |
+| `7.18.2` | not stated | 2 | reviewed | not stated |
+| `7.18.3` | not stated | 0 | reviewed | not stated |
+| `7.19` | not stated | 2 | reviewed | not stated |
+| `7.19.1` | not stated | 0 | reviewed | not stated |
+| `7.19.2` | not stated | 0 | reviewed | not stated |
+| `7.19.2.1` | not stated | 0 | reviewed | not stated |
+| `7.19.2.2` | not stated | 0 | reviewed | not stated |
+| `7.19.3` | not stated | 0 | reviewed | not stated |
+| `7.20` | not stated | 0 | reviewed | not stated |
+| `7.20.1` | not stated | 2 | reviewed | not stated |
+| `7.20.1.1` | not stated | 0 | reviewed | not stated |
+| `7.20.2` | not stated | 2 | reviewed | not stated |
+| `7.20.2.1` | not stated | 0 | reviewed | not stated |
+| `7.20.3` | not stated | 3 | reviewed | not stated |
+| `7.20.3.1` | not stated | 0 | reviewed | not stated |
+| `7.20.3.2` | not stated | 3 | reviewed | not stated |
+| `7.20.3.3` | not stated | 0 | reviewed | not stated |
+| `7.21` | not stated | 0 | reviewed | not stated |
+| `7.21.1` | not stated | 0 | reviewed | not stated |
+| `7.21.2` | not stated | 2 | reviewed | not stated |
+| `7.21.3` | not stated | 0 | reviewed | not stated |
+| `7.21.4` | not stated | 0 | reviewed | not stated |
+| `7.21.5` | not stated | 4 | reviewed | not stated |
+| `8` | not stated | 0 | reviewed | not stated |
+| `8.1` | not stated | 14 | reviewed | not stated |
+| `8.2` | not stated | 0 | reviewed | not stated |
+| `8.3` | not stated | 1 | reviewed | not stated |
+| `8.3.1` | not stated | 7 | reviewed | not stated |
+| `8.3.2` | not stated | 2 | reviewed | not stated |
+| `8.3.3` | not stated | 2 | reviewed | not stated |
+| `9` | not stated | 0 | reviewed | not stated |
+| `9.1` | not stated | 3 | reviewed | not stated |
+| `9.2` | not stated | 0 | reviewed | not stated |
+| `9.2.1` | not stated | 0 | reviewed | not stated |
+| `9.2.2` | not stated | 0 | reviewed | not stated |
+| `9.2.3` | not stated | 0 | reviewed | not stated |
+| `9.2.4` | not stated | 3 | reviewed | not stated |
+| `9.2.4.1` | not stated | 0 | reviewed | not stated |
+| `9.2.5` | not stated | 0 | reviewed | not stated |
+| `9.3` | not stated | 0 | reviewed | not stated |
+| `9.3.1` | not stated | 0 | reviewed | not stated |
+| `9.3.2` | not stated | 1 | reviewed | not stated |
+| `9.3.3` | not stated | 0 | reviewed | not stated |
+| `9.3.4` | not stated | 1 | reviewed | not stated |
+| `9.3.5` | not stated | 0 | reviewed | not stated |
+| `9.4` | not stated | 0 | reviewed | not stated |
+| `9.4.1` | not stated | 0 | reviewed | not stated |
+| `9.4.2` | not stated | 0 | reviewed | not stated |
+| `9.4.3` | not stated | 0 | reviewed | not stated |
+| `9.4.4` | not stated | 3 | reviewed | not stated |
+| `9.4.4.1` | not stated | 0 | reviewed | not stated |
+| `9.4.5` | not stated | 0 | reviewed | not stated |
+| `9.4.5.1` | not stated | 0 | reviewed | not stated |
+| `9.4.6` | not stated | 0 | reviewed | not stated |
+| `9.4.7` | not stated | 0 | reviewed | not stated |
+| `9.5` | not stated | 0 | reviewed | not stated |
+| `9.5.1` | not stated | 1 | reviewed | not stated |
+| `9.5.2` | not stated | 0 | reviewed | not stated |
+| `9.5.3` | not stated | 0 | reviewed | not stated |
+| `9.6` | not stated | 0 | reviewed | not stated |
+| `9.6.1` | not stated | 0 | reviewed | not stated |
+| `9.6.2` | not stated | 0 | reviewed | not stated |
+| `9.6.3` | not stated | 0 | reviewed | not stated |
+| `9.6.4` | not stated | 5 | reviewed | not stated |
+| `9.6.4.1` | not stated | 0 | reviewed | not stated |
+| `9.6.4.2` | not stated | 3 | reviewed | not stated |
+| `9.6.5` | not stated | 0 | reviewed | not stated |
+| `9.7` | not stated | 2 | reviewed | not stated |
+| `9.7.1` | not stated | 0 | reviewed | not stated |
+| `9.7.2` | not stated | 0 | reviewed | not stated |
+| `9.7.3` | not stated | 0 | reviewed | not stated |
+| `9.7.4` | not stated | 2 | reviewed | not stated |
+| `9.7.4.1` | not stated | 0 | reviewed | not stated |
+| `9.7.4.2` | not stated | 3 | reviewed | not stated |
+| `9.7.5` | not stated | 0 | reviewed | not stated |
+| `9.8` | not stated | 0 | reviewed | not stated |
+| `9.8.1` | not stated | 0 | reviewed | not stated |
+| `9.8.2` | not stated | 0 | reviewed | not stated |
+| `9.8.3` | not stated | 0 | reviewed | not stated |
+| `9.9` | not stated | 4 | reviewed | not stated |
+| `9.9.1` | not stated | 0 | reviewed | not stated |
+| `9.9.2` | not stated | 3 | reviewed | not stated |
+| `9.9.3` | not stated | 1 | reviewed | not stated |
+| `9.9.4` | not stated | 0 | reviewed | not stated |
+| `9.9.5` | not stated | 0 | reviewed | not stated |
+| `9.9.6` | not stated | 0 | reviewed | not stated |
+| `9.10` | not stated | 0 | reviewed | not stated |
+| `9.10.1` | not stated | 0 | reviewed | not stated |
+| `9.10.2` | not stated | 2 | reviewed | not stated |
+| `9.10.3` | not stated | 1 | reviewed | not stated |
+| `9.10.4` | not stated | 0 | reviewed | not stated |
+| `9.10.5` | not stated | 0 | reviewed | not stated |
+| `9.11` | not stated | 0 | reviewed | not stated |
+| `9.11.1` | not stated | 0 | reviewed | not stated |
+| `9.11.2` | not stated | 0 | reviewed | not stated |
+| `9.11.3` | not stated | 0 | reviewed | not stated |
+| `9.11.4` | not stated | 0 | reviewed | not stated |
+| `9.12` | not stated | 1 | reviewed | not stated |
+| `9.12.1` | not stated | 0 | reviewed | not stated |
+| `9.12.2` | not stated | 0 | reviewed | not stated |
+| `9.12.3` | not stated | 0 | reviewed | not stated |
+| `9.12.4` | not stated | 0 | reviewed | not stated |
+| `9.13` | not stated | 3 | reviewed | not stated |
+| `9.13.1` | not stated | 0 | reviewed | not stated |
+| `9.13.2` | not stated | 1 | reviewed | not stated |
+| `9.13.3` | not stated | 0 | reviewed | not stated |
+| `9.13.4` | not stated | 0 | reviewed | not stated |
+| `10` | not stated | 0 | reviewed | not stated |
+| `10.1` | not stated | 0 | reviewed | not stated |
+| `10.1.1` | not stated | 0 | reviewed | not stated |
+| `10.1.1.1` | not stated | 0 | reviewed | not stated |
+| `10.2` | not stated | 0 | reviewed | not stated |
+| `10.2.1` | not stated | 0 | reviewed | not stated |
+| `10.2.1.1` | not stated | 0 | reviewed | not stated |
+| `10.3` | not stated | 0 | reviewed | not stated |
+| `10.3.1` | not stated | 0 | reviewed | not stated |
+| `10.3.1.1` | not stated | 0 | reviewed | not stated |
+| `10.4` | not stated | 0 | reviewed | not stated |
+| `10.4.1` | not stated | 0 | reviewed | not stated |
+| `10.4.1.1` | not stated | 0 | reviewed | not stated |
+| `10.4.2` | not stated | 0 | reviewed | not stated |
+| `10.4.2.1` | not stated | 0 | reviewed | not stated |
+| `10.5` | not stated | 0 | reviewed | not stated |
+| `10.5.1` | not stated | 0 | reviewed | not stated |
+| `10.5.1.1` | not stated | 0 | reviewed | not stated |
+| `10.6` | not stated | 0 | reviewed | not stated |
+| `10.6.1` | not stated | 0 | reviewed | not stated |
+| `10.6.1.1` | not stated | 0 | reviewed | not stated |
+| `11` | not stated | 8 | reviewed | not stated |
+| `12` | not stated | 3 | reviewed | not stated |
+| `13` | not stated | 0 | reviewed | not stated |
+| `13.1` | not stated | 3 | reviewed | not stated |
+| `13.1.1` | not stated | 0 | reviewed | not stated |
+| `14` | not stated | 0 | reviewed | not stated |
+| `15` | not stated | 0 | reviewed | not stated |
+| `15.1` | not stated | 1 | reviewed | not stated |
+| `15.2` | not stated | 1 | reviewed | not stated |
+| `15.3` | not stated | 1 | reviewed | not stated |
+| `15.4` | not stated | 1 | reviewed | not stated |
+| `15.5` | not stated | 1 | reviewed | not stated |
+| `15.6` | not stated | 1 | reviewed | not stated |
+| `15.7` | not stated | 1 | reviewed | not stated |
 | `16` | not stated | 0 | skipped (iana) | IANA registration actions for the YANG module names registry, carrying no obligation on an implementation |
-| `17` | not stated | 0 | walked | not stated |
+| `17` | not stated | 0 | reviewed | not stated |
 | `18` | boilerplate and bibliography carrying no protocol obligation | 0 | skipped (references) | boilerplate and bibliography carrying no protocol obligation |
 | `18.1` | boilerplate and bibliography carrying no protocol obligation | 0 | skipped (references) | boilerplate and bibliography carrying no protocol obligation |
 | `18.2` | boilerplate and bibliography carrying no protocol obligation | 0 | skipped (references) | boilerplate and bibliography carrying no protocol obligation |

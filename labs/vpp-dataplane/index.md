@@ -10,7 +10,7 @@ Runs a real VPP (FD.io Vector Packet Processor) daemon in Docker and proves Ze's
 
 This is the evidence behind the numbers already published in the VPP guide: on the reference hardware IPng Networks runs in production on AS8298, VPP forwards at roughly 35 Mpps on a 4-core Xeon D-1518 -- line rate where the default kernel-FIB path would be dropping packets.
 
-- **Proves:** Real FIB/traffic/firewall programming into VPP via GoVPP, not a mocked binary API
+- **Proves:** FIB, traffic, and firewall state applied to the VPP daemon through GoVPP
 - **Peer:** Real VPP daemon in a Docker container
 - **Requires:** Docker with a privileged container
 - **Source:** [docs/guide/vpp.md](https://github.com/ze-software/ze/blob/main/docs/guide/vpp.md)

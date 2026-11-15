@@ -1,6 +1,6 @@
 # RFC 9252 - BGP Overlay Services Based on Segment Routing over IPv6 (SRv6)
 
-BGP SRv6 Service TLV (Prefix-SID). Every requirement this repository extracted from RFC 9252, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+BGP SRv6 Service TLV (Prefix-SID). Every requirement listed for RFC 9252, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,23 +10,10 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 14 | of 25 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 5 | of 25 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 25 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 53 | 53 of 64 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-
-### Neutral
-
-measures that are neither good news nor bad
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Gated MUSTs | 25 | of 30 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 25 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 25 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 25 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 25 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 25 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Tested both ways | 14 | of 25 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 5 | of 25 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 25 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Tests shown to detect a fault | 53 | 53 of 64 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -34,56 +21,76 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Partial proof; remaining gap | 3 | of 25 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| No test at all | 3 | of 25 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 18 | of 25 gated MUSTs judged | 3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+| Partial proof; remaining gap | 3 | of 25 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Declared gap or no test | 3 | of 25 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Audit verdicts | 18 | of 25 mandatory requirements reviewed | 3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
-The 9 counts marked as a part above are the whole of the 25 gated MUSTs: they add up to 25. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Neutral
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+measures that are neither good news nor bad
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Out of scope | 0 | of 25 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 25 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 25 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 25 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 25 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+
+### Totals
+
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 25 | of 30 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 25 mandatory requirements: they add up to 25. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | bad | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | BGP SRv6 Service TLV (Prefix-SID) |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 30 |
-| Gated MUST-level | 25 |
+| Mandatory requirements (MUST level) | 25 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 3 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 64 |
-| Tagged units | 64 |
+| Tests linked to requirements | 64 |
 | Recorded audit verdicts | 18 |
-| Discrimination records | 53 |
+| Fault test records | 53 |
 | Summary | `rfc/short/rfc9252.md` |
-| Requirement shard | `rfc/requirements/rfc9252.md` |
+| Requirement table | `rfc/requirements/rfc9252.md` |
 | RFC text | `rfc/full/rfc9252.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: SRv6 BGP Overlay Services / Prefix-SID Service TLV (RFC 9252): receive-side SRv6 L3/L2 Service TLV codec and forwarding treatment based on the final effective next-hop identity. Unchanged identity preserves received Service TLVs; changed identity removes them while retaining unrelated top-level TLVs. The changed-next-hop obligation remains partial because locally allocated SID information is not produced to rebuild the service information. Remaining obligations are bounded by the requirement rows, not by a codec-wide conformance claim. The 2026-09-21 extraction walk read the document against this checklist and changed two things. It corrected the section reference on 21 rows, which carried the draft's numbering (S3.1, S3.2, S3.3, S3.4, S4.1, S5, S6.1, S6.2) rather than the published one: the Service TLV Reserved field is Section 2, the SID Information Sub-TLV is Section 3.1, the argument-validation obligations are Section 3.2.1, the VPN transposition bound is Sections 5.1 and 5.2, the EVPN bounds are Sections 6.1.1 through 6.5, and error handling is Section 7. And it added 6 MUST rows the checklist did not carry: RFC9252-3.2.1-4 (shifted-out bits zeroed in the SID value), RFC9252-3.2.1-5 (per-neighbor and per-service advertisement control), RFC9252-3.2.1-6 (AL zero where the Argument does not apply), RFC9252-5-3 (ingress PE encapsulates in IPv6 and inserts an SRH when required), and RFC9252-7-1 and -7-2 (a second SRv6 L3 or L2 Service TLV is ignored). None of the 6 carries a tagged test, so each is an open gap.
+Included in automatic checks: SRv6 BGP Overlay Services / Prefix-SID Service TLV (RFC 9252): receive-side SRv6 L3/L2 Service TLV codec and forwarding treatment based on the final effective next-hop identity. Unchanged identity preserves received Service TLVs; changed identity removes them while retaining unrelated top-level TLVs. The changed-next-hop obligation remains partial because locally allocated SID information is not produced to rebuild the service information. Remaining obligations are bounded by the requirement rows, not by a codec-wide conformance claim. The 2026-09-21 extraction walk read the document against this checklist and changed two things. It corrected the section reference on 21 rows, which carried the draft's numbering (S3.1, S3.2, S3.3, S3.4, S4.1, S5, S6.1, S6.2) rather than the published one: the Service TLV Reserved field is Section 2, the SID Information Sub-TLV is Section 3.1, the argument-validation obligations are Section 3.2.1, the VPN transposition bound is Sections 5.1 and 5.2, the EVPN bounds are Sections 6.1.1 through 6.5, and error handling is Section 7. And it added 6 MUST rows the checklist did not carry: RFC9252-3.2.1-4 (shifted-out bits zeroed in the SID value), RFC9252-3.2.1-5 (per-neighbor and per-service advertisement control), RFC9252-3.2.1-6 (AL zero where the Argument does not apply), RFC9252-5-3 (ingress PE encapsulates in IPv6 and inserts an SRH when required), and RFC9252-7-1 and -7-2 (a second SRv6 L3 or L2 Service TLV is ignored). None of the 6 carries a tagged test, so each is an open gap.
 
-## What the public ledger says
+## Published support status
 
 **Area:** BGP SRv6 Service TLV (Prefix-SID)
 
@@ -98,14 +105,14 @@ Enrolled: SRv6 BGP Overlay Services / Prefix-SID Service TLV (RFC 9252): receive
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 14 | one part of the gated population |
-| Annotated (including scoped evidence) | 11 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 3 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **25** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 14 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 11 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 3 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **25** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (14):** [`RFC9252-3.1-2`](#rfc9252-3.1-2), [`RFC9252-3.2.1-1`](#rfc9252-3.2.1-1), [`RFC9252-3.2.1-2`](#rfc9252-3.2.1-2), [`RFC9252-3.2.1-3`](#rfc9252-3.2.1-3), [`RFC9252-3.2-5`](#rfc9252-3.2-5), [`RFC9252-5-1`](#rfc9252-5-1), [`RFC9252-3.3-1`](#rfc9252-3.3-1), [`RFC9252-3.4-1`](#rfc9252-3.4-1), [`RFC9252-3.2.1-4`](#rfc9252-3.2.1-4), [`RFC9252-3.2.1-5`](#rfc9252-3.2.1-5), [`RFC9252-3.2.1-6`](#rfc9252-3.2.1-6), [`RFC9252-5-3`](#rfc9252-5-3), [`RFC9252-7-1`](#rfc9252-7-1), [`RFC9252-7-2`](#rfc9252-7-2)
 
@@ -115,20 +122,23 @@ Enrolled: SRv6 BGP Overlay Services / Prefix-SID Service TLV (RFC 9252): receive
 
 ## Figures
 
-- **MUST bar**: Ze proven 14, Ze correctness gap 11
-- **Overview bar**: Ze MUST proven 14, SHOULD not decided 5, Ze correctness gap 11
+- **MUST bar**: Ze proven 14, Proof pending 5, Not built 6
+- **Overview bar**: Ze MUST proven 14, Proof pending 5, Not assessed 5, Not built 6
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 25 |
 | MUST rows kept (the MUST bar) | 25 |
 | Ze proven | 14 |
 | OS verified | 0 |
+| Proof pending | 5 |
 | OS testing gap | 0 |
-| Ze correctness gap | 11 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 6 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -141,11 +151,12 @@ Enrolled: SRv6 BGP Overlay Services / Prefix-SID Service TLV (RFC 9252): receive
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 5 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 5 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc9252.json](../../../data/rfc/rfc9252.json).
 
@@ -161,16 +172,16 @@ Source: [data/rfc/rfc9252.json](../../../data/rfc/rfc9252.json).
 | `RFC9252-3.2.1-1` | In this case, the Transposition Offset MUST be set to 0. (S3.2.1) | MUST | 3.2.1 | **positive:** `unit/verify` [`TestExtractSRv6SIDFull_ZeroLengthNonZeroOffset`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/rfc9252_sid_structure_validity_test.go#L60). **negative:** `unit/verify` [`TestExtractSRv6SIDFull_ZeroLengthNonZeroOffset`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/rfc9252_sid_structure_validity_test.go#L59) |
 | `RFC9252-3.2.1-2` | The transposition offset and length MUST be 0 when the Sub-Sub-TLV is advertised along with routes where the Transposition Scheme is not applicable (e.g., for global IPv6 service [RFC2545] where there is no label field). (§7) | MUST | 7 | **positive:** `unit/verify` [`TestCheckSRv6TranspositionForFamily`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9252_prefixsid_origin_test.go#L23). **positive:** `unit/verify` [`TestSRv6TranspositionOnFamilyWithoutLabelIsIneligible`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9252_srv6_admission_test.go#L105). **positive:** `unit/verify` [`TestUpdateTextSRv6TranspositionNeedsALabelField`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/update/rfc9252_update_text_srv6_transposition_test.go#L26). **negative:** `unit/verify` [`TestCheckSRv6TranspositionForFamily`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9252_prefixsid_origin_test.go#L24). **negative:** `unit/verify` [`TestSRv6TranspositionOnFamilyWithoutLabelIsIneligible`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9252_srv6_admission_test.go#L104). **negative:** `unit/verify` [`TestUpdateTextSRv6TranspositionNeedsALabelField`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/update/rfc9252_update_text_srv6_transposition_test.go#L27). **negative:** `functional/verify` [`srv6-transposition-refused-unicast.ci`](https://github.com/ze-software/ze/blob/main/test/parse/srv6-transposition-refused-unicast.ci#L12) |
 | `RFC9252-3.2.1-3` | As defined in [RFC8986], the sum of the Locator Block Length (LBL), Locator Node Length (LNL), Function Length (FL), and Argument Length (AL) fields MUST be less than or equal to 128 and greater than or equal to the sum of Transposition Offset and Transposition Length. (S3.2.1, errata 7817) | MUST | 3.2.1 | **positive:** `unit/verify` [`TestExtractSRv6SIDFull_Sum128IsValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/rfc9252_sid_structure_validity_test.go#L104). **positive:** `unit/verify` [`TestExtractSRv6SIDFull_WithTransposition`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/rfc9252_srv6sid_test.go#L139). **negative:** `unit/verify` [`TestExtractSRv6SIDFull_InvalidSIDStructure`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/rfc9252_srv6sid_test.go#L217). **negative:** `unit/verify` [`TestExtractSRv6SIDFull_SIDStructureLengthNotSix`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/rfc9252_sid_structure_validity_test.go#L36). **negative:** `unit/verify` [`TestExtractSRv6SIDFull_SumBelowTransposition`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/rfc9252_srv6sid_test.go#L237) |
-| `RFC9252-4.1-1` | When using the Transposition Scheme, the Transposition Length MUST be less than or equal to 20 and less than or equal to the FL. (§5.1, §5.2) | MUST | 5.1 | **positive:** `unit/verify` [`TestCheckSRv6TranspositionLabelWidth`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9252_prefixsid_origin_test.go#L78). **negative:** `unit/verify` [`TestCheckSRv6TranspositionLabelWidth`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9252_prefixsid_origin_test.go#L79). **{partial}:** tested "the Transposition Length MUST be less than or equal to 20"; gap "less than or equal to the FL"; the 20-bit half is enforced on receive, where srv6SIDFromResult refuses to reconstruct and isSRv6Ineligible makes the path ineligible when Transposition Length exceeds nlrisplit.TranspositionLabelWidth (internal/component/bgp/plugins/rib/rib_bestchange.go), and on origination, where internal/core/bgp/attribute/prefixsid.go::CheckSRv6TranspositionForFamily refuses it; neither side nor parseSIDStructure bounds it against the Function Length (internal/component/bgp/plugins/rib/pool/srv6sid.go). **Scoped evidence:** Tests and tag-claim records apply only to Tested; zero whole-requirement credit. not audited: no reader has judged these tests |
+| `RFC9252-4.1-1` | When using the Transposition Scheme, the Transposition Length MUST be less than or equal to 20 and less than or equal to the FL. (§5.1, §5.2) | MUST | 5.1 | **positive:** `unit/verify` [`TestCheckSRv6TranspositionLabelWidth`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9252_prefixsid_origin_test.go#L78). **negative:** `unit/verify` [`TestCheckSRv6TranspositionLabelWidth`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9252_prefixsid_origin_test.go#L79). **{partial}:** tested "the Transposition Length MUST be less than or equal to 20"; gap "less than or equal to the FL"; the 20-bit half is enforced on receive, where srv6SIDFromResult refuses to reconstruct and isSRv6Ineligible makes the path ineligible when Transposition Length exceeds nlrisplit.TranspositionLabelWidth (internal/component/bgp/plugins/rib/rib_bestchange.go), and on origination, where internal/core/bgp/attribute/prefixsid.go::CheckSRv6TranspositionForFamily refuses it; neither side nor parseSIDStructure bounds it against the Function Length (internal/component/bgp/plugins/rib/pool/srv6sid.go). **Partial test coverage:** Tests and fault test records cover only the part marked Tested; they do not prove the whole requirement. not reviewed: no reviewer has checked whether these tests enforce the requirement |
 | `RFC9252-6.1-1` | When using the Transposition Scheme, the Transposition Length MUST be less than or equal to 24 and less than or equal to the AL. (§6.1.1) | MUST | 6.1.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the 24-bit half is enforced by nlrisplit.TranspositionLabelWidth through srv6SIDFromResult and isSRv6Ineligible (internal/component/bgp/plugins/rib/rib_bestchange.go), but the Argument Length is never bounded, the ESI Label extended community that carries these bits is never read, and the EVPN encoder carries no SRv6 ESI-label SID (internal/component/bgp/plugins/rib/pool/srv6sid.go) |
-| `RFC9252-6.2-1` | When using the Transposition Scheme, the Transposition Length MUST be less than or equal to 24 and less than or equal to the FL. (§6.2, §6.3, §6.5) | MUST | 6.2 | **positive:** `unit/verify` [`TestCheckSRv6TranspositionLabelWidth`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9252_prefixsid_origin_test.go#L80). **negative:** `unit/verify` [`TestCheckSRv6TranspositionLabelWidth`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9252_prefixsid_origin_test.go#L81). **{partial}:** tested "the Transposition Length MUST be less than or equal to 24"; gap "less than or equal to the FL"; the 24-bit half is enforced by nlrisplit.TranspositionLabelWidth through srv6SIDFromResult and isSRv6Ineligible on receive (internal/component/bgp/plugins/rib/rib_bestchange.go) and through internal/core/bgp/attribute/prefixsid.go::CheckSRv6TranspositionForFamily on origination, but the Function Length is never bounded and no EVPN label field is read at all -- TranspositionLabel answers only the VPN families, so an EVPN transposition yields no SID rather than a reconstructed one (internal/core/bgp/nlri/nlrisplit/transposition.go). **Scoped evidence:** Tests and tag-claim records apply only to Tested; zero whole-requirement credit. not audited: no reader has judged these tests |
+| `RFC9252-6.2-1` | When using the Transposition Scheme, the Transposition Length MUST be less than or equal to 24 and less than or equal to the FL. (§6.2, §6.3, §6.5) | MUST | 6.2 | **positive:** `unit/verify` [`TestCheckSRv6TranspositionLabelWidth`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9252_prefixsid_origin_test.go#L80). **negative:** `unit/verify` [`TestCheckSRv6TranspositionLabelWidth`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9252_prefixsid_origin_test.go#L81). **{partial}:** tested "the Transposition Length MUST be less than or equal to 24"; gap "less than or equal to the FL"; the 24-bit half is enforced by nlrisplit.TranspositionLabelWidth through srv6SIDFromResult and isSRv6Ineligible on receive (internal/component/bgp/plugins/rib/rib_bestchange.go) and through internal/core/bgp/attribute/prefixsid.go::CheckSRv6TranspositionForFamily on origination, but the Function Length is never bounded and no EVPN label field is read at all -- TranspositionLabel answers only the VPN families, so an EVPN transposition yields no SID rather than a reconstructed one (internal/core/bgp/nlri/nlrisplit/transposition.go). **Partial test coverage:** Tests and fault test records cover only the part marked Tested; they do not prove the whole requirement. not reviewed: no reviewer has checked whether these tests enforce the requirement |
 | `RFC9252-3.2-4` | An unrecognized SRv6 Endpoint Behavior MUST NOT be considered invalid by the receiver, except for behaviors that involve the use of arguments (§3.1) | MUST NOT | 3.1 | **positive:** `unit/verify` [`TestExtractSRv6SID_UnknownEndpointBehavior`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/rfc9252_srv6sid_test.go#L287). **negative:** no negative test. **{single-polarity}:** extractSIDFromServiceTLV extracts the SID without inspecting or validating the SRv6 Endpoint Behavior, so an unrecognized behavior is never rejected and there is no behavior-based rejection path to drive negatively (internal/component/bgp/plugins/rib/pool/srv6sid.go:84) |
 | `RFC9252-3.2-5` | A receiver is unable to validate the applicability of arguments for SRv6 Endpoint Behaviors that are unknown to it and hence MUST ignore SRv6 SIDs with arguments (indicated by a non-zero AL) with unknown SRv6 Endpoint Behaviors. (S3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestExtractSRv6SIDFull_NonZeroArgumentLengthInvalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/rfc9252_sid_structure_validity_test.go#L84). **negative:** `unit/verify` [`TestExtractSRv6SIDFull_NonZeroArgumentLengthInvalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/rfc9252_sid_structure_validity_test.go#L83) |
 | `RFC9252-3.2-6` | For SIDs corresponding to an SRv6 Endpoint Behavior that is known, a receiver MUST validate that the consistency of the AL with the specific SRv6 Endpoint Behavior definition. (S3.2) | MUST | 3.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze has no SRv6 Endpoint Behavior definitions, so it never validates the Argument Length against a known behavior's expected argument size (internal/component/bgp/plugins/rib/pool/srv6sid.go:84) |
 | `RFC9252-5-1` | The path having any such Prefix-SID attribute without any valid SRv6 SID information MUST be considered ineligible during the selection of the best path for the corresponding prefix. (§7) | MUST | 7 | **positive:** `unit/verify` [`TestIsSRv6Ineligible_ValidSID`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9252_srv6_ineligible_test.go#L77). **positive:** `unit/verify` [`TestSRv6TranspositionAtLabelWidthIsEligible`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9252_srv6_admission_test.go#L75). **negative:** `unit/verify` [`TestIsSRv6Ineligible_InvalidSIDStructure`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9252_srv6_admission_test.go#L44). **negative:** `unit/verify` [`TestSRv6TranspositionWiderThanLabelFieldIsIneligible`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9252_srv6_transposition_test.go#L201). **negative:** `functional/verify` [`srv6-invalid-sid-ineligible.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/srv6-invalid-sid-ineligible.ci#L4) |
 | `RFC9252-5-2` | Therefore, the ingress PE MUST perform a resolvability check for the SRv6 Service SID before considering the received prefix for the BGP best path computation. (S5) | MUST | 5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze acts as an SRv6 ingress PE -- it extracts the received best-path Service SID (internal/component/bgp/plugins/rib/rib_bestchange.go:729,:882) and installs it into the FIB as a kernel SEG6 encap route (internal/plugins/fib/kernel/nexthop_linux.go:78) or a VPP SR steering policy (internal/plugins/fib/vpp/srv6.go:35) -- but performs no RFC 9252 Section 5 resolvability check: isSRv6Ineligible (internal/component/bgp/plugins/rib/rib_bestchange.go:963) gates best-path on SID extraction validity only, never on locator reachability (no resolvability check exists in internal/component/bgp) |
 | `RFC9252-3.3-1` | If the BGP next hop is unchanged during the advertisement, the SRv6 Service TLVs, including any unrecognized Types of Sub-TLV and Sub-Sub-TLV, SHOULD be propagated further. In addition, all Reserved fields in the TLV, Sub-TLV, or Sub-Sub-TLV MUST be propagated unchanged. (§2) | MUST | 2 | **positive:** `unit/verify` [`TestPrefixSIDPropagationNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go#L338). **positive:** `unit/verify` [`TestRFC9252EffectiveNextHopControlsServiceTLVs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9252_effective_next_hop_test.go#L30). **positive:** `unit/verify` [`TestRFC9252ReservedFieldsPropagatedUnchanged`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9252_reserved_propagated_test.go#L55). **negative:** `unit/verify` [`TestPrefixSIDPropagationNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go#L339). **negative:** `unit/verify` [`TestRFC9252EffectiveNextHopControlsServiceTLVs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9252_effective_next_hop_test.go#L31) |
-| `RFC9252-3.3-2` | If the BGP next hop is changed, the TLVs, Sub-TLVs, and Sub-Sub- TLVs SHOULD be updated with the locally allocated SRv6 SID information. Any received Sub-TLVs and Sub-Sub-TLVs that are unrecognized MUST be removed. (§2) | MUST | 2 | **positive:** `unit/verify` [`TestPrefixSIDPropagationNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go#L340). **positive:** `unit/verify` [`TestRFC9252EffectiveNextHopControlsServiceTLVs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9252_effective_next_hop_test.go#L32). **positive:** `unit/verify` [`TestRFC9252ServiceOnlyPrefixSIDDroppedOnANextHopChange`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go#L176). **negative:** `unit/verify` [`TestPrefixSIDPropagationNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go#L341). **negative:** `unit/verify` [`TestRFC9252EffectiveNextHopControlsServiceTLVs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9252_effective_next_hop_test.go#L33). **{partial}:** tested "Any received Sub-TLVs and Sub-Sub-TLVs that are unrecognized MUST be removed."; gap "SHOULD be updated with the locally allocated SRv6 SID information."; internal/component/bgp/reactor/forward_prefix_sid.go::applyEgressPrefixSIDNextHop compares the received and final effective next-hop entity and requests removal of the received SRv6 Service TLVs when that entity changes. The registered handler removes their unknown nested fields while retaining unrelated top-level TLVs. Locally allocated SRv6 SID information is not produced to rebuild the service information; only that allocation/rebuilding remains absent and uncommissioned.. **Scoped evidence:** Tests and tag-claim records apply only to Tested; zero whole-requirement credit. partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. Tested: ‘Any received Sub-TLVs and Sub-Sub-TLVs that are unrecognized MUST be removed.’ Gap: ‘SHOULD be updated with the locally allocated SRv6 SID information.’ Producer: internal/component/bgp/reactor/forward_prefix_sid.go::applyEgressPrefixSIDNextHop. Independent post-fix review confirms that original received identity is compared with final effective carrier identity after policy/configuration/scope on cached and RS paths, including raw-policy fallback and repaired intermediate addressless MP fields. The registered prefixSIDNextHopHandler consumes Remove of types 5 and 6 while retaining unrelated top-level TLVs. Migrated TestPrefixSIDPropagationNextHop and TestRFC9252EffectiveNextHopControlsServiceTLVs inspect actual recipient Session output: effective A-to-B removes Service TLVs and unknown nested fields while the route survives; A-to-A and restoration controls preserve them; mixed MP/legacy cases follow the applicable MP identity; unknown top-level TLVs and SRGB remain, with Label-Index transmit normalization tested separately. The older service-only test supplies complementary removal evidence, and the new actual-writer service-only cases forbid an empty attribute. The policy-only-change and equal-address defects are fixed, not scoped away. Locally allocated SRv6 SID information is still not produced to rebuild the service information, so the whole SHOULD-plus-MUST quotation remains partial. No local SID allocation is commissioned, and pending live FRR/SDK or native-record completion is not claimed by this source judgment. Re-judged 2026-10-14 (independent reader, after 8c1c4013f2 and 7d37dcd562). The only edit to TestRFC9252EffectiveNextHopControlsServiceTLVs changes the expected Label-Index from normalized to as received (unrecognized off labeled unicast, RFC 8669 Section 3.1); the Tested removal assertions are unchanged and the Gap (no locally allocated SRv6 SID information) stands. Verdict unchanged. |
+| `RFC9252-3.3-2` | If the BGP next hop is changed, the TLVs, Sub-TLVs, and Sub-Sub- TLVs SHOULD be updated with the locally allocated SRv6 SID information. Any received Sub-TLVs and Sub-Sub-TLVs that are unrecognized MUST be removed. (§2) | MUST | 2 | **positive:** `unit/verify` [`TestPrefixSIDPropagationNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go#L340). **positive:** `unit/verify` [`TestRFC9252EffectiveNextHopControlsServiceTLVs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9252_effective_next_hop_test.go#L32). **positive:** `unit/verify` [`TestRFC9252ServiceOnlyPrefixSIDDroppedOnANextHopChange`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go#L176). **negative:** `unit/verify` [`TestPrefixSIDPropagationNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go#L341). **negative:** `unit/verify` [`TestRFC9252EffectiveNextHopControlsServiceTLVs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9252_effective_next_hop_test.go#L33). **{partial}:** tested "Any received Sub-TLVs and Sub-Sub-TLVs that are unrecognized MUST be removed."; gap "SHOULD be updated with the locally allocated SRv6 SID information."; internal/component/bgp/reactor/forward_prefix_sid.go::applyEgressPrefixSIDNextHop compares the received and final effective next-hop entity and requests removal of the received SRv6 Service TLVs when that entity changes. The registered handler removes their unknown nested fields while retaining unrelated top-level TLVs. Locally allocated SRv6 SID information is not produced to rebuild the service information; only that allocation/rebuilding remains absent and uncommissioned.. **Partial test coverage:** Tests and fault test records cover only the part marked Tested; they do not prove the whole requirement. partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. Tested: ‘Any received Sub-TLVs and Sub-Sub-TLVs that are unrecognized MUST be removed.’ Gap: ‘SHOULD be updated with the locally allocated SRv6 SID information.’ Producer: internal/component/bgp/reactor/forward_prefix_sid.go::applyEgressPrefixSIDNextHop. Independent post-fix review confirms that original received identity is compared with final effective carrier identity after policy/configuration/scope on cached and RS paths, including raw-policy fallback and repaired intermediate addressless MP fields. The registered prefixSIDNextHopHandler consumes Remove of types 5 and 6 while retaining unrelated top-level TLVs. Migrated TestPrefixSIDPropagationNextHop and TestRFC9252EffectiveNextHopControlsServiceTLVs inspect actual recipient Session output: effective A-to-B removes Service TLVs and unknown nested fields while the route survives; A-to-A and restoration controls preserve them; mixed MP/legacy cases follow the applicable MP identity; unknown top-level TLVs and SRGB remain, with Label-Index transmit normalization tested separately. The older service-only test supplies complementary removal evidence, and the new actual-writer service-only cases forbid an empty attribute. The policy-only-change and equal-address defects are fixed, not scoped away. Locally allocated SRv6 SID information is still not produced to rebuild the service information, so the whole SHOULD-plus-MUST quotation remains partial. No local SID allocation is commissioned, and pending live FRR/SDK or native-record completion is not claimed by this source judgment. Re-judged 2026-10-14 (independent reader, after 8c1c4013f2 and 7d37dcd562). The only edit to TestRFC9252EffectiveNextHopControlsServiceTLVs changes the expected Label-Index from normalized to as received (unrecognized off labeled unicast, RFC 8669 Section 3.1); the Tested removal assertions are unchanged and the Gap (no locally allocated SRv6 SID information) stands. Verdict unchanged. |
 | `RFC9252-3.4-1` | The treat-as-withdraw action [RFC7606] MUST be performed when at least one malformed SRv6 Service TLV is present in the BGP Prefix-SID attribute. (§7) | MUST | 7 | **positive:** `unit/verify` [`TestValidatePrefixSIDAttr_Valid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L2411). **negative:** `unit/verify` [`TestRFC7606PrefixSIDFramingErrorAfterServiceTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9252_service_tlv_overrun_test.go#L119). **negative:** `unit/verify` [`TestRFC9252SIDInformationStrayOctetsTreatAsWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9252_service_tlv_overrun_test.go#L98). **negative:** `unit/verify` [`TestRFC9252ServiceTLVOverrunTreatAsWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9252_service_tlv_overrun_test.go#L31). **negative:** `unit/verify` [`TestRFC9252ZeroLengthServiceTLVTreatAsWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9252_service_tlv_overrun_test.go#L60). **negative:** `unit/verify` [`TestValidateSRv6ServiceTLV_SIDInfoTooShort`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L2480). **negative:** `unit/verify` [`TestValidateSRv6ServiceTLV_TrailingBytes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L2440). **negative:** `functional/verify` [`prefixsid-malformed-receive.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-malformed-receive.ci#L8) |
 | `RFC9252-3.2.1-4` | The bits that have been shifted out MUST be set to 0 in the SID value. (§3.2.1) | MUST | 3.2.1 | **positive:** `unit/verify` [`TestSRv6OriginTranspositionKeepsOnlyUntransposedBits`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc9252_routeattr_srv6_test.go#L10). **negative:** `unit/verify` [`TestSRv6OriginRefusesNonzeroTransposedBits`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc9252_routeattr_srv6_test.go#L21) |
 | `RFC9252-3.2.1-5` | Implementations supporting this specification MUST provide a mechanism to control the advertisement of SRv6-based BGP service routes on a per-neighbor and per-service basis. (S3.2.1) | MUST | 3.2.1 | **positive:** `functional/verify` [`srv6-service-export-control.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/srv6-service-export-control.ci#L2). **negative:** `functional/verify` [`srv6-service-export-control.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/srv6-service-export-control.ci#L3) |
@@ -197,7 +208,7 @@ Source: [data/rfc/rfc9252.json](../../../data/rfc/rfc9252.json).
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC9252-3.1-1`](#rfc9252-3.1-1)
 
@@ -254,7 +265,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) 
 
 In this case, the Transposition Offset MUST be set to 0. (S3.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -265,7 +276,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The transposition offset and length MUST be 0 when the Sub-Sub-TLV is advertised along with routes where the Transposition Scheme is not applicable (e.g., for global IPv6 service [RFC2545] where there is no label field). (§7)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -295,9 +306,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 When using the Transposition Scheme, the Transposition Length MUST be less than or equal to 20 and less than or equal to the FL. (§5.1, §5.2)
 
-Scoped tag-claim records only: tested "the Transposition Length MUST be less than or equal to 20"; gap "less than or equal to the FL"; the 20-bit half is enforced on receive, where srv6SIDFromResult refuses to reconstruct and isSRv6Ineligible makes the path ineligible when Transposition Length exceeds nlrisplit.TranspositionLabelWidth (internal/component/bgp/plugins/rib/rib_bestchange.go), and on origination, where internal/core/bgp/attribute/prefixsid.go::CheckSRv6TranspositionForFamily refuses it; neither side nor parseSIDStructure bounds it against the Function Length (internal/component/bgp/plugins/rib/pool/srv6sid.go); zero whole-requirement credit.
+Records cover only part of this requirement: tested "the Transposition Length MUST be less than or equal to 20"; gap "less than or equal to the FL"; the 20-bit half is enforced on receive, where srv6SIDFromResult refuses to reconstruct and isSRv6Ineligible makes the path ineligible when Transposition Length exceeds nlrisplit.TranspositionLabelWidth (internal/component/bgp/plugins/rib/rib_bestchange.go), and on origination, where internal/core/bgp/attribute/prefixsid.go::CheckSRv6TranspositionForFamily refuses it; neither side nor parseSIDStructure bounds it against the Function Length (internal/component/bgp/plugins/rib/pool/srv6sid.go); they do not prove the whole requirement.
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -308,17 +319,17 @@ Audit verdict: not audited: no reader has judged these tests
 
 When using the Transposition Scheme, the Transposition Length MUST be less than or equal to 24 and less than or equal to the AL. (§6.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9252-6.1-1, so no unit is bound to it.
+No test carries RFC9252-6.1-1, so there is no linked test.
 
 ### [`RFC9252-6.2-1`](#rfc9252-6.2-1)
 
 When using the Transposition Scheme, the Transposition Length MUST be less than or equal to 24 and less than or equal to the FL. (§6.2, §6.3, §6.5)
 
-Scoped tag-claim records only: tested "the Transposition Length MUST be less than or equal to 24"; gap "less than or equal to the FL"; the 24-bit half is enforced by nlrisplit.TranspositionLabelWidth through srv6SIDFromResult and isSRv6Ineligible on receive (internal/component/bgp/plugins/rib/rib_bestchange.go) and through internal/core/bgp/attribute/prefixsid.go::CheckSRv6TranspositionForFamily on origination, but the Function Length is never bounded and no EVPN label field is read at all -- TranspositionLabel answers only the VPN families, so an EVPN transposition yields no SID rather than a reconstructed one (internal/core/bgp/nlri/nlrisplit/transposition.go); zero whole-requirement credit.
+Records cover only part of this requirement: tested "the Transposition Length MUST be less than or equal to 24"; gap "less than or equal to the FL"; the 24-bit half is enforced by nlrisplit.TranspositionLabelWidth through srv6SIDFromResult and isSRv6Ineligible on receive (internal/component/bgp/plugins/rib/rib_bestchange.go) and through internal/core/bgp/attribute/prefixsid.go::CheckSRv6TranspositionForFamily on origination, but the Function Length is never bounded and no EVPN label field is read at all -- TranspositionLabel answers only the VPN families, so an EVPN transposition yields no SID rather than a reconstructed one (internal/core/bgp/nlri/nlrisplit/transposition.go); they do not prove the whole requirement.
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -339,7 +350,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) 
 
 A receiver is unable to validate the applicability of arguments for SRv6 Endpoint Behaviors that are unknown to it and hence MUST ignore SRv6 SIDs with arguments (indicated by a non-zero AL) with unknown SRv6 Endpoint Behaviors. (S3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -350,9 +361,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 For SIDs corresponding to an SRv6 Endpoint Behavior that is known, a receiver MUST validate that the consistency of the AL with the specific SRv6 Endpoint Behavior definition. (S3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9252-3.2-6, so no unit is bound to it.
+No test carries RFC9252-3.2-6, so there is no linked test.
 
 ### [`RFC9252-5-1`](#rfc9252-5-1)
 
@@ -372,9 +383,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 Therefore, the ingress PE MUST perform a resolvability check for the SRv6 Service SID before considering the received prefix for the BGP best path computation. (S5)
 
-Audit verdict: unimplemented (no code path enforces the requirement), fresh. {gap} confirmed at the producer. isSRv6Ineligible (internal/component/bgp/plugins/rib/rib_bestchange.go) is the only best-path gate on the SRv6 Service SID, and it excludes a route only when an SRv6 Service TLV yields no extractable SID; it never asks whether the SID resolves. The one resolvability check ze runs, srv6SIDResolvable in sysRIB.fibEntry (internal/component/sysrib/sysrib.go), runs after both selections and only declines the FIB write, so a route whose SID reaches nothing still wins the prefix and the next-best route is not used. No tagged unit exists; the check before best path is plan/immediate/spec-srv6-bestpath-resolvability.md. Re-judged 2026-10-14 (independent reader, after 8c1c4013f2 and 7d37dcd562). isSRv6Ineligible now takes the family and excludes a path whose SID ExtractSRv6SIDFull or srv6SIDValidForFamily finds invalid (Section 3.2.1 fields, transposition width); it still never asks whether the SID resolves, so the gap stands.
+Audit verdict: unimplemented (no code path enforces the requirement), fresh. {gap} re-confirmed at the producer 2026-11-14 by an independent auditor. RFC 9252 Section 5: "Therefore, the ingress PE MUST perform a resolvability check for the SRv6 Service SID before considering the received prefix for the BGP best path computation." The edits to sysRIB.fibEntry (internal/component/sysrib/sysrib.go) since the last judgement are d73a860caf, which turns srv6SIDResolvable and the next-hop resolver into methods on the sysRIB (s.srv6SIDResolvable, s.nextHopResolver) for the process-boundary work, and 13590fe5b2, which renames the caller named in its comment (processCascade to cascadeChanges). The check still runs after both selections and only declines the FIB write, so a route whose SID resolves to nothing still wins the prefix. isSRv6Ineligible (internal/component/bgp/plugins/rib/rib_bestchange.go) is unchanged and still gates best path on SID extraction and family validity only; no resolvability check exists in internal/component/bgp/plugins/rib. The gap stands; the check before best path is owed by plan/release/fixes/spec-srv6-bestpath-resolvability.md.
 
-No test carries RFC9252-5-2, so no unit is bound to it.
+No test carries RFC9252-5-2, so there is no linked test.
 
 ### [`RFC9252-3.3-1`](#rfc9252-3.3-1)
 
@@ -394,7 +405,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 If the BGP next hop is changed, the TLVs, Sub-TLVs, and Sub-Sub- TLVs SHOULD be updated with the locally allocated SRv6 SID information. Any received Sub-TLVs and Sub-Sub-TLVs that are unrecognized MUST be removed. (§2)
 
-Scoped tag-claim records only: tested "Any received Sub-TLVs and Sub-Sub-TLVs that are unrecognized MUST be removed."; gap "SHOULD be updated with the locally allocated SRv6 SID information."; internal/component/bgp/reactor/forward_prefix_sid.go::applyEgressPrefixSIDNextHop compares the received and final effective next-hop entity and requests removal of the received SRv6 Service TLVs when that entity changes. The registered handler removes their unknown nested fields while retaining unrelated top-level TLVs. Locally allocated SRv6 SID information is not produced to rebuild the service information; only that allocation/rebuilding remains absent and uncommissioned.; zero whole-requirement credit.
+Records cover only part of this requirement: tested "Any received Sub-TLVs and Sub-Sub-TLVs that are unrecognized MUST be removed."; gap "SHOULD be updated with the locally allocated SRv6 SID information."; internal/component/bgp/reactor/forward_prefix_sid.go::applyEgressPrefixSIDNextHop compares the received and final effective next-hop entity and requests removal of the received SRv6 Service TLVs when that entity changes. The registered handler removes their unknown nested fields while retaining unrelated top-level TLVs. Locally allocated SRv6 SID information is not produced to rebuild the service information; only that allocation/rebuilding remains absent and uncommissioned.; they do not prove the whole requirement.
 
 Audit verdict: partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. Tested: ‘Any received Sub-TLVs and Sub-Sub-TLVs that are unrecognized MUST be removed.’ Gap: ‘SHOULD be updated with the locally allocated SRv6 SID information.’ Producer: internal/component/bgp/reactor/forward_prefix_sid.go::applyEgressPrefixSIDNextHop. Independent post-fix review confirms that original received identity is compared with final effective carrier identity after policy/configuration/scope on cached and RS paths, including raw-policy fallback and repaired intermediate addressless MP fields. The registered prefixSIDNextHopHandler consumes Remove of types 5 and 6 while retaining unrelated top-level TLVs. Migrated TestPrefixSIDPropagationNextHop and TestRFC9252EffectiveNextHopControlsServiceTLVs inspect actual recipient Session output: effective A-to-B removes Service TLVs and unknown nested fields while the route survives; A-to-A and restoration controls preserve them; mixed MP/legacy cases follow the applicable MP identity; unknown top-level TLVs and SRGB remain, with Label-Index transmit normalization tested separately. The older service-only test supplies complementary removal evidence, and the new actual-writer service-only cases forbid an empty attribute. The policy-only-change and equal-address defects are fixed, not scoped away. Locally allocated SRv6 SID information is still not produced to rebuild the service information, so the whole SHOULD-plus-MUST quotation remains partial. No local SID allocation is commissioned, and pending live FRR/SDK or native-record completion is not claimed by this source judgment. Re-judged 2026-10-14 (independent reader, after 8c1c4013f2 and 7d37dcd562). The only edit to TestRFC9252EffectiveNextHopControlsServiceTLVs changes the expected Label-Index from normalized to as received (unrecognized off labeled unicast, RFC 8669 Section 3.1); the Tested removal assertions are unchanged and the Gap (no locally allocated SRv6 SID information) stands. Verdict unchanged.
 
@@ -491,7 +502,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | negative | [`TestRFC9252SecondL2ServiceTLVIgnoredWhenFirstHasNoSID`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/rfc9252_service_tlv_first_instance_test.go#L50) | unit/verify | revert, verified |
 | positive | [`TestRFC9252FirstServiceTLVWins`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/rfc9252_first_service_tlv_test.go#L33) | unit/verify | revert, verified |
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -510,45 +521,45 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
-| `front` | not stated | 0 | walked | not stated |
-| `1` | not stated | 1 | walked | not stated |
-| `1.1` | not stated | 0 | walked | not stated |
-| `2` | not stated | 3 | walked | not stated |
-| `3` | not stated | 0 | walked | not stated |
-| `3.1` | not stated | 4 | walked | not stated |
-| `3.2` | not stated | 0 | walked | not stated |
-| `3.2.1` | not stated | 7 | walked | not stated |
-| `4` | not stated | 0 | walked | not stated |
-| `5` | not stated | 2 | walked | not stated |
-| `5.1` | not stated | 1 | walked | not stated |
-| `5.2` | not stated | 1 | walked | not stated |
-| `5.3` | not stated | 0 | walked | not stated |
-| `5.4` | not stated | 0 | walked | not stated |
-| `6` | not stated | 2 | walked | not stated |
-| `6.1` | not stated | 0 | walked | not stated |
-| `6.1.1` | not stated | 1 | walked | not stated |
-| `6.1.2` | not stated | 1 | walked | not stated |
-| `6.2` | not stated | 2 | walked | not stated |
-| `6.2.1` | not stated | 1 | walked | not stated |
-| `6.2.2` | not stated | 2 | walked | not stated |
-| `6.3` | not stated | 1 | walked | not stated |
-| `6.4` | not stated | 0 | walked | not stated |
-| `6.5` | not stated | 1 | walked | not stated |
-| `6.6` | not stated | 0 | walked | not stated |
-| `7` | not stated | 5 | walked | not stated |
-| `8` | not stated | 0 | walked | not stated |
-| `8.1` | not stated | 0 | walked | not stated |
-| `8.2` | not stated | 0 | walked | not stated |
-| `8.3` | not stated | 0 | walked | not stated |
-| `8.4` | not stated | 0 | walked | not stated |
-| `8.5` | not stated | 0 | walked | not stated |
-| `9` | not stated | 0 | walked | not stated |
-| `9.1` | not stated | 0 | walked | not stated |
-| `9.2` | not stated | 0 | walked | not stated |
-| `9.3` | not stated | 1 | walked | not stated |
-| `10` | not stated | 0 | walked | not stated |
-| `10.1` | not stated | 0 | walked | not stated |
-| `10.2` | not stated | 0 | walked | not stated |
+| `front` | not stated | 0 | reviewed | not stated |
+| `1` | not stated | 1 | reviewed | not stated |
+| `1.1` | not stated | 0 | reviewed | not stated |
+| `2` | not stated | 3 | reviewed | not stated |
+| `3` | not stated | 0 | reviewed | not stated |
+| `3.1` | not stated | 4 | reviewed | not stated |
+| `3.2` | not stated | 0 | reviewed | not stated |
+| `3.2.1` | not stated | 7 | reviewed | not stated |
+| `4` | not stated | 0 | reviewed | not stated |
+| `5` | not stated | 2 | reviewed | not stated |
+| `5.1` | not stated | 1 | reviewed | not stated |
+| `5.2` | not stated | 1 | reviewed | not stated |
+| `5.3` | not stated | 0 | reviewed | not stated |
+| `5.4` | not stated | 0 | reviewed | not stated |
+| `6` | not stated | 2 | reviewed | not stated |
+| `6.1` | not stated | 0 | reviewed | not stated |
+| `6.1.1` | not stated | 1 | reviewed | not stated |
+| `6.1.2` | not stated | 1 | reviewed | not stated |
+| `6.2` | not stated | 2 | reviewed | not stated |
+| `6.2.1` | not stated | 1 | reviewed | not stated |
+| `6.2.2` | not stated | 2 | reviewed | not stated |
+| `6.3` | not stated | 1 | reviewed | not stated |
+| `6.4` | not stated | 0 | reviewed | not stated |
+| `6.5` | not stated | 1 | reviewed | not stated |
+| `6.6` | not stated | 0 | reviewed | not stated |
+| `7` | not stated | 5 | reviewed | not stated |
+| `8` | not stated | 0 | reviewed | not stated |
+| `8.1` | not stated | 0 | reviewed | not stated |
+| `8.2` | not stated | 0 | reviewed | not stated |
+| `8.3` | not stated | 0 | reviewed | not stated |
+| `8.4` | not stated | 0 | reviewed | not stated |
+| `8.5` | not stated | 0 | reviewed | not stated |
+| `9` | not stated | 0 | reviewed | not stated |
+| `9.1` | not stated | 0 | reviewed | not stated |
+| `9.2` | not stated | 0 | reviewed | not stated |
+| `9.3` | not stated | 1 | reviewed | not stated |
+| `10` | not stated | 0 | reviewed | not stated |
+| `10.1` | not stated | 0 | reviewed | not stated |
+| `10.2` | not stated | 0 | reviewed | not stated |
 
 ### Excluded sentences
 

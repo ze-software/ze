@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>BGP-LS RFC coverage - Ze</title>
-        <meta name="description" content="Technology aggregate bgp-ls: the MUST and overview coverage of its RFCs." />
+        <meta name="description" content="Technology profile bgp-ls: the MUST and overview coverage of its RFCs." />
         <meta property="og:title" content="BGP-LS RFC coverage - Ze" />
-        <meta property="og:description" content="Technology aggregate bgp-ls: the MUST and overview coverage of its RFCs." />
+        <meta property="og:description" content="Technology profile bgp-ls: the MUST and overview coverage of its RFCs." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="BGP-LS RFC coverage - Ze" />
-        <meta name="twitter:description" content="Technology aggregate bgp-ls: the MUST and overview coverage of its RFCs." />
+        <meta name="twitter:description" content="Technology profile bgp-ls: the MUST and overview coverage of its RFCs." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../../assets/vendor/fonts/fonts.css" />
@@ -45,9 +45,9 @@
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section aria-labeledby="rfc-profile-title" class="md-content reveal cat-observe">
 <div class="journey-hero reveal">
-    <span class="journey-eyebrow">Technology aggregate</span>
+    <span class="journey-eyebrow">Technology profile</span>
     <h1 id="rfc-profile-title">BGP-LS</h1>
-    <p>BGP Link-State distribution. The RFCs whose summary names the bgp-ls aggregate, with the MUST bar and the overview bar of the set and of each RFC.</p>
+    <p>BGP Link-State distribution. The RFCs grouped under bgp-ls, showing mandatory requirement coverage and overall coverage for the group and each RFC.</p>
 </div>
 <style>
 .rfc-table-wrap { overflow-x: auto; }
@@ -57,16 +57,25 @@
 .rfc-verdict p:last-child { margin-bottom: 0; }
 .rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
-.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
-.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: block; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
 .rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
-.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
-.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-card b { display: block; margin: 0; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: .5rem 0 0; color: var(--muted); font-size: .92rem; line-height: 1.6; }
+.rfc-card.rfc-total-card { grid-column: 1 / -1; display: grid; grid-template-columns: 15rem minmax(0, 1fr); column-gap: 1.5rem; align-items: start; }
+.rfc-card.rfc-total-card span, .rfc-card.rfc-total-card strong, .rfc-card.rfc-total-card b { grid-column: 1; }
+.rfc-card.rfc-total-card p { grid-column: 2; grid-row: 1 / span 3; margin: 0; }
+@media (max-width: 760px) {
+  .rfc-card-grid { grid-template-columns: minmax(0, 1fr); }
+  .rfc-card.rfc-total-card { display: block; }
+  .rfc-card.rfc-total-card p { margin: .5rem 0 0; }
+}
 .rfc-ok { border-left: 7px solid var(--green); }
 .rfc-neutral { border-left: 7px solid var(--line-strong); }
 .rfc-warn { border-left: 7px solid var(--amber); }
 .rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-card.rfc-total-card { background: var(--bg-soft); border: 1px solid var(--line-strong); box-shadow: none; }
 .rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
 .rfc-tape span { width: var(--w); min-width: 0; display: block; }
 .rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
@@ -87,6 +96,7 @@
 .rfc-swatch.rfc-neutral { background: var(--line-strong); }
 .rfc-swatch.rfc-warn { background: var(--amber); }
 .rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-swatch.rfc-total-card { background: var(--bg-soft); }
 .rfc-total td { border-top: 2px solid var(--line-strong); }
 .rfc-prose { max-width: 46rem; }
 ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
@@ -117,9 +127,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><a href="../">All profiles</a> · <a href="../../">All RFCs</a></p>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="profile/bgp-ls/required:must">Ze proven 83, Ze correctness gap 41</div>
+<div data-ze-rfc-bar="profile/bgp-ls/required:must">Ze proven 83, Proof pending 11, Not built 30</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="profile/bgp-ls/required:overview">Ze MUST proven 83, SHOULD proven 4, Not owed 1, SHOULD not decided 69, Ze correctness gap 41</div>
+<div data-ze-rfc-bar="profile/bgp-ls/required:overview">Ze MUST proven 83, SHOULD proven 4, Not owed 1, Proof pending 11, Not assessed 67, Not built 32</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -127,10 +137,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>RFCs</td>
 <td><span data-ze-rfc="profile/bgp-ls/required:rfcs">6</span></td>
 </tr>
-<tr><td>Not walked</td>
+<tr><td>Requirements not reviewed</td>
 <td><span data-ze-rfc="profile/bgp-ls/required:not-walked">0</span></td>
 </tr>
-<tr><td>Mandatory register</td>
+<tr><td>Mandatory requirements complete</td>
 <td><span data-ze-rfc="profile/bgp-ls/required:register">not complete</span></td>
 </tr>
 <tr><td>MUST rows</td>
@@ -145,11 +155,20 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="profile/bgp-ls/required:must.os-verified">0</span></td>
 </tr>
+<tr><td>Proof pending</td>
+<td><span data-ze-rfc="profile/bgp-ls/required:must.proof-pending">11</span></td>
+</tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="profile/bgp-ls/required:must.os-gap">0</span></td>
 </tr>
-<tr><td>Ze correctness gap</td>
-<td><span data-ze-rfc="profile/bgp-ls/required:must.ze-gap">41</span></td>
+<tr><td>Exclusion unchecked</td>
+<td><span data-ze-rfc="profile/bgp-ls/required:must.exclusion-unchecked">0</span></td>
+</tr>
+<tr><td>Not assessed</td>
+<td><span data-ze-rfc="profile/bgp-ls/required:must.not-assessed">0</span></td>
+</tr>
+<tr><td>Not built</td>
+<td><span data-ze-rfc="profile/bgp-ls/required:must.not-built">30</span></td>
 </tr>
 <tr><td>MUST rows not owed</td>
 <td><span data-ze-rfc="profile/bgp-ls/required:must.not-owed">1</span></td>
@@ -187,22 +206,25 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD not owed: not-applicable</td>
 <td><span data-ze-rfc="profile/bgp-ls/required:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
-<tr><td>SHOULD not ever</td>
-<td><span data-ze-rfc="profile/bgp-ls/required:should.not-ever">0</span></td>
+<tr><td>SHOULD proof pending</td>
+<td><span data-ze-rfc="profile/bgp-ls/required:should.proof-pending">0</span></td>
 </tr>
-<tr><td>SHOULD not yet</td>
-<td><span data-ze-rfc="profile/bgp-ls/required:should.not-yet">0</span></td>
+<tr><td>SHOULD exclusion unchecked</td>
+<td><span data-ze-rfc="profile/bgp-ls/required:should.exclusion-unchecked">0</span></td>
 </tr>
-<tr><td>SHOULD not decided</td>
-<td><span data-ze-rfc="profile/bgp-ls/required:should.not-decided">69</span></td>
+<tr><td>SHOULD not assessed</td>
+<td><span data-ze-rfc="profile/bgp-ls/required:should.not-assessed">67</span></td>
+</tr>
+<tr><td>SHOULD not built</td>
+<td><span data-ze-rfc="profile/bgp-ls/required:should.not-built">2</span></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.</p>
+<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
 </section>
 <section><h2>Tree</h2>
-<p>Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each RFC carries the same two bars as the set above, from its own data file; an RFC that is not walked shows &#34;not walked&#34; and no bar.</p>
+<p>The RFCs are listed with the standards they build on first. An RFC appears one level after the highest level of its dependencies; RFCs that refer back to each other share a level. Each RFC has the same two coverage bars as the group above. An RFC whose requirement list has not been reviewed shows &#34;requirements not reviewed&#34; instead of a bar.</p>
 <h3>Level 12</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -210,8 +232,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc9552/">RFC 9552</a></td>
 <td>Distribution of Link-State and Traffic Engineering Information Using BGP</td>
-<td><div data-ze-rfc-bar="rfc9552:must">Ze proven 44, Ze correctness gap 14</div></td>
-<td><div data-ze-rfc-bar="rfc9552:overview">Ze MUST proven 44, SHOULD proven 1, Not owed 1, SHOULD not decided 29, Ze correctness gap 14</div></td>
+<td><div data-ze-rfc-bar="rfc9552:must">Ze proven 44, Proof pending 8, Not built 6</div></td>
+<td><div data-ze-rfc-bar="rfc9552:overview">Ze MUST proven 44, SHOULD proven 1, Not owed 1, Proof pending 8, Not assessed 28, Not built 7</div></td>
 </tr>
 </tbody>
 </table>
@@ -223,8 +245,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc7752/">RFC 7752</a></td>
 <td>North-Bound Distribution of Link-State and Traffic Engineering (TE) Information Using BGP</td>
-<td><div data-ze-rfc-bar="rfc7752:must">Ze proven 8, Ze correctness gap 18</div></td>
-<td><div data-ze-rfc-bar="rfc7752:overview">Ze MUST proven 8, SHOULD not decided 26, Ze correctness gap 18</div></td>
+<td><div data-ze-rfc-bar="rfc7752:must">Ze proven 8, Proof pending 3, Not built 15</div></td>
+<td><div data-ze-rfc-bar="rfc7752:overview">Ze MUST proven 8, Proof pending 3, Not assessed 25, Not built 16</div></td>
 </tr>
 <tr><td><a href="../../rfc8571/">RFC 8571</a></td>
 <td>BGP - Link State (BGP-LS) Advertisement of IGP Traffic Engineering Performance Metric Extensions</td>
@@ -242,7 +264,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td><a href="../../rfc9085/">RFC 9085</a></td>
 <td>Border Gateway Protocol - Link State (BGP-LS) Extensions for Segment Routing</td>
 <td><div data-ze-rfc-bar="rfc9085:must">Ze proven 9</div></td>
-<td><div data-ze-rfc-bar="rfc9085:overview">Ze MUST proven 9, SHOULD proven 3, SHOULD not decided 2</div></td>
+<td><div data-ze-rfc-bar="rfc9085:overview">Ze MUST proven 9, SHOULD proven 3, Not assessed 2</div></td>
 </tr>
 </tbody>
 </table>
@@ -254,8 +276,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc9086/">RFC 9086</a></td>
 <td>Border Gateway Protocol - Link State (BGP-LS) Extensions for Segment Routing BGP Egress Peer Engineering</td>
-<td><div data-ze-rfc-bar="rfc9086:must">Ze proven 7, Ze correctness gap 4</div></td>
-<td><div data-ze-rfc-bar="rfc9086:overview">Ze MUST proven 7, SHOULD not decided 9, Ze correctness gap 4</div></td>
+<td><div data-ze-rfc-bar="rfc9086:must">Ze proven 7, Not built 4</div></td>
+<td><div data-ze-rfc-bar="rfc9086:overview">Ze MUST proven 7, Not assessed 9, Not built 4</div></td>
 </tr>
 </tbody>
 </table>
@@ -267,8 +289,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc9514/">RFC 9514</a></td>
 <td>Border Gateway Protocol - Link State (BGP-LS) Extensions for Segment Routing over IPv6 (SRv6)</td>
-<td><div data-ze-rfc-bar="rfc9514:must">Ze proven 15, Ze correctness gap 5</div></td>
-<td><div data-ze-rfc-bar="rfc9514:overview">Ze MUST proven 15, SHOULD not decided 3, Ze correctness gap 5</div></td>
+<td><div data-ze-rfc-bar="rfc9514:must">Ze proven 15, Not built 5</div></td>
+<td><div data-ze-rfc-bar="rfc9514:overview">Ze MUST proven 15, Not assessed 3, Not built 5</div></td>
 </tr>
 </tbody>
 </table>
@@ -287,7 +309,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     </a>
                     <a class="page-sidebar-link" href="../../../../quality/verify-debugging/">
                         <span class="page-sidebar-link-label">Verify debugging</span>
-                        <small>How failed checks route to evidence.</small>
+                        <small>How to investigate failed checks using their logs.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -306,7 +328,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 01:56 UTC</span>
                 </div>
             </div>
         </footer>

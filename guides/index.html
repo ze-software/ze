@@ -57,11 +57,15 @@
 <li><a href="#interfaces-and-automation">Interfaces and automation</a></li>
 <li><a href="#diagnose-and-recover">Diagnose and recover</a></li>
 </ol></details></nav><div class="doc-body">
+<p>To test Ze with an AI coding agent, start with <a href="ai-agent/">Use Ze with an AI agent</a>: <code>ze create agent skill</code> sets up Claude Code or Codex with the guide your installed <code>ze</code> serves.</p>
 <h2 id="start-and-install">Start and install</h2>
 <ul>
-<li><a href="quickstart/">Quickstart</a>: bring up two BGP peers quickly.</li>
+<li><a href="quickstart/">Quickstart</a>: run two local BGP peers and verify a received route.</li>
 <li><a href="ze-install/">Install Ze</a>: install the daemon or provision an appliance.</li>
 <li><a href="ubuntu-build-install/">Build and install on Ubuntu</a>: compile, install, initialize the store, and start SSH.</li>
+<li><a href="docker/">Docker</a>: build the image, keep state across recreation, and manage it with Compose.</li>
+<li><a href="appliance/">VM and gokrazy appliance</a>: build and boot a disk image or installer ISO.</li>
+<li><a href="netlab/">containerlab and netlab</a>: run the supplied topology with the lab image.</li>
 <li><a href="cli/">CLI tour</a>: use interactive, one-shot, pipe, and runtime commands.</li>
 <li><a href="configuration-model/">Configuration</a>: understand the hierarchical configuration format.</li>
 <li><a href="lifecycle/">Lifecycle and rollback</a>: reload, restart, archive, update, and recover.</li>
@@ -85,6 +89,7 @@
 </ul>
 <h2 id="interfaces-and-automation">Interfaces and automation</h2>
 <ul>
+<li><a href="ai-agent/">Use Ze with an AI agent</a>: set up Claude Code, Codex, OpenCode or Pi with <code>ze create agent skill</code>.</li>
 <li><a href="api/">REST and gRPC</a>: use authenticated management APIs.</li>
 <li><a href="gnmi/">gNMI</a>: use Capabilities, Get, Set, and Subscribe.</li>
 <li><a href="web-interface/">Web interface</a>: edit configuration and run commands in the browser.</li>
@@ -116,6 +121,10 @@
                         <span class="page-sidebar-link-label">Quickstart</span>
                         <small>Start from a minimal working setup.</small>
                     </a>
+                    <a class="page-sidebar-link" href="../guides/ai-agent/">
+                        <span class="page-sidebar-link-label">Use Ze with an AI agent</span>
+                        <small>Let Claude Code or Codex drive Ze for you.</small>
+                    </a>
                     <a class="page-sidebar-link" href="../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
                         <small>Install Ze, create the store, and start SSH.</small>
@@ -145,7 +154,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../license/">Ze is AGPLv3 open source.</a>
                     <a href="../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 11:52 UTC</span>
                 </div>
             </div>
         </footer>

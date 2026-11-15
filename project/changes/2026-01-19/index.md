@@ -20,7 +20,7 @@ BGP configuration is now wrapped in a `bgp {}` block, with template inheritance 
 
 ## 🛠️ CLI
 
-Daemon and peer commands moved under a `bgp` namespace (`bgp daemon`, `bgp peer <selector>`) for a more consistent command surface, alongside new RIB introspection and event-subscription commands.
+Daemon and peer commands moved under a `bgp` namespace (`bgp daemon`, `bgp peer <selector>`) for more consistent syntax, alongside new commands to inspect the RIB and subscribe to events.
 
 ## 🐛 Fixes
 

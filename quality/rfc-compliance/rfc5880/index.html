@@ -4,18 +4,18 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
-        <title>RFC 5880 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 5880: Bidirectional Forwarding Detection (BFD). 111 gated MUST-level requirements, 12 declared gaps (0 demonstrated by a test), 0 with no test." />
-        <meta property="og:title" content="RFC 5880 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 5880: Bidirectional Forwarding Detection (BFD). 111 gated MUST-level requirements, 12 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <title>RFC 5880 requirements and tests - Ze</title>
+        <meta name="description" content="RFC 5880: Bidirectional Forwarding Detection (BFD). 111 mandatory requirements included in automatic checks, 12 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:title" content="RFC 5880 requirements and tests - Ze" />
+        <meta property="og:description" content="RFC 5880: Bidirectional Forwarding Detection (BFD). 111 mandatory requirements included in automatic checks, 12 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="RFC 5880 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 5880: Bidirectional Forwarding Detection (BFD). 111 gated MUST-level requirements, 12 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:title" content="RFC 5880 requirements and tests - Ze" />
+        <meta name="twitter:description" content="RFC 5880: Bidirectional Forwarding Detection (BFD). 111 mandatory requirements included in automatic checks, 12 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -47,7 +47,7 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">BFD base</span>
     <h1 id="rfc-detail-title">RFC 5880 - Bidirectional Forwarding Detection (BFD)</h1>
-    <p>Every requirement this repository extracted from RFC 5880, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
+    <p>Every requirement listed for RFC 5880, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.</p>
 </div>
 <style>
 .rfc-table-wrap { overflow-x: auto; }
@@ -57,16 +57,25 @@
 .rfc-verdict p:last-child { margin-bottom: 0; }
 .rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
-.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
-.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: block; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
 .rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
-.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
-.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-card b { display: block; margin: 0; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: .5rem 0 0; color: var(--muted); font-size: .92rem; line-height: 1.6; }
+.rfc-card.rfc-total-card { grid-column: 1 / -1; display: grid; grid-template-columns: 15rem minmax(0, 1fr); column-gap: 1.5rem; align-items: start; }
+.rfc-card.rfc-total-card span, .rfc-card.rfc-total-card strong, .rfc-card.rfc-total-card b { grid-column: 1; }
+.rfc-card.rfc-total-card p { grid-column: 2; grid-row: 1 / span 3; margin: 0; }
+@media (max-width: 760px) {
+  .rfc-card-grid { grid-template-columns: minmax(0, 1fr); }
+  .rfc-card.rfc-total-card { display: block; }
+  .rfc-card.rfc-total-card p { margin: .5rem 0 0; }
+}
 .rfc-ok { border-left: 7px solid var(--green); }
 .rfc-neutral { border-left: 7px solid var(--line-strong); }
 .rfc-warn { border-left: 7px solid var(--amber); }
 .rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-card.rfc-total-card { background: var(--bg-soft); border: 1px solid var(--line-strong); box-shadow: none; }
 .rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
 .rfc-tape span { width: var(--w); min-width: 0; display: block; }
 .rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
@@ -87,6 +96,7 @@
 .rfc-swatch.rfc-neutral { background: var(--line-strong); }
 .rfc-swatch.rfc-warn { background: var(--amber); }
 .rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-swatch.rfc-total-card { background: var(--bg-soft); }
 .rfc-total td { border-top: 2px solid var(--line-strong); }
 .rfc-prose { max-width: 46rem; }
 ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
@@ -118,38 +128,38 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>90</strong><b>of 111 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>9</strong><b>of 111 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 111 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 111 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>237</strong><b>237 of 295 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
-</div>
-<h3>Neutral</h3>
-<p>measures that are neither good news nor bad</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>111</strong><b>of 137 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 111 gated MUSTs</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 111 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 111 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 111 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 111 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>90</strong><b>of 111 mandatory requirements</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>9</strong><b>of 111 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 111 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 111 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>237</strong><b>237 of 295 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>12</strong><b>of 111 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Declared gap or no test</span><strong>12</strong><b>of 111 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
 </div>
-<p>The 9 counts marked as a part above are the whole of the 111 gated MUSTs: they add up to 111. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.</p>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 111 mandatory requirements</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 111 mandatory requirements</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 111 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 111 mandatory requirements</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 111 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit</p></article>
+</div>
+<h3>Totals</h3>
+<p>what the cards above are counted against</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-total-card"><span>Mandatory requirements (MUST level)</span><strong>111</strong><b>of 137 requirements this summary lists, at all levels</b><p>The RFC&#39;s MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements.</p></article>
+</div>
+<p>The 9 counts marked as a part above are the whole of the 111 mandatory requirements: they add up to 111. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
-<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
 <tbody>
-<tr><td>Gated MUSTs</td>
-<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
-</tr>
 <tr><td>Out of scope</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
 <td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
@@ -170,9 +180,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
-<tr><td>No test at all</td>
+<tr><td>Declared gap or no test</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
-<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+<td>green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
@@ -190,13 +200,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
 <td>neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption</td>
 </tr>
-<tr><td>Proven by a recorded break</td>
+<tr><td>Tests shown to detect a fault</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above</td>
+<td>green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
 <td><span class="rfc-swatch rfc-warn"></span> warn</td>
-<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current</td>
+</tr>
+<tr><td>Mandatory requirements (MUST level)</td>
+<td><span class="rfc-swatch rfc-total-card"></span> outlined</td>
+<td>outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad</td>
 </tr>
 </tbody>
 </table>
@@ -211,13 +225,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Public row</td>
 <td>BFD base</td>
 </tr>
-<tr><td>Enrolment</td>
-<td>Enrolled</td>
+<tr><td>Automatic checks</td>
+<td>Included</td>
 </tr>
 <tr><td>Requirements</td>
 <td>137</td>
 </tr>
-<tr><td>Gated MUST-level</td>
+<tr><td>Mandatory requirements (MUST level)</td>
 <td>111</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
@@ -229,7 +243,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
 </tr>
-<tr><td>Gated with no test</td>
+<tr><td>Mandatory requirements with no test and no annotation</td>
 <td>0</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
@@ -238,19 +252,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Test tags</td>
 <td>295</td>
 </tr>
-<tr><td>Tagged units</td>
+<tr><td>Tests linked to requirements</td>
 <td>295</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>104</td>
 </tr>
-<tr><td>Discrimination records</td>
+<tr><td>Fault test records</td>
 <td>237</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc5880.md</code></td>
 </tr>
-<tr><td>Requirement shard</td>
+<tr><td>Requirement table</td>
 <td><code>rfc/requirements/rfc5880.md</code></td>
 </tr>
 <tr><td>RFC text</td>
@@ -260,10 +274,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 </section>
-<section><h2>Enrolment</h2>
-<p>Enrolled: Bidirectional Forwarding Detection (BFD)</p>
+<section><h2>Automatic checks</h2>
+<p>Included in automatic checks: Bidirectional Forwarding Detection (BFD)</p>
 </section>
-<section><h2>What the public ledger says</h2>
+<section><h2>Published support status</h2>
 <p><strong>Area:</strong> BFD base</p>
 <p><strong>Proof:</strong> 72 of 111 MUST proven</p>
 <p><strong>Evidence:</strong> unit 72</p>
@@ -277,33 +291,33 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td>Positive and negative tests</td>
 <td><strong>90</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
 <td><strong>21</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
-<tr><td>One polarity only</td>
+<tr><td>Only a positive or negative test</td>
 <td><strong>0</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
 <td><strong>0</strong></td>
-<td>an overlay: each of these is also counted by the part it falls in</td>
+<td>also counted in one of the groups above</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
-<td>an overlay: each of these is also counted by the part it falls in</td>
+<td>also counted in one of the groups above</td>
 </tr>
 <tr><td>Derived from other rows</td>
 <td><strong>0</strong></td>
-<td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
+<td>excluded from the total: each summarizes the status of other requirements, which are already counted above</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>111</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Mandatory requirements (MUST level)</strong></td><td><strong>111</strong></td><td>every mandatory requirement appears in exactly one group above</td></tr>
 </tbody>
 </table>
 </div>
@@ -312,9 +326,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc5880:must">Ze proven 72, Ze correctness gap 39</div>
+<div data-ze-rfc-bar="rfc5880:must">Ze proven 72, Proof pending 27, Not built 12</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc5880:overview">Ze MUST proven 72, SHOULD proven 6, SHOULD not decided 20, Ze correctness gap 39</div>
+<div data-ze-rfc-bar="rfc5880:overview">Ze MUST proven 72, SHOULD proven 6, Proof pending 27, Not assessed 20, Not built 12</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -322,10 +336,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>RFCs</td>
 <td><span data-ze-rfc="rfc5880:rfcs">1</span></td>
 </tr>
-<tr><td>Not walked</td>
+<tr><td>Requirements not reviewed</td>
 <td><span data-ze-rfc="rfc5880:not-walked">0</span></td>
 </tr>
-<tr><td>Mandatory register</td>
+<tr><td>Mandatory requirements complete</td>
 <td><span data-ze-rfc="rfc5880:register">not complete</span></td>
 </tr>
 <tr><td>MUST rows</td>
@@ -340,11 +354,20 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc5880:must.os-verified">0</span></td>
 </tr>
+<tr><td>Proof pending</td>
+<td><span data-ze-rfc="rfc5880:must.proof-pending">27</span></td>
+</tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc5880:must.os-gap">0</span></td>
 </tr>
-<tr><td>Ze correctness gap</td>
-<td><span data-ze-rfc="rfc5880:must.ze-gap">39</span></td>
+<tr><td>Exclusion unchecked</td>
+<td><span data-ze-rfc="rfc5880:must.exclusion-unchecked">0</span></td>
+</tr>
+<tr><td>Not assessed</td>
+<td><span data-ze-rfc="rfc5880:must.not-assessed">0</span></td>
+</tr>
+<tr><td>Not built</td>
+<td><span data-ze-rfc="rfc5880:must.not-built">12</span></td>
 </tr>
 <tr><td>MUST rows not owed</td>
 <td><span data-ze-rfc="rfc5880:must.not-owed">0</span></td>
@@ -382,19 +405,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD not owed: not-applicable</td>
 <td><span data-ze-rfc="rfc5880:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
-<tr><td>SHOULD not ever</td>
-<td><span data-ze-rfc="rfc5880:should.not-ever">0</span></td>
+<tr><td>SHOULD proof pending</td>
+<td><span data-ze-rfc="rfc5880:should.proof-pending">0</span></td>
 </tr>
-<tr><td>SHOULD not yet</td>
-<td><span data-ze-rfc="rfc5880:should.not-yet">0</span></td>
+<tr><td>SHOULD exclusion unchecked</td>
+<td><span data-ze-rfc="rfc5880:should.exclusion-unchecked">0</span></td>
 </tr>
-<tr><td>SHOULD not decided</td>
-<td><span data-ze-rfc="rfc5880:should.not-decided">20</span></td>
+<tr><td>SHOULD not assessed</td>
+<td><span data-ze-rfc="rfc5880:should.not-assessed">20</span></td>
+</tr>
+<tr><td>SHOULD not built</td>
+<td><span data-ze-rfc="rfc5880:should.not-built">0</span></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.</p>
+<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
 
 </section>
 <section><h2>Requirements</h2>
@@ -1793,7 +1819,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Proof state</h2>
-<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<p>A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.</p>
 <h3><a href="#rfc5880-4.1-1"><code>RFC5880-4.1-1</code></a></h3>
 <p>The contents of transmitted BFD Control packets MUST be set as follows: Version Set to the current version number (1). (§6.8.7)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (rejudge, subnet). Row quotes §6.8.7 &#34;Version Set to the current version number (1)&#34; (dated correction explains the kept id). + session TestRFC5880TransmittedControlCarriesVersionOne encodes Build in Down/Init/Up/AdminDown and BuildFinal through WriteTo and asserts octet0&gt;&gt;5 == 1; - session TestRFC5880TransmittedVersionNeverOverwrittenByDiag (Diag 0xFF cannot write into the version bits, packet still parses). Records: + revert session/fsm.go::Build, - revert packet/control.go::WriteTo, both observed red; author overlay dropping the Diag mask reds only the -. Residual: the older packet-level negative TestRFC5880VersionNotOneDiscarded asserts the receive discard, which is RFC5880-6.8.6-1, not this transmit row; it stays tagged but carries no weight here.</p>
@@ -2071,8 +2097,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc5880-6.8.1-11"><code>RFC5880-6.8.1-11</code></a></h3>
 <p>This variable MUST be initialized to a random 32-bit value. (§6.8.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5880-6.8.1-11, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC5880-6.8.1-11, so there is no linked test.</p>
 <h3><a href="#rfc5880-6.8.1-12"><code>RFC5880-6.8.1-12</code></a></h3>
 <p>This variable MUST be initialized to zero. (§6.8.1)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judge 2026-09-28. Positive TestRFC5880NewSessionAuthSeqKnownZero: a new Machine with SetAuth has AuthSeqKnown 0 and accepts a first packet at 0x80000000, which Check would refuse from any initialized floor of 0. Negative TestRFC5880AuthSeqKnownOneDiscardsFirstPacket builds the violating initial state (AuthSeqKnown 1) and shows the same packet is refused, so the observable outcome depends on the zero start; an initialization has no refusal path, and the violating state is the non-conforming input.</p>
@@ -2105,8 +2131,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc5880-6.8.1-13"><code>RFC5880-6.8.1-13</code></a></h3>
 <p>This variable MUST be set to zero after no packets have been received on this session for at least twice the Detection Time. (§6.8.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5880-6.8.1-13, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC5880-6.8.1-13, so there is no linked test.</p>
 <h3><a href="#rfc5880-6.8.1-14"><code>RFC5880-6.8.1-14</code></a></h3>
 <p>Once session state is created, and at least one BFD Control packet is received from the remote end, it MUST be preserved for at least one Detection Time (see section 6.8.4) subsequent to the receipt of the last BFD Control packet, regardless of the session state. (§6.8.1)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judge rejudge 2026-09-30 (bfd AdminDown). Positive TestRFC5880ReleasedSessionPreservedForOneDetectionTime edited under D-15: the peer keeps sending past AdminDownTransmitEnd so the final removal is the one 6.8.1 sets, entry present one ns before the last deadline and gone at it; retention can now only be longer than 6.8.1 (retireReleasedLocked also waits for the 6.8.16 window), never shorter. Session-level positive TestRFC5880StatePreservedForOneDetectionTime and negative TestRFC5880ReleasedSessionAskedAgainKeepsRemoteState unchanged (revive keeps Machine, discriminator, RemoteDiscr, RemoteMinRx, LastReceived). Records: revert retireReleasedLocked (+) and reviveReleasedLocked (-) observed red.</p>
@@ -2444,12 +2470,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc5880-6.6-2"><code>RFC5880-6.6-2</code></a></h3>
 <p>When the transmitted value of the Demand (D) bit is to be changed, the transmitting system MUST initiate a Poll Sequence in conjunction with changing the bit in order to ensure that both systems are aware of the change. (§6.6)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5880-6.6-2, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC5880-6.6-2, so there is no linked test.</p>
 <h3><a href="#rfc5880-6.6-3"><code>RFC5880-6.6-3</code></a></h3>
 <p>If Demand mode is active on either or both systems, a Poll Sequence MUST be initiated whenever the contents of the next BFD Control packet to be sent would be different than the contents of the previous packet, with the exception of the Poll (P) and Final (F) bits. (§6.6)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5880-6.6-3, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC5880-6.6-3, so there is no linked test.</p>
 <h3><a href="#rfc5880-6.7-1"><code>RFC5880-6.7-1</code></a></h3>
 <p>Implementations supporting authentication MUST support both types of SHA1 authentication. (§6.7)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judge 2026-09-28. Positive: TestRFC5880BothSHA1VariantsSupported round-trips types 4 and 5. Negative: TestRFC5880SHA1TypesEnforcedDistinctly shows each SHA1 type is really implemented: a flipped hash is refused for each, each refuses the other&#39;s section, and a repeated sequence is accepted by 4 and refused by 5, so a stub or an aliased Meticulous type goes red. The older negative (types 0/6/200 refused) stays tagged but does not violate this row.</p>
@@ -3202,8 +3228,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc5880-6.8.6-14"><code>RFC5880-6.8.6-14</code></a></h3>
 <p>If bfd.RemoteDemandMode is 1, bfd.SessionState is Up, and bfd.RemoteSessionState is Up, Demand mode is active on the remote system and the local system MUST cease the periodic transmission of BFD Control packets (see section 6.8.7). (§6.8.6)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5880-6.8.6-14, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC5880-6.8.6-14, so there is no linked test.</p>
 <h3><a href="#rfc5880-6.8.6-15"><code>RFC5880-6.8.6-15</code></a></h3>
 <p>If bfd.RemoteDemandMode is 0, or bfd.SessionState is not Up, or bfd.RemoteSessionState is not Up, Demand mode is not active on the remote system and the local system MUST send periodic BFD Control packets (see section 6.8.7). (§6.8.6)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judge rejudge 2026-10-02 (tag move under the 2026-09-30 owner ruling, OWNER RULING 6(b)); judged by an agent that authored neither test. Owner ruling 2026-09-30: no genuine negative exists, so the HEAD negative on TestRFC5880NoPeriodicTransmitWhileAdminDown (which proves the RFC5880-6.8.16-3 window, where it stays) was removed and the row carries {single-polarity: positive}. Judged on the positives: engine/rfc5880_demand_disjunct_test.go, one positive per disjunct with the other two false (ClearBothUp, SetLocalNotUpRemoteUp, SetLocalUpRemoteNotUp), each with a revert record on loop.go::tick observed red; rfc5880_demand_periodic_test.go and TestRFC5880PeriodicTransmitWhenRemoteDemandInactive supplementary. Ze never reads bfd.RemoteDemandMode, so it never enters the suppression the complement permits.</p>
@@ -3431,16 +3457,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc5880-6.8.7-6"><code>RFC5880-6.8.7-6</code></a></h3>
 <p>A system MUST NOT periodically transmit BFD Control packets if bfd.RemoteMinRxInterval is zero. (§6.8.7)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5880-6.8.7-6, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC5880-6.8.7-6, so there is no linked test.</p>
 <h3><a href="#rfc5880-6.8.7-7"><code>RFC5880-6.8.7-7</code></a></h3>
 <p>A system MUST NOT periodically transmit BFD Control packets if Demand mode is active on the remote system (bfd.RemoteDemandMode is 1, bfd.SessionState is Up, and bfd.RemoteSessionState is Up) and a Poll Sequence is not being transmitted. (§6.8.7)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5880-6.8.7-7, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC5880-6.8.7-7, so there is no linked test.</p>
 <h3><a href="#rfc5880-6.8.7-8"><code>RFC5880-6.8.7-8</code></a></h3>
 <p>If rate limiting is in effect, the advertised value of Desired Min TX Interval MUST be greater than or equal to the interval between transmitted packets imposed by the rate limiting function. (§6.8.7)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5880-6.8.7-8, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC5880-6.8.7-8, so there is no linked test.</p>
 <h3><a href="#rfc5880-6.8.4-1"><code>RFC5880-6.8.4-1</code></a></h3>
 <p>If Demand mode is not active, and a period of time equal to the Detection Time passes without receiving a BFD Control packet from the remote system, and bfd.SessionState is Init or Up, the session has gone down -- the local system MUST set bfd.SessionState to Down and bfd.LocalDiag to 1 (Control Detection Time Expired). (§6.8.4)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judge rejudge 2026-09-30 (bfd engine 2). TestRFC5880DetectionExpiryDownDiagOne lost its 6.8.1-14 negative tag (comment only, body unchanged); it still proves expiry from Init sets Down and diag 1. Judgement unchanged: Judge rejudge 2026-09-30 (bfd session+engine continuation). TestRFC5880DetectionExpiryFromUpDownDiagOne adds expiry from Up (D bit clear and set in the last packet): 1 ns early no change, at the Detection Time Down, diag 1, one notify; Init expiry and the ignored-when-Down negative stand. Ze never sets bfd.DemandMode, so the &#39;Demand mode is not active&#39; condition always holds; local Demand mode is an absent feature, not a branch to test. Mutant CheckDetection state guard observed red.</p>
@@ -3493,8 +3519,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc5880-6.8.15-1"><code>RFC5880-6.8.15-1</code></a></h3>
 <p>When the forwarding plane in the local system is reset for some reason, such that the remote system can no longer rely on the local forwarding state, the local system MUST set bfd.LocalDiag to 4 (Forwarding Plane Reset), and set bfd.SessionState to Down. (§6.8.15)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5880-6.8.15-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC5880-6.8.15-1, so there is no linked test.</p>
 <h3><a href="#rfc5880-6.8.16-4"><code>RFC5880-6.8.16-4</code></a></h3>
 <p>If enabling session Set bfd.SessionState to Down (§6.8.16)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (rejudge, netns+pinning). RFC 5880 §6.8.16 &#34;If enabling session Set bfd.SessionState to Down&#34;. Positive TestRFC5880AdministrativeDisableEnable asserts exact Down after AdminEnable on an AdminDown session. Negative TestRFC5880EnableLandsOnDownWhilePeerSaysUpOrInit (R1 b) pushes the inputs toward the violation: Up session disabled, peer keeps sending Up then Init so bfd.RemoteSessionState is Up/Init (asserted as precondition), AdminEnable still lands on Down and Build() announces Down; an overlay adopting RemoteSessionState reds it (author e4-ov7). Old TestRFC5880AdministrativeCallsAreGuarded untagged (asserted a Ze guard, not this row). Revert records on fsm.go::AdminEnable observed red for both.</p>
@@ -3682,12 +3708,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc5880-7-1"><code>RFC5880-7-1</code></a></h3>
 <p>When BFD is used across multiple hops, a congestion control mechanism MUST be implemented (§7)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5880-7-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC5880-7-1, so there is no linked test.</p>
 <h3><a href="#rfc5880-7-2"><code>RFC5880-7-2</code></a></h3>
 <p>When BFD is used across multiple hops, a congestion control mechanism MUST be implemented, and when congestion is detected, the BFD implementation MUST reduce the amount of traffic it generates. (§7)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5880-7-2, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC5880-7-2, so there is no linked test.</p>
 <h3><a href="#rfc5880-4.3-1"><code>RFC5880-4.3-1</code></a></h3>
 <p>This byte MUST be set to zero on transmit (§4.3, §4.4)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judge 2026-09-28 (bfd/auth, independent of the author). TestRFC5880ReservedByteZeroedOnTransmit signs into a buffer pre-filled with 0xFF for all four keyed types, so the zero at off+3 is written by digestSigner.Sign (buf[off+3] = 0), covering both cited sections 4.3 and 4.4. The {single-polarity: positive} annotation holds: Sign writes a constant 0 and no path emits another value.</p>
@@ -3850,7 +3876,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc5880-6.8.14-1"><code>RFC5880-6.8.14-1</code></a></h3>
 <p>If Demand mode is no longer active on the remote system, the local system MUST begin transmitting periodic BFD Control packets (§6.8.14)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -3865,8 +3891,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc5880-6.8.17-1"><code>RFC5880-6.8.17-1</code></a></h3>
 <p>If Demand mode is active on the remote system (the local system is not transmitting periodic BFD Control packets), a Poll Sequence MUST be initiated to ensure that the diagnostic code is transmitted. (§6.8.17)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5880-6.8.17-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC5880-6.8.17-1, so there is no linked test.</p>
 <h3><a href="#rfc5880-6.8.3-8"><code>RFC5880-6.8.3-8</code></a></h3>
 <p>In any case other than those explicitly called out above, timing parameter changes MUST be effected immediately (changing the transmission rate and/or the Detection Time). (§6.8.3)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judge rejudge 2026-09-30 (bfd session+engine continuation). Row is {single-polarity: positive}. TestRFC5880RemoteTimingChangeMovesDetectionTimeAtOnce adds the Detection Time half: a received Desired Min TX 600 ms moves it 900 ms -&gt; 1.8 s at once (no expiry at 901 ms, expiry at 1.8 s) and Detect Mult 5 moves it to 1.5 s; the TX half stays on RemoteMinRxReductionHonoredImmediately. Mutant DetectionInterval mult guard observed red.</p>
@@ -4368,7 +4394,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 </section>
-<section><h2>Extraction sign-off</h2>
+<section><h2>Requirement list review</h2>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
@@ -4420,265 +4446,265 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td><code>1</code></td>
 <td>Introduction</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Introduction. States the goal of the protocol and says that application-dependent mechanisms live in companion documents. No obligation.</td>
 </tr>
 <tr><td><code>1.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Conventions Used in This Document: the RFC 2119 key-words paragraph. It tells a reader how to read the other sections and binds no speaker, which is why the derivation excludes it from the site inventory.</td>
 </tr>
 <tr><td><code>2</code></td>
 <td>Design</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Design. Describes where BFD sits relative to the forwarding plane and what it runs over. Written in the indicative throughout and states no obligation.</td>
 </tr>
 <tr><td><code>3</code></td>
 <td>Protocol Overview</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Protocol Overview. Describes the Hello exchange and the rate negotiation in the indicative. No obligation.</td>
 </tr>
 <tr><td><code>3.1</code></td>
 <td>Addressing and Session Establishment</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Addressing and Session Establishment. States that the application chooses the addresses and that BFD has no discovery mechanism. No obligation.</td>
 </tr>
 <tr><td><code>3.2</code></td>
 <td>Operating Modes</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Operating Modes. Describes Asynchronous mode, Demand mode and the Echo function, and the trade-offs between them. Their obligations are stated in section 6 and captured there.</td>
 </tr>
 <tr><td><code>4</code></td>
 <td>BFD Control Packet Format</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>BFD Control Packet Format. Section heading only; the formats are in the subsections below.</td>
 </tr>
 <tr><td><code>4.1</code></td>
 <td>Generic BFD Control Packet Format</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Generic BFD Control Packet Format. The field descriptions are written in the indicative apart from the Multipoint bit, which is the one site.</td>
 </tr>
 <tr><td><code>4.2</code></td>
 <td>Simple Password Authentication Section Format</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Simple Password Authentication Section Format. Two sites: the password length bound and the pointer to the section 6.7.2 encoding rules.</td>
 </tr>
 <tr><td><code>4.3</code></td>
 <td>not stated</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Keyed MD5 and Meticulous Keyed MD5 Authentication Section Format. Two sites: the Reserved byte and the pointer to the section 6.7.3 key encoding rules.</td>
 </tr>
 <tr><td><code>4.4</code></td>
 <td>not stated</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Keyed SHA1 and Meticulous Keyed SHA1 Authentication Section Format. Two sites: the Reserved byte and the pointer to the section 6.7.4 key encoding rules.</td>
 </tr>
 <tr><td><code>5</code></td>
 <td>BFD Echo Packet Format</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>BFD Echo Packet Format. The payload is a local matter, so the section states one advisory obligation and no MUST-level one.</td>
 </tr>
 <tr><td><code>6</code></td>
 <td>Elements of Procedure</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Elements of Procedure. Introductory text that names section 6.8.1 as the home of the bfd.Xx state variables and warns against enforcing more than the section states. No obligation.</td>
 </tr>
 <tr><td><code>6.1</code></td>
 <td>Overview</td>
 <td>3</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Overview. The three role obligations are the sites; the rest of the section describes the session lifecycle in the indicative and is specified normatively in section 6.8.</td>
 </tr>
 <tr><td><code>6.2</code></td>
 <td>BFD State Machine</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>BFD State Machine. The transitions are described in the indicative and are specified normatively in section 6.8.6 and section 6.8.16. The one advisory obligation is the right to hold a session down.</td>
 </tr>
 <tr><td><code>6.3</code></td>
 <td>Demultiplexing and the Discriminator Fields</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Demultiplexing and the Discriminator Fields. One site, the discriminator choice rule. The permission to change a discriminator mid-session is advisory.</td>
 </tr>
 <tr><td><code>6.4</code></td>
 <td>The Echo Function and Asymmetry</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>The Echo Function and Asymmetry. Describes independent Echo directions in the indicative and states one advisory obligation about advertised intervals.</td>
 </tr>
 <tr><td><code>6.5</code></td>
 <td>The Poll Sequence</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>The Poll Sequence. Two sites: the P and F exclusion, and the rule that a Poll rides on the scheduled periodic packets.</td>
 </tr>
 <tr><td><code>6.6</code></td>
 <td>Demand mode</td>
 <td>3</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Demand mode. Three sites, all about the Demand bit and the Poll Sequences a Demand mode change requires. The permission to enable or disable Demand mode at any time is advisory.</td>
 </tr>
 <tr><td><code>6.7</code></td>
 <td>Authentication</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Authentication. Describes the generic authentication section, then states the one obligation of the section: an implementation that supports authentication supports both SHA1 types.</td>
 </tr>
 <tr><td><code>6.7.1</code></td>
 <td>Enabling and Disabling Authentication</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Enabling and Disabling Authentication. The section says the mechanism is out of scope and then states two advisory obligations about changing the authentication state on received packets.</td>
 </tr>
 <tr><td><code>6.7.2</code></td>
 <td>Simple Password Authentication</td>
 <td>10</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Simple Password Authentication. Ten sites: three transmission field rules, the password bound, the management interface rule, four reception discards and the closing acceptance. The hexadecimal configuration clause is advisory.</td>
 </tr>
 <tr><td><code>6.7.3</code></td>
 <td>Keyed MD5 and Meticulous Keyed MD5 Authentication</td>
 <td>17</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Keyed MD5 and Meticulous Keyed MD5 Authentication. Seventeen sites over the transmission and reception rules. The sequence increment guidance for Keyed MD5 is advisory, and the circular increment is a permission.</td>
 </tr>
 <tr><td><code>6.7.4</code></td>
 <td>Keyed SHA1 and Meticulous Keyed SHA1 Authentication</td>
 <td>17</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Keyed SHA1 and Meticulous Keyed SHA1 Authentication. Seventeen sites that repeat the section 6.7.3 rules with SHA1 constants. Each SHA1 obligation has its own section 6.7.4 row; the Auth Len transmit rule, the first-packet seeding rule and the accepting face of the hash comparison are excluded as duplicates of the rows that carry them. The hexadecimal key clause and the sequence increment guidance are advisory, and the circular increment for Keyed SHA1 is a permission.</td>
 </tr>
 <tr><td><code>6.8</code></td>
 <td>Functional Specifics</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Functional Specifics. Introductory text defining what &#39;the Echo function active&#39; and &#39;Demand mode active&#39; mean for the subsections below. No obligation.</td>
 </tr>
 <tr><td><code>6.8.1</code></td>
 <td>State Variables</td>
 <td>14</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>State Variables. Fourteen sites: the session state preservation rule and the initial value or constraint of each bfd.Xx variable. The random local discriminator and the longer preservation are advisory.</td>
 </tr>
 <tr><td><code>6.8.2</code></td>
 <td>Timer Negotiation</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Timer Negotiation. Describes the continuous negotiation in the indicative and defers the detail to section 6.8.7. No obligation.</td>
 </tr>
 <tr><td><code>6.8.3</code></td>
 <td>Timer Manipulation</td>
 <td>8</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Timer Manipulation. Eight sites over the Poll Sequence requirement, the two holds while a Poll runs, the one-second floor, the immediate honoring rule and the disambiguation choices. The Echo receive interval floor is advisory.</td>
 </tr>
 <tr><td><code>6.8.4</code></td>
 <td>Calculating the Detection Time</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Calculating the Detection Time. Two sites, the Asynchronous and Demand mode expiries. The calculations themselves are written in the indicative.</td>
 </tr>
 <tr><td><code>6.8.5</code></td>
 <td>Detecting Failures with the Echo Function</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Detecting Failures with the Echo Function. One site, the transition on Echo failure. The detection method is declared out of scope.</td>
 </tr>
 <tr><td><code>6.8.6</code></td>
 <td>Reception of BFD Control Packets</td>
 <td>19</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Reception of BFD Control Packets. Nineteen sites: the ordered procedure lead-in, its stop-on-discard clause, and the discard, demultiplexing, authentication and Demand mode steps. The state machine block in the middle of the section is written in the indicative.</td>
 </tr>
 <tr><td><code>6.8.7</code></td>
 <td>Transmitting BFD Control Packets</td>
 <td>11</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Transmitting BFD Control Packets. Eleven sites over the interval floor, jitter, the transmission bars, the Final response, the Demand bit precondition and the field table lead-in. The change-driven extra packet and the Final rate limit are advisory.</td>
 </tr>
 <tr><td><code>6.8.8</code></td>
 <td>Reception of BFD Echo Packets</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Reception of BFD Echo Packets. Two sites: demultiplexing and the obligation to detect loss.</td>
 </tr>
 <tr><td><code>6.8.9</code></td>
 <td>Transmission of BFD Echo Packets</td>
 <td>3</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Transmission of BFD Echo Packets. Three sites, all bars on when and how fast Echo packets leave.</td>
 </tr>
 <tr><td><code>6.8.10</code></td>
 <td>Min Rx Interval Change</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Min Rx Interval Change. States that bfd.RequiredMinRxInterval can change at any time and points at section 6.8.3 for the rules. No obligation of its own.</td>
 </tr>
 <tr><td><code>6.8.11</code></td>
 <td>Min Tx Interval Change</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Min Tx Interval Change. States that bfd.DesiredMinTxInterval can change at any time and points at section 6.8.3. No obligation of its own.</td>
 </tr>
 <tr><td><code>6.8.12</code></td>
 <td>Detect Multiplier Change</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Detect Multiplier Change. States that bfd.DetectMult can change to any nonzero value without a Poll Sequence and points at section 6.6. No obligation of its own.</td>
 </tr>
 <tr><td><code>6.8.13</code></td>
 <td>Enabling or Disabling The Echo Function</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Enabling or Disabling The Echo Function. Two permissions, both advisory, and the summary declares them as one row.</td>
 </tr>
 <tr><td><code>6.8.14</code></td>
 <td>Enabling or Disabling Demand Mode</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Enabling or Disabling Demand Mode. One site, the obligation to resume periodic transmission when the remote system leaves Demand mode.</td>
 </tr>
 <tr><td><code>6.8.15</code></td>
 <td>Forwarding Plane Reset</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Forwarding Plane Reset. One site, the diagnostic and state transition on a local forwarding plane reset.</td>
 </tr>
 <tr><td><code>6.8.16</code></td>
 <td>Administrative Control</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Administrative Control. One site, the enable and disable procedure, whose enable step and disable steps are two rows. The transmission after entering AdminDown is advisory.</td>
 </tr>
 <tr><td><code>6.8.17</code></td>
 <td>Concatenated Paths</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Concatenated Paths. One site, the Poll Sequence that carries a concatenated path diagnostic to a remote system in Demand mode. Setting the diagnostic itself is a permission.</td>
 </tr>
 <tr><td><code>6.8.18</code></td>
 <td>Holding Down Sessions</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Holding Down Sessions. One site, the REQUIRED state maintenance, which restates the section 6.8.1 preservation rule. The reset of bfd.RemoteMinRxInterval after a Detection Time of silence is advisory.</td>
 </tr>
 <tr><td><code>7</code></td>
 <td>Operational Considerations</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Operational Considerations. One site carrying two obligations: implement congestion control across multiple hops, and reduce generated traffic when congestion is detected. The site maps the first; the second is declared here because no separate sentence sources it. The single-hop congestion algorithm is advisory.</td>
 </tr>
 <tr><td><code>8</code></td>
@@ -4690,7 +4716,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td><code>9</code></td>
 <td>Security Considerations</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Security Considerations. One site, the GTSM rule for a directly connected session. The use of the Authentication Section across multiple hops is advisory, and the rest of the section compares the authentication types without directing a speaker.</td>
 </tr>
 <tr><td><code>10</code></td>
@@ -4847,7 +4873,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     </a>
                     <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
                         <span class="page-sidebar-link-label">Verify debugging</span>
-                        <small>How failed checks route to evidence.</small>
+                        <small>How to investigate failed checks using their logs.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -4866,7 +4892,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 01:56 UTC</span>
                 </div>
             </div>
         </footer>

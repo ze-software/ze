@@ -81,8 +81,8 @@
 <!-- source: pkg/plugin/rpc/types.go -- CommandDecl, DeclareRegistrationInput -->
 <pre><code class="language-go">err := p.Run(ctx, &amp;sdk.Registration{
     Commands: []sdk.CommandDecl{
-        {Name: "my-plugin status", ShortHelp: "Show current status"},
-        {Name: "my-plugin check", ShortHelp: "Trigger immediate check", Args: []string{"target"}},
+        {Name: "show my-plugin status", ShortHelp: "Show current status"},
+        {Name: "request my-plugin check", ShortHelp: "Trigger immediate check", Args: []string{"target"}},
     },
 })
 </code></pre>
@@ -93,15 +93,15 @@
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnExecuteCommand -->
 <pre><code class="language-go">p.OnExecuteCommand(func(serial, command string, args []string, peer string) (status string, data any, err error) {
     switch command {
-    case "my-plugin status":
+    case "show my-plugin status":
         return "done", map[string]any{
             "status": "running",
             "uptime": 3600,
         }, nil
-    case "my-plugin check":
+    case "request my-plugin check":
         if len(args) &lt; 1 {
             return "error", map[string]string{
-                "error": "usage: my-plugin check &lt;target&gt;",
+                "error": "usage: request my-plugin check &lt;target&gt;",
             }, nil
         }
         result := performCheck(args[0])
@@ -118,7 +118,7 @@
 <!-- source: pkg/plugin/rpc/message.go -- AppendRequest, AppendResult, AppendError -->
 <!-- source: pkg/plugin/rpc/types.go -- ExecuteCommandInput, ExecuteCommandOutput -->
 <h3 id="request-engine-to-plugin">Request (engine to plugin)</h3>
-<pre><code>#17 ze-plugin-callback:execute-command {"serial":"abc123","command":"my-plugin status","args":[],"peer":""}
+<pre><code>#17 ze-plugin-callback:execute-command {"serial":"abc123","command":"show my-plugin status","args":[],"peer":""}
 </code></pre>
 <h3 id="success-response-plugin-to-engine">Success Response (plugin to engine)</h3>
 <p>The answer is a head, its records and a terminator, on every connection. The
@@ -313,7 +313,7 @@ no line can carry earn the same rejected row, and the head then states <code>map
 <tr>
 <td><code>command</code></td>
 <td>string</td>
-<td>Command name (e.g., <code>"my-plugin status"</code>)</td>
+<td>Command name (e.g., <code>"show my-plugin status"</code>)</td>
 </tr>
 <tr>
 <td><code>args</code></td>
@@ -368,10 +368,10 @@ no line can carry earn the same rejected row, and the head then states <code>map
 <h2 id="command-arguments">Command Arguments</h2>
 <p>Arguments arrive in the <code>args</code> parameter of the handler:</p>
 <pre><code class="language-go">p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
-    if command == "my-plugin get" {
+    if command == "show my-plugin get" {
         if len(args) &lt; 1 {
             return "error", map[string]string{
-                "error": "usage: my-plugin get &lt;key&gt;",
+                "error": "usage: show my-plugin get &lt;key&gt;",
             }, nil
         }
         key := args[0]
@@ -383,7 +383,7 @@ no line can carry earn the same rejected row, and the head then states <code>map
 </code></pre>
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnExecuteCommand -->
 <p>Invocation:</p>
-<pre><code>ze bgp run "my-plugin get config.timeout"
+<pre><code>ze cli -c "show my-plugin get config.timeout"
 </code></pre>
 <h2 id="commanddecl-fields">CommandDecl Fields</h2>
 <p>Commands are declared with these fields:</p>
@@ -402,10 +402,10 @@ no line can carry earn the same rejected row, and the head then states <code>map
 <td><code>Name</code></td>
 <td>string</td>
 <td class="cell-yes">✓</td>
-<td>Command name (for example, <code>"my-plugin status"</code>)</td>
+<td>Command name (for example, <code>"show my-plugin status"</code>). The first word MUST be one of the canonical verbs (<code>show</code>, <code>request</code>, <code>clear</code>, ...): the engine refuses any other name at registration</td>
 </tr>
 <tr>
-<td><code>Description</code></td>
+<td><code>ShortHelp</code></td>
 <td>string</td>
 <td class="cell-no">✕</td>
 <td>The one-line SUMMARY, shown wherever the command appears on one line. One line, at most 256 bytes</td>
@@ -484,7 +484,7 @@ CLI waits for the answer, then refuses from what it has in hand.</p>
 </table>
 <pre><code class="language-go">err := p.Run(ctx, &amp;sdk.Registration{
     Commands: []sdk.CommandDecl{{
-        Name:          "my-plugin peers",
+        Name:          "show my-plugin peers",
         ShortHelp:     "Show the sessions",
         Shape:         "tab",
         Columns:       []string{"address", "state", "up"},
@@ -518,10 +518,10 @@ for an operator chain they would otherwise type in full. Declare one in the
 <!-- source: pkg/plugin/sdk/sdk_types.go -- PipeDecl, Registration -->
 <pre><code class="language-go">err := p.Run(ctx, &amp;sdk.Registration{
     Commands: []sdk.CommandDecl{
-        {Name: "my-plugin status", ShortHelp: "Show current status"},
+        {Name: "show my-plugin status", ShortHelp: "Show current status"},
     },
     Pipes: []sdk.PipeDecl{{
-        Command:     "my-plugin status",
+        Command:     "show my-plugin status",
         Name:        "totals",
         Description: "The counters, without the per-session rows",
         Expansion:   "display sessions-total sessions-established",
@@ -578,7 +578,7 @@ path already carries. One refusal fails your whole Stage 1 registration.</li>
 to built-in operators alone.</li>
 </ul>
 <p>The engine stops the alias reaching a command below the one it sits on. Declare
-<code>my-plugin status detail</code> in the same message and it inherits nothing.</p>
+<code>show my-plugin status detail</code> in the same message and it inherits nothing.</p>
 <p><code>ze cli</code> with no command argument expands the chain in the client process, where
 your alias is not registered, so it answers
 <code>pipe error: unknown pipe operator: totals</code> there. It resolves over
@@ -625,15 +625,15 @@ reaches.</p>
 <h2 id="help-text">Help Text</h2>
 <p>Provide usage information via a dedicated command:</p>
 <pre><code class="language-go">// In Registration:
-sdk.CommandDecl{Name: "my-plugin help", ShortHelp: "Show available commands"},
+sdk.CommandDecl{Name: "show my-plugin help", ShortHelp: "Show available commands"},
 
 // In handler:
-if command == "my-plugin help" {
+if command == "show my-plugin help" {
     return "done", map[string]any{
         "commands": []string{
-            "my-plugin status - Show current status",
-            "my-plugin check &lt;target&gt; - Trigger immediate check",
-            "my-plugin metrics - Show performance metrics",
+            "show my-plugin status - Show current status",
+            "request my-plugin check &lt;target&gt; - Trigger immediate check",
+            "show my-plugin metrics - Show performance metrics",
         },
     }, nil
 }
@@ -653,7 +653,7 @@ if command == "my-plugin help" {
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 02:04 UTC</span>
                 </div>
             </div>
         </footer>

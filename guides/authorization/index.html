@@ -375,7 +375,12 @@ same name, your definition overrides the built-in.</p>
 entries.</p>
 <h3 id="read-only"><code>read-only</code></h3>
 <p>Allows all operational commands except dangerous ones. Denies all
-configuration commands.</p>
+configuration commands. The <code>edit</code> section judges every command whose verb is
+not a read verb, so the store maintenance commands <code>delete data key</code>,
+<code>update data key</code>, <code>update data config</code> and <code>request data repair</code> are denied
+too, before their handler runs, while <code>show data check</code> is allowed.</p>
+<!-- source: internal/component/plugin/server/command.go -- IsReadOnlyPath -->
+<!-- source: internal/test/fixture/storage_live_authz_fixture.go -- storageLiveAuthzReadOnly -->
 <table>
 <thead>
 <tr>
@@ -654,6 +659,10 @@ profile "test" run: entry 10: invalid regex "[broken": error parsing regexp: mis
                         <span class="page-sidebar-link-label">Quickstart</span>
                         <small>Start from a minimal working setup.</small>
                     </a>
+                    <a class="page-sidebar-link" href="../../guides/ai-agent/">
+                        <span class="page-sidebar-link-label">Use Ze with an AI agent</span>
+                        <small>Let Claude Code or Codex drive Ze for you.</small>
+                    </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
                         <small>Install Ze, create the store, and start SSH.</small>
@@ -683,7 +692,7 @@ profile "test" run: entry 10: invalid regex "[broken": error parsing regexp: mis
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 30 October 2026 17:53 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 20:44 UTC</span>
                 </div>
             </div>
         </footer>

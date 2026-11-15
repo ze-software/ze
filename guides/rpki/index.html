@@ -92,6 +92,14 @@
 <li><a href="#troubleshooting">Troubleshooting</a></li>
 </ol></details></nav><div class="doc-body">
 <!-- source: internal/component/bgp/plugins/rpki/register.go -- bgp-rpki registration, RFCs 6811/8210 -->
+<p>An UPDATE must name the negotiated peer AS before RPKI validates its routes.
+The JSON handler refuses an unknown or malformed peer AS before it records
+routes or emits validation results. It counts each refused UPDATE in
+<code>ze_rpki_updates_refused_total</code>, with reason <code>unknown-peer-as</code> or
+<code>malformed-peer-as</code>. These refusals do not contribute per-prefix validation
+outcomes. A session-down event still removes retained routes when its peer AS
+is unknown.</p>
+<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- handleEvent, SetMetricsRegistry -->
 <h2 id="configuration">Configuration</h2>
 <p>Add the <code>bgp-rpki</code> and <code>bgp-adj-rib-in</code> plugins, then configure one or more RTR cache servers under <code>bgp { rpki { ... } }</code>.</p>
 <pre><code>plugin {
@@ -1096,6 +1104,10 @@ must succeed before this source is published as a recording.</code></pre>
                         <span class="page-sidebar-link-label">Quickstart</span>
                         <small>Start from a minimal working setup.</small>
                     </a>
+                    <a class="page-sidebar-link" href="../../guides/ai-agent/">
+                        <span class="page-sidebar-link-label">Use Ze with an AI agent</span>
+                        <small>Let Claude Code or Codex drive Ze for you.</small>
+                    </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
                         <small>Install Ze, create the store, and start SSH.</small>
@@ -1125,7 +1137,7 @@ must succeed before this source is published as a recording.</code></pre>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 02:34 UTC</span>
                 </div>
             </div>
         </footer>

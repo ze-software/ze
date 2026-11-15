@@ -56,6 +56,7 @@ connecting with the <code>ze</code> CLI.</p>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#two-sources-of-users">Two sources of users</a>
 <ol>
+<li><a href="#diagnosing-bootstrap-credentials">Diagnosing bootstrap credentials</a></li>
 <li><a href="#disabling-the-super-admin">Disabling the super-admin</a></li>
 </ol></li>
 <li><a href="#a-backend-that-will-not-build-is-dropped-and-the-others-still-answer">A backend that will not build is dropped, and the others still answer</a></li>
@@ -103,8 +104,8 @@ connecting with the <code>ze</code> CLI.</p>
 <tbody>
 <tr>
 <td>Bootstrap super-admin</td>
-<td><code>database/</code> store (<code>meta/auth/local/{username,password}</code>)</td>
-<td><code>ze init</code></td>
+<td><code>database/</code> store (<code>meta/auth/local/{username,password,authorized-keys}</code>)</td>
+<td><code>ze init</code> or named appliance initialization</td>
 <td>Bootstrap and recovery -- the operator who set the box up</td>
 </tr>
 <tr>
@@ -123,6 +124,46 @@ active through every fallible step; a failed candidate is never published.</p>
 takes precedence and the zefs entry is dropped. This lets operators override
 the bootstrap password via configuration without a stale zefs hash remaining
 as a backdoor.</p>
+<p>Named appliances accept SSH public keys in <code>credentials.ssh-authorized-keys</code>.
+Each value is a complete plain OpenSSH public-key line for the bootstrap username.
+Assembly stores them with the local recovery credential, and the daemon reads
+them into the same accepted identity as its password. A missing or comment-only
+key file leaves password recovery available.</p>
+<!-- source: internal/appliance/cmd_init.go -- runInit -->
+<!-- source: internal/appliance/cmd_assemble.go -- assembleZeFS -->
+<!-- source: cmd/ze/hub/main_servers.go -- usersFromStore -->
+<p>Bootstrap keys must have no <code>authorized_keys</code> options. Ze refuses malformed
+lines, SSH certificates and restrictions such as <code>from=</code>, <code>command=</code> or <code>restrict</code>.
+Bootstrap login does not validate certificate expiry, permitted users or critical
+options. Generate a dedicated plain public key with
+<code>ssh-keygen -y -f &lt;recovery-private-key&gt;</code> and supply its complete output.</p>
+<!-- source: internal/core/authorizedkeys/authorizedkeys.go -- Parse -->
+<h3 id="diagnosing-bootstrap-credentials">Diagnosing bootstrap credentials</h3>
+<p><code>ze doctor</code> reports <code>doctor-local-admin-credentials</code> when the same credential
+reader used at boot refuses the local recovery account. An explicitly disabled
+account is not a fault. Boot also logs the code and repair command and keeps one
+active warning until a successful read or explicit disable clears it.</p>
+<!-- source: cmd/ze/hub/bootstrap_credentials.go -- checkLocalAdminCredentials, reportLocalAdminCredentialRead -->
+<!-- source: cmd/ze/hub/register_bootstrap_credentials.go -- init -->
+<p>Keep console access or another working login while repairing credentials.
+Restore the affected <code>meta/auth/local/</code> frame from a known backup, then
+restart the daemon. Select the device's database explicitly:</p>
+<pre><code class="language-sh">ze data --path &lt;database&gt; write &lt;credential-key&gt; &lt;credential-backup-file&gt;
+</code></pre>
+<p>The daemon need not be stopped for the write. While it runs, <code>ze data write</code>
+sends the frame to it as <code>update data key &lt;key&gt; content &lt;base64&gt;</code>, which
+writes it through the daemon's own store and records <code>&lt;redacted&gt;</code> in place of
+the bytes in the audit log and the SSH exec log. That route needs a login the
+daemon still accepts, and carries at most 195,840 bytes, far more than a
+credential frame holds. With no working login, stop the daemon and run the
+same command: it then writes the store directly.</p>
+<!-- source: internal/component/config/storage/cli/main.go -- writeKeyThroughDaemon -->
+<p>The password frame contains a bcrypt hash, not a plaintext password. Restoring
+an unrelated frame does not repair the reported credential. A store that could
+not be opened is reported as unchecked rather than as a usable recovery account.</p>
+<!-- source: cmd/ze/hub/bootstrap_credentials.go -- localAdminCredentialFailure, checkLocalAdminCredentials -->
+<!-- source: internal/component/config/storage/cli/main.go -- cmdWrite -->
+<!-- source: cmd/ze/hub/main_servers.go -- usersFromStore, validateLocalAdminCreds -->
 <h3 id="disabling-the-super-admin">Disabling the super-admin</h3>
 <p>Setting <code>meta/instance/admin-disabled</code> to <code>"true"</code> in the <code>database/</code> store
 (via <code>admin-enabled: false</code> in the appliance config) disables the super-admin
@@ -303,7 +344,7 @@ the file:</p>
 </code></pre>
 <p>The warning names the leaf paths in a log attribute and never the password. Replace the
 plaintext with a hash from <code>ze passwd</code>, or protect the file, or accept the risk if the
-file is a throwaway lab render (see <a href="../../labs/netlab/">netlab</a>).</p>
+file is a throwaway lab render (see <a href="../netlab/">netlab</a>).</p>
 <!-- source: internal/component/config/loader.go -- warnPlaintextOnDisk -->
 <p>A weak password in that file gets its own log line, one for each leaf, and the
 load continues:</p>
@@ -736,6 +777,10 @@ and continues.</p>
                         <span class="page-sidebar-link-label">Quickstart</span>
                         <small>Start from a minimal working setup.</small>
                     </a>
+                    <a class="page-sidebar-link" href="../../guides/ai-agent/">
+                        <span class="page-sidebar-link-label">Use Ze with an AI agent</span>
+                        <small>Let Claude Code or Codex drive Ze for you.</small>
+                    </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
                         <small>Install Ze, create the store, and start SSH.</small>
@@ -765,7 +810,7 @@ and continues.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 20:44 UTC</span>
                 </div>
             </div>
         </footer>

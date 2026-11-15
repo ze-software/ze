@@ -4,18 +4,18 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
-        <title>RFC 9687 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 9687: Border Gateway Protocol 4 (BGP-4) Send Hold Timer. 13 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
-        <meta property="og:title" content="RFC 9687 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 9687: Border Gateway Protocol 4 (BGP-4) Send Hold Timer. 13 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <title>RFC 9687 requirements and tests - Ze</title>
+        <meta name="description" content="RFC 9687: Border Gateway Protocol 4 (BGP-4) Send Hold Timer. 13 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:title" content="RFC 9687 requirements and tests - Ze" />
+        <meta property="og:description" content="RFC 9687: Border Gateway Protocol 4 (BGP-4) Send Hold Timer. 13 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="RFC 9687 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 9687: Border Gateway Protocol 4 (BGP-4) Send Hold Timer. 13 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:title" content="RFC 9687 requirements and tests - Ze" />
+        <meta name="twitter:description" content="RFC 9687: Border Gateway Protocol 4 (BGP-4) Send Hold Timer. 13 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -47,7 +47,7 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Send Hold Timer</span>
     <h1 id="rfc-detail-title">RFC 9687 - Border Gateway Protocol 4 (BGP-4) Send Hold Timer</h1>
-    <p>Every requirement this repository extracted from RFC 9687, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
+    <p>Every requirement listed for RFC 9687, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.</p>
 </div>
 <style>
 .rfc-table-wrap { overflow-x: auto; }
@@ -57,16 +57,25 @@
 .rfc-verdict p:last-child { margin-bottom: 0; }
 .rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
-.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
-.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: block; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
 .rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
-.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
-.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-card b { display: block; margin: 0; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: .5rem 0 0; color: var(--muted); font-size: .92rem; line-height: 1.6; }
+.rfc-card.rfc-total-card { grid-column: 1 / -1; display: grid; grid-template-columns: 15rem minmax(0, 1fr); column-gap: 1.5rem; align-items: start; }
+.rfc-card.rfc-total-card span, .rfc-card.rfc-total-card strong, .rfc-card.rfc-total-card b { grid-column: 1; }
+.rfc-card.rfc-total-card p { grid-column: 2; grid-row: 1 / span 3; margin: 0; }
+@media (max-width: 760px) {
+  .rfc-card-grid { grid-template-columns: minmax(0, 1fr); }
+  .rfc-card.rfc-total-card { display: block; }
+  .rfc-card.rfc-total-card p { margin: .5rem 0 0; }
+}
 .rfc-ok { border-left: 7px solid var(--green); }
 .rfc-neutral { border-left: 7px solid var(--line-strong); }
 .rfc-warn { border-left: 7px solid var(--amber); }
 .rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-card.rfc-total-card { background: var(--bg-soft); border: 1px solid var(--line-strong); box-shadow: none; }
 .rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
 .rfc-tape span { width: var(--w); min-width: 0; display: block; }
 .rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
@@ -87,6 +96,7 @@
 .rfc-swatch.rfc-neutral { background: var(--line-strong); }
 .rfc-swatch.rfc-warn { background: var(--amber); }
 .rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-swatch.rfc-total-card { background: var(--bg-soft); }
 .rfc-total td { border-top: 2px solid var(--line-strong); }
 .rfc-prose { max-width: 46rem; }
 ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
@@ -118,35 +128,35 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>13</strong><b>of 13 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0</strong><b>of 13 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 13 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 13 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0</strong><b>of 13 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>8</strong><b>8 of 35 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
-<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>13</strong><b>of 13 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>13</strong><b>of 13 mandatory requirements</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0</strong><b>of 13 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 13 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 13 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 13 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>9</strong><b>9 of 36 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>13</strong><b>of 13 mandatory requirements reviewed</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>13</strong><b>of 20 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 13 gated MUSTs</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 13 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 13 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 13 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 13 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 13 mandatory requirements</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 13 mandatory requirements</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 13 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 13 mandatory requirements</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 13 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit</p></article>
 </div>
-<p>The 9 counts marked as a part above are the whole of the 13 gated MUSTs: they add up to 13. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.</p>
+<h3>Totals</h3>
+<p>what the cards above are counted against</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-total-card"><span>Mandatory requirements (MUST level)</span><strong>13</strong><b>of 20 requirements this summary lists, at all levels</b><p>The RFC&#39;s MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements.</p></article>
+</div>
+<p>The 9 counts marked as a part above are the whole of the 13 mandatory requirements: they add up to 13. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
-<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
 <tbody>
-<tr><td>Gated MUSTs</td>
-<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
-</tr>
 <tr><td>Out of scope</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
 <td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
@@ -167,9 +177,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
-<tr><td>No test at all</td>
+<tr><td>Declared gap or no test</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+<td>green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
@@ -187,13 +197,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
 <td>neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption</td>
 </tr>
-<tr><td>Proven by a recorded break</td>
+<tr><td>Tests shown to detect a fault</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above</td>
+<td>green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current</td>
+</tr>
+<tr><td>Mandatory requirements (MUST level)</td>
+<td><span class="rfc-swatch rfc-total-card"></span> outlined</td>
+<td>outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad</td>
 </tr>
 </tbody>
 </table>
@@ -208,13 +222,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Public row</td>
 <td>Send Hold Timer</td>
 </tr>
-<tr><td>Enrolment</td>
-<td>Enrolled</td>
+<tr><td>Automatic checks</td>
+<td>Included</td>
 </tr>
 <tr><td>Requirements</td>
 <td>20</td>
 </tr>
-<tr><td>Gated MUST-level</td>
+<tr><td>Mandatory requirements (MUST level)</td>
 <td>13</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
@@ -226,28 +240,28 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
 </tr>
-<tr><td>Gated with no test</td>
+<tr><td>Mandatory requirements with no test and no annotation</td>
 <td>0</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>35</td>
+<td>36</td>
 </tr>
-<tr><td>Tagged units</td>
-<td>35</td>
+<tr><td>Tests linked to requirements</td>
+<td>36</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>13</td>
 </tr>
-<tr><td>Discrimination records</td>
-<td>8</td>
+<tr><td>Fault test records</td>
+<td>9</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc9687.md</code></td>
 </tr>
-<tr><td>Requirement shard</td>
+<tr><td>Requirement table</td>
 <td><code>rfc/requirements/rfc9687.md</code></td>
 </tr>
 <tr><td>RFC text</td>
@@ -257,13 +271,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 </section>
-<section><h2>Enrolment</h2>
-<p>Enrolled: BGP-4 Send Hold Timer: thirteen MUST-level requirements, every one proven in both polarities over the real session (internal/component/bgp/reactor/rfc9687_test.go, a Session driven to Established on a net.Pipe with Run executing and a FakeClock behind every timer). Ten of the thirteen are read from section 4.3, whose obligations are written in the indicative inside quoted NEW blocks that replace text in RFC 4271 section 8.2.2; RFC 4271 section 8 makes an implementation &#34;support the described functionality and exhibit the same externally visible behavior&#34;, which is the same ground on which rfc/short/rfc4271.md gates eighteen rows of that section. RFC9687-4.3-1 is the OpenConfirm Event 26 arming, RFC9687-4.3-2 through -7 are the Event 29 action list (log, release resources, zero the ConnectRetryTimer, drop TCP, increment the ConnectRetryCounter, go to Idle), RFC9687-4.3-8 is the restart on every message sent, RFC9687-4.3-9 the stop when the negotiated HoldTime is zero, RFC9687-4.3-10 the stop on any transition out of Established. RFC9687-5-1 and -2 restate the close and the log as capitalised MUSTs and RFC9687-4.4-1 is the section 4.4 constraint on the attribute. Two of the thirteen were UNMET when the walk started and were fixed in the same change: startSendHoldTimer armed the timer whatever the negotiated HoldTime was, so a peering with a zero Hold Time (RFC 4271 section 4.2, which stops KEEPALIVEs in both directions) was torn down every eight minutes although it sent nothing by design; and parsePeerFromTree accepted send-hold-time 480 beside receive-hold-time 3600, an attribute section 4.4 forbids. Both fixes were proven red before green. The remaining seven rows are 1 RECOMMENDED, 2 SHOULD and 4 MAY. The section-by-section walk is recorded in rfc/extraction/rfc9687.json at register prose. Enrolled 2026-08-31.</p>
+<section><h2>Automatic checks</h2>
+<p>Included in automatic checks: BGP-4 Send Hold Timer: thirteen MUST-level requirements, every one proven in both polarities over the real session (internal/component/bgp/reactor/rfc9687_test.go, a Session driven to Established on a net.Pipe with Run executing and a FakeClock behind every timer). Ten of the thirteen are read from section 4.3, whose obligations are written in the indicative inside quoted NEW blocks that replace text in RFC 4271 section 8.2.2; RFC 4271 section 8 makes an implementation &#34;support the described functionality and exhibit the same externally visible behavior&#34;, which is the same ground on which rfc/short/rfc4271.md gates eighteen rows of that section. RFC9687-4.3-1 is the OpenConfirm Event 26 arming, RFC9687-4.3-2 through -7 are the Event 29 action list (log, release resources, zero the ConnectRetryTimer, drop TCP, increment the ConnectRetryCounter, go to Idle), RFC9687-4.3-8 is the restart on every message sent, RFC9687-4.3-9 the stop when the negotiated HoldTime is zero, RFC9687-4.3-10 the stop on any transition out of Established. RFC9687-5-1 and -2 restate the close and the log as capitalised MUSTs and RFC9687-4.4-1 is the section 4.4 constraint on the attribute. Two of the thirteen were UNMET when the walk started and were fixed in the same change: startSendHoldTimer armed the timer whatever the negotiated HoldTime was, so a peering with a zero Hold Time (RFC 4271 section 4.2, which stops KEEPALIVEs in both directions) was torn down every eight minutes although it sent nothing by design; and parsePeerFromTree accepted send-hold-time 480 beside receive-hold-time 3600, an attribute section 4.4 forbids. Both fixes were proven red before green. The remaining seven rows are 1 RECOMMENDED, 2 SHOULD and 4 MAY. The section-by-section walk is recorded in rfc/extraction/rfc9687.json at register prose. Enrolled 2026-08-31.</p>
 </section>
-<section><h2>What the public ledger says</h2>
+<section><h2>Published support status</h2>
 <p><strong>Area:</strong> Send Hold Timer</p>
-<p><strong>Proof:</strong> 3 of 13 MUST proven</p>
-<p><strong>Evidence:</strong> unit 3</p>
+<p><strong>Proof:</strong> 4 of 13 MUST proven</p>
+<p><strong>Evidence:</strong> unit 4</p>
 <p><strong>Unmet:</strong> -</p>
 
 </section>
@@ -274,33 +288,33 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td>Positive and negative tests</td>
 <td><strong>13</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
 <td><strong>0</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
-<tr><td>One polarity only</td>
+<tr><td>Only a positive or negative test</td>
 <td><strong>0</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
 <td><strong>0</strong></td>
-<td>an overlay: each of these is also counted by the part it falls in</td>
+<td>also counted in one of the groups above</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
-<td>an overlay: each of these is also counted by the part it falls in</td>
+<td>also counted in one of the groups above</td>
 </tr>
 <tr><td>Derived from other rows</td>
 <td><strong>0</strong></td>
-<td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
+<td>excluded from the total: each summarizes the status of other requirements, which are already counted above</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>13</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Mandatory requirements (MUST level)</strong></td><td><strong>13</strong></td><td>every mandatory requirement appears in exactly one group above</td></tr>
 </tbody>
 </table>
 </div>
@@ -308,9 +322,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc9687:must">Ze proven 3, Ze correctness gap 10</div>
+<div data-ze-rfc-bar="rfc9687:must">Ze proven 4, Proof pending 9</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc9687:overview">Ze MUST proven 3, SHOULD not decided 7, Ze correctness gap 10</div>
+<div data-ze-rfc-bar="rfc9687:overview">Ze MUST proven 4, Proof pending 9, Not assessed 7</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -318,10 +332,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>RFCs</td>
 <td><span data-ze-rfc="rfc9687:rfcs">1</span></td>
 </tr>
-<tr><td>Not walked</td>
+<tr><td>Requirements not reviewed</td>
 <td><span data-ze-rfc="rfc9687:not-walked">0</span></td>
 </tr>
-<tr><td>Mandatory register</td>
+<tr><td>Mandatory requirements complete</td>
 <td><span data-ze-rfc="rfc9687:register">not complete</span></td>
 </tr>
 <tr><td>MUST rows</td>
@@ -331,16 +345,25 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc9687:must.kept">13</span></td>
 </tr>
 <tr><td>Ze proven</td>
-<td><span data-ze-rfc="rfc9687:must.ze-proven">3</span></td>
+<td><span data-ze-rfc="rfc9687:must.ze-proven">4</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc9687:must.os-verified">0</span></td>
 </tr>
+<tr><td>Proof pending</td>
+<td><span data-ze-rfc="rfc9687:must.proof-pending">9</span></td>
+</tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc9687:must.os-gap">0</span></td>
 </tr>
-<tr><td>Ze correctness gap</td>
-<td><span data-ze-rfc="rfc9687:must.ze-gap">10</span></td>
+<tr><td>Exclusion unchecked</td>
+<td><span data-ze-rfc="rfc9687:must.exclusion-unchecked">0</span></td>
+</tr>
+<tr><td>Not assessed</td>
+<td><span data-ze-rfc="rfc9687:must.not-assessed">0</span></td>
+</tr>
+<tr><td>Not built</td>
+<td><span data-ze-rfc="rfc9687:must.not-built">0</span></td>
 </tr>
 <tr><td>MUST rows not owed</td>
 <td><span data-ze-rfc="rfc9687:must.not-owed">0</span></td>
@@ -378,19 +401,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD not owed: not-applicable</td>
 <td><span data-ze-rfc="rfc9687:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
-<tr><td>SHOULD not ever</td>
-<td><span data-ze-rfc="rfc9687:should.not-ever">0</span></td>
+<tr><td>SHOULD proof pending</td>
+<td><span data-ze-rfc="rfc9687:should.proof-pending">0</span></td>
 </tr>
-<tr><td>SHOULD not yet</td>
-<td><span data-ze-rfc="rfc9687:should.not-yet">0</span></td>
+<tr><td>SHOULD exclusion unchecked</td>
+<td><span data-ze-rfc="rfc9687:should.exclusion-unchecked">0</span></td>
 </tr>
-<tr><td>SHOULD not decided</td>
-<td><span data-ze-rfc="rfc9687:should.not-decided">7</span></td>
+<tr><td>SHOULD not assessed</td>
+<td><span data-ze-rfc="rfc9687:should.not-assessed">7</span></td>
+</tr>
+<tr><td>SHOULD not built</td>
+<td><span data-ze-rfc="rfc9687:should.not-built">0</span></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.</p>
+<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
 
 </section>
 <section><h2>Requirements</h2>
@@ -443,6 +469,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>4.3 - Changes to the FSM</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9687-4.3-5">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L178" title="internal/component/bgp/reactor/rfc9687_test.go" target="_blank" rel="noopener"><code>TestRFC9687SendHoldExpiryRunsTheEvent29ActionList</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_wedge_test.go#L234" title="internal/component/bgp/reactor/session_wedge_test.go" target="_blank" rel="noopener"><code>TestSendHoldExpiryClosesBehindStuckWriter</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L273" title="internal/component/bgp/reactor/rfc9687_test.go" target="_blank" rel="noopener"><code>TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact</code></a></span></div>
 </div></td>
 </tr>
@@ -592,10 +619,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Gaps and untested MUSTs</h2>
-<p>RFC 9687 declares no gap, and every gated MUST it carries has a test bound to it.</p>
+<p>RFC 9687 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.</p>
 </section>
 <section><h2>Proof state</h2>
-<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<p>A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.</p>
 <h3><a href="#rfc9687-4.3-1"><code>RFC9687-4.3-1</code></a></h3>
 <p>starts the SendHoldTimer if the SendHoldTime is non-zero (§4.3)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent stale-unit rejudgment of both current carriers from the native covers map. RFC 9687 Section 4.3, complete revised OpenConfirm Event 26 sentence (rfc/full/rfc9687.txt:199-207): &#39;If the local system receives a KEEPALIVE message (KeepAliveMsg (Event 26)), the local system: - restarts the HoldTimer, - starts the SendHoldTimer if the SendHoldTime is non-zero, and - changes its state to Established.&#39; Section 4.1 (lines 161-163) additionally states: &#39;SendHoldTime determines how long a BGP speaker will stay in the Established state before the TCP connection is dropped because no BGP messages can be transmitted to its peer.&#39; Retained positive assertion: internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldTimerArmedOnEstablished (lines 337-343) calls rfc9687Established with a peer HoldTime of 90 seconds; the fixture requires actual OPEN acceptance into OpenConfirm, then actual KEEPALIVE transition into Established, and the test asserts p.armed(), specifically sendHoldDeadline.Load()!=0. Retained negative assertion: TestRFC9687SendHoldTimerNotArmedBeforeEstablished (lines 358-388) supplies the same peer OPEN but no peer KEEPALIVE, requires OpenConfirm, and asserts the exact zero sendHoldDeadline. Thus the tests distinguish the arming event from connection/OPEN setup, not two names on one assertion. Their direct SendHoldTime=10s fixture attribute intentionally isolates this action from the other timers; it is not evidence for the separate configuration constraint in Section 4.4. The effective-zero SendHoldTime branch is not configurable in the current producer: session_write.go::sendHoldDuration (lines 221-226) returns a positive configured value or max(8 minutes,2*ReceiveHoldTime), with the minimum defined at session.go:184. Negotiated-zero HoldTime is a separate Section 4.3 exception, not an assertion newly claimed for these two carriers. Dispatch is explicit at session_read.go:424-425; session_handlers.go::handleKeepalive (lines 282-307) starts the timer in OpenConfirm before delivering EventKeepaliveMsg, and session_write.go::startSendHoldTimer (lines 245-257) stores the deadline and schedules the callback. The lifecycle edit replaces the detached Run launch with rfc9687Run (rfc9687_test.go:67-88), retaining the real Session.Run and its buffered error result while adding a cancel-and-join cleanup before earlier logger restoration and pipe/session cleanup. The negative test previously never consumed its local runResult; its removal removes no expectation. acceptWithReader still owns pipe and timer cleanup (session_test.go:32-55). Both protocol assertions occur before cleanup, so cleanup cannot make a prematurely armed OpenConfirm timer pass the zero assertion. [INFERENCE] Omitting the OpenConfirm arming action fails the positive assertion, while arming at connection/OPEN setup fails the negative assertion. No targeted semantic mutation or check was run for this rejudgment, and no green race execution is used as RFC truth. The inspected rfc/discrimination/rfc9687.json contains no record for this ID; records for other obligations do not supply one.</p>
@@ -693,7 +720,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc9687-4.3-5"><code>RFC9687-4.3-5</code></a></h3>
 <p>drops the TCP connection (§4.3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 9687 Section 4.3 Event 29 drops TCP. Both tagged action-list functions were re-read. SendHoldExpiryRunsTheEvent29ActionList advances the isolated SendHold deadline, now requires exact ErrSendHoldTimerExpired, and calls requireConnClosed after Run joins; that helper requires EOF or closed pipe and explicitly refuses deadline expiry. NoSendHoldExpiryLeavesTheSessionIntact advances one nanosecond less, retains Established and the armed timer, and fails if the transport drain reports a close. sendHoldTimerExpired invokes closeConn, backed by Run&#39;s common deferred close; a mere Run return is not the transport predicate. The new sentinel check strengthens rather than removes the existing close observation. No native test was run.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-14 at 5d862bbab9 by an independent auditor who authored none of the changes named. RFC 9687 Section 4.3, SendHoldTimer_Expires (Event 29): &#34;drops the TCP connection,&#34; is one action of the list the local system performs. The row gained a third tagged unit, TestSendHoldExpiryClosesBehindStuckWriter (session_wedge_test.go, positive), read whole with its helpers. It brings a real Session to Established over a net.Pipe with Run executing and the Send Hold Timer on the real clock (wedgeSendHold 5s; only the FSM timers are on a fake clock that is never advanced, so no KEEPALIVE moves the deadline and no hold timer closes the session). It takes writeMu as a stuck writer holds it, requires sendHoldDeadline non-zero so the expiry is still to come and must meet the held path, then requires the peer end&#39;s read to end with io.EOF within the time left to that deadline plus holdExpiryNotifyDeadline (1s) plus wedgeSlack (2s), all before the path is released. Only ze closing its end gives the peer io.EOF; a still-open socket is t.Fatal, and any other read error fails the ErrorIs. So it fails when the expiry waits on the write path for its optional NOTIFICATION or for a flush, which is the defect 1c6795e9e4 removed, and when the close step closes nothing. The producer was read: sendHoldTimerExpired bounds the NOTIFICATION by holdExpiryNotifyDeadline and calls closeConnWithin, which does not wait again after a NOTIFICATION that met the held path and then calls dropConn (expire the write deadline, close the socket). The claim states what the body asserts and no more: closure seen as EOF at the peer, bounded from the expiry, with the path held. The later assertions (Run returns ErrSendHoldTimerExpired, FSM Idle) are outside the claim and outside this row. Its discrimination record names the break of dropConn&#39;s body; I did not run it. The two earlier units in rfc9687_test.go are unchanged since their judgement and were not re-read: the check reports neither as moved, and their recorded judgement stands, with one correction to its wording: the expiry now reaches the close through closeConnWithin, not closeConn. The pair holds: the negative unit keeps the session and its transport intact one nanosecond short of expiry. No test or record ran for this rejudgment. Verdict unchanged: enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -707,6 +734,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L178" title="internal/component/bgp/reactor/rfc9687_test.go" target="_blank" rel="noopener"><code>TestRFC9687SendHoldExpiryRunsTheEvent29ActionList</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_wedge_test.go#L234" title="internal/component/bgp/reactor/session_wedge_test.go" target="_blank" rel="noopener"><code>TestSendHoldExpiryClosesBehindStuckWriter</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -902,7 +934,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 </section>
-<section><h2>Extraction sign-off</h2>
+<section><h2>Requirement list review</h2>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
@@ -948,79 +980,79 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td><code>front</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Title block, Status of This Memo, Copyright Notice, Abstract and Table of Contents. Walked rather than skipped because the site scan attributes one site here, the IETF Trust Legal Provisions boilerplate, excluded below. The Abstract restates section 1: the document defines the SendHoldTimer and the SendHoldTimer_Expires event for the BGP FSM and updates RFC 4271. Nothing before section 1 binds a BGP speaker.</td>
 </tr>
 <tr><td><code>1</code></td>
 <td>Introduction</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Introduction. Indicative prose: what the document defines, why a blocked connection harms the inter-domain routing system, and that speakers following the specification close blocked connections locally instead of relying on the remote system. Its one near-directive, &#39;This specification intends to improve this situation by requiring that BGP connections be terminated&#39;, announces the obligation that sections 4.3 and 5 state; it adds none of its own.</td>
 </tr>
 <tr><td><code>2</code></td>
 <td>Requirements Language</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Requirements Language. The BCP 14 key-words paragraph, which also states that the key words bind only when they appear in all capitals. It tells a reader how to read the other sections and binds no speaker, which is why the derivation excludes it from the site inventory.</td>
 </tr>
 <tr><td><code>3</code></td>
 <td>Example of a Problematic Scenario</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Example of a Problematic Scenario. Describes the fault this document addresses: a remote speaker advertising a TCP Receive Window of zero, BGP&#39;s lack of visibility into the socket, and the stale routing information that results. Every sentence is descriptive and none directs a speaker.</td>
 </tr>
 <tr><td><code>4</code></td>
 <td>Changes to RFC 4271 - SendHoldTimer</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Changes to RFC 4271 - SendHoldTimer. One paragraph naming what the four subsections add: a BGP timer, SendHoldTimer, and updates to the BGP FSM. No directive.</td>
 </tr>
 <tr><td><code>4.1</code></td>
 <td>Session Attributes</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Session Attributes. Adds SendHoldTimer and SendHoldTime as optional session attributes 14 and 15 of RFC 4271 section 8, then defines SendHoldTime: it &#39;determines how long a BGP speaker will stay in the Established state before the TCP connection is dropped because no BGP messages can be transmitted to its peer&#39;, and &#39;A BGP speaker can configure the value of the SendHoldTime for each peer independently&#39;. Both are definitions of the attribute rather than directives; the permission to make it configurable is the section 6 MAY, RFC9687-6-3, and the constraint on its value is the section 4.4 MUST, RFC9687-4.4-1. The attribute is carried by the Timers table of rfc/short/rfc9687.md.</td>
 </tr>
 <tr><td><code>4.2</code></td>
 <td>Timer Event: SendHoldTimer_Expires</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Timer Event: SendHoldTimer_Expires. Adds Event 29 to RFC 4271 section 8.1.3 with a definition (&#39;An event generated when the SendHoldTimer expires&#39;) and a status (&#39;Optional&#39;). A registry entry for the FSM&#39;s event list, not a directive: what a speaker DOES on Event 29 is section 4.3. The word Optional is title case, so section 2 gives it no RFC 2119 meaning; it marks the event as one an implementation need not have, and ze has it.</td>
 </tr>
 <tr><td><code>4.3</code></td>
 <td>Changes to the FSM</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Changes to the FSM. The document&#39;s main normative section, and the reason the register derives &#39;prose&#39;: every obligation it states sits inside a quoted NEW block that replaces text in RFC 4271 section 8.2.2, written in the indicative with no modal at all, so no scan attributes a site here. All ten gated ids are declared unsourced. RFC 4271 section 8 is what makes them MUST-level -- an implementation &#39;MUST support the described functionality and exhibit the same externally visible behavior&#39; -- and rfc/short/rfc4271.md already gates eighteen rows of section 8.2.2 on that ground. RFC9687-4.3-1 is the revised OpenConfirm KeepAliveMsg (Event 26) action list, &#39;starts the SendHoldTimer if the SendHoldTime is non-zero&#39;, produced by handleKeepalive calling startSendHoldTimer (internal/component/bgp/reactor/session_handlers.go). RFC9687-4.3-2 through RFC9687-4.3-7 are the six non-optional items of the Event 29 action list added to the Established state, in the order the RFC lists them: log the error, release all BGP resources, set the ConnectRetryTimer to zero, drop the TCP connection, increment the ConnectRetryCounter by 1, change state to Idle. Their producer is sendHoldTimerExpired (session_write.go), which logs, sends the optional NOTIFICATION, fires the FSM event that increments the counter and moves to Idle (internal/component/bgp/fsm/fsm.go), and closes the connection, with Run&#39;s exit StopAll releasing the timers. RFC9687-4.3-8 and RFC9687-4.3-9 split the restart sentence: every message sent restarts the timer (resetSendHoldTimer, called after each successful flush), and a zero SendHoldTime or a zero negotiated HoldTime stops it instead (startSendHoldTimer reads Timers.HoldTime). RFC9687-4.3-10 is the closing sentence, the stop on any transition out of Established, produced by closeConn. Two sentences the scans cannot see are not obligations: the OLD block quotes the RFC 4271 text being replaced, and the two optional items of the action list are the MAY rows RFC9687-4.3-11 and RFC9687-4.3-12, which are not gated.</td>
 </tr>
 <tr><td><code>4.4</code></td>
 <td>Changes to BGP Timers</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Changes to BGP Timers. Adds SendHoldTimer to the RFC 4271 section 10 timer summary. Its one site carries the section&#39;s only capitalised keyword and is mapped below to RFC9687-4.4-1. The surrounding sentence, &#39;SendHoldTime is an FSM attribute that stores the initial value for the SendHoldTimer&#39;, is a definition already carried by section 4.1 and by the Timers table of rfc/short/rfc9687.md.</td>
 </tr>
 <tr><td><code>5</code></td>
 <td>Send Hold Timer Expired Error Handling</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Send Hold Timer Expired Error Handling. Two sites, both mapped below. The first sentence carries a MAY and a MUST: the MUST is RFC9687-5-1 and the MAY is the ungated RFC9687-5-3, which restates the optional NOTIFICATION of section 4.3. The second is RFC9687-5-2, the log obligation. Both restate items of the section 4.3 Event 29 action list at capitalised strength, which is why the summary declares them as their own ids rather than folding them into the 4.3 rows: they are separately quotable obligations at a level the scans can see, and both carry their own tags.</td>
 </tr>
 <tr><td><code>6</code></td>
 <td>Implementation Considerations</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Implementation Considerations. Three advisory statements and one value definition, none gated. The RECOMMENDED default-on is RFC9687-6-1, the &#39;greater of 8 minutes or 2 times the negotiated HoldTime&#39; default is the SHOULD of RFC9687-6-2, and the permission to make the value configurable is RFC9687-6-3. The closing paragraph fixes the NOTIFICATION subcode at 0 with no Data; it is a value assignment, carried by the Wire Formats and Constants sections of rfc/short/rfc9687.md and asserted by the Event 29 test rather than declared as a requirement of its own.</td>
 </tr>
 <tr><td><code>7</code></td>
 <td>Operational Considerations</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Operational Considerations. Explains why the NOTIFICATION usually cannot be delivered and asks that the attempt still be made, which is the section 4.3 MAY. Its one capitalised keyword is the SHOULD of RFC9687-7-1, that a speaker provide the reason as part of its operational state; not gated. The modal scan attributes no site to this section.</td>
 </tr>
 <tr><td><code>8</code></td>
 <td>Security Considerations</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Security Considerations. States that the specification does not change BGP&#39;s security characteristics and that terminating connections with malfunctioning peers enhances resilience. No countermeasure is directed at a speaker.</td>
 </tr>
 <tr><td><code>9</code></td>
@@ -1080,7 +1112,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     </a>
                     <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
                         <span class="page-sidebar-link-label">Verify debugging</span>
-                        <small>How failed checks route to evidence.</small>
+                        <small>How to investigate failed checks using their logs.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -1099,7 +1131,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 20:44 UTC</span>
                 </div>
             </div>
         </footer>

@@ -1,6 +1,6 @@
 # BGP core
 
-Technology aggregate. BGP base protocol, capabilities, attributes, and error handling. The RFCs whose summary names the bgp-core aggregate, with the MUST bar and the overview bar of the set and of each RFC.
+Technology profile. BGP base protocol, capabilities, attributes, and error handling. The RFCs grouped under bgp-core, showing mandatory requirement coverage and overall coverage for the group and each RFC.
 
 [All profiles](../) · [All RFCs](../../)
 
@@ -12,20 +12,23 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-core.json](../../
 
 ## Figures
 
-- **MUST bar**: Ze proven 208, Ze correctness gap 139
-- **Overview bar**: Ze MUST proven 208, SHOULD proven 8, Not owed 1, SHOULD not decided 106, Ze correctness gap 139
+- **MUST bar**: Ze proven 209, Proof pending 99, Not built 39
+- **Overview bar**: Ze MUST proven 209, SHOULD proven 8, Not owed 1, Proof pending 101, Not assessed 104, Not built 39
 
 | Figure | Rows |
 |---|---|
 | RFCs | 21 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 348 |
 | MUST rows kept (the MUST bar) | 347 |
-| Ze proven | 208 |
+| Ze proven | 209 |
 | OS verified | 0 |
+| Proof pending | 99 |
 | OS testing gap | 0 |
-| Ze correctness gap | 139 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 39 |
 | MUST rows not owed | 1 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -38,63 +41,64 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-core.json](../../
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 106 |
+| SHOULD proof pending | 2 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 104 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 ## Tree
 
-Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each RFC carries the same two bars as the set above, from its own data file; an RFC that is not walked shows "not walked" and no bar.
+The RFCs are listed with the standards they build on first. An RFC appears one level after the highest level of its dependencies; RFCs that refer back to each other share a level. Each RFC has the same two coverage bars as the group above. An RFC whose requirement list has not been reviewed shows "requirements not reviewed" instead of a bar.
 
 ### Level 3
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | Ze proven 85, Ze correctness gap 48 | Ze MUST proven 85, SHOULD proven 3, SHOULD not decided 31, Ze correctness gap 48 |
+| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | Ze proven 85, Proof pending 29, Not built 19 | Ze MUST proven 85, SHOULD proven 3, Proof pending 30, Not assessed 30, Not built 19 |
 
 ### Level 4
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 2545](../../rfc2545/) | Use of BGP-4 Multiprotocol Extensions for IPv6 Inter-Domain Routing | Ze proven 3, Ze correctness gap 2 | Ze MUST proven 3, SHOULD not decided 2, Ze correctness gap 2 |
-| [RFC 5492](../../rfc5492/) | Capabilities Advertisement with BGP-4 | Ze proven 8, Ze correctness gap 1 | Ze MUST proven 8, SHOULD not decided 7, Ze correctness gap 1 |
-| [RFC 6608](../../rfc6608/) | Subcodes for BGP Finite State Machine Error | Ze correctness gap 3 | Ze correctness gap 3 |
-| [RFC 8212](../../rfc8212/) | Default External BGP (EBGP) Route Propagation Behavior without Policies | Ze proven 2 | Ze MUST proven 2, SHOULD not decided 1 |
-| [RFC 9072](../../rfc9072/) | Extended Optional Parameters Length for BGP OPEN Message | Ze proven 5, Ze correctness gap 4 | Ze MUST proven 5, SHOULD proven 1, SHOULD not decided 2, Ze correctness gap 4 |
-| [RFC 9687](../../rfc9687/) | Border Gateway Protocol 4 (BGP-4) Send Hold Timer | Ze proven 3, Ze correctness gap 10 | Ze MUST proven 3, SHOULD not decided 7, Ze correctness gap 10 |
+| [RFC 2545](../../rfc2545/) | Use of BGP-4 Multiprotocol Extensions for IPv6 Inter-Domain Routing | Ze proven 3, Not built 2 | Ze MUST proven 3, Not assessed 2, Not built 2 |
+| [RFC 5492](../../rfc5492/) | Capabilities Advertisement with BGP-4 | Ze proven 8, Not built 1 | Ze MUST proven 8, Not assessed 7, Not built 1 |
+| [RFC 6608](../../rfc6608/) | Subcodes for BGP Finite State Machine Error | Not built 3 | Not built 3 |
+| [RFC 8212](../../rfc8212/) | Default External BGP (EBGP) Route Propagation Behavior without Policies | Ze proven 2 | Ze MUST proven 2, Not assessed 1 |
+| [RFC 9072](../../rfc9072/) | Extended Optional Parameters Length for BGP OPEN Message | Ze proven 5, Not built 4 | Ze MUST proven 5, SHOULD proven 1, Not assessed 2, Not built 4 |
+| [RFC 9687](../../rfc9687/) | Border Gateway Protocol 4 (BGP-4) Send Hold Timer | Ze proven 4, Proof pending 9 | Ze MUST proven 4, Proof pending 9, Not assessed 7 |
 
 ### Level 5
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 4760](../../rfc4760/) | Multiprotocol Extensions for BGP-4 | Ze proven 6 | Ze MUST proven 6, SHOULD proven 1, SHOULD not decided 10 |
+| [RFC 4760](../../rfc4760/) | Multiprotocol Extensions for BGP-4 | Ze proven 6 | Ze MUST proven 6, SHOULD proven 1, Not assessed 10 |
 
 ### Level 6
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 2918](../../rfc2918/) | Route Refresh Capability for BGP-4 | Ze proven 3, Ze correctness gap 3 | Ze MUST proven 3, SHOULD proven 1, SHOULD not decided 4, Ze correctness gap 3 |
-| [RFC 4486](../../rfc4486/) | Subcodes for BGP Cease NOTIFICATION Message | Ze correctness gap 1 | SHOULD not decided 10, Ze correctness gap 1 |
-| [RFC 6793](../../rfc6793/) (cycle with rfc5668) | BGP Support for Four-Octet Autonomous System (AS) Number Space | Ze proven 21, Ze correctness gap 9 | Ze MUST proven 21, SHOULD not decided 6, Ze correctness gap 9 |
-| [RFC 7311](../../rfc7311/) | The Accumulated IGP Metric Attribute for BGP | Ze proven 13, Ze correctness gap 9 | Ze MUST proven 13, SHOULD not decided 4, Ze correctness gap 9 |
-| [RFC 7911](../../rfc7911/) | Advertisement of Multiple Paths in BGP | Ze proven 9 | Ze MUST proven 9, SHOULD not decided 4 |
+| [RFC 2918](../../rfc2918/) | Route Refresh Capability for BGP-4 | Ze proven 3, Proof pending 3 | Ze MUST proven 3, SHOULD proven 1, Proof pending 3, Not assessed 4 |
+| [RFC 4486](../../rfc4486/) | Subcodes for BGP Cease NOTIFICATION Message | Proof pending 1 | Proof pending 2, Not assessed 9 |
+| [RFC 6793](../../rfc6793/) (cycle with rfc5668) | BGP Support for Four-Octet Autonomous System (AS) Number Space | Ze proven 21, Proof pending 8, Not built 1 | Ze MUST proven 21, Proof pending 8, Not assessed 6, Not built 1 |
+| [RFC 7311](../../rfc7311/) | The Accumulated IGP Metric Attribute for BGP | Ze proven 13, Proof pending 9 | Ze MUST proven 13, Proof pending 9, Not assessed 4 |
+| [RFC 7911](../../rfc7911/) | Advertisement of Multiple Paths in BGP | Ze proven 9 | Ze MUST proven 9, Not assessed 4 |
 
 ### Level 7
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 6286](../../rfc6286/) | Autonomous-System-Wide Unique BGP Identifier for BGP-4 | Ze correctness gap 4 | SHOULD proven 1, Ze correctness gap 4 |
-| [RFC 7606](../../rfc7606/) (cycle with rfc4364, rfc4659, rfc4798, rfc6368, rfc8277, rfc8950) | Revised Error Handling for BGP UPDATE Messages | Ze proven 28, Ze correctness gap 25 | Ze MUST proven 28, SHOULD not decided 4, Ze correctness gap 25 |
-| [RFC 8950](../../rfc8950/) (cycle with rfc4364, rfc4659, rfc4798, rfc6368, rfc7606, rfc8277) | Advertising IPv4 Network Layer Reachability Information (NLRI) with an IPv6 Next Hop | Ze proven 3, Ze correctness gap 3 | Ze MUST proven 3, SHOULD not decided 2, Ze correctness gap 3 |
+| [RFC 6286](../../rfc6286/) | Autonomous-System-Wide Unique BGP Identifier for BGP-4 | Proof pending 3, Not built 1 | SHOULD proven 1, Proof pending 3, Not built 1 |
+| [RFC 7606](../../rfc7606/) (cycle with rfc4364, rfc4659, rfc4798, rfc6368, rfc8277, rfc8950) | Revised Error Handling for BGP UPDATE Messages | Ze proven 28, Proof pending 24, Not built 1 | Ze MUST proven 28, Proof pending 24, Not assessed 4, Not built 1 |
+| [RFC 8950](../../rfc8950/) (cycle with rfc4364, rfc4659, rfc4798, rfc6368, rfc7606, rfc8277) | Advertising IPv4 Network Layer Reachability Information (NLRI) with an IPv6 Next Hop | Ze proven 3, Proof pending 3 | Ze MUST proven 3, Proof pending 3, Not assessed 2 |
 
 ### Level 8
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 5549](../../rfc5549/) | Advertising IPv4 Network Layer Reachability Information with an IPv6 Next Hop | Ze proven 3, Ze correctness gap 3 | Ze MUST proven 3, SHOULD not decided 3, Ze correctness gap 3 |
-| [RFC 7313](../../rfc7313/) | Enhanced Route Refresh Capability for BGP-4 | Ze proven 5, Ze correctness gap 6 | Ze MUST proven 5, SHOULD not decided 6, Ze correctness gap 6 |
-| [RFC 7607](../../rfc7607/) | Codification of AS 0 Processing | Ze correctness gap 5 | Ze correctness gap 5 |
-| [RFC 8654](../../rfc8654/) | Extended Message Support for BGP | Ze proven 9, Ze correctness gap 2 | Ze MUST proven 9, SHOULD proven 1, Not owed 1, SHOULD not decided 3, Ze correctness gap 2 |
-| [RFC 9774](../../rfc9774/) | Deprecation of AS_SET and AS_CONFED_SET in BGP | Ze proven 2, Ze correctness gap 1 | Ze MUST proven 2, Ze correctness gap 1 |
+| [RFC 5549](../../rfc5549/) | Advertising IPv4 Network Layer Reachability Information with an IPv6 Next Hop | Ze proven 3, Proof pending 3 | Ze MUST proven 3, Proof pending 3, Not assessed 3 |
+| [RFC 7313](../../rfc7313/) | Enhanced Route Refresh Capability for BGP-4 | Ze proven 5, Proof pending 1, Not built 5 | Ze MUST proven 5, Proof pending 1, Not assessed 6, Not built 5 |
+| [RFC 7607](../../rfc7607/) | Codification of AS 0 Processing | Proof pending 5 | Proof pending 5 |
+| [RFC 8654](../../rfc8654/) | Extended Message Support for BGP | Ze proven 9, Proof pending 1, Not built 1 | Ze MUST proven 9, SHOULD proven 1, Not owed 1, Proof pending 1, Not assessed 3, Not built 1 |
+| [RFC 9774](../../rfc9774/) | Deprecation of AS_SET and AS_CONFED_SET in BGP | Ze proven 2, Not built 1 | Ze MUST proven 2, Not built 1 |

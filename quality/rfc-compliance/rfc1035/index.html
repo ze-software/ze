@@ -4,18 +4,18 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
-        <title>RFC 1035 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 1035: Domain Names - Implementation and Specification. 27 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 2 with no test." />
-        <meta property="og:title" content="RFC 1035 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 1035: Domain Names - Implementation and Specification. 27 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 2 with no test." />
+        <title>RFC 1035 requirements and tests - Ze</title>
+        <meta name="description" content="RFC 1035: Domain Names - Implementation and Specification. 27 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 2 with no test." />
+        <meta property="og:title" content="RFC 1035 requirements and tests - Ze" />
+        <meta property="og:description" content="RFC 1035: Domain Names - Implementation and Specification. 27 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 2 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="RFC 1035 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 1035: Domain Names - Implementation and Specification. 27 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 2 with no test." />
+        <meta name="twitter:title" content="RFC 1035 requirements and tests - Ze" />
+        <meta name="twitter:description" content="RFC 1035: Domain Names - Implementation and Specification. 27 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 2 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -47,7 +47,7 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">DNS message behavior</span>
     <h1 id="rfc-detail-title">RFC 1035 - Domain Names - Implementation and Specification</h1>
-    <p>Every requirement this repository extracted from RFC 1035, the tests bound to it, and what a reader has verified about them. This summary is not enrolled.</p>
+    <p>Every requirement listed for RFC 1035, the tests linked to it, and their recorded reviews. This summary is excluded from automatic compliance checks.</p>
 </div>
 <style>
 .rfc-table-wrap { overflow-x: auto; }
@@ -57,16 +57,25 @@
 .rfc-verdict p:last-child { margin-bottom: 0; }
 .rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
-.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
-.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: block; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
 .rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
-.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
-.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-card b { display: block; margin: 0; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: .5rem 0 0; color: var(--muted); font-size: .92rem; line-height: 1.6; }
+.rfc-card.rfc-total-card { grid-column: 1 / -1; display: grid; grid-template-columns: 15rem minmax(0, 1fr); column-gap: 1.5rem; align-items: start; }
+.rfc-card.rfc-total-card span, .rfc-card.rfc-total-card strong, .rfc-card.rfc-total-card b { grid-column: 1; }
+.rfc-card.rfc-total-card p { grid-column: 2; grid-row: 1 / span 3; margin: 0; }
+@media (max-width: 760px) {
+  .rfc-card-grid { grid-template-columns: minmax(0, 1fr); }
+  .rfc-card.rfc-total-card { display: block; }
+  .rfc-card.rfc-total-card p { margin: .5rem 0 0; }
+}
 .rfc-ok { border-left: 7px solid var(--green); }
 .rfc-neutral { border-left: 7px solid var(--line-strong); }
 .rfc-warn { border-left: 7px solid var(--amber); }
 .rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-card.rfc-total-card { background: var(--bg-soft); border: 1px solid var(--line-strong); box-shadow: none; }
 .rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
 .rfc-tape span { width: var(--w); min-width: 0; display: block; }
 .rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
@@ -87,6 +96,7 @@
 .rfc-swatch.rfc-neutral { background: var(--line-strong); }
 .rfc-swatch.rfc-warn { background: var(--amber); }
 .rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-swatch.rfc-total-card { background: var(--bg-soft); }
 .rfc-total td { border-top: 2px solid var(--line-strong); }
 .rfc-prose { max-width: 46rem; }
 ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
@@ -118,38 +128,38 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>25</strong><b>of 27 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0</strong><b>of 27 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 27 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 27 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>26</strong><b>26 of 85 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
-</div>
-<h3>Neutral</h3>
-<p>measures that are neither good news nor bad</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>MUSTs declared</span><strong>27</strong><b>of 33 this summary declares</b><p>MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (backlog), so every count below reads what the summary records rather than what the gate enforces</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 27 gated MUSTs</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 27 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 27 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 27 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 27 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>25</strong><b>of 27 mandatory requirements</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0</strong><b>of 27 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 27 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 27 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>26</strong><b>26 of 85 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>2</strong><b>of 27 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Declared gap or no test</span><strong>2</strong><b>of 27 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
 </div>
-<p>The 9 counts marked as a part above are the whole of the 27 gated MUSTs: they add up to 27. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.</p>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 27 mandatory requirements</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 27 mandatory requirements</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 27 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 27 mandatory requirements</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 27 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit</p></article>
+</div>
+<h3>Totals</h3>
+<p>what the cards above are counted against</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-total-card"><span>Mandatory requirements (MUST level), not checked</span><strong>27</strong><b>of 33 requirements this summary lists, at all levels</b><p>The RFC&#39;s MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements listed in this summary. This RFC is excluded from automatic checks (backlog), so these requirements are not checked. The counts above show what the summary records.</p></article>
+</div>
+<p>The 9 counts marked as a part above are the whole of the 27 mandatory requirements: they add up to 27. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
-<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
 <tbody>
-<tr><td>MUSTs declared</td>
-<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
-</tr>
 <tr><td>Out of scope</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
 <td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
@@ -170,9 +180,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
-<tr><td>No test at all</td>
+<tr><td>Declared gap or no test</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
-<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+<td>green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
@@ -190,13 +200,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
 <td>neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption</td>
 </tr>
-<tr><td>Proven by a recorded break</td>
+<tr><td>Tests shown to detect a fault</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above</td>
+<td>green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
 <td><span class="rfc-swatch rfc-warn"></span> warn</td>
-<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current</td>
+</tr>
+<tr><td>Mandatory requirements (MUST level), not checked</td>
+<td><span class="rfc-swatch rfc-total-card"></span> outlined</td>
+<td>outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad</td>
 </tr>
 </tbody>
 </table>
@@ -211,13 +225,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Public row</td>
 <td>DNS message behavior</td>
 </tr>
-<tr><td>Enrolment</td>
-<td>Not enrolled (backlog)</td>
+<tr><td>Automatic checks</td>
+<td>Excluded (backlog)</td>
 </tr>
 <tr><td>Requirements</td>
 <td>33</td>
 </tr>
-<tr><td>Gated MUST-level</td>
+<tr><td>Mandatory requirements (MUST level), not checked</td>
 <td>27</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
@@ -229,7 +243,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
 </tr>
-<tr><td>Gated with no test</td>
+<tr><td>Mandatory requirements with no test and no annotation</td>
 <td>2</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
@@ -238,19 +252,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Test tags</td>
 <td>85</td>
 </tr>
-<tr><td>Tagged units</td>
+<tr><td>Tests linked to requirements</td>
 <td>85</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
 </tr>
-<tr><td>Discrimination records</td>
+<tr><td>Fault test records</td>
 <td>26</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc1035.md</code></td>
 </tr>
-<tr><td>Requirement shard</td>
+<tr><td>Requirement table</td>
 <td><code>rfc/requirements/rfc1035.md</code></td>
 </tr>
 <tr><td>RFC text</td>
@@ -260,10 +274,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 </section>
-<section><h2>Enrolment</h2>
-<p>Not enrolled (backlog, the requirements have not been extracted from the document yet; this is work owed rather than a decision): Domain Names: Implementation and Specification. Re-authored 2026-07-30 and it now declares 27 MUST-level obligations read from the indicative prose of a 1987 document (0 capitalised keywords, 23 lowercase must), so this is no longer an empty checklist. It is not enrolled because the obligations are not all proven and the unproven ones need an owner ruling, not an implementer&#39;s annotation. The obligation with no code path in Ze is zone transfer: Ze performs none, and the owner ruled RFC 1035 out of scope on 2026-08-18, so that work is not to be started. The 512-octet UDP bound and the TC bit ARE enforced -- send calls Msg.Truncate(udpReplyLimit(r)) for a datagram reply in internal/core/dnsserver/handler.go, and udpReplyLimit holds the Section 2.3.4 floor while letting an RFC 6891 Section 6.2.3 OPT record raise it. An unsupported inverse query DOES draw Not Implemented: Authoritative branches on the opcode before any zone lookup, in the same file. It was the one obligation the 73-section walk found OUTSIDE the summary&#39;s declared scope and added to it. The response TTL is deliberately not raised to the SOA MINIMUM -- RFC 2308 Section 4 withdrew that rule, hdr in internal/plugins/geodns/server.go applies no floor, and TestRFC2308_NoZoneWideTTLFloor holds the decision. About 6 requirements admit only a positive polarity because miekg/dns owns the wire codec and no Ze-side change can break them. Escalated for scoping per OR-1b.</p>
+<section><h2>Automatic checks</h2>
+<p>Excluded from automatic checks (backlog, the requirements have not been extracted from the document yet; this is work owed rather than a decision): Domain Names: Implementation and Specification. Re-authored 2026-07-30 and it now declares 27 MUST-level obligations read from the indicative prose of a 1987 document (0 capitalised keywords, 23 lowercase must), so this is no longer an empty checklist. It is not enrolled because the obligations are not all proven and the unproven ones need an owner ruling, not an implementer&#39;s annotation. The obligation with no code path in Ze is zone transfer: Ze performs none, and the owner ruled RFC 1035 out of scope on 2026-08-18, so that work is not to be started. The 512-octet UDP bound and the TC bit ARE enforced -- send calls Msg.Truncate(udpReplyLimit(r)) for a datagram reply in internal/core/dnsserver/handler.go, and udpReplyLimit holds the Section 2.3.4 floor while letting an RFC 6891 Section 6.2.3 OPT record raise it. An unsupported inverse query DOES draw Not Implemented: Authoritative branches on the opcode before any zone lookup, in the same file. It was the one obligation the 73-section walk found OUTSIDE the summary&#39;s declared scope and added to it. The response TTL is deliberately not raised to the SOA MINIMUM -- RFC 2308 Section 4 withdrew that rule, hdr in internal/plugins/geodns/server.go applies no floor, and TestRFC2308_NoZoneWideTTLFloor holds the decision. About 6 requirements admit only a positive polarity because miekg/dns owns the wire codec and no Ze-side change can break them. Escalated for scoping per OR-1b.</p>
 </section>
-<section><h2>What the public ledger says</h2>
+<section><h2>Published support status</h2>
 <p><strong>Area:</strong> DNS message behavior</p>
 <p><strong>Proof:</strong> 12 of 27 MUST proven</p>
 <p><strong>Evidence:</strong> functional 1, unit 11</p>
@@ -277,33 +291,33 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td>Positive and negative tests</td>
 <td><strong>25</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
 <td><strong>0</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
-<tr><td>One polarity only</td>
+<tr><td>Only a positive or negative test</td>
 <td><strong>0</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>No test and no annotation</td>
 <td><strong>2</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
 <td><strong>0</strong></td>
-<td>an overlay: each of these is also counted by the part it falls in</td>
+<td>also counted in one of the groups above</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
-<td>an overlay: each of these is also counted by the part it falls in</td>
+<td>also counted in one of the groups above</td>
 </tr>
 <tr><td>Derived from other rows</td>
 <td><strong>0</strong></td>
-<td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
+<td>excluded from the total: each summarizes the status of other requirements, which are already counted above</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>27</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Mandatory requirements (MUST level), not checked</strong></td><td><strong>27</strong></td><td>every mandatory requirement appears in exactly one group above</td></tr>
 </tbody>
 </table>
 </div>
@@ -312,9 +326,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc1035:must">Ze proven 12, Ze correctness gap 15</div>
+<div data-ze-rfc-bar="rfc1035:must">Ze proven 12, Proof pending 13, Not assessed 2</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc1035:overview">Ze MUST proven 12, SHOULD not decided 6, Ze correctness gap 15</div>
+<div data-ze-rfc-bar="rfc1035:overview">Ze MUST proven 12, Proof pending 13, Not assessed 8</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -322,10 +336,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>RFCs</td>
 <td><span data-ze-rfc="rfc1035:rfcs">1</span></td>
 </tr>
-<tr><td>Not walked</td>
+<tr><td>Requirements not reviewed</td>
 <td><span data-ze-rfc="rfc1035:not-walked">0</span></td>
 </tr>
-<tr><td>Mandatory register</td>
+<tr><td>Mandatory requirements complete</td>
 <td><span data-ze-rfc="rfc1035:register">not complete</span></td>
 </tr>
 <tr><td>MUST rows</td>
@@ -340,11 +354,20 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc1035:must.os-verified">0</span></td>
 </tr>
+<tr><td>Proof pending</td>
+<td><span data-ze-rfc="rfc1035:must.proof-pending">13</span></td>
+</tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc1035:must.os-gap">0</span></td>
 </tr>
-<tr><td>Ze correctness gap</td>
-<td><span data-ze-rfc="rfc1035:must.ze-gap">15</span></td>
+<tr><td>Exclusion unchecked</td>
+<td><span data-ze-rfc="rfc1035:must.exclusion-unchecked">0</span></td>
+</tr>
+<tr><td>Not assessed</td>
+<td><span data-ze-rfc="rfc1035:must.not-assessed">2</span></td>
+</tr>
+<tr><td>Not built</td>
+<td><span data-ze-rfc="rfc1035:must.not-built">0</span></td>
 </tr>
 <tr><td>MUST rows not owed</td>
 <td><span data-ze-rfc="rfc1035:must.not-owed">0</span></td>
@@ -382,19 +405,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD not owed: not-applicable</td>
 <td><span data-ze-rfc="rfc1035:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
-<tr><td>SHOULD not ever</td>
-<td><span data-ze-rfc="rfc1035:should.not-ever">0</span></td>
+<tr><td>SHOULD proof pending</td>
+<td><span data-ze-rfc="rfc1035:should.proof-pending">0</span></td>
 </tr>
-<tr><td>SHOULD not yet</td>
-<td><span data-ze-rfc="rfc1035:should.not-yet">0</span></td>
+<tr><td>SHOULD exclusion unchecked</td>
+<td><span data-ze-rfc="rfc1035:should.exclusion-unchecked">0</span></td>
 </tr>
-<tr><td>SHOULD not decided</td>
-<td><span data-ze-rfc="rfc1035:should.not-decided">6</span></td>
+<tr><td>SHOULD not assessed</td>
+<td><span data-ze-rfc="rfc1035:should.not-assessed">6</span></td>
+</tr>
+<tr><td>SHOULD not built</td>
+<td><span data-ze-rfc="rfc1035:should.not-built">0</span></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.</p>
+<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
 
 </section>
 <section><h2>Requirements</h2>
@@ -756,10 +782,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Proof state</h2>
-<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<p>A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.</p>
 <h3><a href="#rfc1035-2.3.3-1"><code>RFC1035-2.3.3-1</code></a></h3>
 <p>For all parts of the DNS that are part of the official protocol, all comparisons between character strings (e.g., labels, domain names, etc.) are done in a case-insensitive manner (§2.3.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -789,7 +815,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc1035-2.3.3-2"><code>RFC1035-2.3.3-2</code></a></h3>
 <p>Loss of case sensitive data must be minimized (§2.3.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -809,7 +835,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc1035-2.3.4-1"><code>RFC1035-2.3.4-1</code></a></h3>
 <p>TTL positive values of a signed 32 bit number. (§2.3.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -829,7 +855,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc1035-2.3.4-2"><code>RFC1035-2.3.4-2</code></a></h3>
 <p>UDP messages 512 octets or less (§2.3.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -849,7 +875,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc1035-3.1-1"><code>RFC1035-3.1-1</code></a></h3>
 <p>Each label is represented as a one octet length field followed by that number of octets (§3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -869,7 +895,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc1035-3.1-2"><code>RFC1035-3.1-2</code></a></h3>
 <p>Since every domain name ends with the null label of the root, a domain name is terminated by a length byte of zero (§3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -889,7 +915,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc1035-3.1-3"><code>RFC1035-3.1-3</code></a></h3>
 <p>The high order two bits of every length octet must be zero, and the remaining six bits of the length field limit the label to 63 octets or less (§3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -919,7 +945,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc1035-3.1-4"><code>RFC1035-3.1-4</code></a></h3>
 <p>To simplify implementations, the total length of a domain name (i.e., label octets and label length octets) is restricted to 255 octets or less. (§3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -949,7 +975,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc1035-3.1-5"><code>RFC1035-3.1-5</code></a></h3>
 <p>Name servers and resolvers must compare labels in a case-insensitive manner (i.e., A=a), assuming ASCII with zero parity (§3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -979,7 +1005,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc1035-3.1-6"><code>RFC1035-3.1-6</code></a></h3>
 <p>Non-alphabetic codes must match exactly (§3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -999,11 +1025,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc1035-3.3.13-1"><code>RFC1035-3.3.13-1</code></a></h3>
 <p>Whenever a RR is sent in a response to a query, the TTL field is set to the maximum of the TTL field from the RR and the MINIMUM field in the appropriate SOA (§3.3.13)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC1035-3.3.13-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC1035-3.3.13-1, so there is no linked test.</p>
 <h3><a href="#rfc1035-4.1.1-1"><code>RFC1035-4.1.1-1</code></a></h3>
 <p>Must be zero in all queries and responses. (§4.1.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1033,7 +1059,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc1035-4.1.1-2"><code>RFC1035-4.1.1-2</code></a></h3>
 <p>AA Authoritative Answer - this bit is valid in responses, and specifies that the responding name server is an authority for the domain name in question section. (§4.1.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1073,7 +1099,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc1035-4.1.1-3"><code>RFC1035-4.1.1-3</code></a></h3>
 <p>3 Name Error - Meaningful only for responses from an authoritative name server, this code signifies that the domain name referenced in the query does not exist. (§4.1.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1103,7 +1129,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc1035-4.1.3-1"><code>RFC1035-4.1.3-1</code></a></h3>
 <p>TTL a 32 bit unsigned integer that specifies the time interval (in seconds) that the resource record may be cached before it should be discarded. (§4.1.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1123,7 +1149,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc1035-4.1.3-2"><code>RFC1035-4.1.3-2</code></a></h3>
 <p>RDLENGTH an unsigned 16 bit integer that specifies the length in octets of the RDATA field. (§4.1.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1143,7 +1169,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc1035-4.1.4-1"><code>RFC1035-4.1.4-1</code></a></h3>
 <p>This allows a pointer to be distinguished from a label, since the label must begin with two zero bits because labels are restricted to 63 octets or less. (§4.1.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1173,7 +1199,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc1035-4.1.4-2"><code>RFC1035-4.1.4-2</code></a></h3>
 <p>The OFFSET field specifies an offset from the start of the message (i.e., the first octet of the ID field in the domain header). (§4.1.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1193,7 +1219,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc1035-4.1.4-3"><code>RFC1035-4.1.4-3</code></a></h3>
 <p>Pointers can only be used for occurances of a domain name where the format is not class specific (§4.1.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1213,7 +1239,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc1035-4.1.4-4"><code>RFC1035-4.1.4-4</code></a></h3>
 <p>If a domain name is contained in a part of the message subject to a length field (such as the RDATA section of an RR), and compression is used, the length of the compressed name is used in the length calculation, rather than the length of the expanded name. (§4.1.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1233,7 +1259,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc1035-4.1.4-5"><code>RFC1035-4.1.4-5</code></a></h3>
 <p>However all programs are required to understand arriving messages that contain pointers. (§4.1.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1263,11 +1289,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc1035-4.2-1"><code>RFC1035-4.2-1</code></a></h3>
 <p>Zone refresh activities must use virtual circuits because of the need for reliable transfer (§4.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC1035-4.2-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC1035-4.2-1, so there is no linked test.</p>
 <h3><a href="#rfc1035-4.2.1-1"><code>RFC1035-4.2.1-1</code></a></h3>
 <p>Messages carried by UDP are restricted to 512 bytes (not counting the IP or UDP headers). (§4.2.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1302,7 +1328,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc1035-4.2.1-2"><code>RFC1035-4.2.1-2</code></a></h3>
 <p>Longer messages are truncated and the TC bit is set in the header (§4.2.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1347,7 +1373,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc1035-4.2.1-3"><code>RFC1035-4.2.1-3</code></a></h3>
 <p>Messages sent using UDP user server port 53 (decimal) (§4.2.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1382,7 +1408,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc1035-4.2.2-1"><code>RFC1035-4.2.2-1</code></a></h3>
 <p>Messages sent over TCP connections use server port 53 (decimal). The message is prefixed with a two byte length field which gives the message length, excluding the two byte length field. (§4.2.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1412,7 +1438,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc1035-6.4-1"><code>RFC1035-6.4-1</code></a></h3>
 <p>While inverse query support is optional, all name servers must be at least able to return the error response (§6.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1441,7 +1467,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 </section>
-<section><h2>Extraction sign-off</h2>
+<section><h2>Requirement list review</h2>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
@@ -1499,415 +1525,415 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td><code>2</code></td>
 <td>INTRODUCTION heading, with no body of its own</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>INTRODUCTION heading, with no body of its own.</td>
 </tr>
 <tr><td><code>2.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Overview of the three-part domain system (name space, name servers, resolvers). Descriptive.</td>
 </tr>
 <tr><td><code>2.2</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Common configurations: the deployment shapes a resolver and a name server can take. Its one site is a characterisation, excluded below.</td>
 </tr>
 <tr><td><code>2.3</code></td>
 <td>Conventions</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Conventions. The section preamble is its one site, an applicability statement excluded below; the conventions themselves are in 2.3.1 to 2.3.4.</td>
 </tr>
 <tr><td><code>2.3.1</code></td>
 <td>Preferred name syntax</td>
 <td>3</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Preferred name syntax. Two sites map to the single [SHOULD] row that carries both halves; the third restates section 3.1&#39;s 63-octet limit.</td>
 </tr>
 <tr><td><code>2.3.2</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Data Transmission Order: the big-endian octet and bit order of every multi-octet field. Stated as a description of the diagrams, with no modal verb, so the prose scan finds no site. Ze inherits the encoding from miekg/dns and adds nothing.</td>
 </tr>
 <tr><td><code>2.3.3</code></td>
 <td>Character Case</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Character Case. Its one site is the case-preservation obligation; the case-insensitive comparison rule and the two &#39;should&#39; clauses are read from the surrounding prose, which carries no scanned keyword.</td>
 </tr>
 <tr><td><code>2.3.4</code></td>
 <td>Size limits</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Size limits. Stated as a bare list (&#39;labels 63 octets or less&#39;, &#39;names 255 octets or less&#39;, &#39;TTL positive values of a signed 32 bit number&#39;, &#39;UDP messages 512 octets or less&#39;) with no modal verb, so the scan finds no site here even though two of the four are declared as requirements.</td>
 </tr>
 <tr><td><code>3</code></td>
 <td>DOMAIN NAME SPACE AND RR DEFINITIONS heading</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>DOMAIN NAME SPACE AND RR DEFINITIONS heading.</td>
 </tr>
 <tr><td><code>3.1</code></td>
 <td>Name space definitions: the wire form of a domain name</td>
 <td>3</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Name space definitions: the wire form of a domain name. Three sites map to the length-octet, case-folding and exact-match rules; the label/terminator/total-length statements and the &#39;strongly recommended&#39; clause are indicative prose.</td>
 </tr>
 <tr><td><code>3.2</code></td>
 <td>RR definitions heading</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>RR definitions heading.</td>
 </tr>
 <tr><td><code>3.2.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Format: the NAME/TYPE/CLASS/TTL/RDLENGTH/RDATA layout, given as a diagram plus field descriptions with no modal verb.</td>
 </tr>
 <tr><td><code>3.2.2</code></td>
 <td>TYPE values: the registry table</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>TYPE values: the registry table.</td>
 </tr>
 <tr><td><code>3.2.3</code></td>
 <td>QTYPE values: the registry table</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>QTYPE values: the registry table.</td>
 </tr>
 <tr><td><code>3.2.4</code></td>
 <td>CLASS values: the registry table</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>CLASS values: the registry table.</td>
 </tr>
 <tr><td><code>3.2.5</code></td>
 <td>QCLASS values: the registry table</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>QCLASS values: the registry table.</td>
 </tr>
 <tr><td><code>3.3</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Standard RRs preamble, defining the &lt;domain-name&gt; and &lt;character-string&gt; sub-formats.</td>
 </tr>
 <tr><td><code>3.3.1</code></td>
 <td>CNAME RDATA format</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>CNAME RDATA format. Ze emits no CNAME.</td>
 </tr>
 <tr><td><code>3.3.2</code></td>
 <td>HINFO RDATA format</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>HINFO RDATA format. Ze emits no HINFO.</td>
 </tr>
 <tr><td><code>3.3.3</code></td>
 <td>MB RDATA format (EXPERIMENTAL)</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>MB RDATA format (EXPERIMENTAL). Ze emits no MB.</td>
 </tr>
 <tr><td><code>3.3.4</code></td>
 <td>MD RDATA format (Obsolete)</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>MD RDATA format (Obsolete). Ze emits no MD.</td>
 </tr>
 <tr><td><code>3.3.5</code></td>
 <td>MF RDATA format (Obsolete)</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>MF RDATA format (Obsolete). Ze emits no MF.</td>
 </tr>
 <tr><td><code>3.3.6</code></td>
 <td>MG RDATA format (EXPERIMENTAL)</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>MG RDATA format (EXPERIMENTAL). Ze emits no MG.</td>
 </tr>
 <tr><td><code>3.3.7</code></td>
 <td>MINFO RDATA format (EXPERIMENTAL)</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>MINFO RDATA format (EXPERIMENTAL). Ze emits no MINFO.</td>
 </tr>
 <tr><td><code>3.3.8</code></td>
 <td>MR RDATA format (EXPERIMENTAL)</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>MR RDATA format (EXPERIMENTAL). Ze emits no MR.</td>
 </tr>
 <tr><td><code>3.3.9</code></td>
 <td>MX RDATA format</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>MX RDATA format. Ze emits no MX.</td>
 </tr>
 <tr><td><code>3.3.10</code></td>
 <td>NULL RDATA format (EXPERIMENTAL)</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>NULL RDATA format (EXPERIMENTAL). Ze emits no NULL.</td>
 </tr>
 <tr><td><code>3.3.11</code></td>
 <td>NS RDATA format</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>NS RDATA format. Ze emits NS for the zone apex and for synthesised nameserver glue; the section states the RDATA layout with no modal verb.</td>
 </tr>
 <tr><td><code>3.3.12</code></td>
 <td>PTR RDATA format</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>PTR RDATA format. Ze&#39;s as112 zones answer PTR queries with NODATA and emit no PTR record.</td>
 </tr>
 <tr><td><code>3.3.13</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>SOA RDATA format, and the source of the MINIMUM-versus-TTL rule. Both its statements are indicative (&#39;the TTL field is set to the maximum of&#39;, &#39;this use of MINIMUM should occur&#39;), so the scan finds no site.</td>
 </tr>
 <tr><td><code>3.3.14</code></td>
 <td>TXT RDATA format</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>TXT RDATA format. Ze&#39;s as112 hostname zone emits TXT.</td>
 </tr>
 <tr><td><code>3.4</code></td>
 <td>Internet specific RRs heading</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Internet specific RRs heading.</td>
 </tr>
 <tr><td><code>3.4.1</code></td>
 <td>A RDATA format: a single 32-bit address</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>A RDATA format: a single 32-bit address. Ze emits A records.</td>
 </tr>
 <tr><td><code>3.4.2</code></td>
 <td>WKS RDATA format</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>WKS RDATA format. Its one site is the bit-map alignment rule, excluded below because Ze emits no WKS record.</td>
 </tr>
 <tr><td><code>3.5</code></td>
 <td>IN-ADDR.ARPA domain</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>IN-ADDR.ARPA domain. Its one site binds a host bootstrapping routing from DNS.</td>
 </tr>
 <tr><td><code>3.6</code></td>
 <td>Defining new types, classes, and special namespaces</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Defining new types, classes, and special namespaces. Its one site binds whoever defines a new TYPE or CLASS.</td>
 </tr>
 <tr><td><code>4</code></td>
 <td>MESSAGES heading</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>MESSAGES heading.</td>
 </tr>
 <tr><td><code>4.1</code></td>
 <td>Format: the five-section message layout</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Format: the five-section message layout.</td>
 </tr>
 <tr><td><code>4.1.1</code></td>
 <td>Header section format</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Header section format. Its one site is the Z field; AA and RCODE 3 are described field by field with no modal verb.</td>
 </tr>
 <tr><td><code>4.1.2</code></td>
 <td>Question section format: QNAME, QTYPE, QCLASS</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Question section format: QNAME, QTYPE, QCLASS.</td>
 </tr>
 <tr><td><code>4.1.3</code></td>
 <td>Resource record format</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Resource record format. TTL and RDLENGTH are given as field descriptions, and the zero-TTL clause is a &#39;should not&#39;, so the scan finds no site.</td>
 </tr>
 <tr><td><code>4.1.4</code></td>
 <td>Message compression</td>
 <td>3</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Message compression. Three sites; the pointer form and the receive-side obligation map, the third is rationale. The OFFSET base, the class-specific restriction and the enclosing-length rule are indicative prose.</td>
 </tr>
 <tr><td><code>4.2</code></td>
 <td>Transport preamble</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Transport preamble. Its one site is the zone-refresh rule.</td>
 </tr>
 <tr><td><code>4.2.1</code></td>
 <td>UDP usage</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>UDP usage. Its one site is a querier obligation; the 512-octet limit, the truncation-plus-TC rule and the port are indicative prose.</td>
 </tr>
 <tr><td><code>4.2.2</code></td>
 <td>TCP usage</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>TCP usage. The port and the two-octet length prefix are stated indicatively.</td>
 </tr>
 <tr><td><code>5</code></td>
 <td>MASTER FILES heading</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>MASTER FILES heading. Ze parses no master file: a repo-wide search for NewZoneParser, ZoneParser, ReadRR and dns.NewRR finds no production call site.</td>
 </tr>
 <tr><td><code>5.1</code></td>
 <td>Format</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Format. Its one site is master-file quoting syntax.</td>
 </tr>
 <tr><td><code>5.2</code></td>
 <td>Use of master files to define zones</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Use of master files to define zones. Its one site concerns glue.</td>
 </tr>
 <tr><td><code>5.3</code></td>
 <td>Master file example</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Master file example. Illustrative.</td>
 </tr>
 <tr><td><code>6</code></td>
 <td>NAME SERVER IMPLEMENTATION heading</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>NAME SERVER IMPLEMENTATION heading. The sections under it describe one suggested internal architecture, and Ze implements none of the recursion, caching or zone refresh they assume.</td>
 </tr>
 <tr><td><code>6.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Architecture, whose preamble states that the optimal structure depends on the host operating system and that the section &#39;discusses implementation considerations&#39;.</td>
 </tr>
 <tr><td><code>6.1.1</code></td>
 <td>Control</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Control. Its one site constrains internal task structure.</td>
 </tr>
 <tr><td><code>6.1.2</code></td>
 <td>Database</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Database. Its one site is conditioned on choosing the suggested hash structure.</td>
 </tr>
 <tr><td><code>6.1.3</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Time: the suggestion to keep absolute rather than relative times internally.</td>
 </tr>
 <tr><td><code>6.2</code></td>
 <td>Standard query processing</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Standard query processing. Its one site is the &#39;should&#39; governing truncation order.</td>
 </tr>
 <tr><td><code>6.3</code></td>
 <td>Zone refresh and reload processing</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Zone refresh and reload processing. Ze performs no zone transfer of any kind: a repo-wide search for AXFR, IXFR, TypeAXFR, TypeIXFR, dns.Transfer, SetAxfr, SetNotify and OpcodeNotify finds nothing.</td>
 </tr>
 <tr><td><code>6.4</code></td>
 <td>Inverse queries (Optional)</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Inverse queries (Optional). Two sites: the permission not to implement them, and the obligation that survives declining -- the one obligation this walk added to the summary.</td>
 </tr>
 <tr><td><code>6.4.1</code></td>
 <td>The contents of inverse queries and responses</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>The contents of inverse queries and responses. Descriptive.</td>
 </tr>
 <tr><td><code>6.4.2</code></td>
 <td>Inverse query and response example</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Inverse query and response example. Illustrative.</td>
 </tr>
 <tr><td><code>6.4.3</code></td>
 <td>Inverse query processing</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Inverse query processing. Describes the optional algorithm.</td>
 </tr>
 <tr><td><code>6.5</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Completion queries and responses: obsoleted by this RFC and retained for historical reference only.</td>
 </tr>
 <tr><td><code>7</code></td>
 <td>RESOLVER IMPLEMENTATION heading</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>RESOLVER IMPLEMENTATION heading. Every obligation under it binds a resolver, a role the authoritative-server surface this summary scopes does not play.</td>
 </tr>
 <tr><td><code>7.1</code></td>
 <td>Transforming a user request into a query</td>
 <td>4</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Transforming a user request into a query. Four sites, all resolver obligations or descriptions of the suggested request structure.</td>
 </tr>
 <tr><td><code>7.2</code></td>
 <td>Sending the queries</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Sending the queries. Its one site is resolver round-trip-time estimation.</td>
 </tr>
 <tr><td><code>7.3</code></td>
 <td>Processing responses</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Processing responses. Its one site is resolver request matching.</td>
 </tr>
 <tr><td><code>7.4</code></td>
 <td>Using the cache</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Using the cache. Ze holds no resolver cache.</td>
 </tr>
 <tr><td><code>8</code></td>
 <td>MAIL SUPPORT heading</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>MAIL SUPPORT heading. Ze emits no MX, MB, MG, MR or MINFO record and implements no mail binding.</td>
 </tr>
 <tr><td><code>8.1</code></td>
 <td>Mail exchange binding</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Mail exchange binding. Describes the MX transition from MD/MF.</td>
 </tr>
 <tr><td><code>8.2</code></td>
 <td>Mailbox binding (Experimental)</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Mailbox binding (Experimental). Experimental and unimplemented everywhere.</td>
 </tr>
 <tr><td><code>9</code></td>
@@ -2044,7 +2070,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     </a>
                     <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
                         <span class="page-sidebar-link-label">Verify debugging</span>
-                        <small>How failed checks route to evidence.</small>
+                        <small>How to investigate failed checks using their logs.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -2063,7 +2089,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 01:56 UTC</span>
                 </div>
             </div>
         </footer>

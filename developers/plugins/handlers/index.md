@@ -506,9 +506,12 @@ p.OnBye(func(reason string) error {
 
 Called after the 5-stage startup completes but before the event loop begins.
 This is the safe place to make engine calls (e.g., `SubscribeEvents`).
-Do NOT make engine calls inside `OnShareRegistry` or `OnConfigure` -- those
-run while the engine is waiting for the response, causing a deadlock.
+`OnConfigure` can call owner operations explicitly declared configure-safe,
+including `RouteViewOpen` and `RouteViewDistances`. Other engine methods receive
+a refusal during configure. Engine calls from `OnShareRegistry` still wait for
+the callback's response, so they belong in `OnStarted`.
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnStarted -->
+<!-- source: internal/component/plugin/server/startup_engine_op.go -- serveConfigureEngineOp -->
 
 ```go
 p.OnStarted(func(ctx context.Context) error {
@@ -621,12 +624,46 @@ refuses a section whose data is not JSON.
 These methods are available at runtime (after startup) to call the engine:
 <!-- source: pkg/plugin/sdk/sdk_engine.go -- all methods -->
 
+### TryEngineNative
+
+An owner with a native engine adapter can call
+`TryEngineNative(ctx, method, input)` to exchange self-contained Go values without
+JSON conversion. The result is `(value, handled, error)`. Only `handled == false`
+with no error permits the caller's public RPC form, using that method's normal
+wire input. The SDK does not construct or send this fallback. Native dispatch
+requires an internal, activated bridge; startup and external callers use public
+RPC. Once activated, a stopped or failed bridge returns an error. Owners MUST
+validate native inputs, including typed nils, and use the same evaluator as their
+required public handler. Inputs and results MUST NOT retain borrowed engine state.
+<!-- source: pkg/plugin/sdk/sdk_native.go -- TryEngineNative, engineBridgeActive -->
+<!-- source: internal/component/plugin/server/register_engine_op.go -- EngineOperation -->
+
+### RouteViewOpen, RouteViewRead and routing-view acknowledgments
+
+The six `RouteView*` methods use the ordinary engine RPC path: socket transport
+for external plugins and DirectBridge after activation for internal plugins.
+Each accepts its matching `rpc.RouteView*Input` and returns the corresponding
+output plus an error. They decode replies and refuse missing, null, malformed or
+oversized results; they do not maintain a projection or run a background reader.
+<!-- source: pkg/plugin/sdk/sdk_route_view.go -- RouteViewOpen, RouteViewRead, RouteViewCandidates, RouteViewDistances, RouteViewPublish, RouteViewClose, routeViewResult -->
+
+`RouteViewOpen` and `RouteViewDistances` may be called from `OnConfigure` during
+Stage 2. Reads, candidate scans, forwarding publication and close require the
+runtime stage. The caller owns snapshot application, reset handling and ordered
+publication retries. It MUST pass the session returned by `RouteViewOpen`, retain
+an unacknowledged operation and complete the initial snapshot before forwarding.
+The [routing-view protocol](../protocol/index.md#system-routing-views) defines the value
+metadata, bounds and acknowledgment contract.
+<!-- source: internal/component/sysrib/register_route_view.go -- init -->
+<!-- source: internal/component/sysrib/register_route_view_policy.go -- init -->
+<!-- source: internal/component/sysrib/register_route_view_output.go -- init -->
+
 ### UpdateRoute
 
 Injects a route update to matching peers.
 
 ```go
-peers, routes, err := p.UpdateRoute(ctx, "192.168.1.1", "update text nhop set 10.0.0.1 nlri add 10.0.1.0/24")
+peers, routes, err := p.UpdateRoute(ctx, "192.168.1.1", "update text next-hop 10.0.0.1 nlri add 10.0.1.0/24")
 ```
 
 ### DispatchCommand
@@ -636,6 +673,14 @@ Dispatches a command through the engine's command dispatcher (inter-plugin commu
 ```go
 status, data, err := p.DispatchCommand(ctx, "rib adjacent inbound show")
 ```
+
+Send a command's own filters as its arguments, never as a pipe chain:
+`show bgp rib received first 3 count`, not the operator's spelling with pipes.
+The engine refuses a line that holds a pipe outside double quotes, because the
+answer is data and a chain renders text. The error names the line to send
+instead. A pipe inside double quotes is an ordinary argument value.
+<!-- source: internal/component/plugin/server/command.go -- Dispatcher.Dispatch -->
+<!-- source: internal/test/fixture/plugin_fixture_16.go -- plugin16PipeFirstLast -->
 
 A command that completed and stated a warning answers status `warning`. The
 warning text, one line per entry, comes with `DispatchCommandResult`:

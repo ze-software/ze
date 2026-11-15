@@ -140,7 +140,7 @@ reader goroutine routes incoming lines by verb: `ok`/`error` responses go to the
 #1 ze-plugin-engine:declare-registration {"protocol-version":1,"families":[{"name":"ipv4/flow","mode":"both","afi":1,"safi":133}]}
 
 # Engine answers the protocol version both sides speak
-#1 ok {"protocol-version":1}
+#1 ok {"protocol-version":1,"plugin-name":"flow-export"}
 
 # Engine sends configure to plugin (Stage 2)
 #1 ze-plugin-callback:configure {"sections":[{"root":"bgp","data":"{...}"}]}
@@ -183,12 +183,13 @@ Plugin sends `ze-plugin-engine:declare-registration` with a `DeclareRegistration
 | `cache-consumer` | `bool` | Whether plugin consumes cached events |
 | `cache-consumer-unordered` | `bool` | Whether unordered cache delivery is acceptable |
 | `filters` | `[]FilterDecl` | Named route filters the plugin provides: each a `name` or a `name-pattern`, and the route fields it `reads` (`raw` for the UPDATE body) and `sets`, and whether an export filter also runs on two extra occasions, `readvertise` and `judges-final` ("Filter Run Occasions"); Stage 1 and config load judge them (`docs/architecture/api/process-protocol.md`, "Filter Declaration") |
-| `doctor-checks` | `[]DoctorCheckDecl` | Doctor checks the plugin provides |
+| `doctor-checks` | `[]DoctorCheckDecl` | Doctor checks the plugin provides, each with a `phase`: `pre-config`, `missing-config`, `parsed-config`, `post-config`, or `runtime`. Declare `runtime` (`sdk.DoctorPhaseRuntime`) for a check that reads your plugin's live state: only `show doctor` on the running daemon runs it, never a local `ze doctor` process, which holds no live state. A `runtime` check only reads; it changes nothing |
 | `resolver-caches` | `[]string` | Resolver caches the plugin holds clients for: `peeringdb`, `irr`, `cymru`. Set by `OnResolverCacheClear`; any other name is refused |
 | `enrichers` | `[]EnricherDecl` | Show enrichers the plugin provides |
 | `pipes` | `[]PipeDecl` | CLI pipe aliases the plugin names for its own commands |
 | `claims` | `[]string` | Exclusive runtime roles the plugin takes over |
 | `failure-policy` | `string` | What ze does when this plugin fails: `restart`, `ignore` or `fatal`. Omitting it means `ignore` |
+| `signals-session-ready` | `bool` | Your routes belong to a peer's initial routing update, and you report `plugin session ready` once they are out ("The session-ready report") |
 
 **The failure policy is what your plugin asks ze to do when your plugin fails.**
 It is voluntary, and a plugin that omits it is carried on without. A value that
@@ -210,6 +211,44 @@ started again. An operator whose `plugin { external <name> }` block writes
 error naming your plugin and the policy it declared. Declare `restart` when
 your plugin can come back from a crash, which usually means its state lives
 outside the process.
+
+**The session-ready report says your share of a peer's initial routing update
+is out.** It is voluntary. Declare `signals-session-ready` only when your
+plugin pushes routes into a peer from that peer's peer-up event. A plugin that
+pushes on its own schedule leaves it false and owes no report.
+
+A peer counts your plugin only when three facts hold: its `attach process`
+block grants you `send [ update ]` or `send [ raw ]`, you declared
+`signals-session-ready`, and it grants you `receive [ state ]`, so you see the
+peer-up event. Once your routes for that session are sent, dispatch:
+
+```
+request peer <address> plugin session ready session <initial-replay>
+```
+
+`<initial-replay>` is the token from that peer-up event's `initial-replay`
+field (`docs/architecture/api/json-format.md`). Send one report per peer-up,
+even when you had nothing to send.
+
+What the report does:
+
+| Situation | What ze does |
+|-----------|--------------|
+| You report | ze credits the report to your process for that session, once. A second report is not credited again |
+| You report with a token from an older session, or for a session that is going down | ze refuses it with an error naming the problem |
+| You report for a peer ze does not have | ze credits it to nothing and logs a WARN naming the peer |
+| You never report | Nothing waits for you. ze never holds its End-of-RIB for a report: it sends the marker once its own table is out |
+
+The report's effect inside ze is to lower the replay fence, which holds a
+peer's live forwarded changes while a route server or RIB plugin compiled into
+ze replays that peer's table. Only a plugin compiled into ze can own that
+fence, so today a report from an external plugin is credited and changes
+nothing on the wire. Declaring it still tells ze that your routes belong to the
+initial update.
+<!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput.SignalsSessionReady -->
+<!-- source: internal/component/bgp/reactor/peer.go -- Peer.SignalAPIReady, Peer.creditAPIReady -->
+<!-- source: internal/component/bgp/reactor/peer_run.go -- Peer.initialUpdateReporters, Peer.replayFenceOwners -->
+<!-- source: internal/component/plugin/registry/registry.go -- registry.FencesLiveForwards -->
 
 
 
@@ -283,7 +322,7 @@ Set `afi` and `safi` for a custom family. A built-in family can omit both numeri
 
 ```
 #1 ze-plugin-engine:declare-registration {"protocol-version":1,"families":[{"name":"ipv4/flow","mode":"both","afi":1,"safi":133}],"commands":[{"name":"flowspec status","short-help":"Show FlowSpec status"}],"wants-config":["bgp"]}
-#1 ok {"protocol-version":1}
+#1 ok {"protocol-version":1,"plugin-name":"flow-export"}
 ```
 
 **The protocol version.** The engine answers Stage 1 with the version both
@@ -297,6 +336,14 @@ contract. The Go SDK declares it and refuses an engine that answers any other.
 <!-- source: pkg/plugin/rpc/declaration.go -- NegotiateProtocolVersion -->
 <!-- source: internal/component/plugin/server/startup_driver.go -- runStartupHandshake -->
 <!-- source: pkg/plugin/sdk/sdk_version.go -- acceptProtocolVersion -->
+
+The answer also includes `plugin-name`, the configured instance name of the
+authenticated process. It can differ from the implementation's name. The Go
+SDK exposes this through `Plugin.InstanceName()` before `OnConfigure` runs;
+before the Stage 1 answer it is empty. Use that configured identity in recovery
+commands that restart the plugin.
+<!-- source: pkg/plugin/rpc/declaration.go -- DeclareRegistrationOutput -->
+<!-- source: pkg/plugin/sdk/sdk_identity.go -- InstanceName -->
 
 ### Stage 2: Config (Engine to Plugin)
 
@@ -519,7 +566,7 @@ each wire method to its registered handler.
 | `ze-plugin-callback:source-policy` | `OnSourcePolicy` | `rpc.SourcePolicyInput` | `rpc.SourcePolicyOutput` | Settle prepare/apply/abort/finalize for a captured retained source |
 | `ze-plugin-callback:validate-open` | `OnValidateOpen` | `ValidateOpenInput` | `ValidateOpenOutput` | Validate an OPEN message |
 | `ze-plugin-callback:filter-update` | `OnFilter` | `FilterUpdateBatchInput` (`routes`, each a `FilterUpdateInput`) | `FilterUpdateBatchOutput` (`verdicts`, each a `FilterUpdateOutput`) | Filter a batch of routes, one verdict per route in request order ("The filter-update batch"). The engine waits `rpc.FilterUpdateTimeout` (5 s) for the whole batch, then applies the filter's `on-error` policy to each of its routes, so a handler MUST NOT wait on its own data: it answers from what it holds, and a route it could not judge yet is re-judged later (for an import filter, by asking the peer with `request peer <peer> refresh <family>`, as `bgp-filter-irr` does) |
-| `ze-plugin-callback:doctor-check` | `OnDoctorCheck` | `DoctorCheckInput` | `DoctorCheckOutput` | Run a doctor check |
+| `ze-plugin-callback:doctor-check` | `OnDoctorCheck` | `DoctorCheckInput` | `DoctorCheckOutput` | Run a doctor check. Each answered diagnostic carries `code`, `severity`, `message`, and `fix`: the command or config statement that clears the problem, alone and with no label (`show rpki cache`, not `fix: show rpki cache`). Set `fix` on every finding a command can clear; ze draws it on a line of its own under the message on every surface, and omits the key when you leave it empty |
 | `ze-plugin-callback:resolver-cache-clear` | `OnResolverCacheClear` | `ResolverCacheClearInput` | `ResolverCacheClearOutput` | Clear a declared resolver cache of the plugin's current clients, answering the entries removed |
 | `ze-plugin-callback:enrich-show` | `OnEnrichShow` | `EnrichShowInput` | `EnrichShowOutput` | Add data to show output |
 | `ze-plugin-callback:post-startup` | `OnAllPluginsReady` | None | None | Signal that all plugins are ready |
@@ -948,6 +995,7 @@ Plugins call the engine during runtime through these SDK methods:
 | `ze-plugin-engine:inject-wire-route` | `InjectWireRoute` | `InjectWireRouteInput` | None | Inject a raw BGP UPDATE |
 | `ze-plugin-engine:batch-validate` | `BatchValidate` | `BatchValidateInput` | `BatchValidateResult` | Submit route validation decisions |
 | `ze-plugin-engine:metrics-publish` | `MetricsRegistry`, `SetMetricsInterval`, `FlushMetrics` | `MetricsPublishInput` | `MetricsPublishOutput` | Declare metrics and publish their changes, at the plugin's interval (`docs/plugin-development/metrics.md`) |
+| `ze-plugin-engine:report-issue` | `RaiseIssue`, `ClearIssue` | `ReportIssueInput` | None | Raise or clear a problem on the daemon's report bus, where `show doctor` reads it (`docs/architecture/api/process-protocol.md`, "Plugin problems") |
 | `ze-plugin-engine:dispatch-command` | `DispatchCommand` | `DispatchCommandInput` | `DispatchCommandOutput` | Dispatch a command string |
 | `ze-plugin-engine:dispatch-command-args` | `DispatchCommandArgs` | `DispatchCommandArgsInput` | `DispatchCommandOutput` | Dispatch a command and pre-tokenized arguments |
 | `ze-plugin-engine:emit-event` | `EmitEvent` | `EmitEventInput` | `EmitEventOutput` | Emit an event |
@@ -958,6 +1006,138 @@ Plugins call the engine during runtime through these SDK methods:
 | `ze-plugin-engine:decode-mp-reach` | `DecodeMPReach` | `DecodeMPReachInput` | `DecodeMPReachOutput` | Decode MP_REACH_NLRI |
 | `ze-plugin-engine:decode-mp-unreach` | `DecodeMPUnreach` | `DecodeMPUnreachInput` | `DecodeMPUnreachOutput` | Decode MP_UNREACH_NLRI |
 | `ze-plugin-engine:decode-update` | `DecodeUpdate` | `DecodeUpdateInput` | `DecodeUpdateOutput` | Decode a BGP UPDATE |
+
+### System routing views
+
+Each selected path's `ecmp` list retains the owning source of every member.
+The optional member `protocol` is a registered name for an owner different from
+the primary. Omission means the primary's protocol owns that member. Consumers
+resolve supplied names from existing registrations and reject an unknown name.
+The authority keeps same-target members with different owners until the
+consumer applies each owner's FIB permission, then renders the target group.
+Member ownership never changes the primary protocol credited with the prefix.
+<!-- source: pkg/plugin/rpc/route_view.go -- RouteViewNextHop -->
+<!-- source: internal/component/sysrib/projection_path.go -- projectionPath -->
+
+The system RIB owns the `ze-sysrib` namespace. Its routing view transfers the
+daemon's selected routes as values to either an internal or an external
+consumer. The daemon remains the authority for route admission, import policy,
+administrative distance and selection.
+<!-- source: pkg/plugin/rpc/route_view.go -- routing-view values and method names -->
+<!-- source: pkg/plugin/rpc/route_view_codec.go -- reply presence and atomic decoding -->
+<!-- source: internal/component/sysrib/yang/ze-sysrib-api.yang -- native RPC schema -->
+
+| Method | SDK method | Input/output types | Available |
+|--------|------------|--------------------|-----------|
+| `ze-sysrib:route-view-open` | `RouteViewOpen` | `RouteViewOpenInput` / `RouteViewOpenOutput` | Stage 2 and runtime |
+| `ze-sysrib:route-view-read` | `RouteViewRead` | `RouteViewReadInput` / `RouteViewReadOutput` | Runtime |
+| `ze-sysrib:route-view-candidates` | `RouteViewCandidates` | `RouteViewCandidatesInput` / `RouteViewCandidatesOutput` | Runtime |
+| `ze-sysrib:route-view-distances` | `RouteViewDistances` | `RouteViewDistancesInput` / `RouteViewDistancesOutput` | Stage 2 and runtime |
+| `ze-sysrib:route-view-publish` | `RouteViewPublish` | `RouteViewPublishInput` / `RouteViewPublishOutput` | Runtime |
+| `ze-sysrib:route-view-close` | `RouteViewClose` | `RouteViewCloseInput` / `RouteViewCloseOutput` | Runtime |
+<!-- source: pkg/plugin/sdk/sdk_route_view.go -- RouteViewOpen, RouteViewRead, RouteViewCandidates, RouteViewDistances, RouteViewPublish, RouteViewClose -->
+<!-- source: internal/component/sysrib/register_route_view.go -- init -->
+<!-- source: internal/component/sysrib/register_route_view_policy.go -- init -->
+<!-- source: internal/component/sysrib/register_route_view_output.go -- init -->
+
+`open` accepts an optional `reader`: `selected-feed` or `local-authority`.
+An empty input selects `selected-feed`. The authenticated process generation owns
+the returned session token. Subsequent requests carry that token and cannot choose
+another plugin's identity. A selected page carries the server epoch, cursor, explicit
+`snapshot`, `delta` or `reset` phase, and completion flag. The consumer MUST finish
+the initial snapshot before forwarding and MUST discard its projection on reset.
+An empty delta preserves the current projection.
+An explicit reset can advance the cursor to a newer fenced marker. It clears
+readiness and authorizes no forwarding. Older reset cursors remain invalid.
+<!-- source: internal/component/sysrib/projection.go -- validateSequence, Apply -->
+
+A refused publication does not by itself authorize reopening. For a benign
+selected-feed retention reset, a subsequent read on the exact refused session
+may return `rejected-publication`, a positive operation identity. The consumer
+MUST require its exact refused operation and validate the complete Reset page
+before rebuilding. The proof cannot carry entries, a snapshot or completion.
+Omission grants no proof; explicit zero and null are invalid. The daemon
+retains one fully validated refused batch, and only its exact operation,
+cursor and values can repeat that proof. Malformed attempts, output delivery
+errors and foreign or replaced leases cannot acquire it. Internal local readers
+do not use selected-feed publication recovery.
+<!-- source: pkg/plugin/rpc/route_view.go -- RouteViewReadOutput -->
+<!-- source: pkg/plugin/rpc/route_view_codec.go -- RouteViewReadOutput.UnmarshalJSON -->
+<!-- source: internal/component/sysrib/route_view_output.go -- provePublicationReset -->
+<!-- source: internal/component/sysrib/route_view_worker_output.go -- publicationReset -->
+
+`local-authority` requires an authenticated internal system RIB with direct access
+to the daemon's Loc-RIB. It retains no selected snapshot or delta journal.
+Its direct reader is ready at logical cursor zero. Distance acknowledgment follows
+authoritative reselection and returns zero. Selected reads require reopening with
+`selected-feed`. Both transports provide the same reader choices and refusals.
+External system RIBs use `selected-feed`.
+<!-- source: internal/component/sysrib/route_view.go -- open, read -->
+<!-- source: internal/component/sysrib/route_view_feed.go -- synchronize, validateConsumed -->
+
+Requests require every mandatory field even when its value is zero. `read`
+requires explicit `cursor` and `wait-ms` fields. Candidate reads and publications
+also require an explicit cursor. Unknown request fields and null mandatory
+fields fail before the session changes. An omitted distance list remains empty.
+<!-- source: pkg/plugin/rpc/route_view_input_codec.go -- routing-view input decoding -->
+
+The complete request must fit `rpc.MaxMessageSize`, including its method and
+correlation ID. `rpc.RouteViewRequestBudget` reserves the widest ID and the
+method header. Direct calls enforce the same bound.
+<!-- source: pkg/plugin/rpc/route_view_input_codec.go -- RouteViewRequestBudget -->
+
+`read` accepts a record limit from 1 through 4096 and a wait from 0 through
+1000 milliseconds. The producer MUST also keep the complete encoded reply within
+`rpc.MaxMessageSize`; `rpc.RouteViewResultBudget()` reserves framing for the
+widest correlation ID. The same bounds apply to Direct calls. A selected path
+includes its protocol name and instance, resolved distance, recursive metric and
+BGP/AIGP metadata, primary and equal-cost targets, labels, SID and repair target.
+Presence flags preserve zero tags and zero AIGP. Protocol IDs local to a process
+never cross this boundary.
+The selected path requires non-null `protocol`, `instance`, `distance` and
+`metric` fields. Explicit zero ranking values remain valid. A distance row
+requires non-null `protocol` and `distance`, including an explicit zero distance.
+Malformed values leave the current decoded value unchanged.
+<!-- source: pkg/plugin/rpc/route_view_codec.go -- RouteViewPath.UnmarshalJSON, RouteViewDistance.UnmarshalJSON -->
+
+Candidate scans use their own snapshot and cursor. Their entries preserve the
+existing `show rib candidates` JSON, including hidden paths and a present zero
+tag. A candidate scan does not feed selection. `distances` carries a complete
+protocol distance declaration and an ordered operation ID. Its acknowledgment
+follows authoritative application and reselection.
+<!-- source: internal/component/sysrib/route_view_candidates.go -- readCandidates -->
+<!-- source: internal/component/sysrib/route_view_distances.go -- applyDistances -->
+
+`publish` wraps the unchanged system `best-change` JSON with the consumed cursor
+and operation ID. The consumer MUST retain this operation until acknowledgment.
+The owner MUST fence stale generations before emission and return an identical
+retry's acknowledgment without emitting twice. A newer completed read preserves
+that original acknowledgment. A new operation requires the latest consumed cursor.
+<!-- source: internal/component/sysrib/route_view_output.go -- publish -->
+
+Each publication accepts at most 4096 changes. The JSON adapter refuses
+an excess row before decoding the remaining rows. Device and gateway-zone names
+must contain valid UTF-8 through both transports.
+<!-- source: internal/component/sysrib/register_route_view_output.go -- routeViewDecodeOutputBatch, routeViewOutputRows -->
+<!-- source: internal/component/sysrib/route_view_output.go -- routeViewValidateOutputTarget -->
+
+Publication withdrawals retain an explicit empty `protocol` field. Device-only
+`ecmp-paths` and `backup` members retain an explicit empty `next-hop` and name
+their `interface`. The publication schema accepts these existing event values.
+Add and update still require a registered protocol, and each member requires a
+gateway or interface. Selected-view addresses keep their nonempty address type.
+<!-- source: internal/component/sysrib/events/events.go -- BestChangeEntry, ECMPPath -->
+<!-- source: internal/component/sysrib/yang/ze-sysrib-api.yang -- route-view-publish, publication-member, next-hop -->
+<!-- source: internal/component/sysrib/route_view_output.go -- routeViewValidateOutputEntry -->
+
+`close` fences the session and releases its readers and pinned values before
+acknowledgment. Its cleanup withdraws only owned prefixes, in separate family
+batches of at most 4096 entries. Every emitted batch retains independent storage.
+A failed withdrawal keeps its ledger entries and blocks replacement until retry
+succeeds. Fencing releases the retained publication, and successful cleanup
+releases the empty ledger.
+<!-- source: internal/component/sysrib/route_view.go -- cleanupLocked -->
+<!-- source: internal/component/sysrib/route_view_output.go -- withdraw -->
 
 ## Message Flow Example
 

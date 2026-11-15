@@ -47,7 +47,7 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Developers</span>
     <h1 id="developers">Developers</h1>
-    <p>Extend Ze through its public plugin SDK and contribute changes through the same tested workflows used by the project.</p>
+    <p>The public plugin SDK lets you extend Ze. These pages explain how plugins communicate with the daemon and how to contribute a change to the project.</p>
 </div>
 <div class="doc-layout">
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
@@ -56,19 +56,19 @@
 </ol></details></nav><div class="doc-body">
 <h2 id="build-extensions">Build extensions</h2>
 <ul>
-<li><a href="plugins/">Plugin development</a>: start with the SDK and five-stage registration model.</li>
-<li><a href="plugins/protocol/">Protocol</a>: implement plugin transport and lifecycle.</li>
-<li><a href="plugins/schema/">Configuration schemas</a>: register YANG-backed configuration.</li>
-<li><a href="plugins/handlers/">Handlers</a>: consume events and expose behavior.</li>
+<li><a href="plugins/">Plugin development</a>: start with the SDK and plugin startup sequence.</li>
+<li><a href="plugins/protocol/">Protocol</a>: connect a plugin to the daemon and manage its startup and shutdown.</li>
+<li><a href="plugins/schema/">Configuration schemas</a>: define plugin configuration with YANG.</li>
+<li><a href="plugins/handlers/">Handlers</a>: receive events and implement plugin behavior.</li>
 <li><a href="plugins/commands/">Commands</a>: add commands to CLI, web, API, gRPC, and MCP.</li>
 <li><a href="plugins/metrics/">Metrics</a>: publish operational measurements.</li>
-<li><a href="plugins/testing/">Plugin testing</a>: prove registration and runtime behavior.</li>
+<li><a href="plugins/testing/">Plugin testing</a>: test plugin registration and behavior while Ze runs.</li>
 </ul>
 <h2 id="contribute-to-ze">Contribute to Ze</h2>
 <ul>
 <li><a href="../contribute/developer-setup/">Developer setup</a>: build, test, and debug the source tree.</li>
 <li><a href="../contribute/guide/">Contributor guide</a>: prepare and submit a change.</li>
-<li><a href="../contribute/testing/">Contributor testing</a>: choose the right proof layer.</li>
+<li><a href="../contribute/testing/">Contributor testing</a>: choose tests that exercise the behavior you changed.</li>
 <li><a href="../contribute/rfc-implementation-guide/">RFC implementation guide</a>: implement and verify a standard.</li>
 <li><a href="../contribute/documentation-testing/">Documentation testing</a>: keep examples tied to executable evidence.</li>
 <li><a href="../style-guide/">Style guide</a>: follow the website's visual and content conventions.</li>
@@ -86,7 +86,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../license/">Ze is AGPLv3 open source.</a>
                     <a href="../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 02:04 UTC</span>
                 </div>
             </div>
         </footer>

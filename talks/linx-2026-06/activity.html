@@ -317,10 +317,10 @@
 <div class="chart-scroll">
             <div class="chart">
                 <div class="months" aria-hidden="true">
-<span class="month-label" style="grid-column:1">Jun</span>
+<span class="month-label" style="grid-column:1"></span>
 <span class="month-label" style="grid-column:2"></span>
 <span class="month-label" style="grid-column:3"></span>
-<span class="month-label" style="grid-column:4"></span>
+<span class="month-label" style="grid-column:4">Jul</span>
 <span class="month-label" style="grid-column:5"></span>
 <span class="month-label" style="grid-column:6"></span>
 <span class="month-label" style="grid-column:7"></span>
@@ -756,42 +756,42 @@
 <div class="go-bucket">
             <h3>Total Code</h3>
             <div class="go-stats">
-<div class="stat"><span>Files</span><strong>15,192</strong></div>
-<div class="stat"><span>Total lines</span><strong>3,347,263</strong></div>
-<div class="stat"><span>Code</span><strong>2,410,684</strong></div>
-<div class="stat"><span>Blank</span><strong>288,114</strong></div>
-<div class="stat"><span>Comments</span><strong>648,465</strong></div>
+<div class="stat"><span>Files</span><strong>16,533</strong></div>
+<div class="stat"><span>Total lines</span><strong>3,638,708</strong></div>
+<div class="stat"><span>Code</span><strong>2,626,905</strong></div>
+<div class="stat"><span>Blank</span><strong>306,973</strong></div>
+<div class="stat"><span>Comments</span><strong>704,830</strong></div>
             </div>
         </div>
 <div class="go-bucket">
             <h3>Production</h3>
             <div class="go-stats">
-<div class="stat"><span>Files</span><strong>7,003</strong></div>
-<div class="stat"><span>Total lines</span><strong>1,540,607</strong></div>
-<div class="stat"><span>Code</span><strong>1,075,611</strong></div>
-<div class="stat"><span>Blank</span><strong>124,768</strong></div>
-<div class="stat"><span>Comments</span><strong>340,228</strong></div>
+<div class="stat"><span>Files</span><strong>7,559</strong></div>
+<div class="stat"><span>Total lines</span><strong>1,661,211</strong></div>
+<div class="stat"><span>Code</span><strong>1,156,922</strong></div>
+<div class="stat"><span>Blank</span><strong>132,774</strong></div>
+<div class="stat"><span>Comments</span><strong>371,515</strong></div>
             </div>
         </div>
 <div class="go-bucket">
             <h3>Test</h3>
             <div class="go-stats">
-<div class="stat"><span>Files</span><strong>8,189</strong></div>
-<div class="stat"><span>Total lines</span><strong>1,806,656</strong></div>
-<div class="stat"><span>Code</span><strong>1,335,073</strong></div>
-<div class="stat"><span>Blank</span><strong>163,346</strong></div>
-<div class="stat"><span>Comments</span><strong>308,237</strong></div>
+<div class="stat"><span>Files</span><strong>8,974</strong></div>
+<div class="stat"><span>Total lines</span><strong>1,977,497</strong></div>
+<div class="stat"><span>Code</span><strong>1,469,983</strong></div>
+<div class="stat"><span>Blank</span><strong>174,199</strong></div>
+<div class="stat"><span>Comments</span><strong>333,315</strong></div>
             </div>
         </div>
 <div class="go-bucket">
             <h3>Dependencies</h3>
             <div class="go-stats">
-<div class="stat"><span>Files</span><strong>6,554</strong></div>
-<div class="stat"><span>Total lines</span><strong>1,989,386</strong></div>
-<div class="stat"><span>Code</span><strong>1,542,298</strong></div>
-<div class="stat"><span>Blank</span><strong>176,946</strong></div>
-<div class="stat"><span>Comments</span><strong>270,142</strong></div>
-                <div class="stat"><span>Modules</span><strong>283</strong></div>
+<div class="stat"><span>Files</span><strong>6,582</strong></div>
+<div class="stat"><span>Total lines</span><strong>2,000,562</strong></div>
+<div class="stat"><span>Code</span><strong>1,551,420</strong></div>
+<div class="stat"><span>Blank</span><strong>177,714</strong></div>
+<div class="stat"><span>Comments</span><strong>271,428</strong></div>
+                <div class="stat"><span>Modules</span><strong>285</strong></div>
             </div>
         </div>
         </div>
@@ -808,7 +808,7 @@
         </main>
 <script>
 const metricSummaries = {"commits":{"totalLabel":"Total commits","totalValue":"3,982","activeLabel":"Days with commits","activeValue":"173","peakLabel":"Peak commit day","peakValue":"93","thresholdLabel":"Commit thresholds","thresholdValue":"19, 38, 56, 75"},"lines":{"totalLabel":"Total added lines","totalValue":"1,493,244","activeLabel":"Days with added lines","activeValue":"173","peakLabel":"Peak line day","peakValue":"34,586","thresholdLabel":"Line thresholds","thresholdValue":"6,918, 13,835, 20,752, 27,669"}};
-let currentMetric = "lines";
+let currentMetric = "";
 const cells = Array.from(document.querySelectorAll(".activity-grid .day-cell"));
 const buttons = Array.from(document.querySelectorAll(".metric-switch button"));
 const tooltip = document.getElementById("activity-tooltip");
@@ -907,7 +907,7 @@ for (const cell of cells) {
     cell.addEventListener("focus", () => showFocusTooltip(cell));
     cell.addEventListener("blur", hideTooltip);
 }
-setMetric("lines");
+setMetric((buttons.find((button) => button.getAttribute("aria-pressed") === "true") || buttons[0]).dataset.metric);
 </script>
     </body>
 </html>

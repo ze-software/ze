@@ -17,9 +17,9 @@
 >   removed; local AS is now `session { asn { local ... } }` and peer groups are
 >   `group` blocks (see [configuration syntax changes](../../reference/deprecations/index.md)
 >   and [config syntax](https://github.com/ze-software/ze/blob/main/docs/architecture/config/syntax.md)).
-> - Shipped plugins (bgp, rib, gr) run in-process today rather than being forked
->   as separate `external ... { run "ze bgp" }` processes; the `external` block
->   is for third-party out-of-process plugins.
+> - Shipped plugins can also run through `external` blocks. For the system RIB,
+>   use `run "ze plugin rib"`. Its selected view and forwarding publication
+>   use the authenticated process protocol described below.
 > - The source tree is organised under `internal/core`, `internal/component`, and
 >   `internal/plugins`; there is no `internal/bgp/...` layout as sketched below.
 >
@@ -27,6 +27,28 @@
 > [Hub Architecture](https://github.com/ze-software/ze/blob/main/docs/architecture/hub-architecture.md).
 
 ---
+
+## System RIB process boundary
+
+The daemon's Loc-RIB applies import policy and selects across protocols once.
+The system RIB consumes that selection inside the daemon or in a subprocess.
+An internal instance reads the authority directly. An external instance holds
+a read-only selected projection and runs the same recursive resolver and
+forwarding worker. Candidate commands query the daemon's full candidate state.
+<!-- source: internal/component/sysrib/route_view_client.go -- openRouteViewMonitoredClient -->
+<!-- source: internal/component/sysrib/route_view_worker.go -- consume -->
+<!-- source: internal/component/sysrib/route_view_worker_operations.go -- candidates -->
+
+The daemon acknowledges distance changes after authoritative reselection. It
+also fences forwarding output by process generation and consumed cursor.
+Reset or process loss withdraws only that session's outstanding output. A
+replacement waits for cleanup, then reconstructs its view before publishing.
+The [unified Loc-RIB](https://github.com/ze-software/ze/blob/main/docs/architecture/rib/unified-locrib.md#authoritative-selected-views)
+and [process protocol](https://github.com/ze-software/ze/blob/main/docs/architecture/api/process-protocol.md#system-routing-views) specify
+the ordering and retention bounds.
+<!-- source: internal/component/sysrib/route_view_distances.go -- applyDistances -->
+<!-- source: internal/component/sysrib/route_view.go -- open, cleanupLocked -->
+<!-- source: internal/component/sysrib/route_view_output.go -- publish, withdraw -->
 
 ## Build personalities
 
@@ -786,6 +808,30 @@ When `ze.user` is not set, no privilege dropping occurs.
 
 Implementation: `internal/core/privilege/` -- calls `setgid` then `setuid` after `reactor.Start()` binds port 179.
 <!-- source: internal/core/privilege/ -- privilege dropping -->
+
+### Capabilities without root
+
+`privilege.DaemonCapabilities` is the one declaration of the capabilities a
+non-root daemon runs with: `CAP_NET_ADMIN`, `CAP_NET_RAW`, `CAP_NET_BIND_SERVICE`
+and `CAP_BPF`, each with its kernel bit and what Ze needs it for. The systemd unit
+grants exactly that set, ambient and bounding alike; when `CheckPrivileges`
+reports one a non-root daemon lacks, the hub logs one warning at start under
+`doctor-daemon-capability-missing`, and the `daemon-capabilities` runtime check
+reports the same in `show doctor`; the per-test netns mode of
+`./le test qemu all` runs ze with the same set (`netnsDaemonCapBits`); and a unit
+capability test (`unit_capabilities_integration_linux_test.go` in the package
+that owns the program, for traffic-usage, the IPsec ESP form fast path and the
+IPsec application override guard) loads each eBPF program from a non-root
+process holding exactly it, which is how the verifier's unprivileged rules are
+proven. Each kernel bit is written out, because
+`golang.org/x/sys/unix` declares the `CAP_` constants on Linux alone, and
+`TestDaemonCapabilityBitsAreTheKernels` compares it with that constant.
+<!-- source: internal/core/privilege/capabilities.go -- DaemonCapabilities -->
+<!-- source: internal/core/privilege/check_linux.go -- CheckPrivileges, effectiveCapabilities -->
+<!-- source: cmd/ze/hub/main.go -- warnDaemonPrivileges -->
+<!-- source: internal/component/doctor/checks_daemon_capabilities.go -- daemonCapabilitiesCheck, checkDaemonCapabilities -->
+<!-- source: internal/plugins/systemd/unit.go -- writeCapabilities -->
+<!-- source: internal/test/runner/caps.go -- netnsDaemonCapBits, daemonCapBits -->
 
 ### Plugin TLS Transport
 

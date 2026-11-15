@@ -57,4 +57,4 @@ A green run proves everything on the list. The list now comes from reading each 
 
 ## 🔭 Coming up
 
-ExaBGP catch-up. Much of this week went into ExaBGP itself: BGP confederations, route target membership (RFC 4684), ADD-PATH for FlowSpec, `prefix-limit`, capabilities that can be required, and neighbours that can be disabled and enabled from the API. Its GitHub issue tracker now has no open issues. The only-to-customer support for the compatibility bridge, planned for this week, has not landed yet.
+ExaBGP catch-up. Much of this week went into ExaBGP itself: BGP confederations, route target membership (RFC 4684), ADD-PATH for FlowSpec, `prefix-limit`, capabilities that can be required, and neighbours that can be disabled and enabled from the API. Its GitHub issue tracker now has no open issues. The only-to-customer support for the compatibility bridge, planned for this week, is not ready yet.

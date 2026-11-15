@@ -47,7 +47,7 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Release profile</span>
     <h1 id="rfc-profile-title">IPsec VPN endpoint</h1>
-    <p>The RFCs this use case requires, each declared by the Use cases row of its own summary. RFCs it lists as optional follow in their own table and never enter its figures. Before release, every mandatory requirement of every required RFC must be proven by a recorded break of its test.</p>
+    <p>The RFCs this use case requires, each declared by the Use cases row of its own summary. RFCs it lists as optional follow in their own table and never enter its figures. Before release, every mandatory requirement of every required RFC must have a test that has been shown to fail when the behavior it checks is deliberately broken.</p>
 </div>
 <style>
 .rfc-table-wrap { overflow-x: auto; }
@@ -57,16 +57,25 @@
 .rfc-verdict p:last-child { margin-bottom: 0; }
 .rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
-.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
-.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: block; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
 .rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
-.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
-.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-card b { display: block; margin: 0; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: .5rem 0 0; color: var(--muted); font-size: .92rem; line-height: 1.6; }
+.rfc-card.rfc-total-card { grid-column: 1 / -1; display: grid; grid-template-columns: 15rem minmax(0, 1fr); column-gap: 1.5rem; align-items: start; }
+.rfc-card.rfc-total-card span, .rfc-card.rfc-total-card strong, .rfc-card.rfc-total-card b { grid-column: 1; }
+.rfc-card.rfc-total-card p { grid-column: 2; grid-row: 1 / span 3; margin: 0; }
+@media (max-width: 760px) {
+  .rfc-card-grid { grid-template-columns: minmax(0, 1fr); }
+  .rfc-card.rfc-total-card { display: block; }
+  .rfc-card.rfc-total-card p { margin: .5rem 0 0; }
+}
 .rfc-ok { border-left: 7px solid var(--green); }
 .rfc-neutral { border-left: 7px solid var(--line-strong); }
 .rfc-warn { border-left: 7px solid var(--amber); }
 .rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-card.rfc-total-card { background: var(--bg-soft); border: 1px solid var(--line-strong); box-shadow: none; }
 .rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
 .rfc-tape span { width: var(--w); min-width: 0; display: block; }
 .rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
@@ -87,6 +96,7 @@
 .rfc-swatch.rfc-neutral { background: var(--line-strong); }
 .rfc-swatch.rfc-warn { background: var(--amber); }
 .rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-swatch.rfc-total-card { background: var(--bg-soft); }
 .rfc-total td { border-top: 2px solid var(--line-strong); }
 .rfc-prose { max-width: 46rem; }
 ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
@@ -117,9 +127,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><a href="../">All profiles</a> · <a href="../../">All RFCs</a></p>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="profile/vpn-endpoint/required:must">Ze proven 242, OS testing gap 55, Ze correctness gap 250</div>
+<div data-ze-rfc-bar="profile/vpn-endpoint/required:must">Ze proven 238, Proof pending 176, OS testing gap 56, Not built 77</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="profile/vpn-endpoint/required:overview">Ze MUST proven 242, SHOULD proven 7, SHOULD not decided 162, OS testing gap 55, Ze correctness gap 250</div>
+<div data-ze-rfc-bar="profile/vpn-endpoint/required:overview">Ze MUST proven 238, SHOULD proven 7, Proof pending 179, OS testing gap 57, Not assessed 156, Not built 79</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -127,10 +137,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>RFCs</td>
 <td><span data-ze-rfc="profile/vpn-endpoint/required:rfcs">12</span></td>
 </tr>
-<tr><td>Not walked</td>
+<tr><td>Requirements not reviewed</td>
 <td><span data-ze-rfc="profile/vpn-endpoint/required:not-walked">0</span></td>
 </tr>
-<tr><td>Mandatory register</td>
+<tr><td>Mandatory requirements complete</td>
 <td><span data-ze-rfc="profile/vpn-endpoint/required:register">not complete</span></td>
 </tr>
 <tr><td>MUST rows</td>
@@ -140,16 +150,25 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="profile/vpn-endpoint/required:must.kept">547</span></td>
 </tr>
 <tr><td>Ze proven</td>
-<td><span data-ze-rfc="profile/vpn-endpoint/required:must.ze-proven">242</span></td>
+<td><span data-ze-rfc="profile/vpn-endpoint/required:must.ze-proven">238</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="profile/vpn-endpoint/required:must.os-verified">0</span></td>
 </tr>
-<tr><td>OS testing gap</td>
-<td><span data-ze-rfc="profile/vpn-endpoint/required:must.os-gap">55</span></td>
+<tr><td>Proof pending</td>
+<td><span data-ze-rfc="profile/vpn-endpoint/required:must.proof-pending">176</span></td>
 </tr>
-<tr><td>Ze correctness gap</td>
-<td><span data-ze-rfc="profile/vpn-endpoint/required:must.ze-gap">250</span></td>
+<tr><td>OS testing gap</td>
+<td><span data-ze-rfc="profile/vpn-endpoint/required:must.os-gap">56</span></td>
+</tr>
+<tr><td>Exclusion unchecked</td>
+<td><span data-ze-rfc="profile/vpn-endpoint/required:must.exclusion-unchecked">0</span></td>
+</tr>
+<tr><td>Not assessed</td>
+<td><span data-ze-rfc="profile/vpn-endpoint/required:must.not-assessed">0</span></td>
+</tr>
+<tr><td>Not built</td>
+<td><span data-ze-rfc="profile/vpn-endpoint/required:must.not-built">77</span></td>
 </tr>
 <tr><td>MUST rows not owed</td>
 <td><span data-ze-rfc="profile/vpn-endpoint/required:must.not-owed">0</span></td>
@@ -173,7 +192,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="profile/vpn-endpoint/required:should.os-verified">0</span></td>
 </tr>
 <tr><td>SHOULD OS testing gap</td>
-<td><span data-ze-rfc="profile/vpn-endpoint/required:should.os-gap">0</span></td>
+<td><span data-ze-rfc="profile/vpn-endpoint/required:should.os-gap">1</span></td>
 </tr>
 <tr><td>SHOULD not owed</td>
 <td><span data-ze-rfc="profile/vpn-endpoint/required:should.not-owed">0</span></td>
@@ -187,22 +206,25 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD not owed: not-applicable</td>
 <td><span data-ze-rfc="profile/vpn-endpoint/required:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
-<tr><td>SHOULD not ever</td>
-<td><span data-ze-rfc="profile/vpn-endpoint/required:should.not-ever">0</span></td>
+<tr><td>SHOULD proof pending</td>
+<td><span data-ze-rfc="profile/vpn-endpoint/required:should.proof-pending">3</span></td>
 </tr>
-<tr><td>SHOULD not yet</td>
-<td><span data-ze-rfc="profile/vpn-endpoint/required:should.not-yet">0</span></td>
+<tr><td>SHOULD exclusion unchecked</td>
+<td><span data-ze-rfc="profile/vpn-endpoint/required:should.exclusion-unchecked">0</span></td>
 </tr>
-<tr><td>SHOULD not decided</td>
-<td><span data-ze-rfc="profile/vpn-endpoint/required:should.not-decided">162</span></td>
+<tr><td>SHOULD not assessed</td>
+<td><span data-ze-rfc="profile/vpn-endpoint/required:should.not-assessed">156</span></td>
+</tr>
+<tr><td>SHOULD not built</td>
+<td><span data-ze-rfc="profile/vpn-endpoint/required:should.not-built">2</span></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.</p>
+<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
 </section>
 <section><h2>Tree</h2>
-<p>Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each RFC carries the same two bars as the set above, from its own data file; an RFC that is not walked shows &#34;not walked&#34; and no bar. The last column names the summary whose Use cases row declares the RFC: a normative citation never adds one.</p>
+<p>The RFCs are listed with the standards they build on first. An RFC appears one level after the highest level of its dependencies; RFCs that refer back to each other share a level. Each RFC has the same two coverage bars as the group above. An RFC whose requirement list has not been reviewed shows &#34;requirements not reviewed&#34; instead of a bar. The last column names the summary whose Use cases row declares the RFC: a normative citation never adds one.</p>
 <h3>Level 1</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -224,8 +246,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc5280/">RFC 5280</a></td>
 <td>Internet X.509 Public Key Infrastructure Certificate and Certificate Revocation List (CRL) Profile</td>
-<td><div data-ze-rfc-bar="rfc5280:must">Ze proven 26, OS testing gap 50, Ze correctness gap 26</div></td>
-<td><div data-ze-rfc-bar="rfc5280:overview">Ze MUST proven 26, SHOULD not decided 108, OS testing gap 50, Ze correctness gap 26</div></td>
+<td><div data-ze-rfc-bar="rfc5280:must">Ze proven 32, OS testing gap 50, Not built 20</div></td>
+<td><div data-ze-rfc-bar="rfc5280:overview">Ze MUST proven 32, OS testing gap 50, Not assessed 108, Not built 20</div></td>
 <td>vpn-endpoint: required by rfc/short/rfc5280.md</td>
 </tr>
 </tbody>
@@ -238,44 +260,44 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc3948/">RFC 3948</a> (cycle with rfc3602, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296, rfc8247)</td>
 <td>UDP Encapsulation of IPsec ESP Packets</td>
-<td><div data-ze-rfc-bar="rfc3948:must">Ze proven 6, Ze correctness gap 5</div></td>
-<td><div data-ze-rfc-bar="rfc3948:overview">Ze MUST proven 6, SHOULD proven 2, SHOULD not decided 3, Ze correctness gap 5</div></td>
+<td><div data-ze-rfc-bar="rfc3948:must">Ze proven 6, Proof pending 4, Not built 1</div></td>
+<td><div data-ze-rfc-bar="rfc3948:overview">Ze MUST proven 6, SHOULD proven 2, Proof pending 4, Not assessed 3, Not built 1</div></td>
 <td>vpn-endpoint: required by rfc/short/rfc3948.md</td>
 </tr>
 <tr><td><a href="../../rfc4106/">RFC 4106</a> (cycle with rfc3602, rfc3948, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296, rfc8247)</td>
 <td>The Use of Galois/Counter Mode (GCM) in IPsec Encapsulating Security Payload (ESP)</td>
-<td><div data-ze-rfc-bar="rfc4106:must">Ze proven 5, OS testing gap 3</div></td>
-<td><div data-ze-rfc-bar="rfc4106:overview">Ze MUST proven 5, SHOULD not decided 5, OS testing gap 3</div></td>
+<td><div data-ze-rfc-bar="rfc4106:must">Ze proven 4, Proof pending 1, OS testing gap 3</div></td>
+<td><div data-ze-rfc-bar="rfc4106:overview">Ze MUST proven 4, Proof pending 1, OS testing gap 3, Not assessed 5</div></td>
 <td>vpn-endpoint: required by rfc/short/rfc4106.md</td>
 </tr>
 <tr><td><a href="../../rfc4301/">RFC 4301</a> (cycle with rfc3602, rfc3948, rfc4106, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296, rfc8247)</td>
 <td>Security Architecture for the Internet Protocol</td>
-<td><div data-ze-rfc-bar="rfc4301:must">Ze proven 54, OS testing gap 2, Ze correctness gap 45</div></td>
-<td><div data-ze-rfc-bar="rfc4301:overview">Ze MUST proven 54, SHOULD not decided 3, OS testing gap 2, Ze correctness gap 45</div></td>
+<td><div data-ze-rfc-bar="rfc4301:must">Ze proven 44, Proof pending 23, OS testing gap 3, Not built 31</div></td>
+<td><div data-ze-rfc-bar="rfc4301:overview">Ze MUST proven 44, Proof pending 23, OS testing gap 4, Not assessed 1, Not built 32</div></td>
 <td>vpn-endpoint: required by rfc/short/rfc4301.md</td>
 </tr>
 <tr><td><a href="../../rfc4303/">RFC 4303</a> (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4309, rfc5282, rfc7296, rfc8247)</td>
 <td>IP Encapsulating Security Payload (ESP)</td>
-<td><div data-ze-rfc-bar="rfc4303:must">Ze proven 7, Ze correctness gap 16</div></td>
-<td><div data-ze-rfc-bar="rfc4303:overview">Ze MUST proven 7, SHOULD not decided 4, Ze correctness gap 16</div></td>
+<td><div data-ze-rfc-bar="rfc4303:must">Ze proven 7, Proof pending 2, Not built 14</div></td>
+<td><div data-ze-rfc-bar="rfc4303:overview">Ze MUST proven 7, Proof pending 3, Not assessed 2, Not built 15</div></td>
 <td>vpn-endpoint: required by rfc/short/rfc4303.md</td>
 </tr>
 <tr><td><a href="../../rfc5282/">RFC 5282</a> (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc7296, rfc8247)</td>
 <td>Using Authenticated Encryption Algorithms with the Encrypted Payload of the Internet Key Exchange version 2 (IKEv2) Protocol</td>
 <td><div data-ze-rfc-bar="rfc5282:must">Ze proven 19</div></td>
-<td><div data-ze-rfc-bar="rfc5282:overview">Ze MUST proven 19, SHOULD not decided 11</div></td>
+<td><div data-ze-rfc-bar="rfc5282:overview">Ze MUST proven 19, Not assessed 11</div></td>
 <td>vpn-endpoint: required by rfc/short/rfc5282.md</td>
 </tr>
 <tr><td><a href="../../rfc7296/">RFC 7296</a> (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc8247)</td>
 <td>Internet Key Exchange Protocol Version 2 (IKEv2)</td>
-<td><div data-ze-rfc-bar="rfc7296:must">Ze proven 87, Ze correctness gap 147</div></td>
-<td><div data-ze-rfc-bar="rfc7296:overview">Ze MUST proven 87, SHOULD proven 4, SHOULD not decided 5, Ze correctness gap 147</div></td>
+<td><div data-ze-rfc-bar="rfc7296:must">Ze proven 89, Proof pending 145</div></td>
+<td><div data-ze-rfc-bar="rfc7296:overview">Ze MUST proven 89, SHOULD proven 4, Proof pending 147, Not assessed 3</div></td>
 <td>vpn-endpoint: required by rfc/short/rfc7296.md</td>
 </tr>
 <tr><td><a href="../../rfc8247/">RFC 8247</a> (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296)</td>
 <td>Algorithm Implementation Requirements and Usage Guidance for the Internet Key Exchange Protocol Version 2 (IKEv2)</td>
-<td><div data-ze-rfc-bar="rfc8247:must">Ze proven 17, Ze correctness gap 3</div></td>
-<td><div data-ze-rfc-bar="rfc8247:overview">Ze MUST proven 17, SHOULD proven 1, SHOULD not decided 5, Ze correctness gap 3</div></td>
+<td><div data-ze-rfc-bar="rfc8247:must">Ze proven 17, Not built 3</div></td>
+<td><div data-ze-rfc-bar="rfc8247:overview">Ze MUST proven 17, SHOULD proven 1, Not assessed 5, Not built 3</div></td>
 <td>vpn-endpoint: required by rfc/short/rfc8247.md</td>
 </tr>
 </tbody>
@@ -289,13 +311,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td><a href="../../rfc7427/">RFC 7427</a></td>
 <td>Signature Authentication in the Internet Key Exchange Version 2 (IKEv2)</td>
 <td><div data-ze-rfc-bar="rfc7427:must">Ze proven 4</div></td>
-<td><div data-ze-rfc-bar="rfc7427:overview">Ze MUST proven 4, SHOULD not decided 3</div></td>
+<td><div data-ze-rfc-bar="rfc7427:overview">Ze MUST proven 4, Not assessed 3</div></td>
 <td>vpn-endpoint: required by rfc/short/rfc7427.md</td>
 </tr>
 <tr><td><a href="../../rfc8221/">RFC 8221</a></td>
 <td>Cryptographic Algorithm Implementation Requirements and Usage Guidance for Encapsulating Security Payload (ESP) and Authentication Header (AH)</td>
-<td><div data-ze-rfc-bar="rfc8221:must">Ze proven 16</div></td>
-<td><div data-ze-rfc-bar="rfc8221:overview">Ze MUST proven 16, SHOULD not decided 3</div></td>
+<td><div data-ze-rfc-bar="rfc8221:must">Ze proven 15, Proof pending 1</div></td>
+<td><div data-ze-rfc-bar="rfc8221:overview">Ze MUST proven 15, Proof pending 1, Not assessed 3</div></td>
 <td>vpn-endpoint: required by rfc/short/rfc8221.md</td>
 </tr>
 </tbody>
@@ -308,8 +330,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc6071/">RFC 6071</a></td>
 <td>IP Security (IPsec) and Internet Key Exchange (IKE) Document Roadmap</td>
-<td><div data-ze-rfc-bar="rfc6071:must">Ze correctness gap 8</div></td>
-<td><div data-ze-rfc-bar="rfc6071:overview">SHOULD not decided 12, Ze correctness gap 8</div></td>
+<td><div data-ze-rfc-bar="rfc6071:must">Not built 8</div></td>
+<td><div data-ze-rfc-bar="rfc6071:overview">Not assessed 12, Not built 8</div></td>
 <td>vpn-endpoint: required by rfc/short/rfc6071.md</td>
 </tr>
 </tbody>
@@ -319,9 +341,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <section><h2>Optional (not counted)</h2>
 <p>RFCs this use case lists as optional, each declared by the Optional use cases row of its own summary. They count in none of the figures above until the owner brings one into scope by moving it to the Use cases row. Their own bars and figures follow.</p>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="profile/vpn-endpoint/optional:must">Ze proven 1, OS testing gap 1, Ze correctness gap 51</div>
+<div data-ze-rfc-bar="profile/vpn-endpoint/optional:must">Ze proven 1, OS testing gap 1, Not assessed 25, Not built 26</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="profile/vpn-endpoint/optional:overview">Ze MUST proven 1, SHOULD not decided 22, OS testing gap 1, Ze correctness gap 51</div>
+<div data-ze-rfc-bar="profile/vpn-endpoint/optional:overview">Ze MUST proven 1, OS testing gap 1, Not assessed 47, Not built 26</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -329,10 +351,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>RFCs</td>
 <td><span data-ze-rfc="profile/vpn-endpoint/optional:rfcs">4</span></td>
 </tr>
-<tr><td>Not walked</td>
+<tr><td>Requirements not reviewed</td>
 <td><span data-ze-rfc="profile/vpn-endpoint/optional:not-walked">0</span></td>
 </tr>
-<tr><td>Mandatory register</td>
+<tr><td>Mandatory requirements complete</td>
 <td><span data-ze-rfc="profile/vpn-endpoint/optional:register">not complete</span></td>
 </tr>
 <tr><td>MUST rows</td>
@@ -347,11 +369,20 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="profile/vpn-endpoint/optional:must.os-verified">0</span></td>
 </tr>
+<tr><td>Proof pending</td>
+<td><span data-ze-rfc="profile/vpn-endpoint/optional:must.proof-pending">0</span></td>
+</tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="profile/vpn-endpoint/optional:must.os-gap">1</span></td>
 </tr>
-<tr><td>Ze correctness gap</td>
-<td><span data-ze-rfc="profile/vpn-endpoint/optional:must.ze-gap">51</span></td>
+<tr><td>Exclusion unchecked</td>
+<td><span data-ze-rfc="profile/vpn-endpoint/optional:must.exclusion-unchecked">0</span></td>
+</tr>
+<tr><td>Not assessed</td>
+<td><span data-ze-rfc="profile/vpn-endpoint/optional:must.not-assessed">25</span></td>
+</tr>
+<tr><td>Not built</td>
+<td><span data-ze-rfc="profile/vpn-endpoint/optional:must.not-built">26</span></td>
 </tr>
 <tr><td>MUST rows not owed</td>
 <td><span data-ze-rfc="profile/vpn-endpoint/optional:must.not-owed">0</span></td>
@@ -389,45 +420,48 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD not owed: not-applicable</td>
 <td><span data-ze-rfc="profile/vpn-endpoint/optional:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
-<tr><td>SHOULD not ever</td>
-<td><span data-ze-rfc="profile/vpn-endpoint/optional:should.not-ever">0</span></td>
+<tr><td>SHOULD proof pending</td>
+<td><span data-ze-rfc="profile/vpn-endpoint/optional:should.proof-pending">0</span></td>
 </tr>
-<tr><td>SHOULD not yet</td>
-<td><span data-ze-rfc="profile/vpn-endpoint/optional:should.not-yet">0</span></td>
+<tr><td>SHOULD exclusion unchecked</td>
+<td><span data-ze-rfc="profile/vpn-endpoint/optional:should.exclusion-unchecked">0</span></td>
 </tr>
-<tr><td>SHOULD not decided</td>
-<td><span data-ze-rfc="profile/vpn-endpoint/optional:should.not-decided">22</span></td>
+<tr><td>SHOULD not assessed</td>
+<td><span data-ze-rfc="profile/vpn-endpoint/optional:should.not-assessed">22</span></td>
+</tr>
+<tr><td>SHOULD not built</td>
+<td><span data-ze-rfc="profile/vpn-endpoint/optional:should.not-built">0</span></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.</p>
+<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th><th>Why it is here</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc7383/">RFC 7383</a></td>
 <td>Internet Key Exchange Protocol Version 2 (IKEv2) Message Fragmentation</td>
-<td><div data-ze-rfc-bar="rfc7383:must">Ze correctness gap 25</div></td>
-<td><div data-ze-rfc-bar="rfc7383:overview">SHOULD not decided 15, Ze correctness gap 25</div></td>
+<td><div data-ze-rfc-bar="rfc7383:must">Not assessed 25</div></td>
+<td><div data-ze-rfc-bar="rfc7383:overview">Not assessed 40</div></td>
 <td>vpn-endpoint: optional in rfc/short/rfc7383.md</td>
 </tr>
 <tr><td><a href="../../rfc7634/">RFC 7634</a></td>
 <td>ChaCha20, Poly1305, and Their Use in the Internet Key Exchange Protocol (IKE) and IPsec</td>
 <td><div data-ze-rfc-bar="rfc7634:must">Ze proven 1, OS testing gap 1</div></td>
-<td><div data-ze-rfc-bar="rfc7634:overview">Ze MUST proven 1, SHOULD not decided 3, OS testing gap 1</div></td>
+<td><div data-ze-rfc-bar="rfc7634:overview">Ze MUST proven 1, OS testing gap 1, Not assessed 3</div></td>
 <td>vpn-endpoint: optional in rfc/short/rfc7634.md</td>
 </tr>
 <tr><td><a href="../../rfc8031/">RFC 8031</a></td>
 <td>Curve25519 and Curve448 for the Internet Key Exchange Protocol Version 2 (IKEv2) Key Agreement</td>
-<td><div data-ze-rfc-bar="rfc8031:must">Ze correctness gap 3</div></td>
-<td><div data-ze-rfc-bar="rfc8031:overview">Ze correctness gap 3</div></td>
+<td><div data-ze-rfc-bar="rfc8031:must">Not built 3</div></td>
+<td><div data-ze-rfc-bar="rfc8031:overview">Not built 3</div></td>
 <td>vpn-endpoint: optional in rfc/short/rfc8031.md</td>
 </tr>
 <tr><td><a href="../../rfc9370/">RFC 9370</a></td>
 <td>Multiple Key Exchanges in the Internet Key Exchange Protocol Version 2 (IKEv2)</td>
-<td><div data-ze-rfc-bar="rfc9370:must">Ze correctness gap 23</div></td>
-<td><div data-ze-rfc-bar="rfc9370:overview">SHOULD not decided 4, Ze correctness gap 23</div></td>
+<td><div data-ze-rfc-bar="rfc9370:must">Not built 23</div></td>
+<td><div data-ze-rfc-bar="rfc9370:overview">Not assessed 4, Not built 23</div></td>
 <td>vpn-endpoint: optional in rfc/short/rfc9370.md</td>
 </tr>
 </tbody>
@@ -447,7 +481,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     </a>
                     <a class="page-sidebar-link" href="../../../../quality/verify-debugging/">
                         <span class="page-sidebar-link-label">Verify debugging</span>
-                        <small>How failed checks route to evidence.</small>
+                        <small>How to investigate failed checks using their logs.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -466,7 +500,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 20:44 UTC</span>
                 </div>
             </div>
         </footer>

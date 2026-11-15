@@ -63,9 +63,11 @@ validation against ExaBGP (Ze's predecessor, a BGP implementation in Python).</p
 </ol></li>
 <li><a href="#prerequisites">Prerequisites</a></li>
 <li><a href="#real-vpp-srv6-service-route-proof">Real VPP SRv6 service-route proof</a></li>
+<li><a href="#real-vpp-label-pop-proof-mpls-label-pop">Real VPP label pop proof (mpls-label-pop)</a></li>
 <li><a href="#live-interop-tests-testinterop">Live Interop Tests (test/interop/)</a>
 <ol>
 <li><a href="#how-it-works">How It Works</a></li>
+<li><a href="#the-start-probe">The start probe</a></li>
 <li><a href="#crash-safe-teardown">Crash-safe teardown</a></li>
 <li><a href="#the-docker-host-kernel-check">The Docker host kernel check</a></li>
 <li><a href="#the-exact-grant-set-check">The exact grant-set check</a></li>
@@ -81,8 +83,12 @@ validation against ExaBGP (Ze's predecessor, a BGP implementation in Python).</p
 <li><a href="#live-attach-and-bfd-opt-in-without-a-session-reset">Live attach and BFD opt-in without a session reset</a></li>
 <li><a href="#rpki-route-retention">RPKI route retention</a></li>
 <li><a href="#prove-a-scenario-discriminates">Prove a scenario discriminates</a></li>
+<li><a href="#which-layer-proves-what">Which layer proves what</a></li>
+<li><a href="#recording-and-replaying-a-checker">Recording and replaying a checker</a></li>
 <li><a href="#ipsec-diagnostic-environment">IPsec diagnostic environment</a></li>
 <li><a href="#ipsec-injected-datagrams">IPsec injected datagrams</a></li>
+<li><a href="#the-outer-df-bit-and-icmp-errors-on-a-child-sa-rfc-4301">The outer DF bit and ICMP errors on a Child SA (RFC 4301)</a></li>
+<li><a href="#the-esp-form-fast-path-under-a-firewall-rule">The ESP form fast path under a firewall rule</a></li>
 <li><a href="#ipsec-address-movement">IPsec address movement</a></li>
 <li><a href="#the-ipsec-nat-box">The IPsec NAT box</a>
 <ol>
@@ -99,6 +105,7 @@ validation against ExaBGP (Ze's predecessor, a BGP implementation in Python).</p
 <li><a href="#legacy-signature-methods-against-a-strongswan-without-rfc-7427">Legacy signature methods against a strongSwan without RFC 7427</a></li>
 <li><a href="#ed25519-signatures-against-strongswan-rfc-8420">Ed25519 signatures against strongSwan (RFC 8420)</a></li>
 <li><a href="#ed448-signatures-against-strongswan-rfc-8420">Ed448 signatures against strongSwan (RFC 8420)</a></li>
+<li><a href="#peer-certificate-revocation-and-purpose-rfc-5280-rfc-4945">Peer certificate revocation and purpose (RFC 5280, RFC 4945)</a></li>
 <li><a href="#esp-transform-kernel-proof">ESP transform kernel proof</a></li>
 <li><a href="#l2tp-and-pppoe-lifecycle-fault-scenarios">L2TP and PPPoE lifecycle fault scenarios</a></li>
 <li><a href="#the-freeradius-admin-login-suite">The FreeRADIUS admin-login suite</a></li>
@@ -203,6 +210,12 @@ This page is the infrastructure it is owed against.</p>
 </table>
 <!-- source: internal/le/test/integration/gates.go -- interop, interop-ipsec, interop-radius, interop-radius-subscriber, interop-topology and interop-rsvpte verbs -->
 <!-- source: internal/le/test/deployment/actions.go -- l2tp, l2tp-ppp, docker-pppoe-accel verbs -->
+<p>The L2TP lab's <code>lcp-restart-timer-pppd</code> scenario first proves a working PPP
+data path, then loses pppd's LCP replies after a live restart. It measures Ze's
+configured 500 ms retransmission, exact three-request budget and subsequent
+CDN from the relay's monotonic wire observations. The lab page describes the
+peer source and the final kernel cleanup assertion.</p>
+<!-- source: internal/le/interoplab/l2tp/lcp_restart.go -- checkLCPRestart -->
 <p>Every suite discovers its scenarios the same way. <code>Discover</code>
 (<code>internal/le/interoplab/discover.go</code>) reads the scenario directory, keeps the
 subdirectories, sorts the names lexically, and joins each one against the
@@ -437,16 +450,30 @@ removes the attribute before storage for an external, non-route-server-client
 peer, including this fixture's peer.</p>
 <p>The wire proof covers a declared interval on that original connection, not its
 future traffic. Ze's direction must contain the original OPEN and KEEPALIVE,
-all three injected subjects (the third follows EOR), and the later, distinct
-<code>10.54.255.0/24</code> FIFO fence. Only after forwarding and recording that full fence
+all three injected subjects (the third follows EOR and arrives in a later
+UPDATE than the first two), and the <code>10.54.255.0/24</code> FIFO fence after them.
+RFC 4271 Section 4.3: "An UPDATE message is used to advertise feasible routes
+that share common path attributes to a peer, or to withdraw multiple
+unfeasible routes from service (see 3.1)." Routes in one UPDATE share one
+attribute set and arrive together, so the fence is accepted in the UPDATE that
+completes the three subjects, in either NLRI order inside it. The whole UPDATE
+is validated before its subjects and fence count. A fence in an UPDATE that
+leaves a subject outstanding, a second fence, and a subject in an UPDATE after
+the fence's are refused, and the attribute checks apply to every NLRI an
+UPDATE carries. Only after forwarding and recording that full fence
 can the reverse worker begin reading its subsequent KEEPALIVE barrier. Each
 closed capture ends with its actual source/target endpoints, exact frame count
 and declared boundary. Timeout, EOF, truncation or the 256-frame limit cannot
 produce a completion marker. The checker revalidates both intervals, exact
 speaker identities, AS 65004/injector next hop and every LOCAL_PREF code 5,
 while retaining all three arrivals and both surviving native sessions. The
-workers keep forwarding later bytes, which are explicitly outside the proof.</p>
+workers keep forwarding later bytes, which are explicitly outside the proof.
+When the relay session ends on a transport error, the relay records it as
+<code>transport-error</code> in its <code>-result.json</code> file and also prints
+<code>extended relay transport error: &lt;cause&gt;</code> to stdout, so the speaker's docker
+logs carry it. A failed checker's dump reads both ("Debugging Failures").</p>
 <!-- source: internal/le/interoplab/bgp/check_local_pref_wire.go -- declared-interval sequence and strict oracle -->
+<!-- source: internal/le/interoplab/bgp/extended_relay.go -- runExtendedRelay, extendedRelayDump -->
 <!-- source: internal/le/interoplab/bgp/extended_relay.go -- transparent forwarding and attributed completion -->
 <p>The Extended Message FRR scenarios use a bounded, single-session relay that
 changes capability 6 in OPEN only. It records Ze's original OPEN separately,
@@ -508,9 +535,51 @@ environment and required stdout strings. Probes with no required strings retain
 exit-only readiness; relays to other daemons and other speaker personalities retain their startup order.
 No readiness probe opens a BGP connection, and the relay never reconnects a
 connected socket.</p>
-<!-- source: internal/le/interoplab/bgp/extended_relay.go -- prepareExtendedRelayPeers, dialExtendedRelay -->
+<p>Ze's own probe waits for a listener whenever Ze answers a peer it never dials.
+The runner starts the peers in order, Ze before the third-party BGP daemons,
+and waits on each probe before it starts the next. When the config a Ze starts from (<code>ze.conf</code>, or
+<code>ze-peer.conf</code> for a second Ze) gives a peer <code>connection remote connect false</code>,
+or holds a dynamic group, the probe runs <code>ss -ltn</code> and requires <code>:&lt;port&gt; </code> for
+each such peer's listen port: 179 unless <code>connection local port</code> sets another.
+The question is answered from the parsed config, so a comment that names
+<code>connect false</code> decides nothing. Without the barrier, BIRD or FRR can dial
+before Ze listens, and the refused dial waits the daemon's connect-retry (120
+seconds by default), which outlasts the session budget. A Ze that dials every
+peer keeps the probe that only runs <code>true</code>, because it redials the daemons
+started after it on its own backoff. A relay barrier keeps the listener check:
+one <code>sh</code> runs <code>ss -ltn</code> and then the peer list, and the probe requires both
+sets of strings.</p>
+<!-- source: internal/le/interoplab/bgp/ze_ready.go -- zePassiveListenPorts, zeReadyProbe -->
+<!-- source: internal/le/interoplab/bgp/extended_relay.go -- prepareExtendedRelayPeers -->
+<p>A GoBGP-facing relay, as in <code>bgp-local-pref-strip-gobgp</code>, is gated the same way.
+GoBGP's <code>InitialConfig</code> calls <code>StartBgp</code>, which opens the listener, before it
+adds its neighbors, and <code>passConnToPeer</code> closes a connection from an address it
+has no peer for ("Can't find configuration for a new passive connection").
+GoBGP's barrier is <code>gobgp neighbor &lt;relay address&gt;</code>, which must print
+<code>BGP neighbor is &lt;relay address&gt;</code>: it fails with "not found neighbor" until
+<code>AddPeer</code> has run. <code>gobgp global -j</code> is no barrier, because it answers as soon
+as <code>StartBgp</code> has run. Ze's CLI must also list the relay peer, and the relay
+starts after GoBGP.</p>
+<!-- source: internal/le/interoplab/bgp/extended_relay.go -- prepareExtendedRelayPeers, nativeRelayReady, dialExtendedRelay -->
 <!-- source: internal/le/interoplab/bgp/prepare.go -- scenarioPeers -->
 <!-- source: internal/le/interoplab/lab.go -- waitPeer -->
+<p>That barrier admits the relay; it does not make GoBGP's session come up in
+time for the injector. Under load GoBGP's session to the relay has reached
+Established well over a minute after Ze started, while the injector used to
+announce after four of Ze's KEEPALIVEs (about 20 s), so its burst reached
+GoBGP, if at all, through the route server's peer-up replay rather than the
+forward rail the wire capture judges. The injector therefore waits on a state:
+its <code>inject.msg</code> declares <code>option=await-file</code> with its own 240 s bound, and
+the checker writes that file into the injector's container only after FRR and
+GoBGP report their sessions Established and Ze's <code>show bgp peer list</code> holds
+both destination peers (<code>.3</code> and the relay <code>.10</code>) <code>established</code>, the state the
+forward rail reads. While it waits the injector answers Ze's KEEPALIVEs, so
+the 15 s hold does not expire. After the burst and End-of-RIB it waits for two
+more of Ze's KEEPALIVEs before the third subject, a full interval wherever the
+release fell in Ze's cycle, so the third reaches GoBGP in a later UPDATE than
+the first two.</p>
+<!-- source: internal/le/interoplab/bgp/check_rfc.go -- releaseLocalPrefInjector, localPrefRelease -->
+<!-- source: internal/test/peer/await_file.go -- awaitFile, awaitFileBound -->
 <p>Bounded readiness waits check cancellation before each probe, including the
 first. A simultaneously ready poll tick cannot admit another probe after
 cancellation is observed. Failure retains the last measured state or probe
@@ -559,6 +628,41 @@ and
 The pure boundary regressions supplement, not replace, live scenario proof;
 source identity alone does not establish the identity of a running image.</p>
 <!-- source: internal/le/interoplab/bgp/check_rfc_predicate.go -- requireRouteInstalledVia -->
+<p><code>bgp-ospf-redistribute-default-frr</code> follows FRR's real OSPF dummy subnet
+10.82.0.0/24 through Ze's redistribution consumer and back to FRR over eBGP.
+It requires the producer address 10.82.0.3/24, OSPF point-to-point network
+type on ze-redist0, Full adjacency, Ze's exact protocol-250 kernel route
+via FRR, and established BGP before judging the received path. FRR's native
+BGP JSON must report the exact prefix, one valid best path from external
+peer Ze, AS_PATH <code>65001</code>, and exactly Ze's session-local address as next hop.
+The connected subnet remains owned by FRR, so this assertion reads its
+BGP RIB. It does not require zebra to replace that connected route. Ze's
+final originated-route send guard withholds a next hop owned by the
+destination peer. Reverting the consumer to explicit IGP-gateway origination
+therefore meets that guard here; the useful path must use Ze's endpoint.
+The counterfactual requires the real OSPF and BGP prerequisites alongside
+the missing accepted path. Receiver absence alone does not establish where
+the route stopped. FRR 10.7.1's <code>bgp_update</code> independently refuses a host-route
+NLRI matching one of its local addresses, so an accepted path for its own
+/32 is an invalid expectation. Its point-to-point OSPF producer advertises
+the configured /24 subnet, which preserves the same next-hop discrimination.
+The existing registered peer-preparation hook creates and raises ze-redist0
+before FRR starts; zebra configures its address. FRR explicitly refuses
+network-type changes on lo, so the producer is an ordinary dummy interface.</p>
+<!-- source: internal/le/interoplab/bgp/check_ospf_redistribute_default.go -- checkOSPFRedistributeDefault -->
+<!-- source: internal/le/interoplab/bgp/check_ospf_redistribute_default_predicate.go -- requireRedistributedExternalPath -->
+<!-- source: internal/component/bgp/reactor/session_write.go -- Session.writeUpdateGated -->
+<!-- source: internal/le/interoplab/bgp/prepare_ospf_redistribute_default.go -- prepareOSPFRedistributeDefaultPeers -->
+<p>This scenario enables debug only for the consumer's <code>bgp.redistribute</code> and
+the upstream <code>redistribute.orchestrator</code> logger at startup, so its actual
+injection command survives. After failure, read-only diagnostics capture
+FRR's BGP table, neighbor counters and routes, and Ze's log rings, peer state,
+advertised RIB, OSPF routes, system-RIB candidates and metrics. The reads share
+an independent 15-second deadline and retain query errors alongside the
+original assertion failure. The recorder keeps full query answers; the error
+report carries bounded excerpts.</p>
+<!-- source: test/interop/scenarios/bgp-ospf-redistribute-default-frr/ze.conf -- environment log -->
+<!-- source: internal/le/interoplab/bgp/check_ospf_redistribute_default_diagnostics.go -- ospfRedistributeDefaultDiagnostics -->
 <p>The FRR readiness producers are
 <a href="https://github.com/FRRouting/frr/blob/frr-10.3.1/bgpd/bgpd.c" target="_blank" rel="noopener"><code>peer_unshut_after_cfg</code></a>,
 <a href="https://github.com/FRRouting/frr/blob/frr-10.3.1/bgpd/bgp_fsm.c" target="_blank" rel="noopener"><code>bgp_start</code></a>, and
@@ -741,6 +845,78 @@ to rebuild the daemon, and require failure at the first installed-state assertio
 and require the packet proof to pass before claiming closure.</p>
 <!-- source: internal/le/test/deployment/vpp_srv6_oracle_integration_linux_test.go -- TestVPPSRv6StateOracle, TestVPPSRv6PacketOracle -->
 <!-- source: internal/le/test/deployment/vpp_srv6_integration_test.go -- TestVPPSRv6ServiceRoute -->
+<h2 id="real-vpp-label-pop-proof-mpls-label-pop">Real VPP label pop proof (<code>mpls-label-pop</code>)</h2>
+<p><code>./le test deployment vpp</code> runs nine scenarios in order against one VPP
+container. <code>mpls-label-pop</code> is the fourth, after <code>mpls-fib</code>, and it proves
+that an LDP egress pop reaches VPP's MPLS table 0 when the engine, not a
+<code>fib { }</code> block, chooses the label writer.</p>
+<p>Before Ze starts, the harness creates the packet-generator interface <code>pg0</code>, so
+the VPP interface backend's first interface dump names it. Ze then runs with
+<code>interface { backend vpp; ethernet pg0 { unit default { mpls { enable true; } } } }</code>
+and <code>ldp { lsr-id 10.0.0.1; transport-address 10.0.0.1; interfaces lo; }</code>, and
+no <code>fib { }</code> block. The container's Linux loopback offers LDP no advertisable
+prefix, so the LSR-ID host route is the only FEC LDP originates. Every verdict
+comes from VPP's own CLI:</p>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>VPP query</th>
+<th>What passes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>installed</code></td>
+<td><code>show mpls fib table 0</code></td>
+<td>Exactly one label of 16 or above holds an <code>eos</code> entry whose path is an <code>ip4</code> deag and a <code>neos</code> entry whose path is an <code>mpls</code> deag</td>
+</tr>
+<tr>
+<td><code>mpls-input</code></td>
+<td><code>show mpls interface</code></td>
+<td><code>pg0</code> is followed by <code>MPLS enabled</code></td>
+</tr>
+<tr>
+<td><code>popped</code></td>
+<td><code>show trace</code></td>
+<td>A frame carrying that label, S set, reaches <code>mpls-lookup</code> and then <code>lookup-ip4-dst</code> or <code>ip4-lookup</code></td>
+</tr>
+<tr>
+<td><code>unprogrammed-drop</code></td>
+<td><code>show trace</code></td>
+<td>A frame carrying label 999999 reaches <code>mpls-lookup</code>, then <code>mpls-drop</code>, and no IPv4 lookup</td>
+</tr>
+<tr>
+<td><code>removed</code></td>
+<td><code>show mpls fib table 0</code></td>
+<td>After the configuration loses <code>ldp { }</code> and the running daemon gets SIGHUP, the label has neither entry</td>
+</tr>
+</tbody>
+</table>
+<p>The parsers follow VPP's formatters in FDio/vpp v26.06, the release of the
+<code>ligato/vpp-base:26.06-release</code> image. <code>mpls_fib_show</code> prints each entry with
+<code>format_fib_entry</code>, whose first token is <code>format_fib_prefix</code>: for an MPLS
+prefix, <code>"%U:%U"</code> of the label and of <code>format_mpls_eos_bit</code>, then <code>"/%d"</code>.
+<code>format_mpls_eos_bit</code> writes <code>MPLS_EOS_BITS</code>, <code>"eos"</code> or <code>"neos"</code>, and a
+reserved label prints by name, so only an allocated label matches.
+<code>format_fib_path</code> writes <code>"%U weight=%d "</code> with <code>format_dpo_proto</code> (<code>ip4</code>,
+<code>mpls</code>) and then <code>fib_path_type_names</code>, where a lookup path is <code>deag</code>.
+<code>show_mpls_interface_one</code> prints the interface name, then <code>"  MPLS enabled"</code>.
+A table 0 miss forwards through <code>mpls_fib_drop_dpo_index</code>, whose node is
+<code>mpls-drop</code>. A frame on an interface without MPLS input meets the
+<code>mpls-not-enabled</code> feature and never reaches <code>mpls-lookup</code>, so <code>popped</code> also
+proves that Ze enforced <code>mpls { enable true; }</code> in VPP.</p>
+<p>The frames go in through the packet generator from a pcap file in the scratch
+mount, the pattern of <code>vppSRv6PGPacket</code>. <code>show packet-generator</code> must count one
+generated frame before the trace is judged, so a stream that never ran cannot
+pass the drop check.</p>
+<p>The scenario is red when fib-vpp no longer consumes label entries, for example
+with the <code>(mpls-fib, entry)</code> subscription in fib-vpp's <code>register.go</code> removed,
+or when LDP names <code>fib-kernel</code> in <code>Dependencies</code> again: <code>installed</code> then fails.
+The daemon binary is rebuilt by the run itself, so reverting the source and
+rerunning <code>./le test deployment vpp</code> is enough to show it.</p>
+<!-- source: internal/le/test/deployment/vppevidencempls.go -- runMPLSLabelPop, singlePoppedLabel, traceMPLSFrame, vppMPLSInputEnabled -->
+<!-- source: internal/le/test/deployment/vppevidencescenarios.go -- vppMPLSLabelPopConfig -->
 <h2 id="live-interop-tests-testinterop">Live Interop Tests (<code>test/interop/</code>)</h2>
 <p>Each scenario runs Ze and one or more peer daemons in Docker containers on a shared
 network (<code>172.30.0.0/24</code>), establishes real BGP sessions, and asserts correct behavior
@@ -749,15 +925,19 @@ via each daemon's native CLI.</p>
 <p>The native <code>internal/le/interoplab/bgp</code> package discovers scenario directories in
 <code>test/interop/scenarios/</code>. Before any scenario, the shared <code>interoplab.Suite</code>
 engine reports what a killed earlier run left behind ("Crash-safe teardown"
-below), runs the lab's preflight (which stages ze), checks the Docker daemon's
-kernel with that ze ("The Docker host kernel check" below), and builds the
-images. For each scenario it then:</p>
+below), runs the lab's preflight (which stages ze and le, and runs le's start
+probe: "The start probe" below), checks the Docker daemon's kernel with that
+ze ("The Docker host kernel check" below), and builds the images. For each
+scenario it then:</p>
 <ol>
 <li>Creates an isolated Docker network, after refusing an existing container or
 network of the same name that this process did not create.</li>
-<li>Starts Ze and the peer daemons declared by the scenario's config files.</li>
-<li>Waits for every declared readiness probe.</li>
-<li>Runs the scenario's typed checker from the package-local BGP registry.</li>
+<li>Starts Ze and the peer daemons declared by the scenario's config files,
+in the order <code>scenarioPeers</code> lists them.</li>
+<li>Waits for each peer's declared readiness probe before it starts the next.</li>
+<li>Runs the scenario's typed checker from the package-local BGP registry,
+recording every call it makes to the lab ("Recording and replaying a
+checker" below).</li>
 <li>Tears down the containers and the network this scenario created, including
 after setup or checker failure and after a Ctrl-C or SIGTERM, which cancel
 the run rather than end the process. A resource is recorded for teardown
@@ -790,6 +970,38 @@ full-suite image preparation described above; the kernel probe, binary staging
 and deadlines are unchanged.</p>
 <!-- source: internal/le/interoplab/images.go -- peerImageBuilds, Suite.preparePeerImages -->
 <!-- source: internal/le/interoplab/bgp/run.go -- suiteFor -->
+<h3 id="the-start-probe">The start probe</h3>
+<p>A staged binary can build and still fail to start. On 2026-11-10 every le
+process panicked at start on a help line over the 60-character limit (commit
+<code>c77a8dd2f3</code>). The cross-compile passed, so the preflight passed, and every
+helper container that runs le (speaker, relay, injector) then failed its
+readiness wait. Four scenarios failed one after another, each after its image
+build, before anyone saw that no scenario had reached its checker.</p>
+<p>A <code>LabBinary</code> may declare a <code>StartProbe</code>: the arguments the staged binary is
+started with once, right after its build. <code>StageBinaries</code> runs it in a
+one-shot <code>alpine:3.24.3</code> container through <code>RunOneShot</code>, with the binary
+mounted read-only at <code>/lab/&lt;name&gt;</code>. The file keeps its declared name because
+cmd/ze selects its personality from that name. The container is built the
+same way as the kernel probe's (<code>stagedBinaryContainer</code>), so a darwin host
+runs the linux binary, and a probe that is cut short is removed by name.</p>
+<p>Every lab that stages le declares <code>linuxle.StartProbe</code>, which is <code>le help</code>.
+le runs its registration checks before it reads its first word
+(<code>leroot.DispatchWithStartup</code>), so <code>help</code> reaches the check that panicked,
+and <code>help</code> needs no checkout. A binary that declares no probe is not run: a
+staged daemon needs a config to start, and the kernel check already runs the
+staged ze.</p>
+<p>A probe that exits non-zero, or that Docker cannot run to an exit, stops the
+preflight before any image build. The refusal names the binary, its output
+path, the probe argv, the exit status and the first twelve lines of its
+stderr, then the fix: correct the start failure the stderr names, and run
+<code>./le test integration &lt;lab&gt;</code> again. Each probe prints one progress line with
+its verdict and elapsed time:</p>
+<pre><code>interop: start probe le (`le help`): pass (&lt;elapsed&gt;)
+</code></pre>
+<!-- source: internal/le/interoplab/zebuild_probe.go -- probeBinaryStart, startProbeRefusal, startProbeStderr -->
+<!-- source: internal/le/interoplab/kernelcheck.go -- stagedBinaryContainer, kernelProbeContainer -->
+<!-- source: internal/le/interoplab/zebuild.go -- LabBinary, StageBinaries, stageBinaries -->
+<!-- source: internal/le/linuxle/linuxle.go -- StartProbe -->
 <h3 id="crash-safe-teardown">Crash-safe teardown</h3>
 <p>Every container, one-shot container (the kernel probe included), network and
 built image the wrapper (<code>interoplab.Docker</code>) creates carries owner labels, all
@@ -986,7 +1198,16 @@ mark up, whatever its <code>docker rm -f</code> answered.</p>
 <!-- source: internal/le/test/deployment/actions.go -- notReached, proofNotReached -->
 <p>A docker command le stopped is named for what stopped it. One whose own bound
 ended reads "did not finish within <bound>" and carries exit 124, as
-<code>timeout(1)</code> answers. One whose context was canceled, by an interrupt reaching
+<code>timeout(1)</code> answers. One that a deadline of its caller's context ended first
+reads "was cut short by its caller's deadline after <elapsed>, before its own
+<bound> bound": a <code>Wait</code> window that closed while its probe's exec ran is the
+usual case, and the command did not hang. It carries exit 124 and still wraps
+<code>context.DeadlineExceeded</code>, so a caller that branches on a deadline takes the
+same branch; only the text differs. The runner tells the two apart by the
+cause the command's own bound records, not by reading the caller's context
+afterwards, which a deadline passing just after the bound fired would fool. A
+lab cross-compile its caller cut short is refused the same way, without the
+slow-build reasons. One whose context was canceled, by an interrupt reaching
 the verb's signal root or by the run stopping, reads "was canceled before it
 finished" and carries no exit code, because the code would be le's own kill.</p>
 <p>Every docker command runs in a process group of its own, so a terminal Ctrl-C
@@ -996,8 +1217,9 @@ killed by the same signal, or by a second Ctrl-C. A command handed a terminal
 as one of its streams stays in the group of <code>le</code>, where reading the terminal
 raises no SIGTTIN ("How a suite's child processes end" in
 <code>runner-architecture.md</code>).</p>
-<!-- source: internal/le/interoplab/process.go -- systemProcessRunner.Run, sharesTerminal -->
+<!-- source: internal/le/interoplab/process.go -- systemProcessRunner.Run, callerDeadlineError, sharesTerminal -->
 <!-- source: internal/le/interoplab/docker.go -- commandError.Error -->
+<!-- source: internal/le/interoplab/zebuild.go -- stageBinary, buildCutShortMessage -->
 <p>The multi-DUT benchmark (<code>./le perf run</code>, <code>./le perf record evidence</code>) is the
 other such caller. Its network goes through <code>Docker.CreateNetwork</code> and
 <code>Docker.RemoveNetwork</code> with the owner labels, each DUT and the sender through
@@ -1142,7 +1364,17 @@ namespace-wide <code>net/ipv4/conf/all/rp_filter</code> and
 <code>TestVRRPWritesOnlyLabGrantedSysctls</code> records every write it makes and checks
 the profile grants each. In the IPsec lab the NAT box, strongSwan and ze hold
 <code>NET_ADMIN</code>, and ze also holds <code>BPF</code>, because <code>vpn ipsec application-override deny</code> (the default) loads and attaches its setsockopt guard and fails the apply
-without it (<code>capabilityBPF</code>, <code>internal/le/interoplab/ipsec/ipsec.go</code>); the NAT box sets its three sysctls through <code>--sysctl</code>; strongSwan
+without it (<code>capabilityBPF</code>, <code>internal/le/interoplab/ipsec/ipsec.go</code>). In every
+scenario ze also holds the host's <code>/dev/net/tun</code> (<code>interoplab.TUNDevice</code>,
+<code>--device</code>) and runs under <code>ze-lab-net-sysctl</code> with <code>/proc/sys</code> writable: a
+Child SA that receives UDP-encapsulated ESP makes ze create the <code>ze-espform</code>
+TUN device and write its <code>disable_policy</code> and <code>rp_filter</code> (<code>openESPFormTUN</code>,
+<code>internal/component/ike/dataplane/espform_tun_linux.go</code>), and the install is
+refused when either fails. Whether an SA is encapsulated is decided at run
+time (NAT detection, MOBIKE, which floats IKE to port 4500 before IKE_AUTH, or
+a peer that came in on 4500), so no scenario is exempt. <code>TUNSETIFF</code> needs
+<code>CAP_NET_ADMIN</code> in the container's namespace, which ze already holds. The NAT
+box sets its three sysctls through <code>--sysctl</code>; strongSwan
 runs under <code>ze-lab-net-sysctl</code> only in a scenario whose <code>scenarioCheckers</code>
 entry sets <code>writesPeerSysctl</code> (<code>internal/le/interoplab/ipsec/checkers.go</code>),
 because its checker writes strongSwan's sysctls at run time (it cuts the
@@ -1168,6 +1400,16 @@ the output with <code>ParsePreflight</code>, takes the device entry of its refus
 operation, exit code, stderr and cause, and adds <code>sudo modprobe ppp_generic</code>
 only when Docker's stderr names <code>/dev/ppp</code>.</p>
 <!-- source: internal/le/interoplab/pppdevice.go -- PPPDeviceArguments, PPPDeviceProbe, ParsePreflight, PPPDeviceMissing, PPPPreflightRunRefusal -->
+<p>The TUN clone device every lab Ze running IPsec holds is declared once too,
+as <code>TUNDevice</code> and <code>TUNDeviceArguments</code> in <code>internal/le/interoplab/tundevice.go</code>;
+the IPsec lab's ze and the home-CPE lab's CPE take it from there. It has no
+preflight: Ze's kernel builds <code>tun</code> in (<code>CONFIG_TUN=y</code>,
+<code>gokrazy/kernel/runtime.config</code>), so a Docker host on Ze's kernel always has
+the node, and on any other host Docker refuses the container start with an
+<code>error gathering device information</code> line naming <code>/dev/net/tun</code>.
+<code>TestIPsecLabPeersRunWithoutPrivilege</code> holds the IPsec lab's ze to exactly
+<code>NET_ADMIN</code>, <code>BPF</code>, that device and the net sysctl grant.</p>
+<!-- source: internal/le/interoplab/tundevice.go -- TUNDevice, TUNDeviceArguments -->
 <!-- source: internal/le/interoplab/apparmor.go -- RegisterAppArmorProfile, appArmorSecurityOption, labAppArmorProfileMissing, labAppArmorUnapplied -->
 <!-- source: internal/le/interoplab/apparmor_netsysctl.go -- NetSysctlAppArmorProfileName, NetSysctlGranted -->
 <!-- source: internal/plugins/vrrp/dataplane_linux.go -- applyDataplaneSysctls -->
@@ -1213,6 +1455,18 @@ It refuses when:</p>
 L2TP and PPPoE suites, so they reach the same check. A suite with no kernel
 module of its own, such as the FreeRADIUS admin-login suite, is checked too:
 the owner's rule is about the host, not about the scenario.</p>
+<p>The <code>vpp-iface</code> VLAN QoS scenario keeps one Ze daemon running through two
+SIGHUP reloads. A successful empty-map preflight establishes a fresh pool.
+VPP's own <code>show qos egress map</code> output must contain exactly one map, whose
+external ID is the VLAN index and whose mark refers to the first pool entry.
+Its output must first contain
+the full VLAN row with priorities 3 and 5 mapped to themselves, then only
+priority 3 after replacement. The next reload removes the egress map from
+config, and <code>show qos mark</code> must report no mark on the same existing VLAN
+interface. A failed CLI query, a changed interface index or an exited daemon
+cannot satisfy the proof. The signal targets the exact daemon command in the
+proof's private container, as the other VPP deployment scenarios do.</p>
+<!-- source: internal/le/test/deployment/vppifaceqos.go -- proveVLANQoSReload, awaitVLANQoS, qosVLANRow -->
 <p>The <code>l2tp</code>, <code>vpp</code> and <code>vpp-iface</code> deployment proofs run no suite,
 and neither does <code>TestVPPSRv6ServiceRoute</code> (build tag <code>integration</code>), which
 prepares its daemon through the step <code>vpp-iface</code> uses. Each cross-compiles its own daemon to <code>tmp/evidence/bin/ze-linux-&lt;arch&gt;</code>, and
@@ -1250,17 +1504,20 @@ ignores so the tree stays clean, and makes the same check with it. The
 container never runs <code>--privileged</code>: it holds one <code>--cap-add</code> for each
 capability the <code>option=needs-linux:caps=</code> vocabulary names and one <code>--device</code>
 for each node a production path reached by a test opens (<code>/dev/ppp</code>, opened by
-<code>ppp.DevPPPSetup</code>), read from the runner's own tables
+<code>ppp.DevPPPSetup</code>, and <code>/dev/net/tun</code>, opened by <code>openESPFormTUN</code> for an IPsec
+Child SA that receives UDP-encapsulated ESP), read from the runner's own tables
 (<code>runner.ContainerCapsDockerNames</code>, <code>runner.ContainerDevicePaths</code>), and keeps
 Docker's default seccomp and AppArmor profiles. A test declares no device:
-<code>TestContainerDevicesCoverWhatPPPOpens</code> reads the L2TP sources for every
-<code>/dev</code> node they open and checks the table holds exactly those. A token added
+<code>TestContainerDevicesCoverWhatTestedPathsOpen</code> reads the L2TP and IPsec
+dataplane sources for every <code>/dev</code> node they open, as a literal or a package
+constant, and checks the table holds exactly those. A token added
 to either table reaches the container with no other edit. <code>sys-time</code> is left out:
 a container shares the Docker host's clock, so a verify run must not set it,
 and the NTP restore test skips there through its own caps gate. A container
 never loads a kernel module, so a Docker host without one of those nodes makes
 Docker refuse the start; the run then answers an error naming the node and the
-host command that creates it (<code>sudo modprobe ppp_generic</code> for <code>/dev/ppp</code>)
+host command that creates it (<code>sudo modprobe ppp_generic</code> for <code>/dev/ppp</code>,
+<code>sudo modprobe tun</code> for <code>/dev/net/tun</code>)
 rather than a bare exit code.</p>
 <p>The run is a release check only Thomas starts. The verb declares
 <code>leaction.Action.WholeTree</code>, so before its body runs, and so before the
@@ -1340,8 +1597,9 @@ route: it installs the cached runtime kernel for the host's architecture under
 <code>/boot</code> and <code>/lib/modules</code>, rebuilds the initramfs and the GRUB menu with the
 Debian tools, and saves the new entry as GRUB's default by its title. It
 refuses before any step unless <code>GRUB_DEFAULT=saved</code>, and unless the cached
-release is the version <code>internal/appliance/kernel.version</code> pins followed by the
-<code>CONFIG_LOCALVERSION</code> suffix its config declares (<code>-ze</code>, so never a bare
+release is the release the version <code>internal/appliance/kernel.version</code> pins
+builds (<code>7.3.0</code> for pin <code>7.3</code>; see <code>docs/architecture/appliance/kernel-profiles.md</code>)
+followed by the <code>CONFIG_LOCALVERSION</code> suffix its config declares (<code>-ze</code>, so never a bare
 upstream release another kernel could own, nor an entry built before a version
 bump), and unless the
 cached kernel's config builds in, or as a module, every option this host
@@ -1410,6 +1668,26 @@ images are ready with the time it took, and two for each scenario, <code>interop
 suite that hangs then names the scenario that holds it. A failed progress write
 does not fail the suite.</p>
 <!-- source: internal/le/interoplab/lab.go -- Suite.Run, Suite.progress, scenarioLine -->
+<p>A failure names the phase it happened in, after the elapsed time:
+<code>interop: [i/n] name: FAIL (12s) in setup: &lt;error&gt;</code>. The phase is <code>setup</code>
+(pre-clean, network, prepare, validation, images, start wrapping, a container
+run), <code>readiness</code> (a peer's declared readiness wait) or <code>checker</code>. Only a
+<code>checker</code> failure says anything about the feature: a helper that cannot start
+fails every scenario in setup or readiness. The scenario's result carries the
+same word in its <code>phase</code> field, which a pass omits, and the terminal report
+prints <code>name: FAIL in &lt;phase&gt;: &lt;error&gt;</code>. A pass line is unchanged, and the
+<code>: FAIL (</code> marker and a checker's <code>scenario &lt;name&gt; assertion N:</code> text are both
+where the RFC recorder reads them. <code>runScenario</code> sets the phase as the run
+advances and copies it onto a failed result, so no error text is matched.</p>
+<p>When three scenarios in a row fail in setup or readiness, the suite stops. A
+pass or a checker failure resets the count, so a run of feature reds always
+runs to the end. The report lists every scenario after the stop under
+<code>not-run</code>, counted neither passed nor failed, and <code>stopped</code> says why, with the
+fix: correct the setup cause the failures name, then run the lab again with the
+<code>./le</code> action its catalog registers (<code>Catalog.Action</code>). The summary line reads
+<code>interop: 0 passed, 5 failed, 2 not run: &lt;failed names&gt;</code>.</p>
+<!-- source: internal/le/interoplab/phase.go -- ScenarioPhase, setupFailuresBeforeStop, Suite.stopReason, Suite.rerunCommand -->
+<!-- source: internal/le/interoplab/lab.go -- Suite.Run, Suite.runScenario, SuiteReport.Text, ScenarioResult -->
 <p>Each local image build also creates a unique, run-owned tag. This keeps its
 image ID available when another build replaces the shared cache tag.
 The suite removes its tags after the scenarios, including after setup failure.
@@ -1467,15 +1745,18 @@ host uses, which a guest cannot stand in for.</p>
 <!-- source: internal/le/test/qemu/alltests.go -- excludedIntegrationPackages -->
 <p>Daemons start conditionally: FRR if <code>frr.conf</code> exists, BIRD if <code>bird.conf</code> exists,
 GoBGP if <code>gobgp.toml</code> exists. This means each scenario only runs the daemons it needs.
-BIRD starts with IPv6 enabled, as FRR always does, only when its <code>bird.conf</code> names a
-lab IPv6 address.
+BIRD starts with IPv6 enabled, as FRR always does, only when rendering wrote a
+lab IPv6 address into its <code>bird.conf</code>: the base prefix <code>fd00:1e:0::</code> replaced by
+the lab network's, or a link-local placeholder. The render records each file it
+wrote one into (<code>scenarioRendering</code>), and the decision reads that record rather
+than the rendered text, which names the lab's prefix and not the base one.
 A <code>ze-peer.conf</code> starts a second Ze daemon, the peer <code>ze-peer</code>, where no
 third-party daemon can serve the scenario (<code>ospf-multiaf-v4-frr</code>: FRR ospf6d has
 no IPv4-unicast address family). It starts the way the Ze under test does
 (<code>zeDaemonPeer</code>), with the CLI user the checkers log in as appended to its
 config, and takes FRR's host 3, so a scenario carrying both <code>frr.conf</code> and
 <code>ze-peer.conf</code> is refused.</p>
-<!-- source: internal/le/interoplab/bgp/prepare.go -- ipv6Sysctls, zeDaemonPeer, scenarioPeers -->
+<!-- source: internal/le/interoplab/bgp/prepare.go -- ipv6Sysctls, zeDaemonPeer, scenarioPeers, scenarioRendering, renderScenario -->
 <p><strong>A scenario directory is NAMED, never numbered</strong> (owner directive, 2026-08-24).
 Run order is lexical by scenario directory name and no scenario depends on it.
 The rule and its reasoning live in <code>ai/rules/interop-and-goal-validation.md</code>,
@@ -1646,6 +1927,14 @@ scenario builds what must exist before its daemon sends a packet: a second
 link, a link-local on it, an nft table. A prestart for an owner whose
 placeholder no scenario file carries would never run, so preparation refuses
 it by name rather than skipping it.</p>
+<p>A scenario that needs an extra lab address on a peer's <code>eth0</code> before the daemon
+starts declares it in <code>scenarioHostAddresses</code>, as a peer and a host number.
+<code>addHostAddresses</code> renders the address on the run's subnet and puts its
+<code>ip address add</code> at the head of that peer's prestart, and refuses a declaration
+that names a peer the scenario does not start. <code>ldp-backoff-clear-frr</code> declares
+ze's .250 transport address there.</p>
+<!-- source: internal/le/interoplab/bgp/prepare.go -- scenarioHostAddresses, addHostAddresses -->
+<!-- source: internal/le/interoplab/bgp/register_ldp_backoff_clear.go -- the declaration -->
 <p><code>bgp-rfc2545-linklocal-nexthop-frr</code> uses IPv6 host 2 for Ze and host 3 for FRR:
 the speaker, its on-link global next hop and the recipient share ONE IPv6 subnet,
 not separate IPv4 and IPv6 connected prefixes. Its <code>ze.conf</code> carries
@@ -1827,6 +2116,59 @@ selected OSPF path at 110 and a static path at 150. Every field is judged on
 its own path, so the static path's 150 cannot stand for the OSPF path's
 distance.</p>
 <!-- source: internal/le/interoplab/bgp/check_import_policy.go -- checkOSPFImportPolicy -->
+<p>Each import scenario has an internal and a <code>-forked</code> system-RIB variant.
+The shared wrapper checks the daemon PID, configured owner's Running state
+and commands, then observes actual subprocess placement through procfs. The
+forked case requires one descendant running <code>ze plugin rib</code>; the internal
+case requires none. Both retain the original import, distance and flooding
+assertions.</p>
+<!-- source: internal/le/interoplab/bgp/check_import_policy_placement.go -- checkImportPolicyPlacement, checkISISImportPolicyForked, checkOSPFImportPolicyForked -->
+<!-- source: internal/test/fixture/sysrib_execution_fixture.go -- sysribExecutionPluginChildren, sysribExecutionPluginPlacement -->
+<p>Both OSPF variants also require BIRD's untagged <code>10.88.3.0/24</code> in Ze's SPF
+result and hidden centrally at distance 110. It must be absent from system
+and kernel routes beside the installed <code>10.88.2.0/24</code> control. The IS-IS
+wrapper reads both FRR versions and consumed image identities. The OSPF
+wrapper reads BIRD's version and image identity. Checker unit tests exercise
+these predicates, but do not establish a successful live peer run.</p>
+<!-- source: internal/le/interoplab/bgp/check_import_policy_placement.go -- checkOSPFImportCentral, checkISISImportPeerIdentity -->
+<p><code>isis-import-policy-reload-frr</code> and its <code>-forked</code> twin prove that a reload
+re-judges the IS-IS paths the Loc-RIB already holds. One FRR meets Ze on
+<code>eth0</code> and originates the same two prefixes; <code>ze.conf</code> carries the same
+rejecting chain and <code>ze-reload.conf</code> is that file without it. The checker
+reads the hidden verdict as above, then a settled reading of Ze's
+<code>show isis neighbor</code> (each adjacency up) and <code>show isis database</code> (each LSP's
+level, ID, sequence number and checksum, lifetime left out), taken once three
+reads 10 s apart agree. It reloads into <code>ze-reload.conf</code> and waits for the
+hidden prefix's path to be selected and the prefix to reach <code>show rib</code> and the
+kernel FIB, then reloads back into <code>ze.conf</code> and waits for it to be hidden
+again at every layer. After each reload the settled reading must equal the
+first. FRR's config never changes and a sequence number only grows, so that
+equality proves no LSP was originated again and no adjacency went down: the
+change came from the reload's re-judging (<code>locrib.PublishPolicy</code>), not from a
+fresh advertisement. Both scenarios passed on 2026-11-14 and each went red that
+day under one removed line of <code>dispatchReselected</code>, on a rebuilt Ze image: the
+plain scenario at its relaxed reload with the re-admission dispatch removed
+(the prefix never reached <code>show rib</code>), the forked one at its tightened reload
+with the hide dispatch removed (the prefix stayed installed).</p>
+<!-- source: internal/le/interoplab/bgp/check_import_policy_reload.go -- checkISISImportReload, waitISISSettledState, parseISISRouterState, isisRouterStateMoved -->
+<!-- source: internal/le/interoplab/bgp/register_import_policy.go -- the reload specialCheckers entries -->
+<p>Run one scenario on Ze's Docker-host system with the native action below.
+Select each of <code>isis-import-policy-frr</code>, <code>isis-import-policy-frr-forked</code>,
+<code>isis-import-policy-reload-frr</code>, <code>isis-import-policy-reload-frr-forked</code>,
+<code>ospf-import-policy-bird</code> and <code>ospf-import-policy-bird-forked</code> separately.
+Retain <code>isis-export-policy-frr</code> and <code>ospf-export-policy-frr</code> as export controls.</p>
+<pre><code class="language-bash">./le test qemu docker-lab lab 'test integration interop' env 'INTEROP_SCENARIO=isis-import-policy-frr'
+</code></pre>
+<!-- source: internal/le/test/qemu/actions.go -- dockerLabParameters -->
+<!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLab, dockerLabHostArgv -->
+<!-- source: internal/le/interoplab/bgp/register_catalog.go -- selectorVariable -->
+<p>The action boots Ze's image, probes the guest Docker engine and runs the
+selected lab through its host runner. When validating uncommitted checker
+changes, use the launcher's <code>--name</code> form. Its inherited build identity keeps
+the child launcher on the same current-tree build. A registered scenario is
+a proof target until its live run and discrimination results are retained.</p>
+<!-- source: internal/le/test/qemu/dockerlab.go -- dockerLab, dockerLabEnviron, runHostLe -->
+<!-- source: le -- ZE_LE_BUILD_NAME, named working-tree build -->
 <h3 id="igp-export-policy-scenarios">IGP export-policy scenarios</h3>
 <p><code>isis-export-policy-frr</code> and <code>ospf-export-policy-frr</code> read an IGP export
 chain's verdicts and sets out of FRR, one JSON answer per assertion, so every
@@ -1965,8 +2307,11 @@ negative control or excuse an ExStart/SeqNumberMismatch loop.</p>
 <!-- source: internal/plugins/ospf/neighbor/rfc5250_dd_capability_test.go -- TestDDNegotiatedOpaqueCapabilityControlsAdvertisedSummary -->
 <p>The capture deadline bounds reads as well as the outer loop. Expiry while
 waiting for a new header is quiet completion; an unfinished header or body,
-EOF, notification or send failure cannot certify a complete capture.</p>
-<!-- source: internal/le/interoplab/bgp/speaker.go -- runSpeakerSession, readSpeakerMessage, readSpeakerExact -->
+EOF, notification or send failure cannot certify a complete capture.
+The same <code>--duration</code> deadline bounds the dial: while Ze refuses the connection
+or is unreachable, the speaker redials every 250 ms, and when the deadline
+passes it fails with the last dial error.</p>
+<!-- source: internal/le/interoplab/bgp/speaker.go -- runSpeakerSession, dialSpeakerPeer, readSpeakerMessage, readSpeakerExact -->
 <p>If either OSPF scenario fails, its checker captures both peers' interface and
 neighbor detail, Ze's packet/drop and NSM counters, and FRR's DD packet debug
 log before container teardown. The original Full-adjacency failure remains
@@ -2003,16 +2348,22 @@ recognizes the empty non-MP UPDATE and
 emits the message. A table entry is not an EOR substitute.</p>
 <p>The scenario's <code>bgpd_options</code> enables file logging before integrated
 configuration, so <code>frr_run</code>'s native startup precedes the initial receive
-window. Only a decode after the sole startup is eligible. The checker brackets
+window. Only a decode after the sole startup is eligible, and that startup
+must name release 10.7.1, bare or with FRR's build suffix after an underscore:
+the lab image prints <code>bgpd 10.7.1_git starting: </code>. Another release, or a
+longer one such as <code>10.7.10</code>, does not fence the log. The checker brackets
 the log read with bgpd PID and <code>/proc</code> start ticks, log device/inode, exact
 neighbor socket ports, Established state, one connection establishment and
 zero drops. Foreign peers, address substrings, other families/VRFs, send
 messages, pre-startup events and daemon/session/log replacement cannot certify
-this observation. The final Established check and identity comparison retain
-the original-session survival assertion.</p>
+this observation. An identity query the wait's end cuts short, before or
+after the log read, fails that probe and preserves the last complete
+observation for the EOR wait's verdict; an observed identity replacement
+still refuses immediately. The final Established check and identity
+comparison retain the original-session survival assertion.</p>
 <!-- source: internal/le/interoplab/bgp/check_rfc.go -- checkNoFamilyEndOfRIB -->
-<!-- source: internal/le/interoplab/bgp/check_rfc_predicate.go -- endOfRIBDecoded, requireMultiprotocolAdvertisedOnly -->
-<!-- source: internal/le/interoplab/bgp/check_no_family_eor.go -- readNoFamilyEORIdentity, noFamilyFRRLogMessage -->
+<!-- source: internal/le/interoplab/bgp/check_rfc_predicate.go -- endOfRIBDecoded, frrStartupRelease, requireMultiprotocolAdvertisedOnly -->
+<!-- source: internal/le/interoplab/bgp/check_no_family_eor.go -- readNoFamilyEORIdentity, probeNoFamilyEORIdentity, noFamilyFRRLogMessage -->
 <!-- source: test/interop/scenarios/no-family-peer-eor-frr/daemons -- early bgpd logging -->
 <p>These are checker/source contracts, not a live result. Current native GREEN,
 the actual Ze EOR-source cut producing RED despite route arrival, and restored
@@ -2039,6 +2390,34 @@ function (<code>session_panic_inject.go</code>, <code>!ze_le</code>).</p>
 <!-- source: internal/le/interoplab/bgp/check_panic_cease.go -- checkPanicCease, frrReceivedCeaseUnspecific -->
 <!-- source: internal/le/interoplab/bgp/check_rfc8212_default_reject.go -- checkRFC8212DefaultRejectFRR -->
 <!-- source: internal/component/bgp/reactor/session_panic_inject_le.go -- injectReadPanic -->
+<p><code>bgp-manual-eor-requested-frr</code> proves which End-of-RIB markers Ze sends a peer
+configured <code>behavior { manual-eor true; }</code>, against FRR 10.7.1. Its external
+process (<code>le test interop-bgp process bgp-manual-eor-requested-frr manual-eor-requester</code>) acts from inside its handler for the peer-UP event,
+which the engine awaits before it starts the initial sync (<code>deliverPeerState</code>,
+<code>internal/component/bgp/server/events.go</code>), and answers within 4 s, under the
+engine's 5 s delivery timeout. On the first session it announces
+<code>10.84.1.0/24</code> and asks for nothing: FRR must decode the route and, through a
+10 s hold, no End-of-RIB. The checker then runs <code>clear bgp &lt;ze&gt;</code>. On the
+second session the process announces <code>10.84.2.0/24</code> and asks for the IPv4
+unicast End-of-RIB with the session's queueing gate still closed: in the part
+of FRR's log written after the clear, FRR must decode the route and then
+exactly one End-of-RIB, held for 10 s, and its table must hold the route.</p>
+<p>The checker reads FRR's own receive log rather than <code>show bgp neighbor json</code>.
+FRR's <code>bgp_update_receive_eor</code> (<code>bgpd/bgp_packet.c</code> at <code>frr-10.7.1</code>) logs
+<code>rcvd End-of-RIB for IPv4 Unicast from &lt;peer&gt; in vrf default</code> at
+informational level for every marker, before it tests
+<code>PEER_STATUS_EOR_RECEIVED</code>, so a second marker is logged too. <code>bgp_update</code>
+logs <code>&lt;peer&gt; rcvd &lt;prefix&gt;</code> under <code>debug bgp updates in</code>, and the order of the
+lines is the order FRR handled one connection's UPDATEs. The
+<code>gracefulRestartInfo.endOfRibRecv</code> flag is one bit, printed only for a peer
+whose Graceful Restart capability FRR received, so it can show neither a
+count nor an order, and the scenario negotiates no Graceful Restart.</p>
+<p>It proves two things: an explicit request asked inside the sync is written,
+after the route, and the sync writes no marker on a <code>manual-eor</code> peer. It does
+not exercise a route-server replay's marker, because no replaying plugin is
+attached.</p>
+<!-- source: internal/le/interoplab/bgp/check_manual_eor.go -- checkManualEORRequested, runManualEORProcess, requestManualEOR -->
+<!-- source: internal/le/interoplab/bgp/check_manual_eor_predicate.go -- readManualEOR, requireNoManualEORMarker, requireOneManualEORMarkerAfterRoute, requireManualEORRequests -->
 <p>A scenario carrying <code>frr.conf</code> may also carry its own <code>daemons</code> file. That file
 names which FRR daemons run and what each one is started with, so a scenario
 needing a <code>bgpd</code> module (<code>-M bmp</code> for one that drives Ze's BMP receiver) carries
@@ -2062,8 +2441,9 @@ error.</p>
 assignments, each passed as <code>--sysctl</code> to Ze's container, so the runtime writes it
 into the container's own network namespace before ze starts. Docker mounts
 <code>/proc/sys</code> read-only, so a value ze would otherwise write itself is refused
-there. <code>ospf-sr-anycast-nexthop-frr</code> uses it for <code>net.mpls.platform_labels</code>,
-which fib-kernel needs non-zero before it can install a label route. Only <code>net.*</code>
+there. <code>ospf-sr-anycast-nexthop-frr</code> and <code>ospf-sr-frr</code> use it for
+<code>net.mpls.platform_labels</code>, which fib-kernel needs non-zero before it can
+install a label route. Only <code>net.*</code>
 keys are accepted; any other key, a token without <code>=</code> or an empty value refuses
 the scenario before a container starts.</p>
 <!-- source: internal/le/interoplab/bgp/prepare_ze_sysctls.go -- zeSysctlArguments -->
@@ -2076,11 +2456,16 @@ gate and FRR's received withdrawal, not a physically multihop path.
 IPv6-hop proof through a transit namespace. Ze's link scope reads the interface
 table, not the configured BGP TTL.</p>
 <!-- source: internal/le/interoplab/bgp/check_linklocal_multihop.go -- checkLinkLocalOnlyMultihopWithdraw -->
-<p>A BMP scenario with no <code>pmbmpd.conf</code> starts <code>le test interop-bgp bmp-collector</code>. Announcement and
+<p>A scenario whose <code>ze.conf</code> runs the BMP sender (<code>bgp bmp sender</code>) and carries
+no <code>pmbmpd.conf</code> starts <code>le test interop-bgp bmp-collector</code>. The lab reads that
+from the parsed config, so a commented-out <code>bmp</code> block starts no collector, a
+receiver-only <code>environment bmp</code> starts none either, and a <code>ze.conf</code> that cannot
+be read or parsed fails the scenario's preparation, naming the file. Announcement and
 observer process plugins use <code>le test interop-bgp process &lt;scenario&gt; &lt;plugin&gt;</code>.
 These personalities are compiled into <code>le</code>; no interpreter or source mount
 is present in the Ze image.</p>
 <!-- source: internal/le/interoplab/bgp/prepare.go -- sidecar startup -->
+<!-- source: internal/le/interoplab/bgp/ze_ready.go -- readZeConfig, zeSendsBMP -->
 <!-- source: internal/le/interoplab/bgp/helper.go -- compiled process and BMP helpers -->
 <!-- source: internal/le/interoplab/bgp/speaker.go -- compiled strict speaker -->
 <!-- source: test/interop/scenarios/bgp-rfc7606-relay-shape-frr/ -- injector worked example -->
@@ -2367,7 +2752,8 @@ do not print this build identity.</p>
 <p>The GoBGP export-reload successor also records the actual image ID of each
 registered live peer container before reading versions or configuration. Its
 <code>proof.json</code> carries <code>image-&lt;peer&gt;</code> identities, including pulled peers whose
-suite build result still names a tag. <code>Lab.PeerImage</code> inspects that container's
+suite build result still names a tag. <code>CheckerLab.PeerImage</code>, which the real
+<code>Lab</code> answers, inspects that container's
 consumed image and refuses missing or malformed IDs; it never substitutes the
 current shared tag. This records the current run's provenance and does not
 recover an earlier run's missing image identity.
@@ -2385,7 +2771,7 @@ mutation test that CAN fail.</p>
 <p>A scenario added to ALREADY-WORKING code never had a red phase, so its
 discrimination is unproven until you force one. That is not TDD's red-then-green:
 a regression test and a scenario for existing behaviour both start green.</p>
-<p>Five traps make a scenario pass whatever the code does. Check each by its tell
+<p>Six traps make a scenario pass whatever the code does. Check each by its tell
 before you call the scenario evidence:</p>
 <table>
 <thead>
@@ -2421,6 +2807,11 @@ before you call the scenario evidence:</p>
 <td>Each clause reads as an independent observation, and they are one observation written twice</td>
 <td>Name the single event that satisfies every clause. Then ask which clause a peer that did nothing would still satisfy</td>
 </tr>
+<tr>
+<td>A counterfactual that fails at a step BEFORE the assertion it is meant to prove</td>
+<td>The run is red, so the proof looks discriminating, yet the assertion under test never ran</td>
+<td>Read which step the red run names. The Compose proof's <code>break-volume</code> failed at import, so its second-login checks had never been seen red until <code>break-commit</code> failed at second-login. <span class="ev-src"><span class="ev-ref"><code>internal/le/test/deployment/compose.go</code></span></span></td>
+</tr>
 </tbody>
 </table>
 <!-- source: internal/core/bgp/capability/negotiated.go -- Negotiate (ExtendedMessageSend follows the peer's advertisement) -->
@@ -2446,6 +2837,112 @@ one direction into one entry. <code>verifyESPDirections</code> now reads each si
 its own <code>src</code>/<code>dst</code> header and takes the set of directions its caller can claim,
 and it also refuses a ping whose <code>% packet loss</code> summary is missing or non-zero.</p>
 <!-- source: internal/le/interoplab/ipsec/helpers.go -- directed ESP counters and the lossless-ping clause -->
+<h3 id="which-layer-proves-what">Which layer proves what</h3>
+<p>Each layer answers one question, and a question goes to the cheapest layer
+that can decide it.</p>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>What it proves</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Producer unit test</td>
+<td>Ze's product behaviour: the encoder, the FSM, the filter that makes the bytes</td>
+<td>The producing package's <code>_test.go</code></td>
+</tr>
+<tr>
+<td>Replay of a recording</td>
+<td>The checker's logic: what it concludes from the answers a real lab run gave it</td>
+<td><code>interoplab.ReplayScenario</code>, from a test in the lab's package</td>
+</tr>
+<tr>
+<td>One lab pass per scenario</td>
+<td>The whole path end to end, against the real peer daemon</td>
+<td><code>./le test integration &lt;lab&gt;</code></td>
+</tr>
+<tr>
+<td>Start probe</td>
+<td>A staged helper starts and answers ("The start probe" above)</td>
+<td>The lab's preflight</td>
+</tr>
+</tbody>
+</table>
+<p>A lab pass that is red, and a checker change meant to turn it green, are not
+judged by rerunning the lab until it passes. Record the run, then judge the
+checker over the recording. A change to a checker whose scenario has a
+committed recording carries a replay test over it
+(<code>ai/rules/points/testing/directives/replay-a-checker-change-over-its-recording.md</code>).
+Replay never replaces the lab pass for product behaviour: a scenario still owes
+one green lab run end to end.</p>
+<h3 id="recording-and-replaying-a-checker">Recording and replaying a checker</h3>
+<p><code>Suite.Run</code> hands every checker a recorder in front of the real <code>Lab</code>. The
+recorder forwards each <code>CheckerLab</code> call and writes it, in call order, as one
+JSON line to <code>&lt;session scratch&gt;/interop-recordings/&lt;lab&gt;/&lt;scenario&gt;-&lt;run id&gt;.jsonl</code>.
+The first line is a header: the format version, the lab, the scenario, and the
+network, links and memberships the <code>CheckContext</code> carried. Each call line holds
+the method, the peer, the argv, the NAMES of the environment variables the
+checker passed (never their values), the answer, the error text with its typed
+kind, and the exit code. The last line is the lab's verdict. The lab is the
+registered catalog whose scenario root holds the scenario, and the run id is
+the Docker client's.</p>
+<p>The recorder and the replay lab implement <code>CheckerLab</code> and nothing more, so
+every lab capability a checker uses is a <code>CheckerLab</code> method, <code>PeerImage</code>
+included (recorded as <code>peer-image</code>, the image ID as its answer). A checker
+never type-asserts its <code>Lab</code> for a method outside that interface: the recorder
+in front of the real <code>Lab</code> does not carry it, and the checker would lose the
+capability in every lab run.</p>
+<p>Each answer field is bounded at 1 MiB (<code>recordingAnswerOctetsMax</code>). A longer
+answer keeps its first MiB and is marked <code>truncated</code>, and an answer that is not
+UTF-8 text is marked <code>not-text</code>, because JSON cannot carry its octets unchanged.</p>
+<p>A full run, with no selector, keeps only the failed scenarios' recordings. A
+run that selects fewer scenarios than its catalog holds keeps every one. A
+failed scenario names its recording in its diagnostics
+(<code>interop: &lt;scenario&gt;: checker recording: &lt;path&gt;</code>), and a kept passing
+recording is named on the progress stream. A run that cannot resolve a
+recording directory (no checkout, no session, no registered catalog) still
+runs, and says once <code>interop: checker recordings are off: &lt;reason&gt;</code>.</p>
+<p><code>interoplab.ReplayScenario(ctx, checkout, path)</code> opens a recording, finds the
+scenario's checker through its lab's registered catalog, and runs the checker
+against a lab that answers each call from the recording, in order, matched on
+the method, the peer, the argv, the environment names and the call's own
+parameter. It answers the lab's verdict beside the replayed one. It refuses,
+with a <code>*ReplayRefusal</code> naming the expected and the actual call, a call the
+recording does not hold at that position, a call past its end, a truncated or
+<code>not-text</code> answer, a recording of another version or with no verdict line, and
+a checker that returns before the recording's last call. The refusal says the
+checker must be judged by a lab run, and names the command that runs the
+scenario. A replay never guesses an answer, so a checker never passes on data
+the lab did not produce.</p>
+<p>What replay can and cannot reproduce:</p>
+<ul>
+<li>A checker that reaches the lab only through <code>CheckerLab</code> replays whole. The
+BGP relay checkers read their capture through <code>CheckerLab.Query</code>, so the
+recording already holds the bytes they judged. A checker that reads a file
+from its scenario directory or the checkout reads it again from the checkout.</li>
+<li>A poll (<code>interoplab.Wait</code>) that ended on a ready answer replays the same
+probes in the same order, and each unready probe still waits its real
+interval. A poll that ended on its deadline made as many probes as its
+timeout allowed in the lab; replay answers at once, may start one more, and
+then refuses that call, or, when the checker's next call has the same argv,
+answers it with that call's answer. Judge a checker whose recording ends in a
+timed-out poll by a lab run.</li>
+<li>Calls a checker makes from several goroutines are recorded in the order they
+finished, and a replay that issues them in another order refuses.</li>
+</ul>
+<p>To commit a recording as a fixture, copy it from the session scratch into
+<code>internal/le/interoplab/&lt;lab&gt;/testdata/&lt;scenario&gt;/</code>, and review it before the
+commit like any fixture: it carries environment names only, but an answer can
+still print a secret, and such a recording is never committed. The BGP lab's
+<code>TestLocalPrefStripReplaysTheLabRecording</code> replays the recording of
+<code>bgp-local-pref-strip-gobgp</code>, and <code>TestLDPBackoffClearReplaysTheLabRecording</code>
+that of <code>ldp-backoff-clear-frr</code>.</p>
+<!-- source: internal/le/interoplab/record.go -- checkerRecorder, recordingPlan, recordChecker, recordingAnswerOctetsMax -->
+<!-- source: internal/le/interoplab/replay.go -- ReplayScenario, ReplayRefusal, replayLab -->
+<!-- source: internal/le/interoplab/lab.go -- CheckerLab, Suite.Recordings, Suite.runScenario -->
 <h3 id="ipsec-diagnostic-environment">IPsec diagnostic environment</h3>
 <p>The IPsec lab sets <code>ZE_LOG=debug</code>, the registered base logger key <code>ze.log</code>, on
 its Ze container. <code>ZE_LOG_LEVEL</code> names no effective base level and cannot
@@ -2457,7 +2954,7 @@ subsystem's level without changing the shared default.</p>
 <h3 id="ipsec-injected-datagrams">IPsec injected datagrams</h3>
 <p><code>out-of-sa-request-notified-over-sa</code> proves RFC 7296 Section 2.21.4 against
 strongSwan. Once the PSK tunnel is up, strongSwan sends Ze, from its own
-address and port 500, a header-only IKE datagram whose SPI pair names no IKE SA.
+address and port 4500, a header-only IKE datagram whose SPI pair names no IKE SA.
 <code>rawprobe -p udp -x</code> (<code>test/interop-ipsec/rawprobe.c</code>) writes it through a raw IP
 socket, as <code>craftedProbe</code> writes its probes.
 charon logs a <code>parsed INFORMATIONAL request</code> line only for a message it
@@ -2466,6 +2963,147 @@ notice arrived protected over the existing SA. A copy marked as a response goes
 first and must draw no such line within five seconds, and the SA and its tunnel
 must survive both.</p>
 <!-- source: internal/le/interoplab/ipsec/suspicious.go -- checkOutOfSARequestNotifiedOverSA, injectOutOfSA, countProtectedInvalidIKESPI -->
+<p><code>ipsec-auth-corrupt-response-strongswan</code> proves RFC 7296 Section 2.4 with Ze as
+the initiator: forged IKE_AUTH responses that fail their integrity check do not
+end Ze's handshake. After a control establishment, strongSwan holds its own
+IKE_AUTH responses to Ze in an nftables table on its output hook, matching
+UDP source port 4500 and the Exchange Type octet (<code>@th,240,8</code>, 35). It then
+terminates the IKE SA, and Ze reconnects. Ze sends IKE_AUTH from port 4500
+because it offers MOBIKE (<code>mobikeAuthOffer</code>), and charon answers along the path
+the request came in (<code>build_response</code>), so IKE_SA_INIT still passes on port 500.
+charon logs <code>received retransmit of request with ID 1, retransmitting response</code>
+for each retransmission Ze sends into the hold (<code>process_message</code> and
+<code>is_retransmit</code> in <code>task_manager_v2.c</code>, strongSwan 6.1.0). The checker then
+injects twenty IKE_AUTH responses under the live SPI pair, at Message ID 1, each
+with an Encrypted payload of filler. rawprobe's raw socket passes the same output
+hook as charon's socket, so the hold rule exempts the forgeries' UDP length.
+That socket also takes the XFRM output path, and charon has already installed
+its Child SA (selectors <code>0.0.0.0/0</code>) when it answers into the hold, so without
+help the forgeries would leave as ESP under an SA Ze never installed and die in
+Ze's kernel (<code>XfrmInNoStates</code>). The checker adds an outbound XFRM policy with
+no template on strongSwan, for UDP toward Ze at priority 1, and removes it once
+the counter has risen and before the hold lifts. The selector names no port:
+rawprobe opens its raw socket without <code>IP_HDRINCL</code>, and <code>raw_sendmsg</code>
+(<code>net/ipv4/raw.c</code>) looks the flow up with the socket's protocol and both ports
+zero, so a selector on port 4500 never matches it. A failing run of this
+checker carries strongSwan's XFRM tables and nftables counters, Ze's XFRM and
+UDP counters, sockets and <code>ze_ipsec</code> series, and rawprobe's own report.
+<code>ze_ipsec_error_notify_suppressed_total{reason="handshake-unauthenticated"}</code>
+must rise by exactly twenty. The hold must lift before Ze's last retransmission,
+32 seconds after its request (<code>retransmitBase</code>, <code>retransmitBackoff</code> and
+<code>maxRetransmissions</code> in <code>fsm.go</code>), and the checker refuses a run that took
+longer. Ze must then establish the IKE SA whose initiator SPI the forgeries
+named, and pass traffic over it. With the initiator fix reverted, the first
+forgery ends the handshake, so the counter stays still and Ze establishes a new
+SA under a new initiator SPI.</p>
+<!-- source: internal/le/interoplab/ipsec/unprotected_response.go -- checkInitiatorSurvivesUnprotectedAuthResponse, holdAuthResponses, zeLastAuthRetransmitOffset -->
+<!-- source: internal/component/ike/engine/mobike.go -- mobikeAuthOffer -->
+<h3 id="the-outer-df-bit-and-icmp-errors-on-a-child-sa-rfc-4301">The outer DF bit and ICMP errors on a Child SA (RFC 4301)</h3>
+<p><code>tunnel-df-treatment</code> proves RFC 4301 Section 8.1 on the wire. Ze initiates with
+<code>df-bit clear</code> (<code>ze.conf</code>), then the checker reloads it with <code>df-bit copy</code>
+(<code>ze-copy.conf</code>, the same file but for that leaf) and waits for the replacement
+Child SA. In each phase Ze pings strongSwan's inner address three times with
+<code>-M do</code> (inner DF set) and three times with <code>-M dont</code> (inner DF clear).
+strongSwan counts every ESP packet from Ze in an nftables table on its input
+hook, one rule per value of the outer header's DF bit (<code>ip frag-off &amp; 0x4000</code>),
+so the bit is read as the peer receives it. Under <code>clear</code> all six packets must
+arrive with DF clear. Under <code>copy</code> each must carry its inner bit. Each burst
+must move exactly one counter by exactly three. <code>show vpn ipsec dataplane sa</code>
+must also report the phase's <code>df-bit</code> on Ze's outbound SA, with
+<code>options-known</code> true. iptables cannot read
+the bit on Ze's kernel: its only match for an arbitrary header bit is xt_u32,
+which the kernel does not build. So the strongSwan image carries <code>nftables</code>.
+<code>df-bit set</code> is not a phase, because every dataplane refuses it at commit.</p>
+<p><code>icmp-error-payload-check</code> proves RFC 4301 Section 6.2 for an ICMP error
+addressed to Ze itself. The checker turns forwarding on in strongSwan's
+container (the scenario sets <code>writesPeerSysctl</code>). It routes Ze's inner prefix
+there with the preferred source 10.9.9.9, which no selector covers. Ze then
+sends echo requests with TTL 1, and strongSwan answers each with Time Exceeded
+from 10.9.9.9. The consistent error embeds Ze's echo to 10.1.0.77, which
+crossed the SA. charon carries it over the SA because of <code>icmp = yes</code>
+(<code>XFRM_POLICY_ICMP</code>), and Ze must deliver it: <code>Icmp.InTimeExcds</code> moves in Ze's
+<code>/proc/net/snmp</code>, and ping prints the error. The inconsistent error embeds Ze's
+echo to 10.7.0.5, which left in the clear through <code>ze.conf</code>'s outbound bypass.
+For that step the checker adds a strongSwan out policy for 10.9.9.9, bound to
+the SA's reqid. Ze must drop the error: <code>Icmp.InTimeExcds</code> stays still. In
+both steps strongSwan's <code>Icmp.OutTimeExcds</code> must move and Ze's inbound ESP byte
+counter must advance. Without that, a dropped error could be one that never
+reached Ze over the SA. A forwarded error is out of scope
+(<code>LL-XFRM-ICMP-TRANSIT</code>, <code>docs/architecture/linux-limitations.md</code>).</p>
+<p>Each scenario owes a red run before it counts as evidence ("Prove a scenario
+discriminates"). Each break below is one line of Ze, and the harness rebuilds
+the Ze image so the break takes effect:</p>
+<table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th>Break</th>
+<th>Expected red</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tunnel-df-treatment</code></td>
+<td><code>xfrmDFFlag</code> answers false for <code>DFClear</code></td>
+<td>the clear phase's DF-set burst arrives with DF set</td>
+</tr>
+<tr>
+<td><code>tunnel-df-treatment</code></td>
+<td><code>xfrmDFFlag</code> answers true for <code>DFCopy</code></td>
+<td>the copy phase's DF-set burst arrives with DF clear</td>
+</tr>
+<tr>
+<td><code>icmp-error-payload-check</code></td>
+<td><code>xfrmStateFromParams</code> no longer sets <code>state.ICMP</code></td>
+<td>the consistent error arrives over the SA and is not delivered</td>
+</tr>
+<tr>
+<td><code>icmp-error-payload-check</code></td>
+<td><code>xfrmPolicyFromParams</code> widens the inbound protect policy's source selector to. <span class="ev-src"><span class="ev-ref"><code>0.0.0.0/0</code></span></span></td>
+<td>the inconsistent error is delivered</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/le/interoplab/ipsec/dftreatment.go -- checkTunnelDFTreatment, installOuterDFCounters, judgeOuterDF, requireDataplaneDF -->
+<!-- source: internal/le/interoplab/ipsec/icmperror.go -- checkICMPErrorPayloadCheck, icmpErrorRoutes, carryErrorSourceOverSA, icmpErrorObservation -->
+<!-- source: test/interop-ipsec/Dockerfile.strongswan -- nftables -->
+<h3 id="the-esp-form-fast-path-under-a-firewall-rule">The ESP form fast path under a firewall rule</h3>
+<p><code>esp-form-firewall-drop</code> proves that Ze's ESP form fast path never carries a
+peer's bare ESP past a firewall rule that drops ESP on the input path. The
+peers disagree about the ESP form as in <code>esp-form-change</code>: strongSwan
+initiates, floats IKE to UDP 4500 with no NAT, and still sends bare ESP,
+because <code>build_i</code> (<code>src/libcharon/sa/ikev2/tasks/child_create.c</code>, strongSwan
+6.1.0) sets <code>child.encap</code> from <code>COND_NAT_ANY</code>. Ze's <code>ze.conf</code> holds one inet
+table whose input chain accepts by policy and drops <code>protocol esp</code> in the
+<code>drop-esp</code> term, so IKE on UDP 500 and 4500 passes. The fast path rewrites at
+tc ingress, ahead of every netfilter hook, so with that rule in the kernel it
+keeps its gate shut and the rule judges the bare ESP.</p>
+<p>The checker first waits for <code>show doctor | json</code> to answer
+<code>doctor-ipsec-esp-form-firewall</code> naming <code>ze_espdrop</code> and <code>drop-esp</code>. A ping
+from Ze then proves the Child SA carries ESP toward strongSwan. strongSwan's
+ping to Ze must advance strongSwan's outbound SA, lose every echo request,
+leave Ze's inbound SA still, raise the <code>drop-esp</code> counter of
+<code>show firewall ruleset espdrop | json</code> by at least the echo requests, and
+leave Ze's <code>XfrmInStateMismatch</code> still, so no bare ESP reached XFRM through
+the complete path either.</p>
+<table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th>Break</th>
+<th>Expected red</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>esp-form-firewall-drop</code></td>
+<td><code>writeGateLocked</code> writes <code>espFormFastPathGateOpen</code> whatever it is given</td>
+<td>strongSwan's echo requests are rewritten past the rule and answered, and the <code>drop-esp</code> counter stays still</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/le/interoplab/ipsec/espformfirewall.go -- checkESPFormFirewallDrop, waitESPFormFirewallFinding, espFirewallDropped, assertESPStill -->
+<!-- source: internal/component/ike/dataplane/espform_fastpath_gate_linux.go -- writeGateLocked, publishFirewall -->
 <h3 id="ipsec-address-movement">IPsec address movement</h3>
 <p><code>mobike-initiator</code> moves Ze; <code>mobike-responder</code> moves strongSwan. Each native
 checker adds a new outer address, selects it as the route's source, then removes
@@ -3208,6 +3846,71 @@ establishes, and Ze logs no refusal.</p>
 <!-- source: internal/le/interoplab/ipsec/eddsa.go -- checkEd448ZeSigns, checkEd448ZeVerifies -->
 <!-- source: internal/le/interoplab/ipsec/ipsec.go -- the optional server-untrusted mounts -->
 <!-- source: test/interop-ipsec/scenarios/x509-ed448-ze-responder/ -- the Ed448 responder fixtures -->
+<h3 id="peer-certificate-revocation-and-purpose-rfc-5280-rfc-4945">Peer certificate revocation and purpose (RFC 5280, RFC 4945)</h3>
+<p>Four scenarios, two pairs. Ze initiates with the lab P-256 leaf
+(<code>client.pem</code>) and checks the certificate strongSwan presents with
+<code>send_cert = always</code>. The two scenarios of a pair differ by one file in <code>pki/</code>,
+so that file is the only possible cause when one is refused and the other
+establishes.</p>
+<table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th>The file that differs</th>
+<th>Expected</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>x509-crl-revoked-peer-ze-initiator</code></td>
+<td><code>crl</code> of Ze's <code>pki ca test-ca</code>, lists the serial number of strongSwan's <code>server.pem</code>. <span class="ev-src"><span class="ev-ref"><code>pki/ca-crl.pem</code></span></span></td>
+<td>refused, <code>was revoked by</code></td>
+</tr>
+<tr>
+<td><code>x509-crl-unrevoked-peer-ze-initiator</code></td>
+<td>the same list, revoking nothing</td>
+<td>established</td>
+</tr>
+<tr>
+<td><code>x509-eku-server-auth-only-refused-ze-initiator</code></td>
+<td>carries extendedKeyUsage serverAuth alone. <span class="ev-src"><span class="ev-ref"><code>pki/server.pem</code></span></span></td>
+<td>refused, <code>extended key usage</code></td>
+</tr>
+<tr>
+<td><code>x509-eku-ipsec-ike-ze-initiator</code></td>
+<td>carries extendedKeyUsage id-kp-ipsecIKE. <span class="ev-src"><span class="ev-ref"><code>pki/server.pem</code></span></span></td>
+<td>established</td>
+</tr>
+</tbody>
+</table>
+<p>The two <code>server.pem</code> files of the purpose pair have the key, subject and
+subjectAltName of the lab <code>server.pem</code>, no keyUsage, and the lab CA as issuer.
+openssl issued them: strongSwan's <code>pki --issue</code> cannot write id-kp-ipsecIKE,
+because <code>x509_generate_eku_extension</code> (<code>x509_cert.c</code>) knows only serverAuth,
+clientAuth, iKEIntermediate, ocspSigning and msSmartcardLogon. charon does not
+judge the purpose of its own certificate: <code>pubkey_authenticator.c</code> checks
+keyUsage only in <code>process</code>, for the peer's AUTH (<code>is_compliant_cert</code>).</p>
+<p>A refusal leaves strongSwan's SA in place. Ze sends no notification for a
+responder AUTH it refuses on the first round, and charon's responder holds an
+ESTABLISHED IKE SA from the moment it answered. So the refusing checker asserts
+nothing about strongSwan's SA list or kernel. It requires Ze's
+<code>ike: remote AUTH verification failed</code> line for <code>peer=swan</code> carrying the cause,
+charon's two <code>pubkey_authenticator.c</code> lines that show it verified Ze's AUTH and
+signed its own with the certificate under test, and no ESP state on Ze. The
+accepting checker requires Ze's ESP state and traffic both ways, which only an
+accepting Ze produces: the strongSwan SA alone would also be there after a
+refusal.</p>
+<p>The red run, on 2026-11-10, after fbdd9a82e7: with an early <code>return nil</code> at
+the top of <code>checkIKEPurpose</code> and of <code>checkPeerChainRevocation</code>
+(<code>internal/component/ike/engine/remote_cert_checks.go</code>) and the Ze image
+rebuilt, both refusing scenarios FAIL with "ze did not refuse strongSwan's
+certificate: wait for ze log "ike: remote AUTH verification failed" timed out
+before the peer became ready": Ze established with the revoked certificate and
+with the serverAuth-only one. With the file restored byte-exact both pass
+again, and both accepting twins pass throughout.</p>
+<!-- source: internal/le/interoplab/ipsec/certpolicy.go -- checkPeerCertificateRefused, checkPeerCertificateAccepted -->
+<!-- source: test/interop-ipsec/scenarios/x509-crl-revoked-peer-ze-initiator/ -- the revocation fixtures -->
+<!-- source: test/interop-ipsec/scenarios/x509-eku-server-auth-only-refused-ze-initiator/ -- the purpose fixtures -->
 <h3 id="esp-transform-kernel-proof">ESP transform kernel proof</h3>
 <p><code>esp-aes-cbc-sha256</code>, <code>esp-chacha20poly1305</code> and <code>esp-3des-sha1</code> offer one
 ESP combination to strongSwan. <code>checkESPKernel</code> requires the negotiated
@@ -3520,8 +4223,33 @@ Linux receive timestamps distinguish timeout recovery from an immediate
 duplicate that sat unread in a socket queue; missing timestamps or an ACK replay
 outside the fault window refuse the run. The relay neither constructs client
 requests nor generates acknowledgments.
-The new carrier still owes green and forced-red execution evidence.</p>
+Results on 2026-11-14 (arm64, Ze's kernel 7.3.0-ze in the QEMU docker-lab
+guest, curl 8.23.0 aarch64 pinned by digest): the real build passes, the relay
+reporting "replayed native ACK 1 once; dropped first DATA 2; kernel arrival
+interval 5.007927169s; forwarded final ACK 3; curl matched all 1500 bytes
+(8 relay datagrams)". With <code>windowSender.awaitACK</code> returning on an ACK that is
+not for the outstanding block, where it now keeps waiting (the behavior before
+519d9f4f2a), FAIL: the relay reports "DATA in answer to duplicate ACK after
+36.333µs, before five-second timeout", and curl exits 28 at its 35-second limit
+with 512 bytes received. The real build run again right after passes (interval
+5.004289378s).</p>
 <!-- source: internal/plugins/tftpserver/tftp_curl_docker_test.go -- TestTFTPCurlDuplicateACKInterop, curlTFTPRelay.transfer -->
+<!-- source: internal/plugins/tftpserver/window_send.go -- windowSender.awaitACK -->
+<p>On a Mac that run used the Docker daemon of Ze's own docker-host image. The
+test binary is cross-built for linux/arm64 with <code>go test -c</code> under the feature
+tags plus <code>docker</code>. <code>./le test qemu docker-lab</code> with <code>lab</code> words boots the
+image under HVF, forwards the guest's Docker socket to the host, and runs the
+host <code>le</code> with those words and <code>DOCKER_HOST</code> naming the forwarded socket. The
+words run the binary in a <code>docker:cli</code> container on the guest's host network
+with the guest's Docker socket mounted, because the relay, Ze's server and the
+curl container must share the guest's loopback, and the test needs Linux
+receive timestamps. The guest mounts the checkout at its host path, so the
+container bind-mounts the binary from the path it was built at. The docker-lab
+<code>command</code> mode cannot run the test, because that mode starts no Docker daemon.
+No <code>./le</code> action selects one docker-tagged package test for this route yet:
+<code>./le test integration docker-peers</code> runs every docker-tagged package, against
+the Docker daemon the host reaches.</p>
+<!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLab, dockerLabEnviron, Run.dockerLabShares -->
 <h3 id="zes-tftp-server-against-tftp-hpa-and-curl-options">Ze's TFTP server against tftp-hpa and curl options</h3>
 <p>Two Linux, Docker-tagged tests in <code>tftp_hpa_docker_test.go</code> drive Ze's
 production TFTP handlers (<code>ServeConn</code>) with independent clients, through a
@@ -3617,7 +4345,7 @@ logs as sent counts for nothing until the peer's capture holds it.</p>
 <tbody>
 <tr>
 <td><code>transit-loose-ero-expansion</code></td>
-<td>freeRouter ingress, Ze transit, freeRouter egress. The ingress names Ze and the egress loopback as loose hops and prepends its own next hop, Ze, as a strict subobject (<code>ipFwdTab.fillRsvpFrst</code>), so it signals <code>[Ze strict, Ze loose, egress loopback loose]</code>. Ze's native route to the loopback runs through <code>.14</code>, which no subobject names, so the PATH the egress captures carries <code>.14</code> ahead of the still-loose loopback (RFC 3209 Section 4.3.4.1 steps 5 and 6). The ingress captures Ze's RESV with a label, and Ze's MPLS table holds a swap via <code>.14</code></td>
+<td>freeRouter ingress, Ze transit, freeRouter egress. The ingress names Ze and the egress loopback as loose hops and prepends its own next hop, Ze, as a strict subobject (<code>ipFwdTab.fillRsvpFrst</code>), so it signals <code>[Ze strict, Ze loose, egress loopback loose]</code>. Ze's native route to the loopback runs through <code>.14</code>, which no subobject names, so the PATH the egress captures carries <code>.14</code> ahead of the still-loose loopback (RFC 3209 Section 4.3.4.1 steps 5 and 6). The ingress captures Ze's RESV with a label and an LSP_TUNNEL_IPv4 FILTER_SPEC naming the sender (RFC 3209 Section 4.6.3.1, class 10 C-Type 7, not a class 11 SENDER_TEMPLATE), and Ze's MPLS table holds a swap via <code>.14</code></td>
 </tr>
 <tr>
 <td><code>plr-backup-path-to-egress-merge-point</code></td>
@@ -3840,7 +4568,11 @@ defaults to discard, which would drop the CPE's own DNS and ping in the
 clear. It names no <code>application-override</code>, so the default deny attaches
 Ze's setsockopt guard, and the CPE holds <code>BPF</code> beside <code>NET_ADMIN</code>
 (<code>capabilityBPF</code>, <code>internal/le/interoplab/topology/topology.go</code>): without it
-the guard's map cannot be created and ze exits at startup. A <code>lan-client</code> dhcpcd node starts with
+the guard's map cannot be created and ze exits at startup. It also holds the
+host's <code>/dev/net/tun</code> beside <code>/dev/ppp</code> (<code>convertedCPE</code>,
+<code>register_home_lab.go</code>): a Child SA that receives UDP-encapsulated ESP makes
+ze create the <code>ze-espform</code> TUN device, whose sysctls it writes under the same
+run-time net sysctl grant. A <code>lan-client</code> dhcpcd node starts with
 <code>net.ipv4.conf.default.promote_secondaries=1</code>, because dhcpcd's <code>if_init</code>
 writes that sysctl for its interface when it reads anything else, and Docker's
 <code>/proc/sys</code> is read-only. Every node beyond the
@@ -3851,8 +4583,15 @@ vsftpd active-only, curl, bash), registered from
 <code>ze-topology-wireguard</code>, registered from the deployment proof's
 <code>Dockerfile.wireguard</code>.</p>
 <!-- source: internal/le/interoplab/topology/register_home_lab.go -- homeLab, convertedCPE, dnsServer, swanResponder, wgClient -->
-<!-- source: internal/le/interoplab/topology/home_lab_render.go -- renderHomeCPE, issueLab, preparePlan -->
+<!-- source: internal/test/labconfig/homecpe/render.go -- Render, issueLab -->
+<!-- source: internal/le/interoplab/topology/home_lab_render.go -- preparePlan -->
 <!-- source: internal/le/interoplab/topology/check_conversion.go -- checkConversion, homeCPEScenariosConverted -->
+<p>The config corpus renders the converted CPE through the same issuer and
+placeholder substitution as the topology lab. Both readers use the lab values
+and fresh certificate material. The corpus validates that rendered config,
+rather than accepting or excluding its unresolved placeholders.</p>
+<!-- source: internal/component/config/cli/validate_corpus_test.go -- sweepContext.renderScenario -->
+<!-- source: internal/test/labconfig/homecpe/render.go -- Render -->
 <p>The access chain is the first end-to-end proof that a subscriber's PPP
 session crosses Ze's LAC (<code>relay ""</code>) and terminates on Ze's LNS: the LAC
 terminates nothing, so LCP, CHAP and IPCP run between the CPE and the LNS
@@ -4325,11 +5064,16 @@ no neighbour to acknowledge the flush, Ze keeps its own copy at MaxAge,
 0x80000002, and the checker reads that copy out of <code>show ospf database external</code> before FRR comes back. In the database exchange that follows, FRR
 hands Ze its newer instance. Ze must flush it at MaxAge with FRR's own
 sequence number, so the LSA must leave FRR's database and the default must
-leave <code>show ip route ospf</code>. A Ze that re-originates the withdrawn body at age 0
+leave <code>show ip route ospf json</code>, whose answer is <code>{}</code> once FRR's OSPF table is
+empty. The text form prints nothing then, and the lab never reads an empty
+answer as an absence. A Ze that re-originates the withdrawn body at age 0
 leaves both in place, and the absences time out. <code>opStop</code> returns only once
 Docker reports the container stopped, so the start that follows cannot race a
-container that is still shutting down.</p>
-<!-- source: internal/le/interoplab/bgp/check_ospf_self_flush.go -- ospfSelfLSAFlushOperations -->
+container that is still shutting down. Results on 2026-11-14 (arm64, QEMU
+docker-lab guest, FRR 10.7.1): with the <code>if local.Age.IsMaxAge()</code> branch removed
+from <code>(*LSDB).handleSelfReceived</code>, FAIL at assertion 21, the withdrawn LSA never
+leaving FRR's database; the real build passes (2m24s).</p>
+<!-- source: internal/le/interoplab/bgp/check_ospf_self_flush.go -- ospfSelfLSAFlushOperations, ospfSelfFlushFRRRoutes -->
 <!-- source: internal/le/interoplab/bgp/check_engine.go -- opStop -->
 <p><code>ospf-gr-frr</code> and <code>ospf-gr-helper-broadcast-frr</code> prepare FRR 10.7.1 with
 <code>graceful-restart prepare ip ospf</code>, save ospfd's PID, and send that process
@@ -4355,8 +5099,13 @@ drive the supervised restart.</p>
 iproute2 command <code>ip -f mpls route show 16100</code>, not the absent <code>mpls -ls</code>
 utility. The destination filter selects label 16100; the existing content
 assertion still requires that label, so an empty successful query fails.
-Their 60-second label deadlines and adjacency assertions are unchanged.</p>
+Their 60-second label deadlines and adjacency assertions are unchanged.
+In <code>ospf-sr-frr</code>, FRR's Prefix-SID prefix 10.255.255.3/32 sits on FRR's
+loopback: FRR's <code>sr_prefix_sid</code> looks the prefix up on an interface and, when
+none holds it, defers the Prefix-SID without an error, so no label 16100 would
+reach Ze.</p>
 <!-- source: internal/le/interoplab/bgp/check_extras.go -- scenarioExtras -->
+<!-- source: test/interop/scenarios/ospf-sr-frr/frr.conf -- interface lo, segment-routing prefix -->
 <p><code>ospf-sr-anycast-nexthop-frr</code> proves RFC 8665 Section 5's rule that a router
 "MUST take into account ... the E-, NP-, and M-Flags advertised by the next-hop
 router if that router advertised the SID for the prefix", for a next hop that is
@@ -4370,12 +5119,42 @@ hop, and <code>frr-sink</code> (192.0.2.1) at cost 50. Ze reads Extended Prefix 
 LSDB key order, and both FRRs use the same Opaque ID, so 192.0.2.1 becomes the
 Originator and the next hop is the second advertiser. The checker first requires
 that order from Ze's <code>show ospf database opaque-area</code> (a lab where the next hop
-became the Originator passes either way, so it fails instead), then reads
-<code>ip -f mpls route show</code> in Ze's container: in-label 16100 MUST be popped toward
-the next hop. A Ze applying the flags only when the next hop is the Originator
-swaps 16100 to 17100, the next hop's SRGB base plus the index.</p>
-<!-- source: internal/le/interoplab/bgp/check_ospf_sr_anycast.go -- checkOSPFSRAnycastNextHop, ospfSRAnycastOriginatorVerdict, ospfSRAnycastPopVerdict -->
+became the Originator passes either way, so it fails instead). It then reads
+<code>ip -f mpls route show</code> in Ze's container until in-label 16100 is popped toward
+the next hop, holds that pop for 15 seconds (three times OSPF's 5-second SPF
+hold ceiling), failing on the first read that is not the pop, and re-reads the
+LSDB order at the end. A single read cannot discriminate: the first pop can be
+the route Ze installed before the second advertiser's LSA reached its SR table,
+when the next hop was the binding's only advertiser, and a Ze applying only the
+Originator's flags pops then too. Such a Ze later swaps 16100 to 17100, the next
+hop's SRGB base plus the index. Results on 2026-11-14 (arm64, QEMU docker-lab
+guest, FRR 10.7.1): with the body of <code>(*srInstaller).forwarding</code> restored to its
+form before 19de202493, FAIL at assertion 3, "the pop held for 5.046s, then
+sample 5 found in-label 16100 is swapped, not popped: 16100 as to 17100"; the
+real build passes (1m49s).</p>
+<!-- source: internal/le/interoplab/bgp/check_ospf_sr_anycast.go -- checkOSPFSRAnycastNextHop, ospfSRAnycastOriginatorVerdict, ospfSRAnycastPopVerdict, assertOSPFSRAnycastPop, holdOSPFSRAnycastPop -->
 <!-- source: test/interop/scenarios/ospf-sr-anycast-nexthop-frr/ -- configurations -->
+<p><code>ospf-ext-prefix-link-frr</code> is the Extended Prefix/Link scenario: it proves both
+directions of the RFC 7684 exchange. FRR enables <code>capability opaque</code> and
+<code>segment-routing on</code> inside <code>router ospf</code> and holds its Prefix-SID prefix on a
+loopback, so it originates Extended Prefix and Extended Link LSAs. Without the
+loopback FRR defers the Prefix-SID and originates no Extended Prefix LSA. Ze
+originates both types too, so a substring match on Ze's <code>show ospf database opaque-area</code> passes on Ze's own LSAs alone. The checker decodes that answer and
+binds each decoded row to its <code>advertising-router</code>: it requires an Extended
+Prefix row and an Extended Link row from FRR's router-id, and one of each from
+Ze's. On FRR's side it reads <code>show ip ospf database opaque-area json</code> and
+requires, under <code>areaLocalOpaqueLsa.areas</code>, an LSA whose Link State ID has
+opaque type 7 and one with opaque type 8, each with <code>advertisingRouter</code> equal
+to Ze's router id. A match on Ze's address alone is not enough, because FRR's
+own Extended Link LSA names Ze as its Link ID. The Ze read waits rather than
+reading once at Full, because FRR schedules each opaque type <code>min_ls_interval</code>
+after the previous once an opaque-capable neighbor appears
+(<code>ospf_opaque_lsa_originate_schedule</code>). Results on 2026-11-14 (arm64, QEMU
+docker-lab guest, FRR 10.7.1): with FRR's Prefix-SID on no loopback, FAIL at
+assertion 2, "no decoded Extended Prefix LSA advertised by 172.30.0.3"; with
+the fixture corrected, pass (1m13s).</p>
+<!-- source: internal/le/interoplab/bgp/check_ospf_ext_prefix_link.go -- checkOSPFExtPrefixLink, waitOSPFExtFromFRR, ospfExtPrefixLinkVerdict, waitOSPFExtAtFRR, frrOSPFExtFromZeVerdict -->
+<!-- source: test/interop/scenarios/ospf-ext-prefix-link-frr/ -- configurations -->
 <p><code>bgp-graceful-restart-frr</code> retains its original session, route, GR and EOR
 checks and adds two strict input speakers with FRR as the independent receiver.
 One source omits IPv4 from GR while advertising a 40-second IPv4 LLST; its
@@ -4737,34 +5516,40 @@ is not packet-forwarding evidence.</p>
 <td>RFC 5036 Section 3.3 on ze's receive side: "if U is clear (=0), a notification MUST be returned to the message originator and the entire message MUST be ignored". FRR cannot send an unknown TLV, so an <code>ldplab</code> nft rule in ze's container rewrites the type of the first Capability TLV in FRR's real Initialization (0x8506, the Dynamic Capability Announcement ldpd's <code>send_init</code> writes at LDP offset 36) to 0x3f00, U and F clear, and counts each match. FRR, the originator, logs <code>msg[in]: notification: ... status Unknown TLV</code>, and stays short of OPERATIONAL for 10 s because ze never answers the ignored Initialization with a KeepAlive. With the rule removed the same peers reach OPERATIONAL, the positive control. FRR proves the Notification reached the originator and decodes as Unknown TLV; the rule's counter proves ze was shown the TLV. Red with <code>skipTLV</code> returning nil for every TLV: FRR logs no received <code>status Unknown TLV</code> Notification. Shares the <code>daemons</code> and the 172.30.0.250 transport address of <code>ldp-keepalive-expiry-frr</code></td>
 </tr>
 <tr>
+<td>66</td>
+<td>ldp-backoff-clear-frr</td>
+<td>Ze, FRR ldpd</td>
+<td>A session that reached OPERATIONAL leaves no setup backoff when it ends (RFC 5036 Section 2.5.3, "After such a configuration action, there is no further need to throttle subsequent session establishment attempts"). Once FRR has reported the session OPERATIONAL for 3 s, FRR runs <code>clear mpls ldp neighbor &lt;ze's transport address&gt;</code>: ldpd's <code>nbr_clear_ctl</code> calls <code>session_shutdown</code> with S_SHUTDOWN, so FRR sends a Shutdown Notification and closes the TCP connection while the adjacency stays. FRR holds the passive role and ze dials on each Hello FRR sends (<code>processDiscoveryPacket</code>, <code>startSessionForAdj</code>), every 1 s by <code>discovery hello interval 1</code>. FRR's <code>show mpls ldp neighbor json</code> must report ze OPERATIONAL again with an <code>upTime</code> no older than the clear (<code>nbr_to_ctl</code> restarts it on each entry to OPERATIONAL) within 8 s of the clear: the released backoff lands near 2 s, a recorded one forbids the dial for 15 s. ze's own log, read at info (<code>environment { log { ldp info } }</code>), must carry a new fatal Notification and a new session end, the proof that the clear reached ze and that info lines are read, and no new <code>ldp: session setup failed, next attempt delayed</code>. Red with the operational arm of <code>startSessionForAdj</code>'s session-end callback recording a setup failure (one line changed in the working tree for the run, because the ze image builds from the tree; image <code>sha256:a218f6cd97d5</code> and <code>sha256:c58b3f2734ff</code>, 2026-11-13): <code>ze logged "ldp: session setup failed, next attempt delayed" 1 time(s) after FRR cleared a session that had reached OPERATIONAL: its end recorded a setup backoff, which delays the redial by 15 s or more (the probes ended 15.454s after the clear)</code>. Shares the <code>daemons</code> of <code>ldp-keepalive-expiry-frr</code>. The lab adds ze's 172.30.0.250 transport address in ze's prestart (<code>scenarioHostAddresses</code>), because ze dials from it on FRR's first Hello: added by the checker, the address could arrive after that dial, and each dial that fails to bind costs a backoff step of 15 s or more. <span class="ev-src"><span class="ev-ref"><code>sha256:3c4dee38ac2e</code></span></span></td>
+</tr>
+<tr>
 <td>40</td>
 <td>bgp-attr-flags-low-nibble-gobgp</td>
 <td>Ze, GoBGP, raw injector</td>
-<td>RFC 4271 Section 4.3: attribute 241 sent to Ze at flags 0xCF reaches GoBGP at 0xE0 (low nibble cleared, Partial stamped by Section 5), never 0xEF</td>
+<td>RFC 4271 Section 4.3: attribute 241 sent to Ze at flags 0xCF reaches GoBGP at 0xE0 (low nibble cleared, Partial stamped by Section 5), never 0xEF. Results on 2026-11-14 (arm64, QEMU docker-lab guest): with <code>attrs[pos] &amp;^= attrFlagsUnusedMask</code> deleted from <code>normalizeTransmittedUpdate</code>, FAIL after 2m41s at assertion 3, the route never reaching GoBGP; the real build passes (1m5s)</td>
 </tr>
 <tr>
 <td>41</td>
 <td>bgp-large-community-no-repeat-gobgp</td>
 <td>Ze, GoBGP, raw injector, native speaker</td>
-<td>RFC 8092 Section 3: an export policy adding values the route already carries leaves GoBGP with each Large Community once, and the native speaker's <code>no-repeated-large-community</code> oracle finds no value sent twice on the wire. GoBGP alone cannot go red: it removes repeats on receipt, as the same section requires of a receiver (v4.10.0 decodes every value, then <code>ValidateAttribute</code> in drops each repeat). Red on GoBGP v4.10.0 with the <code>largeCommunityRedundant</code> branch of the egress normalizer disabled: GoBGP still printed each value once, and the oracle failed on 65000:1:1 and 65000:2:2 transmitted twice in one UPDATE. <span class="ev-src"><span class="ev-ref"><code>pkg/packet/bgp/validate.go</code></span></span></td>
+<td>RFC 8092 Section 3: an export policy adding values the route already carries leaves GoBGP with each Large Community once, and the native speaker's <code>no-repeated-large-community</code> oracle finds no value sent twice on the wire. GoBGP alone cannot go red: it removes repeats on receipt, as the same section requires of a receiver (v4.10.0 decodes every value, then <code>ValidateAttribute</code> in drops each repeat). Its <code>ze.conf</code> lists <code>bgp-filter-community:egress</code> in the export chain, which Ze requires since a965ee38fb. Results on 2026-11-14 (arm64, QEMU docker-lab guest): with the <code>AttrLargeCommunity</code> branch of <code>normalizeTransmittedUpdate</code> disabled, FAIL after 3m8s at assertion 6, the oracle reporting "LARGE_COMMUNITY value 0000fde80000000100000001 transmitted twice in one UPDATE" and the same for 65000:2:2, while GoBGP's own view (assertion 4) still passed; the real build passes (1m42s). <span class="ev-src"><span class="ev-ref"><code>pkg/packet/bgp/validate.go</code></span></span></td>
 </tr>
 <tr>
 <td>42</td>
 <td>bgp-mup-malformed-t1st-withdraw-gobgp</td>
 <td>Ze, GoBGP, raw injector</td>
-<td>draft-ietf-bess-mup-safi Section 3.1.3.1: a malformed T1ST withdraws the earlier generation at GoBGP, a well-formed sibling stays, the session stays up</td>
+<td>draft-ietf-bess-mup-safi Section 3.1.3.1: a malformed T1ST withdraws the earlier generation at GoBGP, a well-formed sibling stays, the session stays up. Results on 2026-11-14 (arm64, QEMU docker-lab guest): with <code>recognizerFor</code> returning <code>nlritype.Keep</code> where it returned <code>Withdraw</code>, FAIL after 3m4s at assertion 4, the wait for the valid route sharing the UPDATE timing out; the real build passes (2m2s)</td>
 </tr>
 <tr>
 <td>43</td>
 <td>bgp-role-rs-client-learned-not-upward-frr</td>
 <td>Ze, FRR 10.7.1, raw injector</td>
-<td>RFC 9234 Section 3.1: a route learned on a session where Ze is the Route Server never reaches FRR, Ze's Provider; Ze's own control route does</td>
+<td>RFC 9234 Section 3.1: a route learned on a session where Ze is the Route Server never reaches FRR, Ze's Provider; Ze's own control route does. Results on 2026-11-14 (arm64, QEMU docker-lab guest): with <code>|| srcRole == roleRS</code> removed from <code>OTCEgressFilter</code>, FAIL after 1m22s at assertion 4, FRR holding 10.10.0.0/24, which must be absent; the real build passes (48s)</td>
 </tr>
 <tr>
 <td>44</td>
 <td>bgp-rfc7999-blackhole-readvertise-frr</td>
 <td>Ze, BIRD, FRR 10.7.1</td>
-<td>RFC 7999 Section 3.1: a BLACKHOLE-tagged route from BIRD is never re-advertised to FRR, an eBGP neighbor with no agreement; the untagged control is</td>
+<td>RFC 7999 Section 3.1: a BLACKHOLE-tagged route from BIRD is never re-advertised to FRR, an eBGP neighbor with no agreement; the untagged control is. Results on 2026-11-14 (arm64, QEMU docker-lab guest): with <code>blackholeReadvertiseRefused</code> returning false, FAIL after 2m2s at assertion 5, FRR holding 10.200.0.1/32, which must be absent; the real build passes (1m34s)</td>
 </tr>
 <tr>
 <td>45</td>
@@ -4869,6 +5654,18 @@ is not packet-forwarding evidence.</p>
 <td><code>ospf filter import</code> sets distance 200 on BIRD's tagged external, which then loses to a static path at 150, while the untagged one keeps 110 and wins, judged per path in <code>show rib candidates</code></td>
 </tr>
 <tr>
+<td>Paired import</td>
+<td>isis-import-policy-frr-forked</td>
+<td>Ze with external system RIB, FRR 10.7.1 twice</td>
+<td>Same source-hidden/control and onward-flooding assertions as the internal scenario, with exact subprocess placement and consumed peer identities. Live paired validation remains required.</td>
+</tr>
+<tr>
+<td>Paired import</td>
+<td>ospf-import-policy-bird-forked</td>
+<td>Ze with external system RIB, BIRD 3.4.0</td>
+<td>Same tagged-distance/control assertions as the internal scenario, plus the central-only reject on 10.88.3.0/24 in both placements. Live paired validation remains required.</td>
+</tr>
+<tr>
 <td>63</td>
 <td>bgp-rfc8212-default-reject-frr</td>
 <td>Ze (route server, bgp-rib), FRR 10.7.1 twice (FRR at host 3 with no Ze policy, the FRR sink at host 15 with an explicit Ze policy)</td>
@@ -4886,6 +5683,24 @@ is not packet-forwarding evidence.</p>
 <td>Ze, FRR 10.7.1</td>
 <td><code>ospf filter export</code> decides which AS-External-LSAs Ze originates and what they carry: FRR holds the tagged route's LSA at metric 50, E1, tag 200, the untagged one at metric 20, E2, tag 0, and none for the rejected route ("IGP export-policy scenarios"). Results on 2026-10-31 at 697dc6a618, each image built by the harness: unmodified, pass; <code>applyExportSets</code> returning its input, assertion 2 red with "FRR's AS-External-LSA for 10.67.1.0/24 has metric 20, want 50"; restored, pass. The first run found FRR 10.7.1 writing "E2 (Larger than any link state path)" for type 2, which the checker now reads by its first word (697dc6a618). <span class="ev-src"><span class="ev-ref"><code>sha256:7459d9f4deca</code></span><span class="ev-ref"><code>sha256:49ebad4b55cc</code></span><span class="ev-ref"><code>sha256:8cfc88af0ea1</code></span></span></td>
 </tr>
+<tr>
+<td>67</td>
+<td>bgp-rapid-reconnect-initial-sync-frr</td>
+<td>Ze, FRR 10.7.1</td>
+<td>A session's initial sync ends with its session: FRR runs <code>clear bgp &lt;ze&gt;</code> three times, each on the first probe (every 100 ms) that shows the next session Established by its <code>connectionsEstablished</code> count, so each clear lands inside ze's initial sync. On the fourth session FRR's <code>show bgp neighbor &lt;ze&gt; json</code> must count four establishments and three drops, report <code>gracefulRestartInfo.endOfRibRecv</code> for <code>ipv4Unicast</code> and <code>ipv6Unicast</code> and no other family, and, in that same answer, an <code>acceptedPrefixCounter</code> equal to the prefixes ze.conf originates in each family (three IPv4, two IPv6). <code>show bgp &lt;afi&gt; unicast neighbors &lt;ze&gt; routes json</code> must then hold each of those prefixes with exactly one path from ze and nothing else, and a last read of the neighbor must still pass. ze advertises Graceful Restart because FRR prints End-of-RIB received only for a peer whose Graceful Restart capability it received (<code>bgp_show_peer_gr_extra_info</code>), and FRR clears those flags when a session stops (<code>bgp_stop</code>), so the flags read belong to the fourth session. Claimed for the positive outcome only (spec R-9). Results, 2026-11-14, QEMU docker-lab on arm64: pass with ze image. Revert run with the join of the initial sync removed from the <code>runOnce</code> session-end defer through a build overlay, ze image: also pass, so the scenario does not discriminate the fix; the unit test <code>TestPredecessorSyncWritesNothingOnSuccessor</code> does. <span class="ev-src"><span class="ev-ref"><code>sha256:5f80bd3c10b4</code></span><span class="ev-ref"><code>sha256:484c9683e046</code></span></span></td>
+</tr>
+<tr>
+<td>68</td>
+<td>peer-stops-reading-bird</td>
+<td>Ze, BIRD 3.4.0</td>
+<td>RFC 4271 Section 8.2.2, Event 10, when the peer has stopped reading and ze still has routes to write to it: the hold timer must drop the TCP connection behind the blocked writer. A frozen BIRD and an idle ze cannot show that, because with nothing to write no writer holds ze's write path and the close succeeds on any build (<code>bgp-holdtime-deadpeer-frr</code> is that case). So the checker first requires the session up with two routes held on each side, freezes BIRD's container, and reloads ze with <code>ze-reload.conf</code>, which adds 131072 routes to the peer (two /8 split into /24, one UPDATE of 451 octets each, about 56 MiB). The reload delivers them on the running session and is not waited for: it is the writer that blocks. Ze must log <code>session closed</code> for BIRD (<code>Peer.sessionDown</code>, logged once <code>Session.Run</code> has returned) between 5 s and 20.5 s after the freeze. The hold time is 9 s and BIRD's last KEEPALIVE is at most 3 s old at the freeze, so the timer expires 6 s to 9 s after it and the close may take two more; a close that waits for the blocked write instead comes no sooner than the 30 s write budget (<code>ze.fwd.write.deadline</code>, which the lab leaves at its default), and 20.5 s is halfway between the two. Two readings then prove the writer was blocked, because without one the timing proves nothing: <code>/proc/net/tcp</code> in ze's container showed at least 16 KiB unsent toward BIRD, and ze logged no delivered Hold Timer Expired NOTIFICATION, which it can write only on a free write path. The checker thaws BIRD on every exit path. After the thaw BIRD must log <code>ze_peer: State changed to up</code> once more, ze must report the peer Established, BIRD must hold exactly 131074 routes from ze (<code>show route protocol ze_peer count</code>), and a last count of both logs must show exactly one session ended and one returned. The scenario's <code>ze.conf</code> logs <code>bgp.reactor.peer</code> at info for the two lines the checker counts</td>
+</tr>
+<tr>
+<td>69</td>
+<td>bgp-manual-eor-requested-frr</td>
+<td>Ze, FRR 10.7.1</td>
+<td>On a <code>behavior { manual-eor true; }</code> peer, Ze sends no End-of-RIB nobody asked for, and sends the one a process asks for from inside the initial sync after the route that process announced first. Session 1: the process announces inside its peer-UP handler and asks for nothing; FRR's log must hold the route decode and no <code>bgp_update_receive_eor</code> line through a 10 s hold. After <code>clear bgp &lt;ze&gt;</code>, session 2: the process announces and asks for the IPv4 unicast End-of-RIB inside its peer-UP handler; the log written after the clear must hold the route decode, then exactly one marker through a 10 s hold. FRR's <code>connectionsEstablished</code> must read 1, then 2, and the process's records must show each session's requests answered within 4 s. Recorded 2026-11-14 in the Docker lab, each run with the Ze image rebuilt from the tree under test: green on the fix (ze image); red with the requested form suppressed during the sync again in <code>announceEOR</code> (assertion 7: FRR never logged the End-of-RIB after the second route; image); red with the sync's marker forced on the <code>manual-eor</code> peer in <code>sendInitialRoutes</code> (assertion 3: FRR decoded 1 End-of-RIB on the first session, where nothing asked for one; image <code>sha256:fe2dd16c5cfc. </code>). <span class="ev-src"><span class="ev-ref"><code>10.84.1.0/24</code></span><span class="ev-ref"><code>10.84.2.0/24</code></span><span class="ev-ref"><code>sha256:4da4a47314f2...</code></span><span class="ev-ref"><code>sha256:883e8bd4bf3b...</code></span></span></td>
+</tr>
 </tbody>
 </table>
 <!-- source: internal/le/interoplab/bgp/check_session_protection.go -- checkSessionProtection, sessionProbeScript -->
@@ -4896,6 +5711,9 @@ is not packet-forwarding evidence.</p>
 <!-- source: test/interop/scenarios/ -- scenario directories -->
 <!-- source: internal/le/interoplab/bgp/check_route_server_replacement.go -- checkRouteServerReplacement, waitBIRDReplacement, holdBIRDASPath -->
 <!-- source: internal/le/interoplab/bgp/check_ldp_init_unknown_tlv.go -- checkLDPInitUnknownTLV, ldpInitRewrite -->
+<!-- source: internal/le/interoplab/bgp/check_ldp_backoff_clear.go -- checkLDPBackoffClear, requireLDPBackoffReleased, requireLDPRedialWithin -->
+<!-- source: internal/le/interoplab/bgp/check_rapid_reconnect_initial_sync.go -- checkRapidReconnectInitialSync, requireRapidReconnectNeighbor, requireRapidReconnectRoutes -->
+<!-- source: internal/le/interoplab/bgp/check_peer_stops_reading.go -- checkPeerStopsReading, observePeerStopsReadingClose, peerStopsReadingCloseVerdict, bgpSocketUnsentOctets, birdShownRouteCount -->
 <!-- source: internal/le/interoplab/bgp/check_panic_cease.go -- checkPanicCease, frrReceivedCeaseUnspecific -->
 <h3 id="running">Running</h3>
 <pre><code class="language-bash">./le test integration interop
@@ -4947,6 +5765,32 @@ the container was the thing that did not fit rather than the machine being busy.
 <p>A consequence: <code>docker build -f test/interop/Dockerfile.ze .</code> on a clean checkout
 now fails at the <code>COPY</code> until <code>./le test integration interop</code> has run its preflight.
 Each converted Dockerfile's header names the action that writes its binary.</p>
+<p><code>Docker.Build</code> never hands docker the context as a directory. Ze walks it,
+applies its ignore file, writes it as a tar stream, and runs
+<code>docker build -f &lt;Dockerfile inside the context&gt; -</code> with that stream on stdin.
+The reason is the macOS host. There the QEMU guest sees the checkout over 9p,
+and QEMU's darwin 9p backend answers <code>llistxattr</code> and <code>lgetxattr</code> on a symlink
+with ELOOP. BuildKit's directory walker accepts only ENOTSUP from those calls,
+so a guest build whose context held a symlink (the checkout's <code>cache</code>, the
+migrated <code>tmp/</code> children) failed with <code>too many levels of symbolic links</code>,
+even with <code>cache/</code> in <code>.dockerignore</code>. Ze's walk reads each entry with lstat
+and readlink and sends a symlink as a link entry, never following it, and it
+reads no extended attribute. The ignore file is the one Docker would read:
+<code>&lt;Dockerfile&gt;.dockerignore</code> beside the Dockerfile wins over the context's
+<code>.dockerignore</code>. An excluded directory is not entered unless a <code>!</code> pattern
+could match inside it, and the Dockerfile and the ignore file are always
+sent. Owners are sent as root, as the docker CLI sends them. A socket is
+skipped, also as the docker CLI does, while a device or a named pipe fails
+the build with its path. A Dockerfile outside the context is refused, because
+the stream carries the context alone. A context named through a symlink to
+its directory (a migrated <code>tmp/</code> child) is resolved before the walk, as the
+docker CLI resolves it, so its contents are sent rather than an empty
+archive. A walk that fails part way fails the build with its cause. Docker
+may still build an image from the part it read, so that failure also
+releases the build's own tag, and the image is never answered as built. A
+named context (<code>--build-context</code>) is still passed as a path.</p>
+<!-- source: internal/le/interoplab/docker_build_context.go -- prepareBuildContext, contextIgnoreMatcher, streamBuildContext, writeEntry -->
+<!-- source: internal/le/interoplab/docker.go -- Build -->
 <p>Each build is bounded at 90 minutes, and <code>BUILD_TIMEOUT</code> sets that bound in whole
 seconds for a machine slower or faster than that one. The bound stops a wedged
 Docker daemon and is not a budget for the build, so a build that finishes returns
@@ -5184,7 +6028,7 @@ them to the failure it returns:</p>
 <tbody>
 <tr>
 <td>BGP (<code>interop</code>)</td>
-<td>the last 80 log lines of each peer the scenario started (<code>checkerFailure</code>), and pmacct's message log. <span class="ev-src"><span class="ev-ref"><code>internal/le/interoplab/bgp/check_engine.go</code></span></span></td>
+<td>the last 80 log lines of each peer the scenario started (<code>checkerFailure</code>), pmacct's message log, and for <code>speaker</code> and <code>speaker2</code> a section headed <code>extended relay files</code>: the relay's <code>-result.json</code> verdict and the last 8 rows of its <code>-ze.jsonl</code> and <code>-frr.jsonl</code> captures under the <code>extendedCaptureBase</code> prefix, each row cut to 512 characters and the section to its last 8192 octets. A file that does not exist is printed <code>missing</code>, and a prefix with none of the three files says so in one line. The section is read even when the speaker logged nothing (<code>extendedRelayDump</code>). <span class="ev-src"><span class="ev-ref"><code>internal/le/interoplab/bgp/check_engine.go</code></span><span class="ev-ref"><code>internal/le/interoplab/bgp/extended_relay.go</code></span></span></td>
 </tr>
 <tr>
 <td>IPsec (<code>interop-ipsec</code>)</td>
@@ -5404,7 +6248,7 @@ ExaBGP compat covers wire encoding for all supported address families.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
+                    <span class="footer-published">Published 15 November 2026 00:14 UTC</span>
                 </div>
             </div>
         </footer>

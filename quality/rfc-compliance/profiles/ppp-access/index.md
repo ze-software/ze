@@ -1,6 +1,6 @@
 # PPP access
 
-Technology aggregate. PPP, PPPoE, and L2TP subscriber access. The RFCs whose summary names the ppp-access aggregate, with the MUST bar and the overview bar of the set and of each RFC.
+Technology profile. PPP, PPPoE, and L2TP subscriber access. The RFCs grouped under ppp-access, showing mandatory requirement coverage and overall coverage for the group and each RFC.
 
 [All profiles](../) · [All RFCs](../../)
 
@@ -8,20 +8,23 @@ Figures as of the last build, read from [data/rfc/profiles/ppp-access.json](../.
 
 ## Figures
 
-- **MUST bar**: Ze proven 197, OS testing gap 4, Ze correctness gap 96
-- **Overview bar**: Ze MUST proven 197, SHOULD proven 6, SHOULD not decided 91, OS testing gap 4, Ze correctness gap 96
+- **MUST bar**: Ze proven 181, Proof pending 51, OS testing gap 4, Not assessed 30, Not built 31
+- **Overview bar**: Ze MUST proven 181, SHOULD proven 6, Proof pending 52, OS testing gap 4, Not assessed 120, Not built 31
 
 | Figure | Rows |
 |---|---|
 | RFCs | 11 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 297 |
 | MUST rows kept (the MUST bar) | 297 |
-| Ze proven | 197 |
+| Ze proven | 181 |
 | OS verified | 0 |
+| Proof pending | 51 |
 | OS testing gap | 4 |
-| Ze correctness gap | 96 |
+| Exclusion unchecked | 0 |
+| Not assessed | 30 |
+| Not built | 31 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -34,37 +37,38 @@ Figures as of the last build, read from [data/rfc/profiles/ppp-access.json](../.
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 91 |
+| SHOULD proof pending | 1 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 90 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 ## Tree
 
-Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each RFC carries the same two bars as the set above, from its own data file; an RFC that is not walked shows "not walked" and no bar.
+The RFCs are listed with the standards they build on first. An RFC appears one level after the highest level of its dependencies; RFCs that refer back to each other share a level. Each RFC has the same two coverage bars as the group above. An RFC whose requirement list has not been reviewed shows "requirements not reviewed" instead of a bar.
 
 ### Level 0
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 1661](../../rfc1661/) | The Point-to-Point Protocol (PPP) | Ze proven 43, OS testing gap 2, Ze correctness gap 31 | Ze MUST proven 43, SHOULD proven 2, SHOULD not decided 23, OS testing gap 2, Ze correctness gap 31 |
+| [RFC 1661](../../rfc1661/) | The Point-to-Point Protocol (PPP) | Ze proven 35, Proof pending 26, OS testing gap 2, Not built 13 | Ze MUST proven 35, SHOULD proven 2, Proof pending 27, OS testing gap 2, Not assessed 22, Not built 13 |
 
 ### Level 1
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 1570](../../rfc1570/) | PPP LCP Extensions | Ze correctness gap 22 | SHOULD not decided 16, Ze correctness gap 22 |
-| [RFC 1994](../../rfc1994/) | PPP Challenge Handshake Authentication Protocol (CHAP) | Ze proven 9, Ze correctness gap 7 | Ze MUST proven 9, SHOULD proven 2, SHOULD not decided 9, Ze correctness gap 7 |
-| [RFC 2516](../../rfc2516/) | A Method for Transmitting PPP Over Ethernet (PPPoE) | Ze proven 25, OS testing gap 1, Ze correctness gap 11 | Ze MUST proven 25, SHOULD not decided 3, OS testing gap 1, Ze correctness gap 11 |
+| [RFC 1570](../../rfc1570/) | PPP LCP Extensions | Not assessed 22 | Not assessed 38 |
+| [RFC 1994](../../rfc1994/) | PPP Challenge Handshake Authentication Protocol (CHAP) | Ze proven 6, Proof pending 8, Not built 2 | Ze MUST proven 6, SHOULD proven 2, Proof pending 8, Not assessed 9, Not built 2 |
+| [RFC 2516](../../rfc2516/) | A Method for Transmitting PPP Over Ethernet (PPPoE) | Ze proven 24, Proof pending 8, OS testing gap 1, Not built 4 | Ze MUST proven 24, Proof pending 8, OS testing gap 1, Not assessed 3, Not built 4 |
 
 ### Level 2
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 1332](../../rfc1332/) (cycle with rfc1034, rfc1035, rfc1122, rfc1123, rfc1191, rfc1195, rfc1350, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | The PPP Internet Protocol Control Protocol (IPCP) | Ze proven 8 | Ze MUST proven 8, SHOULD not decided 6 |
-| [RFC 1334](../../rfc1334/) | PPP Authentication Protocols | Ze proven 13 | Ze MUST proven 13, SHOULD not decided 3 |
-| [RFC 4638](../../rfc4638/) | Accommodating a Maximum Transit Unit/Maximum Receive Unit (MTU/MRU) Greater Than 1492 in the Point-to-Point Protocol over Ethernet (PPPoE) | Ze correctness gap 6 | SHOULD not decided 3, Ze correctness gap 6 |
+| [RFC 1332](../../rfc1332/) (cycle with rfc1034, rfc1035, rfc1122, rfc1123, rfc1191, rfc1195, rfc1350, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | The PPP Internet Protocol Control Protocol (IPCP) | Ze proven 6, Proof pending 2 | Ze MUST proven 6, Proof pending 2, Not assessed 6 |
+| [RFC 1334](../../rfc1334/) | PPP Authentication Protocols | Ze proven 12, Proof pending 1 | Ze MUST proven 12, Proof pending 1, Not assessed 3 |
+| [RFC 4638](../../rfc4638/) | Accommodating a Maximum Transit Unit/Maximum Receive Unit (MTU/MRU) Greater Than 1492 in the Point-to-Point Protocol over Ethernet (PPPoE) | Not built 6 | Not assessed 3, Not built 6 |
 
 ### Level 3
 
@@ -76,16 +80,16 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 5072](../../rfc5072/) | IP Version 6 over PPP | Ze proven 10, Ze correctness gap 6 | Ze MUST proven 10, SHOULD not decided 12, Ze correctness gap 6 |
+| [RFC 5072](../../rfc5072/) | IP Version 6 over PPP | Ze proven 9, Proof pending 3, Not built 4 | Ze MUST proven 9, Proof pending 3, Not assessed 12, Not built 4 |
 
 ### Level 5
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 2661](../../rfc2661/) | Layer Two Tunneling Protocol "L2TP" | Ze proven 89, OS testing gap 1, Ze correctness gap 5 | Ze MUST proven 89, SHOULD proven 2, SHOULD not decided 6, OS testing gap 1, Ze correctness gap 5 |
+| [RFC 2661](../../rfc2661/) | Layer Two Tunneling Protocol "L2TP" | Ze proven 89, Proof pending 3, OS testing gap 1, Not built 2 | Ze MUST proven 89, SHOULD proven 2, Proof pending 3, OS testing gap 1, Not assessed 6, Not built 2 |
 
 ### Level 6
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 3145](../../rfc3145/) | L2TP Disconnect Cause Information | Ze correctness gap 8 | SHOULD not decided 10, Ze correctness gap 8 |
+| [RFC 3145](../../rfc3145/) | L2TP Disconnect Cause Information | Not assessed 8 | Not assessed 18 |

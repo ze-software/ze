@@ -275,7 +275,12 @@ entries.
 ### `read-only`
 
 Allows all operational commands except dangerous ones. Denies all
-configuration commands.
+configuration commands. The `edit` section judges every command whose verb is
+not a read verb, so the store maintenance commands `delete data key`,
+`update data key`, `update data config` and `request data repair` are denied
+too, before their handler runs, while `show data check` is allowed.
+<!-- source: internal/component/plugin/server/command.go -- IsReadOnlyPath -->
+<!-- source: internal/test/fixture/storage_live_authz_fixture.go -- storageLiveAuthzReadOnly -->
 
 | Section | Default | Entries |
 |---------|---------|--------|

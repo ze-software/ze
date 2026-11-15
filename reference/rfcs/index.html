@@ -85,8 +85,8 @@
 <p>The per-requirement detail behind each row is published at <code>/quality/rfc-compliance/&lt;stem&gt;/</code>, one page for every summary under <code>rfc/short/</code>, naming each requirement, the tests bound to it, the audit verdict a reader recorded, and every gap and untested MUST under its own requirement id. The 24 of 242 summaries (9.9%) with no row on this page are published there too, and the index at <code>/quality/rfc-compliance/</code> links all of them.</p>
 <p><strong>Area</strong> is the one cell an author writes, a classification. Every other cell is derived, and no author can change it:</p>
 <ul>
-<li><strong>Proof</strong> is <code>N of M MUST proven</code>: of the M MUST-level requirements the summary gates, the N whose tests a recorded break still verifies (<code>rfc/discrimination/&lt;stem&gt;.json</code>). A tag with no verifying record proves nothing here. An RFC whose requirement list has not been walked against the RFC's own text (no valid <code>rfc/extraction/&lt;stem&gt;.json</code>) reads <code>not walked</code> and publishes no number, because its list bounds nothing. A walked RFC gating no MUST-level requirement reads <code>no MUST rows</code>.</li>
-<li><strong>Evidence</strong> counts the proven rows by the strongest kind of test behind each (<code>interop</code>, then <code>functional</code>, <code>editor</code>, <code>unit</code>), so the counts sum to N.</li>
+<li><strong>Proof</strong> is <code>N of M MUST proven</code>: of the M MUST-level requirements the summary gates, the N whose tests a recorded break still verifies (<code>rfc/discrimination/&lt;stem&gt;.json</code>), counting a requirement a layer under Ze performs once its recorded break proves the state Ze installs for that layer (OS verified). A tag with no verifying record, and a record that escapes the break (<code>no-break</code>, <code>kernel-producer</code>), prove nothing here. An RFC whose requirement list has not been walked against the RFC's own text (no valid <code>rfc/extraction/&lt;stem&gt;.json</code>) reads <code>not walked</code> and publishes no number, because its list bounds nothing. A walked RFC gating no MUST-level requirement reads <code>no MUST rows</code>.</li>
+<li><strong>Evidence</strong> counts the rows Ze's tests prove by the strongest kind of test behind each (<code>interop</code>, then <code>functional</code>, <code>editor</code>, <code>unit</code>), and the OS verified rows as <code>os</code>, so the counts sum to N.</li>
 <li><strong>Unmet</strong> lists the requirement ids the summary annotates <code>{gap}</code>, <code>{partial}</code> or <code>{linux-limit}</code>, and those an audit judged not met, at every level.</li>
 </ul>
 <p>A brief table (Internet-Drafts and other standards) carries Area, Proof and Unmet and leaves Evidence out, so an unmet requirement of a draft is still named by its id.</p>
@@ -213,8 +213,8 @@
 <tr>
 <td>RFC 9234</td>
 <td>BGP Role and OTC</td>
-<td>11 of 19 MUST proven</td>
-<td>interop 1, functional 5, unit 5</td>
+<td>12 of 19 MUST proven</td>
+<td>interop 1, functional 5, unit 6</td>
 <td>RFC9234-5-7, RFC9234-5-8, RFC9234-6-1</td>
 </tr>
 </tbody>
@@ -276,8 +276,8 @@
 <tr>
 <td>RFC 9687</td>
 <td>Send Hold Timer</td>
-<td>3 of 13 MUST proven</td>
-<td>unit 3</td>
+<td>4 of 13 MUST proven</td>
+<td>unit 4</td>
 <td>-</td>
 </tr>
 <tr>
@@ -402,8 +402,8 @@
 <tr>
 <td>RFC 5575</td>
 <td>BGP Flowspec (obsoleted by RFC 8955)</td>
-<td>4 of 9 MUST proven</td>
-<td>unit 4</td>
+<td>2 of 9 MUST proven</td>
+<td>unit 2</td>
 <td>RFC5575-6-1</td>
 </tr>
 <tr>
@@ -507,8 +507,8 @@
 <tr>
 <td>RFC 9069</td>
 <td>BMP Loc-RIB monitoring</td>
-<td>9 of 16 MUST proven</td>
-<td>unit 9</td>
+<td>10 of 16 MUST proven</td>
+<td>unit 10</td>
 <td>-</td>
 </tr>
 </tbody>
@@ -766,9 +766,9 @@
 <tr>
 <td>RFC 1350</td>
 <td>TFTP</td>
-<td>8 of 10 MUST proven</td>
+<td>8 of 11 MUST proven</td>
 <td>unit 8</td>
-<td>RFC1350-4-2, RFC1350-5-1</td>
+<td>RFC1350-4-2, RFC1350-5-1, RFC1350-5-5</td>
 </tr>
 <tr>
 <td>RFC 2131</td>
@@ -787,8 +787,8 @@
 <tr>
 <td>RFC 4861</td>
 <td>IPv6 Neighbor Discovery and Router Advertisement</td>
-<td>29 of 138 MUST proven</td>
-<td>unit 29</td>
+<td>30 of 138 MUST proven</td>
+<td>unit 30</td>
 <td>RFC4861-11.2-1, RFC4861-11.2-2, RFC4861-2.3-1, RFC4861-4.4-3, RFC4861-4.6-1, RFC4861-6.1.1-1, RFC4861-6.1.1-2, RFC4861-6.2.1-1, RFC4861-6.2.1-8, RFC4861-6.2.4-1, RFC4861-6.2.5-1, RFC4861-6.2.5-2, RFC4861-6.2.6-1, RFC4861-7.2.6-1, RFC4861-7.2.8-1, RFC4861-7.2.8-2, RFC4861-9-7</td>
 </tr>
 <tr>
@@ -948,7 +948,7 @@
 <tr>
 <td>sflow-v5</td>
 <td>sFlow export</td>
-<td>22 of 32 MUST proven</td>
+<td>21 of 31 MUST proven</td>
 <td>SFLOW-V5-4.3-1, SFLOW-V5-x-13, SFLOW-V5-x-36, SFLOW-V5-x-37, SFLOW-V5-x-38, SFLOW-V5-x-39, SFLOW-V5-x-40, SFLOW-V5-x-41, SFLOW-V5-x-42</td>
 </tr>
 <tr>
@@ -1143,9 +1143,9 @@
 <tr>
 <td>RFC 5280</td>
 <td>X.509 certificates and CRLs</td>
-<td>26 of 102 MUST proven</td>
-<td>unit 26</td>
-<td>RFC5280-4.1.2.4-1, RFC5280-4.1.2.5-3, RFC5280-4.2-1, RFC5280-4.2-2, RFC5280-4.2-4, RFC5280-4.2.1.10-1, RFC5280-4.2.1.10-3, RFC5280-4.2.1.10-5, RFC5280-4.2.1.12-1, RFC5280-4.2.1.12-2, RFC5280-4.2.1.4-1, RFC5280-4.2.1.4-2, RFC5280-4.2.1.4-3, RFC5280-4.2.1.4-4, RFC5280-4.2.1.6-11, RFC5280-4.2.1.6-8, RFC5280-4.2.1.6-9, RFC5280-5-1, RFC5280-5.2-1, RFC5280-5.2.5-1, RFC5280-5.3-1, RFC5280-6.1-1, RFC5280-6.1.3-1, RFC5280-6.3-1, RFC5280-7.1-2, RFC5280-7.2-1</td>
+<td>32 of 102 MUST proven</td>
+<td>unit 32</td>
+<td>RFC5280-4.1.2.4-1, RFC5280-4.1.2.5-3, RFC5280-4.2-1, RFC5280-4.2-2, RFC5280-4.2-4, RFC5280-4.2.1.10-1, RFC5280-4.2.1.10-3, RFC5280-4.2.1.10-5, RFC5280-4.2.1.4-1, RFC5280-4.2.1.4-2, RFC5280-4.2.1.4-3, RFC5280-4.2.1.4-4, RFC5280-4.2.1.6-11, RFC5280-4.2.1.6-8, RFC5280-4.2.1.6-9, RFC5280-5-1, RFC5280-6.1-1, RFC5280-6.3-1, RFC5280-7.1-2, RFC5280-7.2-1</td>
 </tr>
 <tr>
 <td>RFC 3948</td>
@@ -1157,16 +1157,16 @@
 <tr>
 <td>RFC 4106</td>
 <td>ESP</td>
-<td>5 of 8 MUST proven</td>
-<td>unit 5</td>
+<td>4 of 8 MUST proven</td>
+<td>unit 4</td>
 <td>-</td>
 </tr>
 <tr>
 <td>RFC 4301</td>
 <td>IPsec architecture</td>
-<td>54 of 101 MUST proven</td>
-<td>unit 54</td>
-<td>RFC4301-4.1-5, RFC4301-4.4.1-13, RFC4301-4.4.1-2, RFC4301-4.4.1-3, RFC4301-4.4.1.1-1, RFC4301-4.4.1.1-2, RFC4301-4.4.1.1-4, RFC4301-4.4.1.1-5, RFC4301-4.4.1.2-2, RFC4301-4.4.2.1-13, RFC4301-4.4.2.1-14, RFC4301-4.4.2.1-15, RFC4301-4.4.2.1-16, RFC4301-4.4.2.1-17, RFC4301-4.4.2.1-2, RFC4301-4.4.2.1-3, RFC4301-4.4.3.3-1, RFC4301-5.1-3, RFC4301-5.1-7, RFC4301-5.1.2.1-1, RFC4301-5.2-1, RFC4301-5.2-9, RFC4301-6-1, RFC4301-6.1.1-1, RFC4301-6.1.1-2, RFC4301-6.1.2-1, RFC4301-6.2-1, RFC4301-6.2-2, RFC4301-6.2-3, RFC4301-6.2-4, RFC4301-6.2-5, RFC4301-7-1, RFC4301-7.2-1, RFC4301-7.2-2, RFC4301-7.3-1, RFC4301-7.3-2, RFC4301-8.1-1, RFC4301-8.1-2, RFC4301-8.2.1-1, RFC4301-8.2.2-1</td>
+<td>44 of 101 MUST proven</td>
+<td>unit 44</td>
+<td>RFC4301-4.1-5, RFC4301-4.4.1-13, RFC4301-4.4.1-2, RFC4301-4.4.1-3, RFC4301-4.4.1.1-1, RFC4301-4.4.1.1-2, RFC4301-4.4.1.1-5, RFC4301-4.4.1.2-2, RFC4301-4.4.2.1-13, RFC4301-4.4.2.1-14, RFC4301-4.4.2.1-15, RFC4301-4.4.2.1-16, RFC4301-4.4.2.1-17, RFC4301-4.4.2.1-2, RFC4301-4.4.2.1-3, RFC4301-4.4.3.3-1, RFC4301-5.1-7, RFC4301-5.1.2.1-1, RFC4301-5.2-1, RFC4301-5.2-2, RFC4301-5.2-9, RFC4301-6-1, RFC4301-6.2-2, RFC4301-6.2-3, RFC4301-6.2-4, RFC4301-6.2-5, RFC4301-7-1, RFC4301-7.2-1, RFC4301-7.2-2, RFC4301-7.3-1, RFC4301-7.3-2, RFC4301-8.1-2</td>
 </tr>
 <tr>
 <td>RFC 4302</td>
@@ -1192,8 +1192,8 @@
 <tr>
 <td>RFC 7296</td>
 <td>IKEv2</td>
-<td>87 of 234 MUST proven</td>
-<td>functional 1, unit 86</td>
+<td>89 of 234 MUST proven</td>
+<td>interop 1, functional 1, unit 87</td>
 <td>-</td>
 </tr>
 <tr>
@@ -1234,8 +1234,8 @@
 <tr>
 <td>RFC 8221</td>
 <td>ESP algorithms</td>
-<td>16 of 16 MUST proven</td>
-<td>unit 16</td>
+<td>15 of 16 MUST proven</td>
+<td>unit 15</td>
 <td>-</td>
 </tr>
 <tr>
@@ -1409,9 +1409,9 @@
 <tr>
 <td>RFC 3032</td>
 <td>MPLS label stack encoding</td>
-<td>1 of 18 MUST proven</td>
-<td>unit 1</td>
-<td>RFC3032-1-1, RFC3032-2.2-2, RFC3032-2.4.3-1, RFC3032-3.3-1, RFC3032-3.3-2, RFC3032-3.4-1, RFC3032-3.4-2, RFC3032-3.4-3, RFC3032-3.5-1, RFC3032-3.5-2, RFC3032-3.6-1, RFC3032-3.6-2</td>
+<td>3 of 18 MUST proven</td>
+<td>unit 3</td>
+<td>RFC3032-1-1, RFC3032-2.2-2, RFC3032-2.2-3, RFC3032-2.4.2-1, RFC3032-2.4.2-2, RFC3032-2.4.2-3, RFC3032-2.4.3-2, RFC3032-3.3-1, RFC3032-3.3-2, RFC3032-3.4-1, RFC3032-3.4-2, RFC3032-3.4-3, RFC3032-3.5-1, RFC3032-3.5-2, RFC3032-3.6-1, RFC3032-3.6-2</td>
 </tr>
 <tr>
 <td>RFC 3209</td>
@@ -1647,9 +1647,9 @@
 <tr>
 <td>RFC 1661</td>
 <td>PPP LCP</td>
-<td>43 of 76 MUST proven</td>
-<td>interop 4, unit 39</td>
-<td>RFC1661-2-2, RFC1661-3.4-1, RFC1661-3.5-2, RFC1661-3.5-4, RFC1661-3.7-2, RFC1661-4.3-3, RFC1661-4.4-1, RFC1661-4.6-1, RFC1661-4.6-2, RFC1661-4.6-3, RFC1661-4.6-4, RFC1661-5-1, RFC1661-5.3-4, RFC1661-5.7-2, RFC1661-5.9-1, RFC1661-5.9-3, RFC1661-6.5-3</td>
+<td>35 of 76 MUST proven</td>
+<td>interop 4, unit 31</td>
+<td>RFC1661-2-2, RFC1661-3.4-1, RFC1661-3.5-2, RFC1661-3.5-4, RFC1661-3.7-2, RFC1661-4.3-3, RFC1661-4.4-1, RFC1661-5-1, RFC1661-5.3-4, RFC1661-5.7-2, RFC1661-5.9-1, RFC1661-5.9-3, RFC1661-6.5-3</td>
 </tr>
 <tr>
 <td>RFC 1570</td>
@@ -1661,29 +1661,29 @@
 <tr>
 <td>RFC 1994</td>
 <td>PPP CHAP (MD5)</td>
-<td>9 of 16 MUST proven</td>
-<td>unit 9</td>
+<td>6 of 16 MUST proven</td>
+<td>unit 6</td>
 <td>RFC1994-2.3-1, RFC1994-4.1-9</td>
 </tr>
 <tr>
 <td>RFC 2516</td>
 <td>PPPoE</td>
-<td>25 of 37 MUST proven</td>
-<td>unit 25</td>
+<td>24 of 37 MUST proven</td>
+<td>unit 24</td>
 <td>RFC2516-3-1, RFC2516-x-11, RFC2516-x-14, RFC2516-x-15</td>
 </tr>
 <tr>
 <td>RFC 1332</td>
 <td>IPCP</td>
-<td>8 of 8 MUST proven</td>
-<td>unit 8</td>
+<td>6 of 8 MUST proven</td>
+<td>unit 6</td>
 <td>-</td>
 </tr>
 <tr>
 <td>RFC 1334</td>
 <td>PAP</td>
-<td>13 of 13 MUST proven</td>
-<td>unit 13</td>
+<td>12 of 13 MUST proven</td>
+<td>unit 12</td>
 <td>-</td>
 </tr>
 <tr>
@@ -1703,8 +1703,8 @@
 <tr>
 <td>RFC 5072</td>
 <td>IPv6CP</td>
-<td>10 of 16 MUST proven</td>
-<td>unit 10</td>
+<td>9 of 16 MUST proven</td>
+<td>unit 9</td>
 <td>RFC5072-2-2, RFC5072-4.1-10, RFC5072-4.1-11, RFC5072-4.1-8</td>
 </tr>
 <tr>
@@ -2017,7 +2017,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
+                    <span class="footer-published">Published 15 November 2026 01:12 UTC</span>
                 </div>
             </div>
         </footer>

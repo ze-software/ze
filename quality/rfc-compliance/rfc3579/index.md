@@ -1,6 +1,6 @@
 # RFC 3579 - RADIUS (Remote Authentication Dial In User Service) Support For Extensible Authentication Protocol (EAP)
 
-RADIUS/EAP. Every requirement this repository extracted from RFC 3579, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+RADIUS/EAP. Every requirement listed for RFC 3579, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,24 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 17 | of 31 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0 | of 31 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 31 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 31 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 46 | 46 of 48 tagged units, 2 escaped and 0 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-
-### Neutral
-
-measures that are neither good news nor bad
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Gated MUSTs | 31 | of 50 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 31 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 31 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 31 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 31 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 31 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Tested both ways | 17 | of 31 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0 | of 31 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 31 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 31 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Tests shown to detect a fault | 46 | 46 of 48 tests linked to requirements, 2 without a fault test and 0 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -35,54 +22,74 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 14 | of 31 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Declared gap or no test | 14 | of 31 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 
-The 9 counts marked as a part above are the whole of the 31 gated MUSTs: they add up to 31. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Neutral
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+measures that are neither good news nor bad
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Out of scope | 0 | of 31 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 31 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 31 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 31 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 31 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+
+### Totals
+
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 31 | of 50 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 31 mandatory requirements: they add up to 31. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | RADIUS/EAP |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 50 |
-| Gated MUST-level | 31 |
+| Mandatory requirements (MUST level) | 31 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 14 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 48 |
-| Tagged units | 48 |
+| Tests linked to requirements | 48 |
 | Recorded audit verdicts | 18 |
-| Discrimination records | 48 |
+| Fault test records | 48 |
 | Summary | `rfc/short/rfc3579.md` |
-| Requirement shard | `rfc/requirements/rfc3579.md` |
+| Requirement table | `rfc/requirements/rfc3579.md` |
 | RFC text | `rfc/full/rfc3579.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: RADIUS/EAP, ze in the NAS (RADIUS client) role: 31 MUST-level requirements. Ze runs the conversation this document describes, for operator login. `internal/component/radius/dict.go` declares EAP-Message at 79, `SignMessageAuthenticator` (`internal/component/radius/packet.go`) signs every EAP-bearing Access-Request beside the two verifiers that were there first, and `authenticateEAP` (`internal/component/radius/authenticator_eap.go`) answers each Access-Challenge instead of rejecting it. The obligations addressed to the RADIUS authentication server, to a RADIUS proxy and to a security server are excluded in `rfc/extraction/rfc3579.json` as `binds-another-role`: ze binds an ephemeral UDP socket in `NewClient` and `(*Client).readLoop` dispatches a datagram only against a waiter `(*Client).Exchange` registered for its own outstanding request, so no Access-Request receive path exists anywhere in the tree.
+Included in automatic checks: RADIUS/EAP, ze in the NAS (RADIUS client) role: 31 MUST-level requirements. Ze runs the conversation this document describes, for operator login. `internal/component/radius/dict.go` declares EAP-Message at 79, `SignMessageAuthenticator` (`internal/component/radius/packet.go`) signs every EAP-bearing Access-Request beside the two verifiers that were there first, and `authenticateEAP` (`internal/component/radius/authenticator_eap.go`) answers each Access-Challenge instead of rejecting it. The obligations addressed to the RADIUS authentication server, to a RADIUS proxy and to a security server are excluded in `rfc/extraction/rfc3579.json` as `binds-another-role`: ze binds an ephemeral UDP socket in `NewClient` and `(*Client).readLoop` dispatches a datagram only against a waiter `(*Client).Exchange` registered for its own outstanding request, so no Access-Request receive path exists anywhere in the tree.
 
-## What the public ledger says
+## Published support status
 
 **Area:** RADIUS/EAP
 
@@ -97,14 +104,14 @@ Enrolled: RADIUS/EAP, ze in the NAS (RADIUS client) role: 31 MUST-level requirem
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 17 | one part of the gated population |
-| Annotated (including scoped evidence) | 14 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **31** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 17 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 14 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **31** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (17):** [`RFC3579-1-1`](#rfc3579-1-1), [`RFC3579-1.2-1`](#rfc3579-1.2-1), [`RFC3579-2.1-1`](#rfc3579-2.1-1), [`RFC3579-2.1-3`](#rfc3579-2.1-3), [`RFC3579-2.2-1`](#rfc3579-2.2-1), [`RFC3579-2.6.3-1`](#rfc3579-2.6.3-1), [`RFC3579-2.6.3-2`](#rfc3579-2.6.3-2), [`RFC3579-2.6.4-1`](#rfc3579-2.6.4-1), [`RFC3579-3-1`](#rfc3579-3-1), [`RFC3579-3.1-1`](#rfc3579-3.1-1), [`RFC3579-3.1-2`](#rfc3579-3.1-2), [`RFC3579-3.1-3`](#rfc3579-3.1-3), [`RFC3579-3.1-4`](#rfc3579-3.1-4), [`RFC3579-3.2-1`](#rfc3579-3.2-1), [`RFC3579-3.3-1`](#rfc3579-3.3-1), [`RFC3579-3.3-2`](#rfc3579-3.3-2), [`RFC3579-4.3.6-2`](#rfc3579-4.3.6-2)
 
@@ -112,20 +119,23 @@ Enrolled: RADIUS/EAP, ze in the NAS (RADIUS client) role: 31 MUST-level requirem
 
 ## Figures
 
-- **MUST bar**: Ze proven 17, Ze correctness gap 14
-- **Overview bar**: Ze MUST proven 17, SHOULD proven 2, SHOULD not decided 17, Ze correctness gap 14
+- **MUST bar**: Ze proven 17, Not built 14
+- **Overview bar**: Ze MUST proven 17, SHOULD proven 2, Not assessed 17, Not built 14
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 31 |
 | MUST rows kept (the MUST bar) | 31 |
 | Ze proven | 17 |
 | OS verified | 0 |
+| Proof pending | 0 |
 | OS testing gap | 0 |
-| Ze correctness gap | 14 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 14 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -138,11 +148,12 @@ Enrolled: RADIUS/EAP, ze in the NAS (RADIUS client) role: 31 MUST-level requirem
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 17 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 17 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc3579.json](../../../data/rfc/rfc3579.json).
 
@@ -222,7 +233,7 @@ Source: [data/rfc/rfc3579.json](../../../data/rfc/rfc3579.json).
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC3579-1-1`](#rfc3579-1-1)
 
@@ -233,17 +244,17 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. + Te
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC3579SubscriberNASRefusesEAPMessage`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go#L105) | unit/verify | revert, verified |
-| negative | [`TestRFC2869DictionaryDeclaresNoAttributeForAnUnofferedService`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_unoffered_service_attributes_test.go#L150) | unit/verify | no-break escape (declaration-only), which is not a proof, verified |
-| positive | [`TestRFC2869DictionaryCoversTheServicesZeOffers`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_unoffered_service_attributes_test.go#L110) | unit/verify | no-break escape (declaration-only), which is not a proof, verified |
+| negative | [`TestRFC2869DictionaryDeclaresNoAttributeForAnUnofferedService`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_unoffered_service_attributes_test.go#L150) | unit/verify | no-break without a fault test (declaration-only), which does not count as proof, verified |
+| positive | [`TestRFC2869DictionaryCoversTheServicesZeOffers`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_unoffered_service_attributes_test.go#L110) | unit/verify | no-break without a fault test (declaration-only), which does not count as proof, verified |
 | positive | [`TestRFC3579EAPAttributesServeALiveEAPMethod`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_nas_obligations_test.go#L550) | unit/verify | revert, verified |
 
 ### [`RFC3579-1-2`](#rfc3579-1-2)
 
 A NAS MUST treat a RADIUS Access-Accept requesting an unavailable service as an Access-Reject instead. (§1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3579-1-2, so no unit is bound to it.
+No test carries RFC3579-1-2, so there is no linked test.
 
 ### [`RFC3579-1.2-1`](#rfc3579-1.2-1)
 
@@ -260,9 +271,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. nega
 
 The message encoding MUST follow the UTF-8 transformation format [RFC2279]. (§1.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3579-1.2-2, so no unit is bound to it.
+No test carries RFC3579-1.2-2, so there is no linked test.
 
 ### [`RFC3579-2.1-1`](#rfc3579-2.1-1)
 
@@ -279,9 +290,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Acce
 
 The NAS MUST NOT "manufacture" a Success or Failure packet as the result of a timeout. (§2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3579-2.1-2, so no unit is bound to it.
+No test carries RFC3579-2.1-2, so there is no linked test.
 
 ### [`RFC3579-2.1-3`](#rfc3579-2.1-3)
 
@@ -312,9 +323,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 If so, a new EAP-Response packet, if available, MUST be sent to the RADIUS server within an Access-Request, and the EAP-Message attribute(s) included within the Access-Challenge are silently discarded. (§2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3579-2.2-2, so no unit is bound to it.
+No test carries RFC3579-2.2-2, so there is no linked test.
 
 ### [`RFC3579-2.6.3-1`](#rfc3579-2.6.3-1)
 
@@ -342,9 +353,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. same
 
 Since the responsibility for avoiding conflicts lies with the RADIUS server, the NAS MUST NOT "manufacture" EAP packets in order to correct contradictory messages that it receives. (§2.6.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3579-2.6.3-3, so no unit is bound to it.
+No test carries RFC3579-2.6.3-3, so there is no linked test.
 
 ### [`RFC3579-2.6.4-1`](#rfc3579-2.6.4-1)
 
@@ -361,9 +372,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. a co
 
 Reply-Message attribute(s) MUST NOT be included in any RADIUS message containing an EAP-Message attribute. (§2.6.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3579-2.6.5-1, so no unit is bound to it.
+No test carries RFC3579-2.6.5-1, so there is no linked test.
 
 ### [`RFC3579-3-1`](#rfc3579-3-1)
 
@@ -461,41 +472,41 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 Where RADIUS is run over IPsec ESP with a non-null transform, the secret shared between the NAS and the RADIUS server MAY NOT be configured. In this case, a shared secret of zero length MUST be assumed. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3579-4.2-1, so no unit is bound to it.
+No test carries RFC3579-4.2-1, so there is no linked test.
 
 ### [`RFC3579-4.2-2`](#rfc3579-4.2-2)
 
 When IPsec ESP is used with RADIUS, per-packet authentication, integrity and replay protection MUST be used. 3DES-CBC MUST be supported as an encryption transform (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3579-4.2-2, so no unit is bound to it.
+No test carries RFC3579-4.2-2, so there is no linked test.
 
 ### [`RFC3579-4.2-3`](#rfc3579-4.2-3)
 
 HMAC-SHA1-96 MUST be supported as an authentication transform. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3579-4.2-3, so no unit is bound to it.
+No test carries RFC3579-4.2-3, so there is no linked test.
 
 ### [`RFC3579-4.3.4-1`](#rfc3579-4.3.4-1)
 
 Where RADIUS shared secrets are configured, the RADIUS shared secret used by a NAS supporting EAP MUST NOT be reused by a NAS utilizing the User-Password attribute, since improper shared secret hygiene could lead to compromise of hidden attributes. (§4.3.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3579-4.3.4-1, so no unit is bound to it.
+No test carries RFC3579-4.3.4-1, so there is no linked test.
 
 ### [`RFC3579-4.3.6-1`](#rfc3579-4.3.6-1)
 
 Should the NAS not be able to negotiate EAP, or should the EAP-Request sent by the NAS be of a different EAP type than what is expected, the authenticating peer MUST disconnect. (§4.3.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3579-4.3.6-1, so no unit is bound to it.
+No test carries RFC3579-4.3.6-1, so there is no linked test.
 
 ### [`RFC3579-4.3.6-2`](#rfc3579-4.3.6-2)
 
@@ -512,25 +523,25 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. a su
 
 In such cases, if any peers of the NAS MUST do EAP, then the NAS MUST attempt to negotiate EAP for every session. (§4.3.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3579-4.3.6-3, so no unit is bound to it.
+No test carries RFC3579-4.3.6-3, so there is no linked test.
 
 ### [`RFC3579-4.3.6-4`](#rfc3579-4.3.6-4)
 
 The authenticating peer MUST refuse to renegotiate authentication, even if the renegotiation is from CHAP to EAP. (§4.3.6, restated in the same section for an EAP-capable peer)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3579-4.3.6-4, so no unit is bound to it.
+No test carries RFC3579-4.3.6-4, so there is no linked test.
 
 ### [`RFC3579-4.3.6-5`](#rfc3579-4.3.6-5)
 
 If EAP is negotiated but is not supported by the RADIUS proxy or server, then the server or proxy MUST respond with an Access-Reject. In these cases, a PPP NAS MUST send an LCP-Terminate and disconnect the peer. (§4.3.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3579-4.3.6-5, so no unit is bound to it.
+No test carries RFC3579-4.3.6-5, so there is no linked test.
 
 ### [`RFC3579-3-2`](#rfc3579-3-2)
 
@@ -549,13 +560,13 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 Access-Challenge, Access-Accept, or Access-Reject packets including EAP-Message attribute(s) without a Message-Authenticator attribute SHOULD be silently discarded by the NAS. (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRadiusDiscardsEAPAnswerWithoutMessageAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_client_test.go#L78) | unit/verify | revert, verified |
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -575,39 +586,39 @@ Audit verdict: not audited: no reader has judged these tests
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
 | `front` | not stated | 0 | skipped (front-matter) | Title block, Status of this Memo, copyright notice, Abstract and table of contents. The Abstract says what the memo adds to RADIUS and binds no speaker. |
-| `1` | Introduction | 3 | walked | Introduction. States what RADIUS and EAP are, and carries the RFC 2865 rule that a NAS must not implement the attributes for a service it cannot offer, in its EAP form. |
-| `1.1` | Specification of Requirements | 0 | walked | Specification of Requirements. The RFC 2119 key-words paragraph. No obligation of its own. |
-| `1.2` | Terminology | 2 | walked | Terminology. Defines authenticator, peer, authentication server, silently discard, displayable message, NAS, service and session. Two of those definitions carry obligations, sites 1.2:1 and 1.2:2; 'silently discard' carries two SHOULDs captured as RFC3579-1.2-3. |
-| `2` | RADIUS Support for EAP | 0 | walked | RADIUS Support for EAP. Says why the pass-through architecture exists and that a NAS may mix local authentication with pass-through, which is the MAY captured as RFC3579-2-1. |
-| `2.1` | Protocol Overview | 8 | walked | Protocol Overview. The conversation itself: who sends the first EAP-Request, how the NAS encapsulates a Response, what ends the conversation, EAP-Start, and the User-Name copying rule that lets a non-EAP-aware proxy forward the request. |
-| `2.2` | Invalid Packets | 3 | walked | Invalid Packets. The NAS header validation, the Error-Cause 202 branch, and the RADIUS server's fatal and non-fatal error handling. The DoS advice at the end is written as 'it is advisable' and 'is recommended' in lower case, and binds nobody. |
-| `2.3` | Retransmission | 0 | walked | Retransmission. Describes how Session-Timeout in an Access-Challenge sets the EAP retransmission timer for that one EAP-Request. Indicative prose, no obligation. |
-| `2.4` | Fragmentation | 1 | walked | Fragmentation. One obligation, on the RADIUS server, not to exceed a Framed-MTU the NAS supplied. The NAS half is written as 'may be included'. |
-| `2.5` | Alternative Uses | 1 | walked | Alternative Uses. RADIUS-encapsulated EAP between a RADIUS server and a security server. One obligation, on the RADIUS server. |
-| `2.6` | Usage Guidelines | 0 | walked | Usage Guidelines. A heading over 2.6.1 to 2.6.5 with no body text of its own. |
-| `2.6.1` | Identifier Space | 1 | walked | Identifier Space. One obligation, on RADIUS server implementations, to keep the EAP Identifier spaces of distinct sessions apart. |
-| `2.6.2` | Role Reversal | 1 | walked | Role Reversal. Says role reversal is not supported, with the obligation on the RADIUS server to reject an Access-Request encapsulating an EAP-Request, and a SHOULD on the same actor about the Nak it includes. |
-| `2.6.3` | Conflicting Messages | 3 | walked | Conflicting Messages. Three NAS obligations, all captured, plus the SHOULD list of combinations a RADIUS server is told not to send. |
-| `2.6.4` | Priority | 1 | walked | Priority. One NAS obligation about the order in which attributes and the Accept/Reject indication are processed. |
-| `2.6.5` | Displayable Messages | 2 | walked | Displayable Messages. The RADIUS server's encapsulation obligation, the exclusion of Reply-Message from any EAP-bearing message, and the NAS SHOULD to discard a Reply-Message rather than translate it. |
-| `3` | Attributes | 2 | walked | Attributes. The NAS identification attributes an Access-Request carries, and the RADIUS server's obligation to echo User-Name. |
-| `3.1` | EAP-Message | 6 | walked | EAP-Message. The attribute format, the ordering and single-EAP-packet rules, the Message-Authenticator protection rule, and the calculate-and-discard obligations on each of the two roles. |
-| `3.2` | Message-Authenticator | 3 | walked | Message-Authenticator. The attribute format and the HMAC-MD5 construction. The construction itself is written without an RFC 2119 keyword, so the site scan does not see it, and it is declared here as an unsourced id: 'MUST calculate the correct value' at sites 3.1:4 and 3.1:6 has no meaning without the formula this section states. The response-side paragraph, 'For Access-Challenge, Access-Accept, and Access-Reject packets, the Message-Authenticator is calculated as follows' through 'The Message-Authenticator is calculated and inserted in the packet before the Response Authenticator is calculated.', binds whoever writes those three packets, the RADIUS server: ze writes none of them (the admin and L2TP paths only send Access-Requests, and the CoA listener's reply, (*coaListener).sendResponse in internal/component/l2tp/plugins/authradius/coa.go, carries no Message-Authenticator). The client's side of that formula, recomputing it over a received reply with the Request Authenticator in place, is RFC3579-3.1-4. The narrowing audit of 2026-09-28 called the ordering sentence dropped from RFC3579-3.2-1; it is recorded here and not added to that row, because no Ze producer performs it. |
-| `3.3` | Table of Attributes | 4 | walked | Table of Attributes. One obligation in the body, that neither attribute appears in an Accounting-Request. The table rows, its three notes and its legend follow in this section: Note 1 carries two obligations and the legend carries none. |
-| `4` | Security Considerations | 0 | walked | Security Considerations. A heading over 4.1 to 4.3 with no body text of its own. |
-| `4.1` | Security Requirements | 0 | walked | Security Requirements. The ten-item threat list and the statement that confidentiality, data origin authentication, integrity and replay protection are needed. Written in indicative prose with no keyword. |
-| `4.2` | Security Protocol | 4 | walked | Security Protocol. The IPsec profile for RADIUS: the transforms that must be supported, the zero-length shared secret where ESP with a non-null transform carries the traffic, and the IKE mode and identity payload advice. |
-| `4.3` | Security Issues | 0 | walked | Security Issues. A heading and the list of the ten vulnerabilities 4.3.1 to 4.3.10 expand. |
-| `4.3.1` | Privacy Issues | 0 | walked | Privacy Issues. One SHOULD, to protect RADIUS with IPsec ESP, restating Section 4.2's advice. |
-| `4.3.2` | Spoofing and Hijacking | 1 | walked | Spoofing and Hijacking. The SHOULD to use Message-Authenticator in an Access-Request with no User-Password, captured as RFC3579-4.3.2-1, and the restatement of the Section 3.1 protection rule. |
-| `4.3.3` | Dictionary Attacks | 0 | walked | Dictionary Attacks. Quotes RFC 2865's shared-secret advice and recommends IPsec ESP. The quoted SHOULD belongs to RFC 2865. |
-| `4.3.4` | Known Plaintext Attacks | 1 | walked | Known Plaintext Attacks. Explains the User-Password keystream reuse problem and states one obligation, that an EAP NAS's shared secret is not reused by a NAS using User-Password. |
-| `4.3.5` | Replay Attacks | 0 | walked | Replay Attacks. Describes what RADIUS does and does not give for replay protection. Indicative prose, no obligation. |
-| `4.3.6` | Negotiation Attacks | 8 | walked | Negotiation Attacks. The downgrade rules: what the authenticating peer must do when EAP was expected, what the NAS must attempt, and what the RADIUS server or proxy must answer. |
-| `4.3.7` | Impersonation | 1 | walked | Impersonation. Quotes RFC 2865 Section 3 on choosing the shared secret by source address, and states SHOULDs on RADIUS proxies. Ze is neither the RADIUS server nor a proxy. |
-| `4.3.8` | Man in the Middle Attacks | 0 | walked | Man in the Middle Attacks. One SHOULD, that EAP methods incorporate their own per-packet integrity protection. That obligation is on the EAP method, which RFC 3748 and the method's own RFC govern. |
-| `4.3.9` | Separation of Authenticator and Authentication Server | 0 | walked | Separation of Authenticator and Authentication Server. Explains what mutual authentication means when the two are on different hosts, and that the MSK must reach the authenticator. The key transport mechanism is stated to be out of scope for this document. |
-| `4.3.10` | Multiple Databases | 0 | walked | Multiple Databases. Recommends consolidating the security server's and the RADIUS server's user stores. No obligation, and the actor is the deployment. |
+| `1` | Introduction | 3 | reviewed | Introduction. States what RADIUS and EAP are, and carries the RFC 2865 rule that a NAS must not implement the attributes for a service it cannot offer, in its EAP form. |
+| `1.1` | Specification of Requirements | 0 | reviewed | Specification of Requirements. The RFC 2119 key-words paragraph. No obligation of its own. |
+| `1.2` | Terminology | 2 | reviewed | Terminology. Defines authenticator, peer, authentication server, silently discard, displayable message, NAS, service and session. Two of those definitions carry obligations, sites 1.2:1 and 1.2:2; 'silently discard' carries two SHOULDs captured as RFC3579-1.2-3. |
+| `2` | RADIUS Support for EAP | 0 | reviewed | RADIUS Support for EAP. Says why the pass-through architecture exists and that a NAS may mix local authentication with pass-through, which is the MAY captured as RFC3579-2-1. |
+| `2.1` | Protocol Overview | 8 | reviewed | Protocol Overview. The conversation itself: who sends the first EAP-Request, how the NAS encapsulates a Response, what ends the conversation, EAP-Start, and the User-Name copying rule that lets a non-EAP-aware proxy forward the request. |
+| `2.2` | Invalid Packets | 3 | reviewed | Invalid Packets. The NAS header validation, the Error-Cause 202 branch, and the RADIUS server's fatal and non-fatal error handling. The DoS advice at the end is written as 'it is advisable' and 'is recommended' in lower case, and binds nobody. |
+| `2.3` | Retransmission | 0 | reviewed | Retransmission. Describes how Session-Timeout in an Access-Challenge sets the EAP retransmission timer for that one EAP-Request. Indicative prose, no obligation. |
+| `2.4` | Fragmentation | 1 | reviewed | Fragmentation. One obligation, on the RADIUS server, not to exceed a Framed-MTU the NAS supplied. The NAS half is written as 'may be included'. |
+| `2.5` | Alternative Uses | 1 | reviewed | Alternative Uses. RADIUS-encapsulated EAP between a RADIUS server and a security server. One obligation, on the RADIUS server. |
+| `2.6` | Usage Guidelines | 0 | reviewed | Usage Guidelines. A heading over 2.6.1 to 2.6.5 with no body text of its own. |
+| `2.6.1` | Identifier Space | 1 | reviewed | Identifier Space. One obligation, on RADIUS server implementations, to keep the EAP Identifier spaces of distinct sessions apart. |
+| `2.6.2` | Role Reversal | 1 | reviewed | Role Reversal. Says role reversal is not supported, with the obligation on the RADIUS server to reject an Access-Request encapsulating an EAP-Request, and a SHOULD on the same actor about the Nak it includes. |
+| `2.6.3` | Conflicting Messages | 3 | reviewed | Conflicting Messages. Three NAS obligations, all captured, plus the SHOULD list of combinations a RADIUS server is told not to send. |
+| `2.6.4` | Priority | 1 | reviewed | Priority. One NAS obligation about the order in which attributes and the Accept/Reject indication are processed. |
+| `2.6.5` | Displayable Messages | 2 | reviewed | Displayable Messages. The RADIUS server's encapsulation obligation, the exclusion of Reply-Message from any EAP-bearing message, and the NAS SHOULD to discard a Reply-Message rather than translate it. |
+| `3` | Attributes | 2 | reviewed | Attributes. The NAS identification attributes an Access-Request carries, and the RADIUS server's obligation to echo User-Name. |
+| `3.1` | EAP-Message | 6 | reviewed | EAP-Message. The attribute format, the ordering and single-EAP-packet rules, the Message-Authenticator protection rule, and the calculate-and-discard obligations on each of the two roles. |
+| `3.2` | Message-Authenticator | 3 | reviewed | Message-Authenticator. The attribute format and the HMAC-MD5 construction. The construction itself is written without an RFC 2119 keyword, so the site scan does not see it, and it is declared here as an unsourced id: 'MUST calculate the correct value' at sites 3.1:4 and 3.1:6 has no meaning without the formula this section states. The response-side paragraph, 'For Access-Challenge, Access-Accept, and Access-Reject packets, the Message-Authenticator is calculated as follows' through 'The Message-Authenticator is calculated and inserted in the packet before the Response Authenticator is calculated.', binds whoever writes those three packets, the RADIUS server: ze writes none of them (the admin and L2TP paths only send Access-Requests, and the CoA listener's reply, (*coaListener).sendResponse in internal/component/l2tp/plugins/authradius/coa.go, carries no Message-Authenticator). The client's side of that formula, recomputing it over a received reply with the Request Authenticator in place, is RFC3579-3.1-4. The narrowing audit of 2026-09-28 called the ordering sentence dropped from RFC3579-3.2-1; it is recorded here and not added to that row, because no Ze producer performs it. |
+| `3.3` | Table of Attributes | 4 | reviewed | Table of Attributes. One obligation in the body, that neither attribute appears in an Accounting-Request. The table rows, its three notes and its legend follow in this section: Note 1 carries two obligations and the legend carries none. |
+| `4` | Security Considerations | 0 | reviewed | Security Considerations. A heading over 4.1 to 4.3 with no body text of its own. |
+| `4.1` | Security Requirements | 0 | reviewed | Security Requirements. The ten-item threat list and the statement that confidentiality, data origin authentication, integrity and replay protection are needed. Written in indicative prose with no keyword. |
+| `4.2` | Security Protocol | 4 | reviewed | Security Protocol. The IPsec profile for RADIUS: the transforms that must be supported, the zero-length shared secret where ESP with a non-null transform carries the traffic, and the IKE mode and identity payload advice. |
+| `4.3` | Security Issues | 0 | reviewed | Security Issues. A heading and the list of the ten vulnerabilities 4.3.1 to 4.3.10 expand. |
+| `4.3.1` | Privacy Issues | 0 | reviewed | Privacy Issues. One SHOULD, to protect RADIUS with IPsec ESP, restating Section 4.2's advice. |
+| `4.3.2` | Spoofing and Hijacking | 1 | reviewed | Spoofing and Hijacking. The SHOULD to use Message-Authenticator in an Access-Request with no User-Password, captured as RFC3579-4.3.2-1, and the restatement of the Section 3.1 protection rule. |
+| `4.3.3` | Dictionary Attacks | 0 | reviewed | Dictionary Attacks. Quotes RFC 2865's shared-secret advice and recommends IPsec ESP. The quoted SHOULD belongs to RFC 2865. |
+| `4.3.4` | Known Plaintext Attacks | 1 | reviewed | Known Plaintext Attacks. Explains the User-Password keystream reuse problem and states one obligation, that an EAP NAS's shared secret is not reused by a NAS using User-Password. |
+| `4.3.5` | Replay Attacks | 0 | reviewed | Replay Attacks. Describes what RADIUS does and does not give for replay protection. Indicative prose, no obligation. |
+| `4.3.6` | Negotiation Attacks | 8 | reviewed | Negotiation Attacks. The downgrade rules: what the authenticating peer must do when EAP was expected, what the NAS must attempt, and what the RADIUS server or proxy must answer. |
+| `4.3.7` | Impersonation | 1 | reviewed | Impersonation. Quotes RFC 2865 Section 3 on choosing the shared secret by source address, and states SHOULDs on RADIUS proxies. Ze is neither the RADIUS server nor a proxy. |
+| `4.3.8` | Man in the Middle Attacks | 0 | reviewed | Man in the Middle Attacks. One SHOULD, that EAP methods incorporate their own per-packet integrity protection. That obligation is on the EAP method, which RFC 3748 and the method's own RFC govern. |
+| `4.3.9` | Separation of Authenticator and Authentication Server | 0 | reviewed | Separation of Authenticator and Authentication Server. Explains what mutual authentication means when the two are on different hosts, and that the MSK must reach the authenticator. The key transport mechanism is stated to be out of scope for this document. |
+| `4.3.10` | Multiple Databases | 0 | reviewed | Multiple Databases. Recommends consolidating the security server's and the RADIUS server's user stores. No obligation, and the actor is the deployment. |
 | `5` | IANA Considerations | 0 | skipped (iana) | IANA Considerations. 'This specification does not create any new registries, or define any new RADIUS attributes or values.' |
 | `6` | References | 0 | skipped (references) | References. A heading over 6.1 and 6.2. |
 | `6.1` | not stated | 0 | skipped (references) | Normative References: RFC 1321, 2104, 2119, 2279, 2284, 2401, 2406, 2409, 2486, 2865, 2988, 3162, 3280 and 3576. |

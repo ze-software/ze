@@ -1,6 +1,6 @@
 # RFC 3209 - RSVP-TE: Extensions to RSVP for LSP Tunnels
 
-RSVP-TE. Every requirement this repository extracted from RFC 3209, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+RSVP-TE. Every requirement listed for RFC 3209, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,24 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 19 | of 59 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 6 | of 59 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 59 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 59 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 53 | 53 of 59 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-
-### Neutral
-
-measures that are neither good news nor bad
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Gated MUSTs | 59 | of 62 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 59 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 59 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 2 | of 59 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 59 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 59 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Tested both ways | 19 | of 59 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 6 | of 59 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 59 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 59 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Tests shown to detect a fault | 53 | 53 of 59 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -35,55 +22,75 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 32 | of 59 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 17 | of 59 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+| Declared gap or no test | 32 | of 59 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Audit verdicts | 17 | of 59 mandatory requirements reviewed | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
-The 9 counts marked as a part above are the whole of the 59 gated MUSTs: they add up to 59. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Neutral
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+measures that are neither good news nor bad
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Out of scope | 0 | of 59 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 59 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 2 | of 59 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 59 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 59 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+
+### Totals
+
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 59 | of 62 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 59 mandatory requirements: they add up to 59. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | RSVP-TE |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 62 |
-| Gated MUST-level | 59 |
+| Mandatory requirements (MUST level) | 59 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 32 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 59 |
-| Tagged units | 59 |
+| Tests linked to requirements | 59 |
 | Recorded audit verdicts | 17 |
-| Discrimination records | 53 |
+| Fault test records | 53 |
 | Summary | `rfc/short/rfc3209.md` |
-| Requirement shard | `rfc/requirements/rfc3209.md` |
+| Requirement table | `rfc/requirements/rfc3209.md` |
 | RFC text | `rfc/full/rfc3209.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: RSVP-TE (RFC 3209): PATH/RESV signaling, ERO, LABEL, SE make-before-break, soft-state. The 2026-09-21 extraction walk added the 50 MUST-level and SHALL-level rows the earlier summary did not list, so the checklist now carries 65 rows and every one of them is sourced to a sentence of the document. The added rows carry no test.
+Included in automatic checks: RSVP-TE (RFC 3209): PATH/RESV signaling, ERO, LABEL, SE make-before-break, soft-state. The 2026-09-21 extraction walk added the 50 MUST-level and SHALL-level rows the earlier summary did not list, so the checklist now carries 65 rows and every one of them is sourced to a sentence of the document. The added rows carry no test.
 
-## What the public ledger says
+## Published support status
 
 **Area:** RSVP-TE
 
@@ -98,14 +105,14 @@ Enrolled: RSVP-TE (RFC 3209): PATH/RESV signaling, ERO, LABEL, SE make-before-br
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 19 | one part of the gated population |
-| Annotated (including scoped evidence) | 40 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **59** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 19 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 40 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **59** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (19):** [`RFC3209-4.2-1`](#rfc3209-4.2-1), [`RFC3209-4.1-1`](#rfc3209-4.1-1), [`RFC3209-4.3.4-1`](#rfc3209-4.3.4-1), [`RFC3209-4.3.4.1-1`](#rfc3209-4.3.4.1-1), [`RFC3209-3-1`](#rfc3209-3-1), [`RFC3209-4.2.1-1`](#rfc3209-4.2.1-1), [`RFC3209-4.2.4-2`](#rfc3209-4.2.4-2), [`RFC3209-4.2.4-3`](#rfc3209-4.2.4-3), [`RFC3209-4.3.3-1`](#rfc3209-4.3.3-1), [`RFC3209-4.3.3.1-1`](#rfc3209-4.3.3.1-1), [`RFC3209-4.3.4.2-1`](#rfc3209-4.3.4.2-1), [`RFC3209-4.4.1-1`](#rfc3209-4.4.1-1), [`RFC3209-4.4.3-1`](#rfc3209-4.4.3-1), [`RFC3209-4.4.3-2`](#rfc3209-4.4.3-2), [`RFC3209-4.4.3-3`](#rfc3209-4.4.3-3), [`RFC3209-4.4.3-4`](#rfc3209-4.4.3-4), [`RFC3209-4.7.3-1`](#rfc3209-4.7.3-1), [`RFC3209-4.7.4-3`](#rfc3209-4.7.4-3), [`RFC3209-6-1`](#rfc3209-6-1)
 
@@ -113,20 +120,23 @@ Enrolled: RSVP-TE (RFC 3209): PATH/RESV signaling, ERO, LABEL, SE make-before-br
 
 ## Figures
 
-- **MUST bar**: Ze proven 23, OS testing gap 2, Ze correctness gap 34
-- **Overview bar**: Ze MUST proven 23, SHOULD not decided 3, OS testing gap 2, Ze correctness gap 34
+- **MUST bar**: Ze proven 23, Proof pending 2, OS testing gap 2, Not built 32
+- **Overview bar**: Ze MUST proven 23, Proof pending 3, OS testing gap 2, Not assessed 2, Not built 32
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 59 |
 | MUST rows kept (the MUST bar) | 59 |
 | Ze proven | 23 |
 | OS verified | 0 |
+| Proof pending | 2 |
 | OS testing gap | 2 |
-| Ze correctness gap | 34 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 32 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -139,11 +149,12 @@ Enrolled: RSVP-TE (RFC 3209): PATH/RESV signaling, ERO, LABEL, SE make-before-br
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 3 |
+| SHOULD proof pending | 1 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 2 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc3209.json](../../../data/rfc/rfc3209.json).
 
@@ -155,9 +166,9 @@ Source: [data/rfc/rfc3209.json](../../../data/rfc/rfc3209.json).
 | `RFC3209-4.6.2-1` | Class = SENDER_TEMPLATE, LSP_TUNNEL_IPv4 C-Type = 7 0 1 2 3 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ \| IPv4 tunnel sender address \| +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ \| MUST be zero \| LSP ID \| +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ (S4.6.2, Wire Format) | MUST | 4.6.2 | **positive:** `unit/verify` [`TestRSVPSenderTemplateReservedZeroOnSend`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L371). **negative:** no negative test. **{single-polarity}:** the encoder zeroes the 2-byte reserved field before LSP ID on every SENDER_TEMPLATE, and decodeSenderTemplate never inspects it (internal/plugins/rsvpte/wire.go:270, :275-276) |
 | `RFC3209-4.6.1-2` | \| IPv6 tunnel end point address \| + + \| (16 bytes) \| + + \| \| +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ \| MUST be zero \| Tunnel ID \| (§4.6.1.2) | MUST | 4.6.1.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** no IPv6 SESSION encoder; internal/plugins/rsvpte/wire.go holds only encodeSessionIPv4, which writes the LSP_TUNNEL_IPv4 SESSION (C-Type 7), so Ze emits no LSP_TUNNEL_IPv6 SESSION (C-Type 8) and no test can observe its reserved field; the IPv6 codec is scheduled in plan/spec-rsvpte-ipv6-lsp-tunnel.md; the tag on TestRSVPSessionObjectEncoding, which proves only the IPv4 object, was moved off by owner ruling 2026-10-18 |
 | `RFC3209-4.2-1` | To establish an LSP tunnel the sender creates a Path message with a LABEL_REQUEST object. The LABEL_REQUEST object indicates that a label binding for this path is requested and provides an indication of the network layer protocol that is to be carried over this path. (§4.2.4) | MUST | 4.2.4 | **positive:** `unit/verify` [`TestBuildPathRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_build_test.go#L45). **positive:** `unit/verify` [`TestRFC3209IngressPathCarriesLabelRequest`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L46). **negative:** `unit/verify` [`TestRFC3209IngressPathNeverWithoutLabelRequest`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L55). **negative:** `unit/verify` [`TestRFC3209NoLabelWithoutLabelRequest`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L222) |
-| `RFC3209-4.1-1` | The label for a sender MUST immediately follow the FILTER_SPEC for that sender in the Resv message (S4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestBuildResvRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_build_test.go#L75). **negative:** `unit/verify` [`TestEngineResvWithoutLabelRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_test.go#L463) |
+| `RFC3209-4.1-1` | The label for a sender MUST immediately follow the FILTER_SPEC for that sender in the Resv message (S4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestBuildResvRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_build_test.go#L75). **negative:** `unit/verify` [`TestEngineResvWithoutLabelRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_test.go#L465) |
 | `RFC3209-4.1-2` | Labels MAY be carried in Resv messages (S4.1) | MAY | 4.1 | **positive:** `unit/verify` [`TestRSVPLabelObject`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L300). **negative:** `unit/verify` [`TestRSVPLabelObject`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L301) |
-| `RFC3209-4.3.4-1` | The node determines whether it is topologically adjacent to the abstract node described by the second subobject. If so, the node selects a particular next hop which is a member of the abstract node. The node then deletes the first subobject and continues processing with section 4.3.4.2. (§4.3.4.1) | MUST | 4.3.4.1 | **positive:** `unit/verify` [`TestEngineTransitForwarding`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_test.go#L291). **negative:** `unit/verify` [`TestEngineTransitNoUsableERONextHop`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_test.go#L509). **negative:** `unit/verify` [`TestRFC3209TransitNotAdjacentToSecondSubobject`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L88) |
+| `RFC3209-4.3.4-1` | The node determines whether it is topologically adjacent to the abstract node described by the second subobject. If so, the node selects a particular next hop which is a member of the abstract node. The node then deletes the first subobject and continues processing with section 4.3.4.2. (§4.3.4.1) | MUST | 4.3.4.1 | **positive:** `unit/verify` [`TestEngineTransitForwarding`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_test.go#L293). **negative:** `unit/verify` [`TestEngineTransitNoUsableERONextHop`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_test.go#L511). **negative:** `unit/verify` [`TestRFC3209TransitNotAdjacentToSecondSubobject`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L88) |
 | `RFC3209-4.3.4.1-1` | 1) The node receiving the RSVP message MUST first evaluate the first subobject. (S4.3.4.1) | MUST | 4.3.4.1 | **positive:** `unit/verify` [`TestRFC3209TransitEvaluatesFirstEROSubobject`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_label_test.go#L123). **negative:** `unit/verify` [`TestRFC3209TransitNoFirstEROSubobject`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_label_test.go#L145). **negative:** `unit/verify` [`TestRFC3209TransitRefusesForeignFirstSubobject`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L71) |
 | `RFC3209-2.6-1` | an LSR MUST execute the following algorithm (§2.6) | MUST | 2.6 | **positive:** no positive test. **negative:** no negative test. **{gap}:** labeled forwarding at a transit LSR is Linux MPLS (net/mpls/af_mpls.c) on the label routes Ze installs, no Ze code fragments a labeled datagram, and no evidence shows the kernel path running the Section 2.6 algorithm; Ze programs path MTU (internal/plugins/rsvpte/mtu.go) but nothing shows that a layer executes the labeled-datagram forwarding algorithm |
 | `RFC3209-2.6-2` | (a) the datagram MUST be broken into fragments, each of whose size is no greater than M, and (S2.6) | MUST | 2.6 | **positive:** no positive test. **negative:** no negative test. **{gap}:** labeled forwarding at a transit LSR is Linux MPLS (net/mpls/af_mpls.c) on the label routes Ze installs, no Ze code fragments a labeled datagram, and no evidence shows the kernel path running the Section 2.6 algorithm; Ze programs path MTU (internal/plugins/rsvpte/mtu.go) but nothing shows that a layer breaks an oversized fragmentable labeled datagram into fragments no larger than M |
@@ -255,7 +266,7 @@ Source: [data/rfc/rfc3209.json](../../../data/rfc/rfc3209.json).
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC3209-4.6.1-1`](#rfc3209-4.6.1-1)
 
@@ -284,7 +295,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 Audit verdict: unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-18 (independent auditor, after c85342c940). Section 4.6.1.2 LSP_TUNNEL_IPv6 Session Object, C_Type = 8: the 16 bits before Tunnel ID are "MUST be zero". The row is now {gap} and no test tags it: the wrong tag on TestRSVPSessionObjectEncoding, which proved only the IPv4 object, was moved off by owner ruling. The gap is real: internal/plugins/rsvpte/wire.go defines CTypeLSPTunnelIPv6 = 8 but no non-test code uses it, and encodeSessionIPv4 is the only SESSION encoder, so Ze emits no IPv6 SESSION object whose reserved field could be zero or not. Scheduled in plan/spec-rsvpte-ipv6-lsp-tunnel.md. Recording this gap authorizes no implementation.
 
-No test carries RFC3209-4.6.1-2, so no unit is bound to it.
+No test carries RFC3209-4.6.1-2, so there is no linked test.
 
 ### [`RFC3209-4.2-1`](#rfc3209-4.2-1)
 
@@ -303,18 +314,18 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 The label for a sender MUST immediately follow the FILTER_SPEC for that sender in the Resv message (S4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestEngineResvWithoutLabelRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_test.go#L463) | unit/verify | unproven |
+| negative | [`TestEngineResvWithoutLabelRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_test.go#L465) | unit/verify | unproven |
 | positive | [`TestBuildResvRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_build_test.go#L75) | unit/verify | unproven |
 
 ### [`RFC3209-4.1-2`](#rfc3209-4.1-2)
 
 Labels MAY be carried in Resv messages (S4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -329,9 +340,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Clos
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestEngineTransitNoUsableERONextHop`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_test.go#L509) | unit/verify | revert, verified |
+| negative | [`TestEngineTransitNoUsableERONextHop`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_test.go#L511) | unit/verify | revert, verified |
 | negative | [`TestRFC3209TransitNotAdjacentToSecondSubobject`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L88) | unit/verify | revert, verified |
-| positive | [`TestEngineTransitForwarding`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_test.go#L291) | unit/verify | revert, verified |
+| positive | [`TestEngineTransitForwarding`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_test.go#L293) | unit/verify | revert, verified |
 
 ### [`RFC3209-4.3.4.1-1`](#rfc3209-4.3.4.1-1)
 
@@ -349,41 +360,41 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 an LSR MUST execute the following algorithm (§2.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3209-2.6-1, so no unit is bound to it.
+No test carries RFC3209-2.6-1, so there is no linked test.
 
 ### [`RFC3209-2.6-2`](#rfc3209-2.6-2)
 
 (a) the datagram MUST be broken into fragments, each of whose size is no greater than M, and (S2.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3209-2.6-2, so no unit is bound to it.
+No test carries RFC3209-2.6-2, so there is no linked test.
 
 ### [`RFC3209-2.6-3`](#rfc3209-2.6-3)
 
 (b) each fragment MUST be labeled and then forwarded. (S2.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3209-2.6-3, so no unit is bound to it.
+No test carries RFC3209-2.6-3, so there is no linked test.
 
 ### [`RFC3209-2.6-4`](#rfc3209-2.6-4)
 
 When the size of an IPv4 datagram (without labels) exceeds the value of M, If the DF bit is not set in the IPv4 header, then (a) the datagram MUST be broken into fragments, each of whose size is no greater than M, and (b) each fragment MUST be labeled and then forwarded. If the DF bit is set in the IPv4 header, then (a) the datagram MUST NOT be forwarded (§2.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3209-2.6-4, so no unit is bound to it.
+No test carries RFC3209-2.6-4, so there is no linked test.
 
 ### [`RFC3209-2.6-5`](#rfc3209-2.6-5)
 
 When the size of an IPv6 datagram (without labels) exceeds the value of M, (a) the datagram MUST NOT be forwarded (S2.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3209-2.6-5, so no unit is bound to it.
+No test carries RFC3209-2.6-5, so there is no linked test.
 
 ### [`RFC3209-3-1`](#rfc3209-3-1)
 
@@ -401,7 +412,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 The ordering of these objects is not important, so an implementation MUST be prepared to accept objects in any order (S3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -411,25 +422,25 @@ Audit verdict: not audited: no reader has judged these tests
 
 If a label range has been specified in the label request, the label MUST be drawn from that range (S4.1.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3209-4.1.1.1-1, so no unit is bound to it.
+No test carries RFC3209-4.1.1.1-1, so there is no linked test.
 
 ### [`RFC3209-4.1.1.1-2`](#rfc3209-4.1.1.1-2)
 
 Note that if a node intends to police individual senders to a session, it MUST assign unique labels to those senders. (S4.1.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3209-4.1.1.1-2, so no unit is bound to it.
+No test carries RFC3209-4.1.1.1-2, so there is no linked test.
 
 ### [`RFC3209-4.1.1.1-3`](#rfc3209-4.1.1.1-3)
 
 If for any senders the M-bit is not set, the downstream node MUST assign unique labels to those senders (S4.1.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3209-4.1.1.1-3, so no unit is bound to it.
+No test carries RFC3209-4.1.1.1-3, so there is no linked test.
 
 ### [`RFC3209-4.2.1-1`](#rfc3209-4.2.1-1)
 
@@ -446,47 +457,47 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Clau
 
 This field is reserved. It MUST be set to zero on transmission and MUST be ignored on receipt. (§4.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3209-4.2.2-1, so no unit is bound to it.
+No test carries RFC3209-4.2.2-1, so there is no linked test.
 
 ### [`RFC3209-4.2.2-2`](#rfc3209-4.2.2-2)
 
 If the VPI is less than 12-bits it MUST be right justified in this field and preceding bits MUST be set to zero. (S4.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3209-4.2.2-2, so no unit is bound to it.
+No test carries RFC3209-4.2.2-2, so there is no linked test.
 
 ### [`RFC3209-4.2.2-3`](#rfc3209-4.2.2-3)
 
 If the VCI is less than 16-bits it MUST be right justified in this field and preceding bits MUST be set to zero. (S4.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3209-4.2.2-3, so no unit is bound to it.
+No test carries RFC3209-4.2.2-3, so there is no linked test.
 
 ### [`RFC3209-4.2.3-1`](#rfc3209-4.2.3-1)
 
 This field is reserved. It MUST be set to zero on transmission and ignored on receipt. (§4.2.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3209-4.2.3-1, so no unit is bound to it.
+No test carries RFC3209-4.2.3-1, so there is no linked test.
 
 ### [`RFC3209-4.2.3-2`](#rfc3209-4.2.3-2)
 
 The DLCI MUST be right justified in this field and unused bits MUST be set to 0. (S4.2.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3209-4.2.3-2, so no unit is bound to it.
+No test carries RFC3209-4.2.3-2, so there is no linked test.
 
 ### [`RFC3209-4.2.4-1`](#rfc3209-4.2.4-1)
 
 A receiver that accepts a LABEL_REQUEST object MUST include a LABEL object in Resv messages pertaining to that Path message (S4.2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -496,7 +507,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If a LABEL_REQUEST object was not present in the Path message, a node MUST NOT include a LABEL object in a Resv message for that Path message's session and PHOP (S4.2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -507,7 +518,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 A node that sends a LABEL_REQUEST object MUST be ready to accept and correctly process a LABEL object in the corresponding Resv messages (S4.2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -528,9 +539,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 This means that if a router has a neighbor that is known to not be RSVP capable, the router MUST NOT advertise the LABEL_REQUEST object when sending messages that pass through the non-RSVP routers. (S4.2.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3209-4.2.5-1, so no unit is bound to it.
+No test carries RFC3209-4.2.5-1, so there is no linked test.
 
 ### [`RFC3209-4.3.3-1`](#rfc3209-4.3.3-1)
 
@@ -547,7 +558,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Send
 
 The path between a strict node and its preceding node MUST include only network nodes from the strict node and its preceding abstract node (S4.3.3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -558,7 +569,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Each subobject in this series MUST denote an abstract node that is a subset of the current abstract node. (S4.3.4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -593,7 +604,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 A node MUST NOT push on a Label Record subobject without also pushing on an IPv4 or IPv6 subobject (S4.4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -628,9 +639,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 0 1 2 3 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | | + + | IPv6 tunnel sender address | + + | (16 bytes) | + + | | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | MUST be zero | LSP ID | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ (S4.6.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3209-4.6.2-2, so no unit is bound to it.
+No test carries RFC3209-4.6.2-2, so there is no linked test.
 
 ### [`RFC3209-4.7.3-1`](#rfc3209-4.7.3-1)
 
@@ -647,23 +658,23 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Send
 
 In order to be validated a link MUST pass the three tests below. (S4.7.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3209-4.7.4-1, so no unit is bound to it.
+No test carries RFC3209-4.7.4-1, so there is no linked test.
 
 ### [`RFC3209-4.7.4-2`](#rfc3209-4.7.4-2)
 
 When a node is choosing links in order to extend a loose node of an ERO, the node MUST validate the resource classes of those links against the resource affinities (S4.7.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3209-4.7.4-2, so no unit is bound to it.
+No test carries RFC3209-4.7.4-2, so there is no linked test.
 
 ### [`RFC3209-4.7.4-3`](#rfc3209-4.7.4-3)
 
 All RSVP routers, whether they support the SESSION_ATTRIBUTE object or not, SHALL forward the object unmodified (S4.7.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -674,129 +685,129 @@ Audit verdict: not audited: no reader has judged these tests
 
 This value MUST change when the sender is reset, when the node reboots, or when communication is lost to the neighboring node and otherwise remains the same. (S5.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3209-5.2.2-1, so no unit is bound to it.
+No test carries RFC3209-5.2.2-1, so there is no linked test.
 
 ### [`RFC3209-5.2.2-2`](#rfc3209-5.2.2-2)
 
 This field MUST NOT be set to zero (0). (S5.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3209-5.2.2-2, so no unit is bound to it.
+No test carries RFC3209-5.2.2-2, so there is no linked test.
 
 ### [`RFC3209-5.2.2-3`](#rfc3209-5.2.2-3)
 
 This field MUST be set to zero (0) when no value has ever been seen from the neighbor. (S5.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3209-5.2.2-3, so no unit is bound to it.
+No test carries RFC3209-5.2.2-3, so there is no linked test.
 
 ### [`RFC3209-5.3-1`](#rfc3209-5.3-1)
 
 This value MUST NOT change while the agent is exchanging Hellos with the corresponding neighbor. (S5.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3209-5.3-1, so no unit is bound to it.
+No test carries RFC3209-5.3-1, so there is no linked test.
 
 ### [`RFC3209-5.3-2`](#rfc3209-5.3-2)
 
 On receipt of a message containing a HELLO REQUEST object, the receiver MUST generate a Hello message containing a HELLO ACK object (S5.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3209-5.3-2, so no unit is bound to it.
+No test carries RFC3209-5.3-2, so there is no linked test.
 
 ### [`RFC3209-5.3-3`](#rfc3209-5.3-3)
 
 If the value differs or the Src_Instance field is zero, then the node MUST treat the neighbor as if communication has been lost. (S5.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3209-5.3-3, so no unit is bound to it.
+No test carries RFC3209-5.3-3, so there is no linked test.
 
 ### [`RFC3209-5.3-4`](#rfc3209-5.3-4)
 
 If the neighbor continues to advertise a wrong non-zero value after a configured number of intervals, then the node MUST treat the neighbor as if communication has been lost. (S5.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3209-5.3-4, so no unit is bound to it.
+No test carries RFC3209-5.3-4, so there is no linked test.
 
 ### [`RFC3209-5.3-5`](#rfc3209-5.3-5)
 
 On receipt of a message containing a HELLO ACK object, the receiver MUST verify that the neighbor has not reset (S5.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3209-5.3-5, so no unit is bound to it.
+No test carries RFC3209-5.3-5, so there is no linked test.
 
 ### [`RFC3209-5.3-6`](#rfc3209-5.3-6)
 
 The receiver of a HELLO ACK object MUST also verify that the neighbor is reflecting back the receiver's Instance value (S5.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3209-5.3-6, so no unit is bound to it.
+No test carries RFC3209-5.3-6, so there is no linked test.
 
 ### [`RFC3209-5.3-7`](#rfc3209-5.3-7)
 
 If the neighbor advertises a wrong value in the Dst_Instance field, then a node MUST treat the neighbor as if communication has been lost. (S5.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3209-5.3-7, so no unit is bound to it.
+No test carries RFC3209-5.3-7, so there is no linked test.
 
 ### [`RFC3209-5.3-8`](#rfc3209-5.3-8)
 
 If no Instance values are received, via either REQUEST or ACK objects, from a neighbor within a configured number of hello_intervals, then a node MUST presume that it cannot communicate with the neighbor. (S5.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3209-5.3-8, so no unit is bound to it.
+No test carries RFC3209-5.3-8, so there is no linked test.
 
 ### [`RFC3209-5.3-9`](#rfc3209-5.3-9)
 
 If a node does re-initiate it MUST use a Src_Instance value different than the one advertised in the previous HELLO message. (S5.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3209-5.3-9, so no unit is bound to it.
+No test carries RFC3209-5.3-9, so there is no linked test.
 
 ### [`RFC3209-5.3-10`](#rfc3209-5.3-10)
 
 This new value MUST continue to be advertised to the corresponding neighbor until a reset or reboot occurs, or until another communication failure is detected. (S5.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3209-5.3-10, so no unit is bound to it.
+No test carries RFC3209-5.3-10, so there is no linked test.
 
 ### [`RFC3209-5.3-11`](#rfc3209-5.3-11)
 
 If a new instance value has not been received from the neighbor, then the node MUST advertise zero in the Dst_instance value field. (S5.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3209-5.3-11, so no unit is bound to it.
+No test carries RFC3209-5.3-11, so there is no linked test.
 
 ### [`RFC3209-5.4-1`](#rfc3209-5.4-1)
 
 When the links between neighbors are numbered, then Hellos MUST be run on each link and the previously described mechanisms apply. (S5.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3209-5.4-1, so no unit is bound to it.
+No test carries RFC3209-5.4-1, so there is no linked test.
 
 ### [`RFC3209-5.4-2`](#rfc3209-5.4-2)
 
 When the links are unnumbered, link failure detection MUST be provided by some means other than Hellos (S5.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3209-5.4-2, so no unit is bound to it.
+No test carries RFC3209-5.4-2, so there is no linked test.
 
 ### [`RFC3209-6-1`](#rfc3209-6-1)
 
@@ -822,7 +833,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 | positive | [`TestBuildResvRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_build_test.go#L80) | unit/verify | revert, verified |
 | positive | [`TestRFC3209EgressResvStyleIsSharedExplicit`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L227) | unit/verify | revert, verified |
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -841,95 +852,95 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
-| `front` | not stated | 0 | walked | not stated |
-| `1` | not stated | 0 | walked | not stated |
-| `1.1` | not stated | 0 | walked | not stated |
-| `1.2` | not stated | 0 | walked | not stated |
-| `2` | not stated | 0 | walked | not stated |
-| `2.1` | not stated | 0 | walked | not stated |
-| `2.2` | not stated | 0 | walked | not stated |
-| `2.3` | not stated | 0 | walked | not stated |
-| `2.4` | not stated | 0 | walked | not stated |
-| `2.4.1` | not stated | 0 | walked | not stated |
-| `2.4.2` | not stated | 0 | walked | not stated |
-| `2.4.3` | not stated | 0 | walked | not stated |
-| `2.5` | not stated | 0 | walked | not stated |
-| `2.6` | not stated | 5 | walked | not stated |
-| `3` | not stated | 2 | walked | not stated |
-| `3.1` | not stated | 0 | walked | not stated |
-| `3.2` | not stated | 0 | walked | not stated |
-| `4` | not stated | 0 | walked | not stated |
-| `4.1` | not stated | 1 | walked | not stated |
-| `4.1.1` | not stated | 0 | walked | not stated |
-| `4.1.1.1` | not stated | 3 | walked | not stated |
-| `4.1.1.2` | not stated | 0 | walked | not stated |
-| `4.1.2` | not stated | 0 | walked | not stated |
-| `4.2` | not stated | 0 | walked | not stated |
-| `4.2.1` | not stated | 1 | walked | not stated |
-| `4.2.2` | not stated | 5 | walked | not stated |
-| `4.2.3` | not stated | 3 | walked | not stated |
-| `4.2.4` | not stated | 5 | walked | not stated |
-| `4.2.5` | not stated | 1 | walked | not stated |
-| `4.3` | not stated | 0 | walked | not stated |
-| `4.3.1` | not stated | 0 | walked | not stated |
-| `4.3.2` | not stated | 0 | walked | not stated |
-| `4.3.3` | not stated | 1 | walked | not stated |
-| `4.3.3.1` | not stated | 1 | walked | not stated |
-| `4.3.3.2` | not stated | 0 | walked | not stated |
-| `4.3.3.3` | not stated | 0 | walked | not stated |
-| `4.3.3.4` | not stated | 0 | walked | not stated |
-| `4.3.4` | not stated | 0 | walked | not stated |
-| `4.3.4.1` | not stated | 1 | walked | not stated |
-| `4.3.4.2` | not stated | 1 | walked | not stated |
-| `4.3.5` | not stated | 0 | walked | not stated |
-| `4.3.6` | not stated | 0 | walked | not stated |
-| `4.3.7` | not stated | 0 | walked | not stated |
-| `4.4` | not stated | 0 | walked | not stated |
-| `4.4.1` | not stated | 1 | walked | not stated |
-| `4.4.1.1` | not stated | 0 | walked | not stated |
-| `4.4.1.2` | not stated | 0 | walked | not stated |
-| `4.4.1.3` | not stated | 0 | walked | not stated |
-| `4.4.2` | not stated | 0 | walked | not stated |
-| `4.4.3` | not stated | 4 | walked | not stated |
-| `4.4.4` | not stated | 0 | walked | not stated |
-| `4.4.5` | not stated | 0 | walked | not stated |
-| `4.4.6` | not stated | 0 | walked | not stated |
-| `4.5` | not stated | 0 | walked | not stated |
-| `4.6` | not stated | 0 | walked | not stated |
-| `4.6.1` | not stated | 0 | walked | not stated |
-| `4.6.1.1` | not stated | 1 | walked | not stated |
-| `4.6.1.2` | not stated | 1 | walked | not stated |
-| `4.6.2` | not stated | 0 | walked | not stated |
-| `4.6.2.1` | not stated | 1 | walked | not stated |
-| `4.6.2.2` | not stated | 1 | walked | not stated |
-| `4.6.3` | not stated | 0 | walked | not stated |
-| `4.6.3.1` | not stated | 0 | walked | not stated |
-| `4.6.3.2` | not stated | 0 | walked | not stated |
-| `4.6.4` | not stated | 0 | walked | not stated |
-| `4.7` | not stated | 0 | walked | not stated |
-| `4.7.1` | not stated | 0 | walked | not stated |
-| `4.7.2` | not stated | 0 | walked | not stated |
-| `4.7.3` | not stated | 1 | walked | not stated |
-| `4.7.4` | not stated | 5 | walked | not stated |
-| `5` | not stated | 0 | walked | not stated |
-| `5.1` | not stated | 0 | walked | not stated |
-| `5.2` | not stated | 0 | walked | not stated |
-| `5.2.1` | not stated | 0 | walked | not stated |
-| `5.2.2` | not stated | 3 | walked | not stated |
-| `5.3` | not stated | 13 | walked | not stated |
-| `5.4` | not stated | 2 | walked | not stated |
-| `5.5` | not stated | 0 | walked | not stated |
-| `6` | not stated | 0 | walked | not stated |
-| `7` | not stated | 0 | walked | not stated |
-| `7.1` | not stated | 0 | walked | not stated |
-| `7.2` | not stated | 0 | walked | not stated |
-| `7.3` | not stated | 0 | walked | not stated |
-| `7.4` | not stated | 0 | walked | not stated |
-| `8` | not stated | 0 | walked | not stated |
-| `9` | not stated | 0 | walked | not stated |
-| `10` | not stated | 0 | walked | not stated |
-| `11` | not stated | 0 | walked | not stated |
-| `12` | not stated | 0 | walked | not stated |
+| `front` | not stated | 0 | reviewed | not stated |
+| `1` | not stated | 0 | reviewed | not stated |
+| `1.1` | not stated | 0 | reviewed | not stated |
+| `1.2` | not stated | 0 | reviewed | not stated |
+| `2` | not stated | 0 | reviewed | not stated |
+| `2.1` | not stated | 0 | reviewed | not stated |
+| `2.2` | not stated | 0 | reviewed | not stated |
+| `2.3` | not stated | 0 | reviewed | not stated |
+| `2.4` | not stated | 0 | reviewed | not stated |
+| `2.4.1` | not stated | 0 | reviewed | not stated |
+| `2.4.2` | not stated | 0 | reviewed | not stated |
+| `2.4.3` | not stated | 0 | reviewed | not stated |
+| `2.5` | not stated | 0 | reviewed | not stated |
+| `2.6` | not stated | 5 | reviewed | not stated |
+| `3` | not stated | 2 | reviewed | not stated |
+| `3.1` | not stated | 0 | reviewed | not stated |
+| `3.2` | not stated | 0 | reviewed | not stated |
+| `4` | not stated | 0 | reviewed | not stated |
+| `4.1` | not stated | 1 | reviewed | not stated |
+| `4.1.1` | not stated | 0 | reviewed | not stated |
+| `4.1.1.1` | not stated | 3 | reviewed | not stated |
+| `4.1.1.2` | not stated | 0 | reviewed | not stated |
+| `4.1.2` | not stated | 0 | reviewed | not stated |
+| `4.2` | not stated | 0 | reviewed | not stated |
+| `4.2.1` | not stated | 1 | reviewed | not stated |
+| `4.2.2` | not stated | 5 | reviewed | not stated |
+| `4.2.3` | not stated | 3 | reviewed | not stated |
+| `4.2.4` | not stated | 5 | reviewed | not stated |
+| `4.2.5` | not stated | 1 | reviewed | not stated |
+| `4.3` | not stated | 0 | reviewed | not stated |
+| `4.3.1` | not stated | 0 | reviewed | not stated |
+| `4.3.2` | not stated | 0 | reviewed | not stated |
+| `4.3.3` | not stated | 1 | reviewed | not stated |
+| `4.3.3.1` | not stated | 1 | reviewed | not stated |
+| `4.3.3.2` | not stated | 0 | reviewed | not stated |
+| `4.3.3.3` | not stated | 0 | reviewed | not stated |
+| `4.3.3.4` | not stated | 0 | reviewed | not stated |
+| `4.3.4` | not stated | 0 | reviewed | not stated |
+| `4.3.4.1` | not stated | 1 | reviewed | not stated |
+| `4.3.4.2` | not stated | 1 | reviewed | not stated |
+| `4.3.5` | not stated | 0 | reviewed | not stated |
+| `4.3.6` | not stated | 0 | reviewed | not stated |
+| `4.3.7` | not stated | 0 | reviewed | not stated |
+| `4.4` | not stated | 0 | reviewed | not stated |
+| `4.4.1` | not stated | 1 | reviewed | not stated |
+| `4.4.1.1` | not stated | 0 | reviewed | not stated |
+| `4.4.1.2` | not stated | 0 | reviewed | not stated |
+| `4.4.1.3` | not stated | 0 | reviewed | not stated |
+| `4.4.2` | not stated | 0 | reviewed | not stated |
+| `4.4.3` | not stated | 4 | reviewed | not stated |
+| `4.4.4` | not stated | 0 | reviewed | not stated |
+| `4.4.5` | not stated | 0 | reviewed | not stated |
+| `4.4.6` | not stated | 0 | reviewed | not stated |
+| `4.5` | not stated | 0 | reviewed | not stated |
+| `4.6` | not stated | 0 | reviewed | not stated |
+| `4.6.1` | not stated | 0 | reviewed | not stated |
+| `4.6.1.1` | not stated | 1 | reviewed | not stated |
+| `4.6.1.2` | not stated | 1 | reviewed | not stated |
+| `4.6.2` | not stated | 0 | reviewed | not stated |
+| `4.6.2.1` | not stated | 1 | reviewed | not stated |
+| `4.6.2.2` | not stated | 1 | reviewed | not stated |
+| `4.6.3` | not stated | 0 | reviewed | not stated |
+| `4.6.3.1` | not stated | 0 | reviewed | not stated |
+| `4.6.3.2` | not stated | 0 | reviewed | not stated |
+| `4.6.4` | not stated | 0 | reviewed | not stated |
+| `4.7` | not stated | 0 | reviewed | not stated |
+| `4.7.1` | not stated | 0 | reviewed | not stated |
+| `4.7.2` | not stated | 0 | reviewed | not stated |
+| `4.7.3` | not stated | 1 | reviewed | not stated |
+| `4.7.4` | not stated | 5 | reviewed | not stated |
+| `5` | not stated | 0 | reviewed | not stated |
+| `5.1` | not stated | 0 | reviewed | not stated |
+| `5.2` | not stated | 0 | reviewed | not stated |
+| `5.2.1` | not stated | 0 | reviewed | not stated |
+| `5.2.2` | not stated | 3 | reviewed | not stated |
+| `5.3` | not stated | 13 | reviewed | not stated |
+| `5.4` | not stated | 2 | reviewed | not stated |
+| `5.5` | not stated | 0 | reviewed | not stated |
+| `6` | not stated | 0 | reviewed | not stated |
+| `7` | not stated | 0 | reviewed | not stated |
+| `7.1` | not stated | 0 | reviewed | not stated |
+| `7.2` | not stated | 0 | reviewed | not stated |
+| `7.3` | not stated | 0 | reviewed | not stated |
+| `7.4` | not stated | 0 | reviewed | not stated |
+| `8` | not stated | 0 | reviewed | not stated |
+| `9` | not stated | 0 | reviewed | not stated |
+| `10` | not stated | 0 | reviewed | not stated |
+| `11` | not stated | 0 | reviewed | not stated |
+| `12` | not stated | 0 | reviewed | not stated |
 
 ### Excluded sentences
 

@@ -16,7 +16,7 @@ A new diagnostics subsystem shipped: structured log queries, a component health 
 
 ## 🖥️ Web UI
 
-A new RouterOS-style "workbench" operator UI landed behind a feature flag, with two-level navigation and per-domain dashboards. Embedded services (gokrazy console, L2TP, health) now render inside a portal iframe instead of separate tabs.
+A new RouterOS-style "workbench" operator UI is available through a feature flag, with two-level navigation and dashboards for each area. Embedded services (gokrazy console, L2TP, health) now appear inside the page instead of separate tabs.
 
 ## 🛰️ Routing
 

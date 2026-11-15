@@ -1,6 +1,6 @@
 # RFC 9012 - The BGP Tunnel Encapsulation Attribute
 
-Tunnel Encapsulation attribute. Every requirement this repository extracted from RFC 9012, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+Tunnel Encapsulation attribute. Every requirement listed for RFC 9012, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,24 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 24 | of 76 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 1 | of 76 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 76 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 76 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 76 | 76 of 90 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-
-### Neutral
-
-measures that are neither good news nor bad
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Gated MUSTs | 76 | of 98 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 76 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 1 | of 76 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 76 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 76 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 76 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Tested both ways | 24 | of 76 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 1 | of 76 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 76 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 76 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Tests shown to detect a fault | 76 | 76 of 90 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -35,55 +22,75 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 50 | of 76 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 31 | of 76 gated MUSTs judged | 5 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+| Declared gap or no test | 50 | of 76 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Audit verdicts | 31 | of 76 mandatory requirements reviewed | 5 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
-The 9 counts marked as a part above are the whole of the 76 gated MUSTs: they add up to 76. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Neutral
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+measures that are neither good news nor bad
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Out of scope | 0 | of 76 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 1 | of 76 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 76 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 76 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 76 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+
+### Totals
+
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 76 | of 98 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 76 mandatory requirements: they add up to 76. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | Tunnel Encapsulation attribute |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 98 |
-| Gated MUST-level | 76 |
+| Mandatory requirements (MUST level) | 76 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 50 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 90 |
-| Tagged units | 90 |
+| Tests linked to requirements | 90 |
 | Recorded audit verdicts | 31 |
-| Discrimination records | 76 |
+| Fault test records | 76 |
 | Summary | `rfc/short/rfc9012.md` |
-| Requirement shard | `rfc/requirements/rfc9012.md` |
+| Requirement table | `rfc/requirements/rfc9012.md` |
 | RFC text | `rfc/full/rfc9012.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: The BGP Tunnel Encapsulation Attribute
+Included in automatic checks: The BGP Tunnel Encapsulation Attribute
 
-## What the public ledger says
+## Published support status
 
 **Area:** Tunnel Encapsulation attribute
 
@@ -98,14 +105,14 @@ Enrolled: The BGP Tunnel Encapsulation Attribute
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 24 | one part of the gated population |
-| Annotated (including scoped evidence) | 52 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **76** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 24 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 52 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **76** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (24):** [`RFC9012-3.1-2`](#rfc9012-3.1-2), [`RFC9012-3.1-3`](#rfc9012-3.1-3), [`RFC9012-3.1-4`](#rfc9012-3.1-4), [`RFC9012-3.1-5`](#rfc9012-3.1-5), [`RFC9012-3.1-7`](#rfc9012-3.1-7), [`RFC9012-3.1-8`](#rfc9012-3.1-8), [`RFC9012-3.2.1-2`](#rfc9012-3.2.1-2), [`RFC9012-3.5-3`](#rfc9012-3.5-3), [`RFC9012-4.3-2`](#rfc9012-4.3-2), [`RFC9012-11-9`](#rfc9012-11-9), [`RFC9012-11-10`](#rfc9012-11-10), [`RFC9012-13-1`](#rfc9012-13-1), [`RFC9012-13-2`](#rfc9012-13-2), [`RFC9012-13-3`](#rfc9012-13-3), [`RFC9012-13-5`](#rfc9012-13-5), [`RFC9012-13-8`](#rfc9012-13-8), [`RFC9012-13-9`](#rfc9012-13-9), [`RFC9012-13-11`](#rfc9012-13-11), [`RFC9012-13-12`](#rfc9012-13-12), [`RFC9012-13-13`](#rfc9012-13-13), [`RFC9012-13-14`](#rfc9012-13-14), [`RFC9012-13-15`](#rfc9012-13-15), [`RFC9012-13-18`](#rfc9012-13-18), [`RFC9012-13-19`](#rfc9012-13-19)
 
@@ -113,20 +120,23 @@ Enrolled: The BGP Tunnel Encapsulation Attribute
 
 ## Figures
 
-- **MUST bar**: Ze proven 25, Ze correctness gap 50
-- **Overview bar**: Ze MUST proven 25, SHOULD proven 1, Not owed 1, SHOULD not decided 21, Ze correctness gap 50
+- **MUST bar**: Ze proven 25, Not built 50
+- **Overview bar**: Ze MUST proven 25, SHOULD proven 1, Not owed 1, Not assessed 21, Not built 50
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 76 |
 | MUST rows kept (the MUST bar) | 75 |
 | Ze proven | 25 |
 | OS verified | 0 |
+| Proof pending | 0 |
 | OS testing gap | 0 |
-| Ze correctness gap | 50 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 50 |
 | MUST rows not owed | 1 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -139,11 +149,12 @@ Enrolled: The BGP Tunnel Encapsulation Attribute
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 21 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 21 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc9012.json](../../../data/rfc/rfc9012.json).
 
@@ -308,7 +319,7 @@ Source: [data/rfc/rfc9012.json](../../../data/rfc/rfc9012.json).
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC9012-3.1-2`](#rfc9012-3.1-2)
 
@@ -382,9 +393,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 
 Note that if the forwarding route changes, this procedure MUST be reapplied. (§3.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-3.1.1-3, so no unit is bound to it.
+No test carries RFC9012-3.1.1-3, so there is no linked test.
 
 ### [`RFC9012-3.2.1-1`](#rfc9012-3.2.1-1)
 
@@ -392,7 +403,7 @@ The remaining bits in the 8-bit Flags field are reserved for further use. They M
 
 Audit verdict: unimplemented (no code path enforces the requirement), fresh. Re-judged by an independent judge after the row's annotation moved from {not-applicable} to {gap}. RFC 9012 Sections 3.2.1 and 3.2.2 read 'The remaining bits in the 8-bit Flags field are reserved for further use. They MUST always be set to 0 by the originator of the sub-TLV.' The originator of a Tunnel Encapsulation attribute is a BGP speaker, Ze's declared role, and Ze already originates the attribute for SR Policy. VXLAN and NVGRE encapsulation is an absent feature, not a role Ze does not fill, and no owner decision declines it, so the earlier not-applicable verdict no longer stands and the row is a conformance gap. Ze builds no VXLAN or NVGRE Encapsulation sub-TLV: internal/component/bgp/plugins/nlri/srpolicy/config.go::buildTunnelEncap writes tunnel type 15 with the RFC 9830 sub-TLVs only. An operator can still originate one as a generic attribute 0x17: internal/component/bgp/textparse/rawattr.go::decodeTypedRawAttribute returns the opaque form for a code no keyword names, and attribute 23 has none, so Ze sends whatever Flags octet the operator wrote and nothing zeroes or refuses the reserved bits.
 
-No test carries RFC9012-3.2.1-1, so no unit is bound to it.
+No test carries RFC9012-3.2.1-1, so there is no linked test.
 
 ### [`RFC9012-3.2.1-2`](#rfc9012-3.2.1-2)
 
@@ -411,41 +422,41 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 
 Any receiving routers MUST ignore these bits upon receipt. (§3.2.1, §3.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-3.2.1-3, so no unit is bound to it.
+No test carries RFC9012-3.2.1-3, so there is no linked test.
 
 ### [`RFC9012-3.2.1-4`](#rfc9012-3.2.1-4)
 
 If the V bit is set to 0, the VN-ID field MUST be set to zero on transmission and disregarded on receipt. (§3.2.1, §3.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-3.2.1-4, so no unit is bound to it.
+No test carries RFC9012-3.2.1-4, so there is no linked test.
 
 ### [`RFC9012-3.2.1-5`](#rfc9012-3.2.1-5)
 
 If the M bit is set to 0, this field MUST be set to all zeroes on transmission and disregarded on receipt. (§3.2.1, §3.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-3.2.1-5, so no unit is bound to it.
+No test carries RFC9012-3.2.1-5, so there is no linked test.
 
 ### [`RFC9012-3.2.1-6`](#rfc9012-3.2.1-6)
 
 Reserved: MUST be set to zero on transmission and disregarded on receipt. (§3.2.1, §3.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-3.2.1-6, so no unit is bound to it.
+No test carries RFC9012-3.2.1-6, so there is no linked test.
 
 ### [`RFC9012-3.2.4-1`](#rfc9012-3.2.4-1)
 
 Unless a key value is being advertised, the GRE Encapsulation sub-TLV MUST NOT be present. (§3.2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-3.2.4-1, so no unit is bound to it.
+No test carries RFC9012-3.2.4-1, so there is no linked test.
 
 ### [`RFC9012-3.2.5-1`](#rfc9012-3.2.5-1)
 
@@ -453,71 +464,71 @@ Unless a key value is being advertised, the MPLS-in-GRE Encapsulation sub-TLV MU
 
 Audit verdict: unimplemented (no code path enforces the requirement), fresh. Re-judged by an independent judge after the row's annotation moved from {not-applicable} to {gap}. RFC 9012 Section 3.2.5 reads 'Unless a key value is being advertised, the MPLS-in-GRE Encapsulation sub-TLV MUST NOT be present.' The party that decides whether the sub-TLV is present is the BGP speaker originating the Tunnel Encapsulation attribute, Ze's declared role, and Ze already originates the attribute for SR Policy. MPLS-in-GRE (tunnel type 11) is an absent feature, not a role Ze does not fill, and no owner decision declines it, so the earlier not-applicable verdict no longer stands and the row is a conformance gap. Ze builds no MPLS-in-GRE Encapsulation sub-TLV: internal/component/bgp/plugins/nlri/srpolicy/config.go::buildTunnelEncap writes tunnel type 15 with the RFC 9830 sub-TLVs only. An operator can originate a type 11 Tunnel TLV as a generic attribute 0x17: internal/component/bgp/textparse/rawattr.go::decodeTypedRawAttribute returns the opaque form for a code no keyword names, so an MPLS-in-GRE Encapsulation sub-TLV with no key goes out unrefused.
 
-No test carries RFC9012-3.2.5-1, so no unit is bound to it.
+No test carries RFC9012-3.2.5-1, so there is no linked test.
 
 ### [`RFC9012-3.3-1`](#rfc9012-3.3-1)
 
 If an outer Encapsulation sub-TLV occurs in a TLV for a tunnel type that does not use the corresponding outer encapsulation, the sub-TLV MUST be treated as if it were an unrecognized type of sub-TLV. (§3.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-3.3-1, so no unit is bound to it.
+No test carries RFC9012-3.3-1, so there is no linked test.
 
 ### [`RFC9012-3.3.2-1`](#rfc9012-3.3.2-1)
 
 If the reserved value zero is received, the sub-TLV MUST be treated as malformed, according to the rules of Section 13. (§3.3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-3.3.2-1, so no unit is bound to it.
+No test carries RFC9012-3.3.2-1, so there is no linked test.
 
 ### [`RFC9012-3.4.1-2`](#rfc9012-3.4.1-2)
 
 Packets with other payload types MUST NOT be encapsulated in the relevant tunnel. (§3.4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-3.4.1-2, so no unit is bound to it.
+No test carries RFC9012-3.4.1-2, so there is no linked test.
 
 ### [`RFC9012-3.4.1-3`](#rfc9012-3.4.1-3)
 
 If the reserved value 0xFFFF is received, the sub-TLV MUST be treated as malformed according to the rules of Section 13. (§3.4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-3.4.1-3, so no unit is bound to it.
+No test carries RFC9012-3.4.1-3, so there is no linked test.
 
 ### [`RFC9012-3.4.1-4`](#rfc9012-3.4.1-4)
 
 Also, for "X-in-Y" type tunnels, a Protocol Type sub-TLV specifying anything other than "X" MUST be ignored; this is discussed further in Section 13. (§3.4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-3.4.1-4, so no unit is bound to it.
+No test carries RFC9012-3.4.1-4, so there is no linked test.
 
 ### [`RFC9012-3.4.2-2`](#rfc9012-3.4.2-2)
 
 If the Length field of a Color sub-TLV has a value other than 8, or the first two octets of its Value field are not 0x030b, the sub-TLV MUST be treated as if it were an unrecognized sub-TLV (see Section 13). (§3.4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-3.4.2-2, so no unit is bound to it.
+No test carries RFC9012-3.4.2-2, so there is no linked test.
 
 ### [`RFC9012-3.5-1`](#rfc9012-3.5-1)
 
 If the Tunnel Encapsulation attribute is attached to an UPDATE of a non-labeled address family, then the sub-TLV MUST be disregarded. (§3.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-3.5-1, so no unit is bound to it.
+No test carries RFC9012-3.5-1, so there is no linked test.
 
 ### [`RFC9012-3.5-2`](#rfc9012-3.5-2)
 
 If the sub-TLV is contained in a TLV whose tunnel type does not have a virtual network identifier in its encapsulation header, the sub-TLV MUST be disregarded. (§3.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-3.5-2, so no unit is bound to it.
+No test carries RFC9012-3.5-2, so there is no linked test.
 
 ### [`RFC9012-3.5-3`](#rfc9012-3.5-3)
 
@@ -536,81 +547,81 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 
 If any value other than 1 or 2 is carried, the sub-TLV MUST be considered malformed, according to the procedures of Section 13. (§3.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-3.5-4, so no unit is bound to it.
+No test carries RFC9012-3.5-4, so there is no linked test.
 
 ### [`RFC9012-3.6-1`](#rfc9012-3.6-1)
 
 When this label stack is pushed onto a packet, this ordering MUST be preserved. (§3.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-3.6-1, so no unit is bound to it.
+No test carries RFC9012-3.6-1, so there is no linked test.
 
 ### [`RFC9012-3.6-2`](#rfc9012-3.6-2)
 
 If a packet is to be sent through the tunnel identified in a particular TLV, and if that TLV contains an MPLS Label Stack sub-TLV, then the label stack appearing in the sub-TLV MUST be pushed onto the packet before any other labels are pushed onto the packet. (§3.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-3.6-2, so no unit is bound to it.
+No test carries RFC9012-3.6-2, so there is no linked test.
 
 ### [`RFC9012-3.6-3`](#rfc9012-3.6-3)
 
 In particular, if the Tunnel Encapsulation attribute is attached to a BGP UPDATE of a labeled address family, the contents of the MPLS Label Stack sub-TLV MUST be pushed onto the packet before the label embedded in the NLRI is pushed onto the packet. (§3.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-3.6-3, so no unit is bound to it.
+No test carries RFC9012-3.6-3, so there is no linked test.
 
 ### [`RFC9012-3.6-4`](#rfc9012-3.6-4)
 
 If the MPLS Label Stack sub-TLV is included in a TLV identifying a tunnel type that uses virtual network identifiers (see Section 9), the contents of the MPLS Label Stack sub-TLV MUST be pushed onto the packet before the procedures of Section 9 are applied. (§3.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-3.6-4, so no unit is bound to it.
+No test carries RFC9012-3.6-4, so there is no linked test.
 
 ### [`RFC9012-3.6-5`](#rfc9012-3.6-5)
 
 The number of label stack entries in the sub-TLV MUST be determined from the Sub-TLV Length field. (§3.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-3.6-5, so no unit is bound to it.
+No test carries RFC9012-3.6-5, so there is no linked test.
 
 ### [`RFC9012-3.6-6`](#rfc9012-3.6-6)
 
 When the label stack entries are pushed onto a packet that already has a label stack, the S bits of all the entries being pushed MUST be cleared. (§3.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-3.6-6, so no unit is bound to it.
+No test carries RFC9012-3.6-6, so there is no linked test.
 
 ### [`RFC9012-3.6-7`](#rfc9012-3.6-7)
 
 When the label stack entries are pushed onto a packet that does not already have a label stack, the S bit of the bottommost label stack entry MUST be set (§3.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-3.6-7, so no unit is bound to it.
+No test carries RFC9012-3.6-7, so there is no linked test.
 
 ### [`RFC9012-3.6-8`](#rfc9012-3.6-8)
 
 When the label stack entries are pushed onto a packet that does not already have a label stack, the S bit of the bottommost label stack entry MUST be set, and the S bit of all the other label stack entries MUST be cleared. (§3.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-3.6-8, so no unit is bound to it.
+No test carries RFC9012-3.6-8, so there is no linked test.
 
 ### [`RFC9012-3.6-13`](#rfc9012-3.6-13)
 
 If any label stack entry in the sub-TLV has a TTL value of zero, the router that is pushing the stack onto a packet MUST change the value to a non-zero value, either 255 or some other value as determined by policy as discussed above. (§3.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-3.6-13, so no unit is bound to it.
+No test carries RFC9012-3.6-13, so there is no linked test.
 
 ### [`RFC9012-3.7-2`](#rfc9012-3.7-2)
 
@@ -618,47 +629,47 @@ No test carries RFC9012-3.6-13, so no unit is bound to it.
 
 Audit verdict: unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-24 (independent auditor, authored none of the change). RFC 9012 Section 3.7: "If included in a BGP UPDATE for any other address family, it MUST be ignored." 238bdb62e9 changed the cited checkRouteBestChange: the best change now carries the winner's attribute set as opaque bytes and is published on an attribute-only change. The only consumer of those bytes is BMP Loc-RIB (bmp/bmp_locrib.go); no consumer interprets attribute 23 or its Prefix-SID sub-TLV by family, so the gap stands. Verdict unchanged: unimplemented. Earlier judgement follows. RFC 9012 Section 3.7, rfc/full/rfc9012.txt:1070-1099: "If included in a BGP UPDATE for any other address family, it MUST be ignored." Its subject is the Prefix-SID sub-TLV (type 11) in attribute 23; RFC8669-defined IPv4/IPv6 labeled-unicast behavior supplies the preceding context. No tagged carriers exist for this row. Independently read SubTLVs, tunnelTLVLayout and checkRouteBestChange. The first preserves opaque sub-TLV values, the second checks framing/endpoints but performs no family-conditioned Prefix-SID interpretation, and the election exports NLRI labels or attribute-40 SRv6 metadata rather than attribute-23 tunnel consumption. Targeted FIB/sysrib/RIB searches found no attribute-23 consumer. Opaque signaling is implemented, but is not proof of the absent family-conditioned tunnel consumer. Preserve the unimplemented gap under plan/post-release/features/spec-bgp-tunnel-encapsulation-consumption.md and all three guard keys; do not misclassify the conditional obligation as not-applicable. No checks run.
 
-No test carries RFC9012-3.7-2, so no unit is bound to it.
+No test carries RFC9012-3.7-2, so there is no linked test.
 
 ### [`RFC9012-3.7-3`](#rfc9012-3.7-3)
 
 If an Originator SRGB is specified in the sub-TLV, that SRGB MUST be interpreted to be the SRGB used by the tunnel's egress endpoint. (§3.7)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-3.7-3, so no unit is bound to it.
+No test carries RFC9012-3.7-3, so there is no linked test.
 
 ### [`RFC9012-3.7-4`](#rfc9012-3.7-4)
 
 If a Label-Index is present in the Prefix-SID sub-TLV, then when a packet is sent through the tunnel identified by the TLV, if that tunnel is from a labeled address family, the corresponding MPLS label MUST be pushed on the packet's label stack. (§3.7)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-3.7-4, so no unit is bound to it.
+No test carries RFC9012-3.7-4, so there is no linked test.
 
 ### [`RFC9012-4.1-1`](#rfc9012-4.1-1)
 
 In situations where a tunnel could be encoded using a barebones TLV, it MUST be encoded using the corresponding Encapsulation Extended Community. (§4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-4.1-1, so no unit is bound to it.
+No test carries RFC9012-4.1-1, so there is no linked test.
 
 ### [`RFC9012-4.1-2`](#rfc9012-4.1-2)
 
 Notwithstanding, an implementation MUST be prepared to process a tunnel received encoded as a barebones TLV. (§4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-4.1-2, so no unit is bound to it.
+No test carries RFC9012-4.1-2, so there is no linked test.
 
 ### [`RFC9012-4.1-3`](#rfc9012-4.1-3)
 
 Packets with other payload types MUST NOT be carried through such tunnels. (§4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-4.1-3, so no unit is bound to it.
+No test carries RFC9012-4.1-3, so there is no linked test.
 
 ### [`RFC9012-4.2-1`](#rfc9012-4.2-1)
 
@@ -666,15 +677,15 @@ No test carries RFC9012-4.1-3, so no unit is bound to it.
 
 Audit verdict: unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-24 (independent auditor, authored none of the change). RFC 9012 Section 4.2: "In case of such a conflict, the information in the Router's MAC Extended Community MUST be used." 238bdb62e9 changed the cited checkRouteBestChange to carry the winner's opaque attribute set, consumed only by BMP Loc-RIB; no producer compares the two MAC sources or picks one for encapsulation, so the gap stands. Verdict unchanged: unimplemented. Earlier judgement follows. RFC 9012 Section 4.2, rfc/full/rfc9012.txt:1181-1190: "In case of such a conflict, the information in the Router's MAC Extended Community MUST be used." The preceding sentence describes differing router MAC values in that community and a VXLAN/NVGRE Encapsulation sub-TLV. No tagged carriers exist for this row. Independently read SubTLVs and checkRouteBestChange: opaque values can coexist and conflict, but neither producer compares these MAC sources or chooses the community's MAC for encapsulation. Election exports next hop, metrics, NLRI labels and attribute-40 SRv6 metadata, not an attribute-23-derived encapsulation MAC; scoped FIB/sysrib/RIB search reveals no such consumer. Opaque receipt is implemented, selected-MAC behavior remains absent, and no tagged test verifies it. Retain unimplemented and both guard keys under plan/post-release/features/spec-bgp-tunnel-encapsulation-consumption.md; conflicting legal input is possible, so not-applicable would be unjustified. No checks run.
 
-No test carries RFC9012-4.2-1, so no unit is bound to it.
+No test carries RFC9012-4.2-1, so there is no linked test.
 
 ### [`RFC9012-4.3-1`](#rfc9012-4.3-1)
 
 No flags are defined in this document; this field MUST be set to zero by the originator and ignored by the receiver (§4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-4.3-1, so no unit is bound to it.
+No test carries RFC9012-4.3-1, so there is no linked test.
 
 ### [`RFC9012-4.3-2`](#rfc9012-4.3-2)
 
@@ -693,81 +704,81 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 
 Then router R MUST send packet P through one of the feasible tunnels identified in the Tunnel Encapsulation attribute of UPDATE U. (§6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-6-2, so no unit is bound to it.
+No test carries RFC9012-6-2, so there is no linked test.
 
 ### [`RFC9012-7.1-1`](#rfc9012-7.1-1)
 
 If a route includes the Tunnel Encapsulation attribute, and if that attribute includes no tunnel that is feasible, then that route MUST NOT be considered resolvable for the purposes of the route resolvability condition ([RFC4271], Section 9.1.2.1). (§7.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-7.1-1, so no unit is bound to it.
+No test carries RFC9012-7.1-1, so there is no linked test.
 
 ### [`RFC9012-8-1`](#rfc9012-8-1)
 
 Then packet P MUST be sent through one of the tunnels identified in the Tunnel Encapsulation attribute of UPDATE U2. (§8)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-8-1, so no unit is bound to it.
+No test carries RFC9012-8-1, so there is no linked test.
 
 ### [`RFC9012-8-2`](#rfc9012-8-2)
 
 In that case, packet P MUST NOT be sent through the tunnel contained in that TLV, unless U1 is carrying a Color Extended Community that is identified in one of U2's Color sub-TLVs. (§8)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-8-2, so no unit is bound to it.
+No test carries RFC9012-8-2, so there is no linked test.
 
 ### [`RFC9012-10-1`](#rfc9012-10-1)
 
 Any document specifying such joint use MUST provide details as to how interactions should be handled. (§10)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-10-1, so no unit is bound to it.
+No test carries RFC9012-10-1, so there is no linked test.
 
 ### [`RFC9012-11-1`](#rfc9012-11-1)
 
 However, the Tunnel Encapsulation attribute MUST be used only within a well-defined scope, for example, within a set of ASes that belong to a single administrative entity. (§11)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-11-1, so no unit is bound to it.
+No test carries RFC9012-11-1, so there is no linked test.
 
 ### [`RFC9012-11-2`](#rfc9012-11-2)
 
 To prevent the Tunnel Encapsulation attribute from being distributed beyond its intended scope, any BGP speaker that understands the attribute MUST be able to filter the attribute from incoming BGP UPDATE messages. (§11)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-11-2, so no unit is bound to it.
+No test carries RFC9012-11-2, so there is no linked test.
 
 ### [`RFC9012-11-5`](#rfc9012-11-5)
 
 For each external BGP (EBGP) session, filtering of the attribute on incoming UPDATEs MUST be enabled by default. (§11)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-11-5, so no unit is bound to it.
+No test carries RFC9012-11-5, so there is no linked test.
 
 ### [`RFC9012-11-6`](#rfc9012-11-6)
 
 In addition, any BGP speaker that understands the attribute MUST be able to filter the attribute from outgoing BGP UPDATE messages. (§11)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-11-6, so no unit is bound to it.
+No test carries RFC9012-11-6, so there is no linked test.
 
 ### [`RFC9012-11-8`](#rfc9012-11-8)
 
 For each EBGP session, filtering of the attribute on outgoing UPDATEs MUST be enabled by default (§11)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-11-8, so no unit is bound to it.
+No test carries RFC9012-11-8, so there is no linked test.
 
 ### [`RFC9012-11-9`](#rfc9012-11-9)
 
@@ -795,9 +806,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 * In both cases, this filtering MUST be enabled by default for EBGP sessions. (§11)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-11-11, so no unit is bound to it.
+No test carries RFC9012-11-11, so there is no linked test.
 
 ### [`RFC9012-13-1`](#rfc9012-13-1)
 
@@ -840,9 +851,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 
 Rather, it MUST interpret the attribute as if that TLV had not been present. (§13)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-13-4, so no unit is bound to it.
+No test carries RFC9012-13-4, so there is no linked test.
 
 ### [`RFC9012-13-5`](#rfc9012-13-5)
 
@@ -861,9 +872,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 
 The following sub-TLVs defined in this document MUST NOT occur more than once in a given Tunnel TLV: Tunnel Egress Endpoint (discussed below), Encapsulation, DS, UDP Destination Port, Embedded Label Handling, MPLS Label Stack, and Prefix-SID. (§13)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-13-6, so no unit is bound to it.
+No test carries RFC9012-13-6, so there is no linked test.
 
 ### [`RFC9012-13-8`](#rfc9012-13-8)
 
@@ -979,15 +990,15 @@ A TLV identifying a particular tunnel type may contain a sub-TLV that is meaning
 
 Audit verdict: unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-24 (independent auditor, authored none of the change). RFC 9012 Section 13: "Sub-TLVs of this sort MUST be disregarded." 238bdb62e9 changed the cited checkRouteBestChange to carry the winner's opaque attribute set, consumed only by BMP Loc-RIB; no consumer builds an encapsulation header from attribute 23, so the type-specific disregard rule has no implementation and the gap stands. Verdict unchanged: unimplemented. Earlier judgement follows. RFC 9012 Section 13, rfc/full/rfc9012.txt:1695-1705: "Sub-TLVs of this sort MUST be disregarded." The deciding clarification is also a whole sentence: "That is, they MUST NOT affect the creation of the encapsulation header." The antecedent is a sub-TLV meaningless for the containing tunnel type, such as a UDP port for a non-UDP tunnel or a mismatched Protocol Type. No tagged carriers exist for this row. Independently read checkRouteBestChange and the supporting SubTLVs/tunnelTLVLayout boundaries: opaque signaling and endpoint/framing validation exist, but election exports no attribute-23 encapsulation parameters and no type-specific encapsulation consumer is present in the scoped FIB/sysrib/RIB search. Thus unchanged propagation/non-malformed treatment cannot establish this header-construction disregard rule. Retain unimplemented, the checkRouteBestChange guard and the declared plan/post-release/features/spec-bgp-tunnel-encapsulation-consumption.md boundary. Existing 13-18/-19 and RFC9830 assertions/claims remain untouched and are not credited to 13-16. No checks run.
 
-No test carries RFC9012-13-16, so no unit is bound to it.
+No test carries RFC9012-13-16, so there is no linked test.
 
 ### [`RFC9012-13-17`](#rfc9012-13-17)
 
 That is, they MUST NOT affect the creation of the encapsulation header. (§13)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-13-17, so no unit is bound to it.
+No test carries RFC9012-13-17, so there is no linked test.
 
 ### [`RFC9012-13-18`](#rfc9012-13-18)
 
@@ -1019,17 +1030,17 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 
 If a Tunnel TLV has more than one of any of these sub-TLVs, all but the first occurrence of each such sub-TLV type MUST be disregarded. (§13)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-13-21, so no unit is bound to it.
+No test carries RFC9012-13-21, so there is no linked test.
 
 ### [`RFC9012-15-1`](#rfc9012-15-1)
 
 RFC 8402 specifies that "SR domain boundary routers MUST filter any external traffic" ([RFC8402], Section 8.1). For these purposes, traffic introduced into an SR domain using the Prefix-SID sub-TLV lies within the SR domain, even though the Prefix-SIDs used by the routers at the two ends of the tunnel may be different, as discussed in Section 3.7. This implies that the duty to filter external traffic extends to all routers participating in such tunnels. (§15)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9012-15-1, so no unit is bound to it.
+No test carries RFC9012-15-1, so there is no linked test.
 
 ### [`RFC9012-11-7`](#rfc9012-11-7)
 
@@ -1042,7 +1053,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 | negative | [`TestRFC9012TunnelFilterDoesNotAffectOtherSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_session_filter_test.go#L50) | unit/verify | revert, verified |
 | positive | [`TestRFC9012TunnelFilterSelectedSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_session_filter_test.go#L37) | unit/verify | revert, verified |
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -1061,70 +1072,70 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
-| `front` | not stated | 0 | walked | not stated |
-| `1` | not stated | 0 | walked | not stated |
-| `1.1` | not stated | 0 | walked | not stated |
-| `1.2` | not stated | 0 | walked | not stated |
-| `1.3` | not stated | 0 | walked | not stated |
-| `1.4` | not stated | 0 | walked | not stated |
-| `1.5` | not stated | 0 | walked | not stated |
-| `1.6` | not stated | 0 | walked | not stated |
-| `2` | not stated | 0 | walked | not stated |
-| `3` | not stated | 0 | walked | not stated |
-| `3.1` | not stated | 5 | walked | not stated |
-| `3.1.1` | not stated | 1 | walked | not stated |
-| `3.2` | not stated | 0 | walked | not stated |
-| `3.2.1` | not stated | 6 | walked | not stated |
-| `3.2.2` | not stated | 6 | walked | not stated |
-| `3.2.3` | not stated | 0 | walked | not stated |
-| `3.2.4` | not stated | 1 | walked | not stated |
-| `3.2.5` | not stated | 1 | walked | not stated |
-| `3.3` | not stated | 1 | walked | not stated |
-| `3.3.1` | not stated | 0 | walked | not stated |
-| `3.3.2` | not stated | 1 | walked | not stated |
-| `3.4` | not stated | 0 | walked | not stated |
-| `3.4.1` | not stated | 3 | walked | not stated |
-| `3.4.2` | not stated | 1 | walked | not stated |
-| `3.5` | not stated | 4 | walked | not stated |
-| `3.6` | not stated | 8 | walked | not stated |
-| `3.7` | not stated | 3 | walked | not stated |
-| `4` | not stated | 0 | walked | not stated |
-| `4.1` | not stated | 3 | walked | not stated |
-| `4.2` | not stated | 1 | walked | not stated |
-| `4.3` | not stated | 1 | walked | not stated |
-| `5` | not stated | 0 | walked | not stated |
-| `6` | not stated | 1 | walked | not stated |
-| `7` | not stated | 0 | walked | not stated |
-| `7.1` | not stated | 1 | walked | not stated |
-| `7.2` | not stated | 0 | walked | not stated |
-| `8` | not stated | 2 | walked | not stated |
-| `9` | not stated | 0 | walked | not stated |
-| `9.1` | not stated | 0 | walked | not stated |
-| `9.2` | not stated | 0 | walked | not stated |
-| `9.2.1` | not stated | 0 | walked | not stated |
-| `9.2.2` | not stated | 0 | walked | not stated |
-| `9.2.2.1` | not stated | 0 | walked | not stated |
-| `9.2.2.2` | not stated | 0 | walked | not stated |
-| `10` | not stated | 1 | walked | not stated |
-| `11` | not stated | 8 | walked | not stated |
-| `12` | not stated | 0 | walked | not stated |
-| `13` | not stated | 16 | walked | not stated |
-| `14` | not stated | 0 | walked | not stated |
-| `14.1` | not stated | 0 | walked | not stated |
-| `14.2` | not stated | 0 | walked | not stated |
-| `14.3` | not stated | 0 | walked | not stated |
-| `14.4` | not stated | 0 | walked | not stated |
-| `14.5` | not stated | 0 | walked | not stated |
-| `14.6` | not stated | 0 | walked | not stated |
-| `14.7` | not stated | 0 | walked | not stated |
-| `14.8` | not stated | 0 | walked | not stated |
-| `14.9` | not stated | 0 | walked | not stated |
-| `14.10` | not stated | 0 | walked | not stated |
-| `15` | not stated | 1 | walked | not stated |
-| `16` | not stated | 0 | walked | not stated |
-| `16.1` | not stated | 0 | walked | not stated |
-| `16.2` | not stated | 0 | walked | not stated |
-| `A` | not stated | 0 | walked | not stated |
+| `front` | not stated | 0 | reviewed | not stated |
+| `1` | not stated | 0 | reviewed | not stated |
+| `1.1` | not stated | 0 | reviewed | not stated |
+| `1.2` | not stated | 0 | reviewed | not stated |
+| `1.3` | not stated | 0 | reviewed | not stated |
+| `1.4` | not stated | 0 | reviewed | not stated |
+| `1.5` | not stated | 0 | reviewed | not stated |
+| `1.6` | not stated | 0 | reviewed | not stated |
+| `2` | not stated | 0 | reviewed | not stated |
+| `3` | not stated | 0 | reviewed | not stated |
+| `3.1` | not stated | 5 | reviewed | not stated |
+| `3.1.1` | not stated | 1 | reviewed | not stated |
+| `3.2` | not stated | 0 | reviewed | not stated |
+| `3.2.1` | not stated | 6 | reviewed | not stated |
+| `3.2.2` | not stated | 6 | reviewed | not stated |
+| `3.2.3` | not stated | 0 | reviewed | not stated |
+| `3.2.4` | not stated | 1 | reviewed | not stated |
+| `3.2.5` | not stated | 1 | reviewed | not stated |
+| `3.3` | not stated | 1 | reviewed | not stated |
+| `3.3.1` | not stated | 0 | reviewed | not stated |
+| `3.3.2` | not stated | 1 | reviewed | not stated |
+| `3.4` | not stated | 0 | reviewed | not stated |
+| `3.4.1` | not stated | 3 | reviewed | not stated |
+| `3.4.2` | not stated | 1 | reviewed | not stated |
+| `3.5` | not stated | 4 | reviewed | not stated |
+| `3.6` | not stated | 8 | reviewed | not stated |
+| `3.7` | not stated | 3 | reviewed | not stated |
+| `4` | not stated | 0 | reviewed | not stated |
+| `4.1` | not stated | 3 | reviewed | not stated |
+| `4.2` | not stated | 1 | reviewed | not stated |
+| `4.3` | not stated | 1 | reviewed | not stated |
+| `5` | not stated | 0 | reviewed | not stated |
+| `6` | not stated | 1 | reviewed | not stated |
+| `7` | not stated | 0 | reviewed | not stated |
+| `7.1` | not stated | 1 | reviewed | not stated |
+| `7.2` | not stated | 0 | reviewed | not stated |
+| `8` | not stated | 2 | reviewed | not stated |
+| `9` | not stated | 0 | reviewed | not stated |
+| `9.1` | not stated | 0 | reviewed | not stated |
+| `9.2` | not stated | 0 | reviewed | not stated |
+| `9.2.1` | not stated | 0 | reviewed | not stated |
+| `9.2.2` | not stated | 0 | reviewed | not stated |
+| `9.2.2.1` | not stated | 0 | reviewed | not stated |
+| `9.2.2.2` | not stated | 0 | reviewed | not stated |
+| `10` | not stated | 1 | reviewed | not stated |
+| `11` | not stated | 8 | reviewed | not stated |
+| `12` | not stated | 0 | reviewed | not stated |
+| `13` | not stated | 16 | reviewed | not stated |
+| `14` | not stated | 0 | reviewed | not stated |
+| `14.1` | not stated | 0 | reviewed | not stated |
+| `14.2` | not stated | 0 | reviewed | not stated |
+| `14.3` | not stated | 0 | reviewed | not stated |
+| `14.4` | not stated | 0 | reviewed | not stated |
+| `14.5` | not stated | 0 | reviewed | not stated |
+| `14.6` | not stated | 0 | reviewed | not stated |
+| `14.7` | not stated | 0 | reviewed | not stated |
+| `14.8` | not stated | 0 | reviewed | not stated |
+| `14.9` | not stated | 0 | reviewed | not stated |
+| `14.10` | not stated | 0 | reviewed | not stated |
+| `15` | not stated | 1 | reviewed | not stated |
+| `16` | not stated | 0 | reviewed | not stated |
+| `16.1` | not stated | 0 | reviewed | not stated |
+| `16.2` | not stated | 0 | reviewed | not stated |
+| `A` | not stated | 0 | reviewed | not stated |
 
 ### Excluded sentences
 

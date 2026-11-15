@@ -4,18 +4,18 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
-        <title>RFC 1350 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 1350: The TFTP Protocol (Revision 2). 10 gated MUST-level requirements, 2 declared gaps (0 demonstrated by a test), 0 with no test." />
-        <meta property="og:title" content="RFC 1350 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 1350: The TFTP Protocol (Revision 2). 10 gated MUST-level requirements, 2 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <title>RFC 1350 requirements and tests - Ze</title>
+        <meta name="description" content="RFC 1350: The TFTP Protocol (Revision 2). 11 mandatory requirements included in automatic checks, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:title" content="RFC 1350 requirements and tests - Ze" />
+        <meta property="og:description" content="RFC 1350: The TFTP Protocol (Revision 2). 11 mandatory requirements included in automatic checks, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="RFC 1350 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 1350: The TFTP Protocol (Revision 2). 10 gated MUST-level requirements, 2 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:title" content="RFC 1350 requirements and tests - Ze" />
+        <meta name="twitter:description" content="RFC 1350: The TFTP Protocol (Revision 2). 11 mandatory requirements included in automatic checks, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -47,7 +47,7 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">TFTP</span>
     <h1 id="rfc-detail-title">RFC 1350 - The TFTP Protocol (Revision 2)</h1>
-    <p>Every requirement this repository extracted from RFC 1350, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
+    <p>Every requirement listed for RFC 1350, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.</p>
 </div>
 <style>
 .rfc-table-wrap { overflow-x: auto; }
@@ -57,16 +57,25 @@
 .rfc-verdict p:last-child { margin-bottom: 0; }
 .rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
-.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
-.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: block; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
 .rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
-.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
-.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-card b { display: block; margin: 0; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: .5rem 0 0; color: var(--muted); font-size: .92rem; line-height: 1.6; }
+.rfc-card.rfc-total-card { grid-column: 1 / -1; display: grid; grid-template-columns: 15rem minmax(0, 1fr); column-gap: 1.5rem; align-items: start; }
+.rfc-card.rfc-total-card span, .rfc-card.rfc-total-card strong, .rfc-card.rfc-total-card b { grid-column: 1; }
+.rfc-card.rfc-total-card p { grid-column: 2; grid-row: 1 / span 3; margin: 0; }
+@media (max-width: 760px) {
+  .rfc-card-grid { grid-template-columns: minmax(0, 1fr); }
+  .rfc-card.rfc-total-card { display: block; }
+  .rfc-card.rfc-total-card p { margin: .5rem 0 0; }
+}
 .rfc-ok { border-left: 7px solid var(--green); }
 .rfc-neutral { border-left: 7px solid var(--line-strong); }
 .rfc-warn { border-left: 7px solid var(--amber); }
 .rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-card.rfc-total-card { background: var(--bg-soft); border: 1px solid var(--line-strong); box-shadow: none; }
 .rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
 .rfc-tape span { width: var(--w); min-width: 0; display: block; }
 .rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
@@ -87,6 +96,7 @@
 .rfc-swatch.rfc-neutral { background: var(--line-strong); }
 .rfc-swatch.rfc-warn { background: var(--amber); }
 .rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-swatch.rfc-total-card { background: var(--bg-soft); }
 .rfc-total td { border-top: 2px solid var(--line-strong); }
 .rfc-prose { max-width: 46rem; }
 ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
@@ -118,39 +128,38 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>6</strong><b>of 10 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>2</strong><b>of 10 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 10 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 10 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>33</strong><b>33 of 33 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
-<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>10</strong><b>of 10 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
-</div>
-<h3>Neutral</h3>
-<p>measures that are neither good news nor bad</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>10</strong><b>of 14 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 10 gated MUSTs</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 10 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 10 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 10 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 10 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>6</strong><b>of 11 mandatory requirements</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>2</strong><b>of 11 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 11 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 11 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>33</strong><b>33 of 33 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>2</strong><b>of 10 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Declared gap or no test</span><strong>3</strong><b>of 11 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
 </div>
-<p>The 9 counts marked as a part above are the whole of the 10 gated MUSTs: they add up to 10. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.</p>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 11 mandatory requirements</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 11 mandatory requirements</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 11 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 11 mandatory requirements</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 11 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit</p></article>
+</div>
+<h3>Totals</h3>
+<p>what the cards above are counted against</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-total-card"><span>Mandatory requirements (MUST level)</span><strong>11</strong><b>of 15 requirements this summary lists, at all levels</b><p>The RFC&#39;s MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements.</p></article>
+</div>
+<p>The 9 counts marked as a part above are the whole of the 11 mandatory requirements: they add up to 11. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
-<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
 <tbody>
-<tr><td>Gated MUSTs</td>
-<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
-</tr>
 <tr><td>Out of scope</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
 <td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
@@ -171,9 +180,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
-<tr><td>No test at all</td>
+<tr><td>Declared gap or no test</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
-<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+<td>green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
@@ -191,13 +200,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
 <td>neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption</td>
 </tr>
-<tr><td>Proven by a recorded break</td>
+<tr><td>Tests shown to detect a fault</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above</td>
+<td>green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current</td>
+</tr>
+<tr><td>Mandatory requirements (MUST level)</td>
+<td><span class="rfc-swatch rfc-total-card"></span> outlined</td>
+<td>outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad</td>
 </tr>
 </tbody>
 </table>
@@ -212,25 +225,25 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Public row</td>
 <td>TFTP</td>
 </tr>
-<tr><td>Enrolment</td>
-<td>Enrolled</td>
+<tr><td>Automatic checks</td>
+<td>Included</td>
 </tr>
 <tr><td>Requirements</td>
-<td>14</td>
+<td>15</td>
 </tr>
-<tr><td>Gated MUST-level</td>
-<td>10</td>
+<tr><td>Mandatory requirements (MUST level)</td>
+<td>11</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>2</td>
+<td>3</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
 </tr>
-<tr><td>Gated with no test</td>
+<tr><td>Mandatory requirements with no test and no annotation</td>
 <td>0</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
@@ -239,19 +252,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Test tags</td>
 <td>33</td>
 </tr>
-<tr><td>Tagged units</td>
+<tr><td>Tests linked to requirements</td>
 <td>33</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>10</td>
 </tr>
-<tr><td>Discrimination records</td>
+<tr><td>Fault test records</td>
 <td>33</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc1350.md</code></td>
 </tr>
-<tr><td>Requirement shard</td>
+<tr><td>Requirement table</td>
 <td><code>rfc/requirements/rfc1350.md</code></td>
 </tr>
 <tr><td>RFC text</td>
@@ -261,14 +274,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 </section>
-<section><h2>Enrolment</h2>
-<p>Enrolled: The TFTP Protocol (revision 2), base TFTP read-only server: ten MUST-level requirements. Eight are met -- 2-1 (512-octet blocks with a short block ending the transfer) and 4-1 (block numbers start at 1 and increment) are {single-polarity: positive} since ze is the DATA sender with no reject path; 4-3 (a fresh transfer TID distinct from port 69) and 5-3 (an exact-multiple file ends with a zero-length DATA block) are proven on the server&#39;s side positively and on the client&#39;s side both ways; 2-2 (lockstep, advance only after ACK), 2-3 (a duplicate ACK triggers no DATA, the Sorcerer&#39;s Apprentice fix in sendAndWaitACK), 6-1 (retransmit the last DATA until it is acknowledged) and 7-1 (the ACK timeout ends the transfer of a gone peer) carry positive+negative tags. 5-1 (netascii translation on received data) and 4-2 (WRQ acknowledged with an ACK for block 0) are gaps: ze is a read-only server that rejects WRQ and accepts only octet mode, and no owner decision declines either. On 2026-10-31 Thomas put TFTP uploads (write requests) in scope for Ze&#39;s TFTP server, so both are owed work, owned by plan/post-release/features/spec-tftp-server-uploads.md, which also re-walks extraction site 5:2 (excluded because Ze never received a file). Ze&#39;s TFTP client (the tftp scheme of ze init --from, internal/core/fetch/tftp.go) meets the SHOULDs 4-4 (DATA from another TID draws ERROR 5 and is not written, TestRFC1350ClientRefusesStrangerTID) and 6-2 (it dallies and acknowledges a resent final block, TestRFC1350ClientDallies). The client also carries the receiver&#39;s side of 4-3 (it keeps its own TID and sends nothing more to the request port, TestRFC1350ClientKeepsItsTID), 5-3 (a DATA of 0 to 511 octets ends the transfer and a 512-octet one does not, TestRFC1350ClientDataLengthEndsTheTransfer), 7-1 (a lost request is sent again after a timeout and a silent server is an error, TestRFC1350ClientTimeouts) and 2-3 (every DATA is acknowledged, an ERROR is not), so 4-3 and 5-3 carry both polarities.</p>
+<section><h2>Automatic checks</h2>
+<p>Included in automatic checks: The TFTP Protocol (revision 2), base TFTP read-only server: eleven MUST-level requirements. Eight are met -- 2-1 (512-octet blocks with a short block ending the transfer) and 4-1 (block numbers start at 1 and increment) are {single-polarity: positive} since ze is the DATA sender with no reject path; 4-3 (a fresh transfer TID distinct from port 69) and 5-3 (an exact-multiple file ends with a zero-length DATA block) are proven on the server&#39;s side positively and on the client&#39;s side both ways; 2-2 (lockstep, advance only after ACK), 2-3 (a duplicate ACK triggers no DATA, the Sorcerer&#39;s Apprentice fix in windowSender.awaitACK, internal/plugins/tftpserver/window_send.go), 6-1 (retransmit the last DATA until it is acknowledged) and 7-1 (the ACK timeout ends the transfer of a gone peer) carry positive+negative tags. 5-1 (netascii translation on received data), 4-2 (WRQ acknowledged with an ACK for block 0) and 5-5 (a received octet file returned identical, extraction site 5:2) are gaps: ze is a read-only server that rejects WRQ and accepts only octet mode, and no owner decision declines either. On 2026-10-31 Thomas put TFTP uploads (write requests) in scope for Ze&#39;s TFTP server, so all three are owed work, owned by plan/post-release/features/spec-tftp-server-uploads.md. 5-5 restates the obligation of the retired 5-2 under a fresh ordinal, because that retirement was wrong (rfc/corrections/rfc1350.md, 2026-11-14). Ze&#39;s TFTP client (the tftp scheme of ze init --from, internal/core/fetch/tftp.go) meets the SHOULDs 4-4 (DATA from another TID draws ERROR 5 and is not written, TestRFC1350ClientRefusesStrangerTID) and 6-2 (it dallies and acknowledges a resent final block, TestRFC1350ClientDallies). The client also carries the receiver&#39;s side of 4-3 (it keeps its own TID and sends nothing more to the request port, TestRFC1350ClientKeepsItsTID), 5-3 (a DATA of 0 to 511 octets ends the transfer and a 512-octet one does not, TestRFC1350ClientDataLengthEndsTheTransfer), 7-1 (a lost request is sent again after a timeout and a silent server is an error, TestRFC1350ClientTimeouts) and 2-3 (every DATA is acknowledged, an ERROR is not), so 4-3 and 5-3 carry both polarities.</p>
 </section>
-<section><h2>What the public ledger says</h2>
+<section><h2>Published support status</h2>
 <p><strong>Area:</strong> TFTP</p>
-<p><strong>Proof:</strong> 8 of 10 MUST proven</p>
+<p><strong>Proof:</strong> 8 of 11 MUST proven</p>
 <p><strong>Evidence:</strong> unit 8</p>
-<p><strong>Unmet:</strong> RFC1350-4-2, RFC1350-5-1</p>
+<p><strong>Unmet:</strong> RFC1350-4-2, RFC1350-5-1, RFC1350-5-5</p>
 
 </section>
 <section><h2>Coverage</h2>
@@ -278,44 +291,44 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td>Positive and negative tests</td>
 <td><strong>6</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
-<td><strong>4</strong></td>
-<td>one part of the gated population</td>
+<td><strong>5</strong></td>
+<td>one part of the mandatory requirements</td>
 </tr>
-<tr><td>One polarity only</td>
+<tr><td>Only a positive or negative test</td>
 <td><strong>0</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
 <td><strong>0</strong></td>
-<td>an overlay: each of these is also counted by the part it falls in</td>
+<td>also counted in one of the groups above</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
-<td>an overlay: each of these is also counted by the part it falls in</td>
+<td>also counted in one of the groups above</td>
 </tr>
 <tr><td>Derived from other rows</td>
 <td><strong>0</strong></td>
-<td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
+<td>excluded from the total: each summarizes the status of other requirements, which are already counted above</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>10</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Mandatory requirements (MUST level)</strong></td><td><strong>11</strong></td><td>every mandatory requirement appears in exactly one group above</td></tr>
 </tbody>
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (6):</strong> <a href="#rfc1350-2-2"><code>RFC1350-2-2</code></a>, <a href="#rfc1350-6-1"><code>RFC1350-6-1</code></a>, <a href="#rfc1350-4-3"><code>RFC1350-4-3</code></a>, <a href="#rfc1350-7-1"><code>RFC1350-7-1</code></a>, <a href="#rfc1350-2-3"><code>RFC1350-2-3</code></a>, <a href="#rfc1350-5-3"><code>RFC1350-5-3</code></a></p>
-<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (4):</strong> <a href="#rfc1350-2-1"><code>RFC1350-2-1</code></a>, <a href="#rfc1350-5-1"><code>RFC1350-5-1</code></a>, <a href="#rfc1350-4-1"><code>RFC1350-4-1</code></a>, <a href="#rfc1350-4-2"><code>RFC1350-4-2</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (5):</strong> <a href="#rfc1350-2-1"><code>RFC1350-2-1</code></a>, <a href="#rfc1350-5-1"><code>RFC1350-5-1</code></a>, <a href="#rfc1350-4-1"><code>RFC1350-4-1</code></a>, <a href="#rfc1350-4-2"><code>RFC1350-4-2</code></a>, <a href="#rfc1350-5-5"><code>RFC1350-5-5</code></a></p>
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc1350:must">Ze proven 8, Ze correctness gap 2</div>
+<div data-ze-rfc-bar="rfc1350:must">Ze proven 8, Not built 3</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc1350:overview">Ze MUST proven 8, SHOULD proven 2, SHOULD not decided 2, Ze correctness gap 2</div>
+<div data-ze-rfc-bar="rfc1350:overview">Ze MUST proven 8, SHOULD proven 2, Not assessed 2, Not built 3</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -323,17 +336,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>RFCs</td>
 <td><span data-ze-rfc="rfc1350:rfcs">1</span></td>
 </tr>
-<tr><td>Not walked</td>
+<tr><td>Requirements not reviewed</td>
 <td><span data-ze-rfc="rfc1350:not-walked">0</span></td>
 </tr>
-<tr><td>Mandatory register</td>
+<tr><td>Mandatory requirements complete</td>
 <td><span data-ze-rfc="rfc1350:register">not complete</span></td>
 </tr>
 <tr><td>MUST rows</td>
-<td><span data-ze-rfc="rfc1350:must.total">10</span></td>
+<td><span data-ze-rfc="rfc1350:must.total">11</span></td>
 </tr>
 <tr><td>MUST rows kept (the MUST bar)</td>
-<td><span data-ze-rfc="rfc1350:must.kept">10</span></td>
+<td><span data-ze-rfc="rfc1350:must.kept">11</span></td>
 </tr>
 <tr><td>Ze proven</td>
 <td><span data-ze-rfc="rfc1350:must.ze-proven">8</span></td>
@@ -341,11 +354,20 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc1350:must.os-verified">0</span></td>
 </tr>
+<tr><td>Proof pending</td>
+<td><span data-ze-rfc="rfc1350:must.proof-pending">0</span></td>
+</tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc1350:must.os-gap">0</span></td>
 </tr>
-<tr><td>Ze correctness gap</td>
-<td><span data-ze-rfc="rfc1350:must.ze-gap">2</span></td>
+<tr><td>Exclusion unchecked</td>
+<td><span data-ze-rfc="rfc1350:must.exclusion-unchecked">0</span></td>
+</tr>
+<tr><td>Not assessed</td>
+<td><span data-ze-rfc="rfc1350:must.not-assessed">0</span></td>
+</tr>
+<tr><td>Not built</td>
+<td><span data-ze-rfc="rfc1350:must.not-built">3</span></td>
 </tr>
 <tr><td>MUST rows not owed</td>
 <td><span data-ze-rfc="rfc1350:must.not-owed">0</span></td>
@@ -383,19 +405,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD not owed: not-applicable</td>
 <td><span data-ze-rfc="rfc1350:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
-<tr><td>SHOULD not ever</td>
-<td><span data-ze-rfc="rfc1350:should.not-ever">0</span></td>
+<tr><td>SHOULD proof pending</td>
+<td><span data-ze-rfc="rfc1350:should.proof-pending">0</span></td>
 </tr>
-<tr><td>SHOULD not yet</td>
-<td><span data-ze-rfc="rfc1350:should.not-yet">0</span></td>
+<tr><td>SHOULD exclusion unchecked</td>
+<td><span data-ze-rfc="rfc1350:should.exclusion-unchecked">0</span></td>
 </tr>
-<tr><td>SHOULD not decided</td>
-<td><span data-ze-rfc="rfc1350:should.not-decided">2</span></td>
+<tr><td>SHOULD not assessed</td>
+<td><span data-ze-rfc="rfc1350:should.not-assessed">2</span></td>
+</tr>
+<tr><td>SHOULD not built</td>
+<td><span data-ze-rfc="rfc1350:should.not-built">0</span></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.</p>
+<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
 
 </section>
 <section><h2>Requirements</h2>
@@ -508,6 +533,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/fetch/rfc1350_client_test.go#L325" title="internal/core/fetch/rfc1350_client_test.go" target="_blank" rel="noopener"><code>TestRFC1350ClientDataLengthEndsTheTransfer</code></a></span></div>
 </div></td>
 </tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1350-5-5">RFC1350-5-5</code></td><td colspan="3"><span class="rfc-subject">If a host receives a octet file and then returns it, the returned file must be identical to the original. (§5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5 - TFTP Packets</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1350-5-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze&#39;s TFTP server receives no file and no owner decision declines uploads: internal/plugins/tftpserver/handler.go::serveRequests answers every WRQ with an Illegal Operation error (write not supported), so the server never holds a received octet file to return, and the client internal/core/fetch/tftp.go::tftpGet only reads; TFTP uploads are in scope (ai/META-DECISIONS.md) and owed by plan/post-release/features/spec-tftp-server-uploads.md</p></td>
+</tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1350-4-4">RFC1350-4-4</code></td><td colspan="3"><span class="rfc-subject">If a source TID does not match, the packet should be discarded as erroneously sent from somewhere else. An error packet should be sent to the source of the incorrect packet, while not disturbing the transfer. (§4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
@@ -561,12 +595,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>{gap}, no test</td>
 <td>ze serves no write request and no owner decision declines writes: internal/plugins/tftpserver/handler.go answers every WRQ with an Illegal Operation error (write not supported), so no WRQ is acknowledged with block 0</td>
 </tr>
+<tr><td><a href="#rfc1350-5-5"><code>RFC1350-5-5</code></a> If a host receives a octet file and then returns it, the returned file must be identical to the original. (§5)</td>
+<td>{gap}, no test</td>
+<td>ze&#39;s TFTP server receives no file and no owner decision declines uploads: internal/plugins/tftpserver/handler.go::serveRequests answers every WRQ with an Illegal Operation error (write not supported), so the server never holds a received octet file to return, and the client internal/core/fetch/tftp.go::tftpGet only reads; TFTP uploads are in scope (ai/META-DECISIONS.md) and owed by plan/post-release/features/spec-tftp-server-uploads.md</td>
+</tr>
 </tbody>
 </table>
 </div>
 </section>
 <section><h2>Proof state</h2>
-<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<p>A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.</p>
 <h3><a href="#rfc1350-2-1"><code>RFC1350-2-1</code></a></h3>
 <p>the file is sent in fixed length blocks of 512 bytes (§2)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-31 by an independent auditor after the TFTP windowsize/timeout change: the tagged handler_test units changed only in their claim comments (producer references moved from handler.go line numbers to serveFile, windowSender.sendWindow, readBlock and awaitACK in window_send.go); every assertion is byte-identical. A request with no option is now served by the window sender at windowsize 1, which sends one block and waits in awaitACK, so the unchanged assertions still bind the same producer behaviour. TestTFTPReadExact512 requires block 1 of a 512-byte file to carry exactly 512 bytes and the transfer to continue; TestTFTPReadLargeFile requires three blocks 512,512,476 for 1500 bytes. Sender-only row; single-polarity marker holds.</p>
@@ -644,8 +682,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc1350-5-1"><code>RFC1350-5-1</code></a></h3>
 <p>A host which receives netascii mode data must translate the data to its own format. (Section 5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC1350-5-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC1350-5-1, so there is no linked test.</p>
 <h3><a href="#rfc1350-4-1"><code>RFC1350-4-1</code></a></h3>
 <p>block numbers are consecutive and begin with one (§4)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-31 by an independent auditor after the TFTP windowsize/timeout change: the tagged handler_test units changed only in their claim comments (producer references moved from handler.go line numbers to serveFile, windowSender.sendWindow, readBlock and awaitACK in window_send.go); every assertion is byte-identical. A request with no option is now served by the window sender at windowsize 1, which sends one block and waits in awaitACK, so the unchanged assertions still bind the same producer behaviour. Numbering is the sender&#39;s: TestTFTPReadRequest asserts block 1 first, TestTFTPReadLargeFile asserts 1,2,3 (serveFile starts first at 1, sendWindow writes first+sent). Single-polarity marker holds for the server.</p>
@@ -668,8 +706,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc1350-4-2"><code>RFC1350-4-2</code></a></h3>
 <p>Since the positive response to a write request is an acknowledgment packet, in this special case the block number will be zero. (§4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC1350-4-2, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC1350-4-2, so there is no linked test.</p>
 <h3><a href="#rfc1350-4-3"><code>RFC1350-4-3</code></a></h3>
 <p>each end of the connection chooses a TID for itself, to be used for the duration of that connection (§4)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Both ends are now tagged. Client: tftpPeer.read fails the test on any client packet whose source address or port differs from the RRQ&#39;s, so every client test checks that the client keeps its TID. TestRFC1350ClientKeepsItsTID also requires that nothing more reaches the request port for 300 ms once the server answered from its own TID. Server: TestListenTFTPLoopbackRoundTrip and TestRFC1350ServerChoosesOneTIDForTheTransfer are unchanged in substance; handleRRQ and runTransfer changed only by identifier renames.</p>
@@ -800,6 +838,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
+<h3><a href="#rfc1350-5-5"><code>RFC1350-5-5</code></a></h3>
+<p>If a host receives a octet file and then returns it, the returned file must be identical to the original. (§5)</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC1350-5-5, so there is no linked test.</p>
 <h3><a href="#rfc1350-4-4"><code>RFC1350-4-4</code></a></h3>
 <p>If a source TID does not match, the packet should be discarded as erroneously sent from somewhere else. An error packet should be sent to the source of the incorrect packet, while not disturbing the transfer. (§4)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRFC1350ClientRefusesStrangerTID: mid-transfer, DATA block 2 &#39;intruder&#39; (8 octets, so it would be final) from another loopback port must draw ERROR code exactly 5 back to that port, and the transfer with the server&#39;s TID must continue to ACK 2 with the file holding only the server&#39;s 532 octets. A client that accepted the stranger ends on &#39;intruder&#39; (red); one that only discarded it gets no ERROR (red). Only a different port is exercised, not a different address; fromPeer compares both.</p>
@@ -841,7 +883,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 </section>
-<section><h2>Extraction sign-off</h2>
+<section><h2>Requirement list review</h2>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
@@ -865,10 +907,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>rfc/extraction/rfc1350.json</td>
 </tr>
 <tr><td>Mapped sentences</td>
-<td>4</td>
+<td>5</td>
 </tr>
 <tr><td>Declined as scope</td>
-<td>6</td>
+<td>5</td>
 </tr>
 <tr><td>Relocated to a spec, which Ze OWES</td>
 <td>0</td>
@@ -893,49 +935,49 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td><code>1</code></td>
 <td>Purpose</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Purpose. Says what TFTP is, that it runs over UDP, that it lacks directory listing and user authentication, and that it passes 8-bit bytes. It names the three transfer modes: netascii, octet and mail. The one directive-shaped sentence is &#39;The mail mode is obsolete and should not be implemented or used&#39;, which is advisory and states no gated obligation; the mail-mode obligation itself is site 5:3, excluded below. Ze accepts only octet mode (parseRRQ callers reject any other mode in handleRRQ, internal/plugins/tftpserver/handler.go). No gated requirement of rfc/short/rfc1350.md is read from this section.</td>
 </tr>
 <tr><td><code>2</code></td>
 <td>Overview of the Protocol</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Overview of the Protocol. Its one modal sentence is site 2:1, the lockstep obligation, mapped below. The rest is indicative and states two obligations rfc/short/rfc1350.md gates with no modal behind them. &#39;the connection is opened and the file is sent in fixed length blocks of 512 bytes&#39; is where RFC1350-2-1 is read from, declared unsourced below. &#39;A data packet of less than 512 bytes signals termination of a transfer&#39; is the framing rule RFC1350-5-3 turns into the exact-multiple terminator; the id names section 5, so it is declared there. The paragraph on error handling (&#39;Most errors cause termination of the connection&#39;, &#39;TFTP recognizes only one error condition that does not cause termination, the source port of a received packet being incorrect&#39;) is indicative and its two obligations are stated normatively in sections 4 and 7. The duplicate-ACK exception this section&#39;s retransmission paragraph implies is stated in section 5 and RFC1350-2-3 is declared there.</td>
 </tr>
 <tr><td><code>3</code></td>
 <td>Relation to other Protocols</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Relation to other Protocols. Describes the header stack (local medium, Internet, Datagram, TFTP) and says TFTP specifies no value in the Internet header while the Datagram source and destination ports carry the TIDs. Its one modal sentence is site 3:1, excluded below as a description of the datagram layer&#39;s port range. No gated requirement of rfc/short/rfc1350.md is read from this section.</td>
 </tr>
 <tr><td><code>4</code></td>
 <td>Initial Connection Protocol</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Initial Connection Protocol. The section that carries the most gated obligations of the document and states every one of them in the indicative, so the modal scan sees none and derives zero sites here. &#39;Each data packet has associated with it a block number; block numbers are consecutive and begin with one&#39; is RFC1350-4-1. &#39;Since the positive response to a write request is an acknowledgment packet, in this special case the block number will be zero&#39; is RFC1350-4-2. &#39;In order to create a connection, each end of the connection chooses a TID for itself, to be used for the duration of that connection&#39; is RFC1350-4-3. All three are declared unsourced below. The remaining normative material is advisory and ungated: the TIDs &#39;should be randomly chosen&#39; (RFC1350-4-5) and a packet whose source TID does not match &#39;should be discarded&#39; with an error packet sent to the wrong source &#39;while not disturbing the transfer&#39; (RFC1350-4-4). The write-establishment example and the duplicated-request narrative that closes the section are worked examples and direct nobody.</td>
 </tr>
 <tr><td><code>5</code></td>
 <td>TFTP Packets</td>
 <td>5</td>
-<td>walked</td>
-<td>TFTP Packets. The wire-format section and the largest site cluster: five of the document&#39;s ten modal sentences sit here. Two are mapped (5:1 netascii translation, 5:2 octet round-trip identity) and three are excluded (5:3 mail mode, 5:4 the DEC-20 special-mode example, 5:5 the caution on defining new modes). Two further gated rows are read from indicative sentences of this section and declared unsourced below. RFC1350-5-3, the zero-length final DATA block, is read from &#39;The data field is from zero to 512 bytes long. If it is 512 bytes long, the block is not the last block of data; if it is from zero to 511 bytes long, it signals the end of the transfer.&#39; RFC1350-2-3, the Sorcerer&#39;s Apprentice fix, is read from &#39;All packets other than duplicate ACK&#39;s and those used for termination are acknowledged unless a timeout occurs [4].&#39; That sentence is the only place RFC 1350 states the duplicate-ACK exception the 1992 revision was written to add, and it carries no modal; the id names section 2 because rfc/short/rfc1350.md cites the overview and RFC 1123 Section 4.2, so the row is homed here on the section the sentence is in rather than on the section its id spells. The opcode table, the four packet figures, the case-insensitive mode string, the block-number and data-length rules of the DATA figure, and the ERROR packet&#39;s human-readable message (advisory, RFC1350-5-4) complete the section.</td>
+<td>reviewed</td>
+<td>TFTP Packets. The wire-format section and the largest site cluster: five of the document&#39;s ten modal sentences sit here. Two are mapped (5:1 netascii translation, 5:2 octet round-trip identity) and three are excluded (5:3 mail mode, 5:4 the DEC-20 special-mode example, 5:5 the caution on defining new modes). Two further gated rows are read from indicative sentences of this section and declared unsourced below. RFC1350-5-3, the zero-length final DATA block, is read from &#39;The data field is from zero to 512 bytes long. If it is 512 bytes long, the block is not the last block of data; if it is from zero to 511 bytes long, it signals the end of the transfer.&#39; RFC1350-2-3, the Sorcerer&#39;s Apprentice fix, is read from &#39;All packets other than duplicate ACK&#39;s and those used for termination are acknowledged unless a timeout occurs [4].&#39; That sentence is the only place RFC 1350 states the duplicate-ACK exception the 1992 revision was written to add, and it carries no modal; the id names section 2 because the row once cited the overview and RFC 1123 Section 4.2; since f4a4cea195 rfc/short/rfc1350.md quotes this sentence and cites section 5, and the id keeps its old spelling (rfc/corrections/rfc1350.md, 2026-11-14), so the row is homed here on the section the sentence is in rather than on the section its id spells. The opcode table, the four packet figures, the case-insensitive mode string, the block-number and data-length rules of the DATA figure, and the ERROR packet&#39;s human-readable message (advisory, RFC1350-5-4) complete the section.</td>
 </tr>
 <tr><td><code>6</code></td>
 <td>Normal Termination</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Normal Termination. Its one modal sentence is site 6:1, the last-DATA retransmission obligation, mapped below. The rest is the dallying paragraph, advisory and carried by RFC1350-6-2, plus the indicative statement that the end of a transfer is marked by a DATA packet of 0 to 511 bytes, which corroborates RFC1350-5-3 declared on section 5.</td>
 </tr>
 <tr><td><code>7</code></td>
 <td>Premature Termination</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Premature Termination. Two sentences. The ERROR packet is &#39;only a courtesy since it will not be retransmitted or acknowledged&#39;, which is indicative, and &#39;Timeouts must also be used to detect errors&#39;, which is site 7:1, mapped below.</td>
 </tr>
 <tr><td><code>I</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Appendix, and everything the derivation folds under it: the header order figure, the four packet format figures, the read-establishment example, the error code table (values 0 to 7), the UDP header reproduced for convenience, the References, Security Considerations and the Author&#39;s Address. The figures and tables restate section 5&#39;s formats and section 4&#39;s establishment steps and direct nobody; the UDP header is reproduced with the RFC&#39;s own note that &#39;TFTP need not be implemented on top of the Internet User Datagram Protocol&#39;. The one modal sentence is site I:1, in Security Considerations, excluded below as binding the administrator who grants rights to the server process. No gated requirement of rfc/short/rfc1350.md is read from this section.</td>
 </tr>
 </tbody>
@@ -950,11 +992,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
 <td>A description of the datagram layer, not a directive to a TFTP speaker. The sentence derives a range from a property of the protocol underneath it: TIDs are handed to UDP to be used as ports, &#39;therefore they must be between 0 and 65,535&#39;. The bound is the width of the UDP port field, so no TFTP implementation can violate it and none can be tested against it. Ze obtains its transfer TID from net.DialUDP in handleRRQ (internal/plugins/tftpserver/handler.go) and never chooses a port number itself. rfc/short/rfc1350.md declares no requirement for this sentence, and the TID obligation it does declare, RFC1350-4-3, is read from section 4 and declared unsourced there.</td>
 <td>The transfer identifiers (TID&#39;s) used by TFTP are passed to the Datagram layer to be used as ports; therefore they must be between 0 and 65,535.</td>
-</tr>
-<tr><td><code>5:2</code></td>
-<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
-<td>binds a host that receives an octet file and then returns it, which Ze does not implement: the TFTP server refuses WRQ (serve in internal/plugins/tftpserver/handler.go) and Ze has no TFTP client, so it never receives a file. Row RFC1350-5-2 is retired (rfc/corrections/rfc1350.md)</td>
-<td>If a host receives a octet file and then returns it, the returned file must be identical to the original.</td>
 </tr>
 <tr><td><code>5:3</code></td>
 <td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
@@ -996,7 +1033,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     </a>
                     <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
                         <span class="page-sidebar-link-label">Verify debugging</span>
-                        <small>How failed checks route to evidence.</small>
+                        <small>How to investigate failed checks using their logs.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -1015,7 +1052,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 20:44 UTC</span>
                 </div>
             </div>
         </footer>

@@ -77,6 +77,8 @@ They are registered on the <code>sdk.Plugin</code> before calling <code>Run()</c
 </ol></li>
 <li><a href="#engine-methods-plugin-to-engine">Engine Methods (Plugin to Engine)</a>
 <ol>
+<li><a href="#tryenginenative">TryEngineNative</a></li>
+<li><a href="#routeviewopen-routeviewread-and-routing-view-acknowledgments">RouteViewOpen, RouteViewRead and routing-view acknowledgments</a></li>
 <li><a href="#updateroute">UpdateRoute</a></li>
 <li><a href="#dispatchcommand">DispatchCommand</a></li>
 <li><a href="#emitevent">EmitEvent</a></li>
@@ -727,9 +729,12 @@ the callback runs and then the result is sent back through the channel.</p>
 <h3 id="onstarted">OnStarted</h3>
 <p>Called after the 5-stage startup completes but before the event loop begins.
 This is the safe place to make engine calls (e.g., <code>SubscribeEvents</code>).
-Do NOT make engine calls inside <code>OnShareRegistry</code> or <code>OnConfigure</code> -- those
-run while the engine is waiting for the response, causing a deadlock.</p>
+<code>OnConfigure</code> can call owner operations explicitly declared configure-safe,
+including <code>RouteViewOpen</code> and <code>RouteViewDistances</code>. Other engine methods receive
+a refusal during configure. Engine calls from <code>OnShareRegistry</code> still wait for
+the callback's response, so they belong in <code>OnStarted</code>.</p>
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnStarted -->
+<!-- source: internal/component/plugin/server/startup_engine_op.go -- serveConfigureEngineOp -->
 <pre><code class="language-go">p.OnStarted(func(ctx context.Context) error {
     // Safe to call engine methods here
     return p.SubscribeEvents(ctx, []string{"update", "state"}, []string{"*"}, "json")
@@ -815,14 +820,50 @@ refuses a section whose data is not JSON.</p>
 <h2 id="engine-methods-plugin-to-engine">Engine Methods (Plugin to Engine)</h2>
 <p>These methods are available at runtime (after startup) to call the engine:</p>
 <!-- source: pkg/plugin/sdk/sdk_engine.go -- all methods -->
+<h3 id="tryenginenative">TryEngineNative</h3>
+<p>An owner with a native engine adapter can call
+<code>TryEngineNative(ctx, method, input)</code> to exchange self-contained Go values without
+JSON conversion. The result is <code>(value, handled, error)</code>. Only <code>handled == false</code>
+with no error permits the caller's public RPC form, using that method's normal
+wire input. The SDK does not construct or send this fallback. Native dispatch
+requires an internal, activated bridge; startup and external callers use public
+RPC. Once activated, a stopped or failed bridge returns an error. Owners MUST
+validate native inputs, including typed nils, and use the same evaluator as their
+required public handler. Inputs and results MUST NOT retain borrowed engine state.</p>
+<!-- source: pkg/plugin/sdk/sdk_native.go -- TryEngineNative, engineBridgeActive -->
+<!-- source: internal/component/plugin/server/register_engine_op.go -- EngineOperation -->
+<h3 id="routeviewopen-routeviewread-and-routing-view-acknowledgments">RouteViewOpen, RouteViewRead and routing-view acknowledgments</h3>
+<p>The six <code>RouteView*</code> methods use the ordinary engine RPC path: socket transport
+for external plugins and DirectBridge after activation for internal plugins.
+Each accepts its matching <code>rpc.RouteView*Input</code> and returns the corresponding
+output plus an error. They decode replies and refuse missing, null, malformed or
+oversized results; they do not maintain a projection or run a background reader.</p>
+<!-- source: pkg/plugin/sdk/sdk_route_view.go -- RouteViewOpen, RouteViewRead, RouteViewCandidates, RouteViewDistances, RouteViewPublish, RouteViewClose, routeViewResult -->
+<p><code>RouteViewOpen</code> and <code>RouteViewDistances</code> may be called from <code>OnConfigure</code> during
+Stage 2. Reads, candidate scans, forwarding publication and close require the
+runtime stage. The caller owns snapshot application, reset handling and ordered
+publication retries. It MUST pass the session returned by <code>RouteViewOpen</code>, retain
+an unacknowledged operation and complete the initial snapshot before forwarding.
+The <a href="../protocol/#system-routing-views">routing-view protocol</a> defines the value
+metadata, bounds and acknowledgment contract.</p>
+<!-- source: internal/component/sysrib/register_route_view.go -- init -->
+<!-- source: internal/component/sysrib/register_route_view_policy.go -- init -->
+<!-- source: internal/component/sysrib/register_route_view_output.go -- init -->
 <h3 id="updateroute">UpdateRoute</h3>
 <p>Injects a route update to matching peers.</p>
-<pre><code class="language-go">peers, routes, err := p.UpdateRoute(ctx, "192.168.1.1", "update text nhop set 10.0.0.1 nlri add 10.0.1.0/24")
+<pre><code class="language-go">peers, routes, err := p.UpdateRoute(ctx, "192.168.1.1", "update text next-hop 10.0.0.1 nlri add 10.0.1.0/24")
 </code></pre>
 <h3 id="dispatchcommand">DispatchCommand</h3>
 <p>Dispatches a command through the engine's command dispatcher (inter-plugin communication).</p>
 <pre><code class="language-go">status, data, err := p.DispatchCommand(ctx, "rib adjacent inbound show")
 </code></pre>
+<p>Send a command's own filters as its arguments, never as a pipe chain:
+<code>show bgp rib received first 3 count</code>, not the operator's spelling with pipes.
+The engine refuses a line that holds a pipe outside double quotes, because the
+answer is data and a chain renders text. The error names the line to send
+instead. A pipe inside double quotes is an ordinary argument value.</p>
+<!-- source: internal/component/plugin/server/command.go -- Dispatcher.Dispatch -->
+<!-- source: internal/test/fixture/plugin_fixture_16.go -- plugin16PipeFirstLast -->
 <p>A command that completed and stated a warning answers status <code>warning</code>. The
 warning text, one line per entry, comes with <code>DispatchCommandResult</code>:</p>
 <pre><code class="language-go">result, err := p.DispatchCommandResult(ctx, "show config dump")
@@ -911,7 +952,7 @@ return fmt.Errorf("validation failed")
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 20:44 UTC</span>
                 </div>
             </div>
         </footer>

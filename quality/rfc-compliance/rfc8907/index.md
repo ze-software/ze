@@ -1,6 +1,6 @@
 # RFC 8907 - The Terminal Access Controller Access-Control System Plus (TACACS+) Protocol
 
-TACACS+. Every requirement this repository extracted from RFC 8907, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+TACACS+. Every requirement listed for RFC 8907, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,24 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 45 | of 56 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 3 | of 56 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 56 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 56 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 105 | 105 of 152 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-
-### Neutral
-
-measures that are neither good news nor bad
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Gated MUSTs | 56 | of 59 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 56 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 2 | of 56 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 56 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 56 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 56 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Tested both ways | 45 | of 56 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 3 | of 56 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 56 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 56 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Tests shown to detect a fault | 105 | 105 of 152 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -35,54 +22,74 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 6 | of 56 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Declared gap or no test | 6 | of 56 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 
-The 9 counts marked as a part above are the whole of the 56 gated MUSTs: they add up to 56. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Neutral
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+measures that are neither good news nor bad
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Out of scope | 0 | of 56 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 2 | of 56 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 56 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 56 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 56 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+
+### Totals
+
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 56 | of 59 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 56 mandatory requirements: they add up to 56. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | TACACS+ |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 59 |
-| Gated MUST-level | 56 |
+| Mandatory requirements (MUST level) | 56 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 6 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 152 |
-| Tagged units | 152 |
+| Tests linked to requirements | 152 |
 | Recorded audit verdicts | 48 |
-| Discrimination records | 105 |
+| Fault test records | 105 |
 | Summary | `rfc/short/rfc8907.md` |
-| Requirement shard | `rfc/requirements/rfc8907.md` |
+| Requirement table | `rfc/requirements/rfc8907.md` |
 | RFC text | `rfc/full/rfc8907.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: Ze implements a TACACS+ client for management AAA. The 2026-09-21 extraction walk expanded the original requirement list; the compliance checklist below is the requirement inventory, and tagged tests name their producers. Verification and discrimination must be rerun after the current implementation changes before publishing a conformance count.
+Included in automatic checks: Ze implements a TACACS+ client for management AAA. The 2026-09-21 extraction walk expanded the original requirement list; the compliance checklist below is the requirement inventory, and tagged tests name their producers. Verification and discrimination must be rerun after the current implementation changes before publishing a conformance count.
 
-## What the public ledger says
+## Published support status
 
 **Area:** TACACS+
 
@@ -97,14 +104,14 @@ Enrolled: Ze implements a TACACS+ client for management AAA. The 2026-09-21 extr
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 45 | one part of the gated population |
-| Annotated (including scoped evidence) | 11 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 1 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **56** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 45 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 11 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 1 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **56** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (45):** [`RFC8907-4-1`](#rfc8907-4-1), [`RFC8907-4-2`](#rfc8907-4-2), [`RFC8907-4-4`](#rfc8907-4-4), [`RFC8907-4.6-1`](#rfc8907-4.6-1), [`RFC8907-7-1`](#rfc8907-7-1), [`RFC8907-7-2`](#rfc8907-7-2), [`RFC8907-10-2`](#rfc8907-10-2), [`RFC8907-10.5.2-1`](#rfc8907-10.5.2-1), [`RFC8907-6-1`](#rfc8907-6-1), [`RFC8907-3.7-1`](#rfc8907-3.7-1), [`RFC8907-3.7-2`](#rfc8907-3.7-2), [`RFC8907-4.1-1`](#rfc8907-4.1-1), [`RFC8907-4.1-2`](#rfc8907-4.1-2), [`RFC8907-4.1-3`](#rfc8907-4.1-3), [`RFC8907-4.3-1`](#rfc8907-4.3-1), [`RFC8907-4.3-2`](#rfc8907-4.3-2), [`RFC8907-4.3-3`](#rfc8907-4.3-3), [`RFC8907-4.4-1`](#rfc8907-4.4-1), [`RFC8907-4.4-2`](#rfc8907-4.4-2), [`RFC8907-4.4-3`](#rfc8907-4.4-3), [`RFC8907-5.1-1`](#rfc8907-5.1-1), [`RFC8907-5.4.2.2-1`](#rfc8907-5.4.2.2-1), [`RFC8907-5.4.2.2-2`](#rfc8907-5.4.2.2-2), [`RFC8907-5.4.2.6-2`](#rfc8907-5.4.2.6-2), [`RFC8907-5.4.3-1`](#rfc8907-5.4.3-1), [`RFC8907-6.1-1`](#rfc8907-6.1-1), [`RFC8907-6.1-2`](#rfc8907-6.1-2), [`RFC8907-6.2-1`](#rfc8907-6.2-1), [`RFC8907-6.2-2`](#rfc8907-6.2-2), [`RFC8907-6.2-3`](#rfc8907-6.2-3), [`RFC8907-7.2-1`](#rfc8907-7.2-1), [`RFC8907-8-1`](#rfc8907-8-1), [`RFC8907-8.1-1`](#rfc8907-8.1-1), [`RFC8907-8.1-2`](#rfc8907-8.1-2), [`RFC8907-8.2-1`](#rfc8907-8.2-1), [`RFC8907-8.2-2`](#rfc8907-8.2-2), [`RFC8907-8.3-1`](#rfc8907-8.3-1), [`RFC8907-8.3-2`](#rfc8907-8.3-2), [`RFC8907-8.3-3`](#rfc8907-8.3-3), [`RFC8907-8.3-4`](#rfc8907-8.3-4), [`RFC8907-8.3-5`](#rfc8907-8.3-5), [`RFC8907-10.5.1-1`](#rfc8907-10.5.1-1), [`RFC8907-10.5.1-2`](#rfc8907-10.5.1-2), [`RFC8907-10.5.4-1`](#rfc8907-10.5.4-1), [`RFC8907-x-2`](#rfc8907-x-2)
 
@@ -114,20 +121,23 @@ Enrolled: Ze implements a TACACS+ client for management AAA. The 2026-09-21 extr
 
 ## Figures
 
-- **MUST bar**: Ze proven 38, Ze correctness gap 18
-- **Overview bar**: Ze MUST proven 38, SHOULD not decided 2, Ze correctness gap 18
+- **MUST bar**: Ze proven 38, Proof pending 10, Exclusion unchecked 2, Not built 6
+- **Overview bar**: Ze MUST proven 38, Proof pending 10, Exclusion unchecked 2, Not assessed 2, Not built 6
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 56 |
 | MUST rows kept (the MUST bar) | 56 |
 | Ze proven | 38 |
 | OS verified | 0 |
+| Proof pending | 10 |
 | OS testing gap | 0 |
-| Ze correctness gap | 18 |
+| Exclusion unchecked | 2 |
+| Not assessed | 0 |
+| Not built | 6 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -140,11 +150,12 @@ Enrolled: Ze implements a TACACS+ client for management AAA. The 2026-09-21 extr
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 2 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 2 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc8907.json](../../../data/rfc/rfc8907.json).
 
@@ -152,9 +163,9 @@ Source: [data/rfc/rfc8907.json](../../../data/rfc/rfc8907.json).
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC8907-4-1` | This is the major TACACS+ version number. TAC_PLUS_MAJOR_VER := 0xc (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC8907EveryRequestCarriesMajorVersion12`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L63). **positive:** `unit/verify` [`TestTacacsClientAuthenticatePass`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_client_test.go#L146). **negative:** `unit/verify` [`TestRFC8907ReplyWithOtherMajorVersionRefused`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L75). **negative:** `unit/verify` [`TestTacacsClientRejectsBadResponseHeader`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_client_test.go#L241) |
-| `RFC8907-4-2` | TACACS+ clients only send packets containing odd sequence numbers, and TACACS+ servers only send packets containing even sequence numbers. (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC8907ClientSendsOddSequenceNumbers`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L94). **positive:** `unit/verify` [`TestTacacsClientAuthenticatePass`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_client_test.go#L147). **negative:** `unit/verify` [`TestRFC8907ReplyWithOddSequenceNumberRefused`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L106). **negative:** `unit/verify` [`TestTacacsClientRejectsBadResponseHeader`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_client_test.go#L250) |
-| `RFC8907-4-3` | This number MUST be generated by a cryptographically strong random number generation method. (§4, Session Lifecycle) | MUST | 4 | **positive:** `unit/verify` [`TestRFC8907SessionIDComesFromCryptoRand`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_sessionid_test.go#L38). **positive:** `unit/verify` [`TestRandomSessionIDDistinct`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_client_test.go#L327). **negative:** no negative test. **{single-polarity}:** the session id is drawn from crypto/rand (internal/component/tacacs/client.go:497-503) with no predictable/reject path |
+| `RFC8907-4-1` | This is the major TACACS+ version number. TAC_PLUS_MAJOR_VER := 0xc (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC8907EveryRequestCarriesMajorVersion12`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L63). **positive:** `unit/verify` [`TestTacacsClientAuthenticatePass`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_client_test.go#L146). **negative:** `unit/verify` [`TestRFC8907ReplyWithOtherMajorVersionRefused`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L75). **negative:** `unit/verify` [`TestTacacsClientRejectsBadResponseHeader`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_client_test.go#L245) |
+| `RFC8907-4-2` | TACACS+ clients only send packets containing odd sequence numbers, and TACACS+ servers only send packets containing even sequence numbers. (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC8907ClientSendsOddSequenceNumbers`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L94). **positive:** `unit/verify` [`TestTacacsClientAuthenticatePass`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_client_test.go#L147). **negative:** `unit/verify` [`TestRFC8907ReplyWithOddSequenceNumberRefused`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L106). **negative:** `unit/verify` [`TestTacacsClientRejectsBadResponseHeader`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_client_test.go#L254) |
+| `RFC8907-4-3` | This number MUST be generated by a cryptographically strong random number generation method. (§4, Session Lifecycle) | MUST | 4 | **positive:** `unit/verify` [`TestRFC8907SessionIDComesFromCryptoRand`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_sessionid_test.go#L38). **positive:** `unit/verify` [`TestRandomSessionIDDistinct`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_client_test.go#L331). **negative:** no negative test. **{single-polarity}:** the session id is drawn from crypto/rand (internal/component/tacacs/client.go:497-503) with no predictable/reject path |
 | `RFC8907-4-4` | The Id for this TACACS+ session. This field does not change for the duration of the TACACS+ session. (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC8907ReplyKeepingSessionIDAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L122). **positive:** `unit/verify` [`TestTacacsClientAuthenticatePass`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_client_test.go#L148). **negative:** `unit/verify` [`TestRFC8907ReplyChangingSessionIDRefused`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L134) |
 | `RFC8907-4-5` | All length values are unsigned and in network byte order. (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestPacketHeaderMarshalRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_packet_test.go#L15). **positive:** `unit/verify` [`TestRFC8907LengthsAreUnsignedNetworkOrder`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L150). **negative:** no negative test. **{single-polarity}:** multi-octet header fields (session_id, length) are written and read with binary.BigEndian at internal/component/tacacs/packet.go:75-76 and 90-91; the marshal/unmarshal round-trip is symmetric with no independent little-endian oracle, so a negative would only test a different codec |
 | `RFC8907-4.6-1` | After a packet body is de-obfuscated, the lengths of the component values in the packet are summed. If the sum is not identical to the cleartext datalength value from the header, the packet MUST be discarded and an ERROR signaled. (§4.5, Data Obfuscation) | MUST | 4.5 | **positive:** `unit/verify` [`TestRFC8907ExactReplyLengthsAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L226). **negative:** `unit/verify` [`TestRFC8907OverlongReplyComponentsRejected`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L190). **negative:** `unit/verify` [`TestRFC8907TrailingReplyBytesRejected`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L239) |
@@ -201,7 +212,7 @@ Source: [data/rfc/rfc8907.json](../../../data/rfc/rfc8907.json).
 | `RFC8907-8.3-1` | The following arguments are defined for TACACS+ accounting only. They MUST precede any argument-value pairs that are defined in "Authorization" (Section 6). (§8.3) | MUST | 8.3 | **positive:** `unit/verify` [`TestRFC8907AccountingArgumentsPrecedeAuthorizationOnes`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accounting_test.go#L155). **negative:** `unit/verify` [`TestRFC8907NoAuthorizationArgumentPrecedesAccountingOne`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accounting_test.go#L174) |
 | `RFC8907-8.3-2` | Start and stop records for the same event MUST have matching task_id argument values. (§8.3, Accounting Arguments) | MUST | 8.3 | **positive:** `unit/verify` [`TestRFC8907StartAndStopShareTaskID`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accounting_test.go#L191). **negative:** `unit/verify` [`TestRFC8907SecondCommandCarriesOtherTaskID`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accounting_test.go#L207) |
 | `RFC8907-8.3-3` | The client MUST ensure that active task_ids are not duplicated; a client MUST NOT reuse a task_id in a start record until it has sent a stop record for that task_id. (§8.3, Accounting Arguments) | MUST NOT | 8.3 | **positive:** `unit/verify` [`TestRFC8907ActiveTaskIDsAreDistinct`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accounting_test.go#L221). **negative:** `unit/verify` [`TestRFC8907TaskIDNeverReappears`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accounting_test.go#L236) |
-| `RFC8907-8.3-4` | To support this mode of operation, TACACS+ client devices MUST be configured to send an accounting start packet for every command entered, irrespective of how the commands were authorized. (§8.3, Accounting Arguments) | MUST | 8.3 | **positive:** `unit/verify` [`TestAPIStreamSourceRunsStreamingHandler`](https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc8907_api_test.go#L290). **positive:** `unit/verify` [`TestDispatcherAccountingWithoutUsername`](https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/rfc8907_command_test.go#L1228). **positive:** `unit/verify` [`TestInstallNoBGPAAADispatchPairsAccountingAcrossSwap`](https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc8907_aaa_lifecycle_test.go#L232). **positive:** `unit/verify` [`TestRFC8907AccountingSaturationRetainsEveryStart`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accountant_test.go#L46). **positive:** `unit/verify` [`TestRFC8907PluginDispatchAccountsCommand`](https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/rfc8907_accounting_test.go#L114). **positive:** `unit/verify` [`TestRFC8907TrustedDispatchIdentitiesReachWire`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_dispatch_wire_test.go#L172). **positive:** `unit/verify` [`TestRFC8907TypedDispatchAccountsDeniedCommand`](https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/rfc8907_accounting_test.go#L34). **negative:** `unit/verify` [`TestAPIStreamSourceAuthorizesReadOnly`](https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc8907_api_test.go#L356). **negative:** `unit/verify` [`TestDispatcherAccountsRefusedCommands`](https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/rfc8907_command_test.go#L1292). **negative:** `unit/verify` [`TestRFC8907AccountingRequiresDestination`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_security_config_test.go#L123). **negative:** `unit/verify` [`TestRFC8907AccountingStopDrainsAcceptedStarts`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accountant_test.go#L90). **negative:** `unit/verify` [`TestRFC8907BundleRetirementWaitsForAccountingPair`](https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc8907_aaa_lifecycle_test.go#L326). **negative:** `unit/verify` [`TestRFC8907OversizedCommandAccountingStillReachesWire`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_dispatch_wire_test.go#L302) |
+| `RFC8907-8.3-4` | To support this mode of operation, TACACS+ client devices MUST be configured to send an accounting start packet for every command entered, irrespective of how the commands were authorized. (§8.3, Accounting Arguments) | MUST | 8.3 | **positive:** `unit/verify` [`TestAPIStreamSourceRunsStreamingHandler`](https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc8907_api_test.go#L290). **positive:** `unit/verify` [`TestDispatcherAccountingWithoutUsername`](https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/rfc8907_command_test.go#L1238). **positive:** `unit/verify` [`TestInstallNoBGPAAADispatchPairsAccountingAcrossSwap`](https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc8907_aaa_lifecycle_test.go#L232). **positive:** `unit/verify` [`TestRFC8907AccountingSaturationRetainsEveryStart`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accountant_test.go#L46). **positive:** `unit/verify` [`TestRFC8907PluginDispatchAccountsCommand`](https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/rfc8907_accounting_test.go#L114). **positive:** `unit/verify` [`TestRFC8907TrustedDispatchIdentitiesReachWire`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_dispatch_wire_test.go#L172). **positive:** `unit/verify` [`TestRFC8907TypedDispatchAccountsDeniedCommand`](https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/rfc8907_accounting_test.go#L34). **negative:** `unit/verify` [`TestAPIStreamSourceAuthorizesReadOnly`](https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc8907_api_test.go#L356). **negative:** `unit/verify` [`TestDispatcherAccountsRefusedCommands`](https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/rfc8907_command_test.go#L1302). **negative:** `unit/verify` [`TestRFC8907AccountingRequiresDestination`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_security_config_test.go#L123). **negative:** `unit/verify` [`TestRFC8907AccountingStopDrainsAcceptedStarts`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accountant_test.go#L90). **negative:** `unit/verify` [`TestRFC8907BundleRetirementWaitsForAccountingPair`](https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc8907_aaa_lifecycle_test.go#L326). **negative:** `unit/verify` [`TestRFC8907OversizedCommandAccountingStillReachesWire`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_dispatch_wire_test.go#L302) |
 | `RFC8907-8.3-5` | These "Command Accounting" packets MUST include the "service" and "cmd" arguments, and if needed, the "cmd-arg" arguments detailed in Section 8.2. (§8.3, Accounting Arguments) | MUST | 8.3 | **positive:** `unit/verify` [`TestRFC8907CommandRecordsCarryServiceCmdAndArgs`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accounting_test.go#L254). **negative:** `unit/verify` [`TestRFC8907EmptyCommandRecordStillCarriesServiceAndCmd`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accounting_test.go#L270) |
 | `RFC8907-10.5-1` | New implementations, and upgrades of current implementations, MUST implement these recommendations. (§10.5, TACACS+ Best Practices) | MUST | 10.5 | **positive:** no positive test. **negative:** no negative test. **{rollup}:** RFC8907-10.5.1-1, RFC8907-10.5.1-2, RFC8907-10.5.2-1, RFC8907-10.5.4-1; Section 10.5 makes "these recommendations" of Sections 10.5.1 to 10.5.4 mandatory for new implementations, and those four rows carry the client-side recommendations the checklist gates; the MUSTs of Sections 10.5.3 and 10.5.5 bind TACACS+ servers, a role ze does not fill. **derived:** met |
 | `RFC8907-10.5.1-1` | TACACS+ servers and clients MUST treat shared secrets as sensitive data to be managed securely, as would be expected for other sensitive data such as identity credential information. (§10.5.1, Shared Secrets) | MUST | 10.5.1 | **positive:** `unit/verify` [`TestRFC8907SharedSecretConfigBuildAndDisplay`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_security_config_test.go#L37). **negative:** `unit/verify` [`TestRFC8907AccountingRedactsConfigSecretWithoutChangingExecution`](https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/rfc8907_accounting_test.go#L88). **negative:** `unit/verify` [`TestRFC8907SharedSecretCommandRedaction`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_security_config_test.go#L149). **negative:** `unit/verify` [`TestRFC8907SharedSecretDiagnosticRedaction`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_security_config_test.go#L87) |
@@ -228,7 +239,7 @@ Source: [data/rfc/rfc8907.json](../../../data/rfc/rfc8907.json).
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC8907-4-1`](#rfc8907-4-1)
 
@@ -238,7 +249,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestTacacsClientRejectsBadResponseHeader`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_client_test.go#L241) | unit/verify | revert, verified |
+| negative | [`TestTacacsClientRejectsBadResponseHeader`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_client_test.go#L245) | unit/verify | revert, verified |
 | negative | [`TestRFC8907ReplyWithOtherMajorVersionRefused`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L75) | unit/verify | revert, verified |
 | positive | [`TestTacacsClientAuthenticatePass`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_client_test.go#L146) | unit/verify | revert, verified |
 | positive | [`TestRFC8907EveryRequestCarriesMajorVersion12`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L63) | unit/verify | revert, verified |
@@ -251,7 +262,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestTacacsClientRejectsBadResponseHeader`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_client_test.go#L250) | unit/verify | revert, verified |
+| negative | [`TestTacacsClientRejectsBadResponseHeader`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_client_test.go#L254) | unit/verify | revert, verified |
 | negative | [`TestRFC8907ReplyWithOddSequenceNumberRefused`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L106) | unit/verify | revert, verified |
 | positive | [`TestTacacsClientAuthenticatePass`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_client_test.go#L147) | unit/verify | revert, verified |
 | positive | [`TestRFC8907ClientSendsOddSequenceNumbers`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L94) | unit/verify | revert, verified |
@@ -264,7 +275,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRandomSessionIDDistinct`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_client_test.go#L327) | unit/verify | unproven |
+| positive | [`TestRandomSessionIDDistinct`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_client_test.go#L331) | unit/verify | unproven |
 | positive | [`TestRFC8907SessionIDComesFromCryptoRand`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_sessionid_test.go#L38) | unit/verify | unproven |
 
 ### [`RFC8907-4-4`](#rfc8907-4-4)
@@ -306,9 +317,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 The sequence number must never wrap, i.e., if the sequence number 2^(8)-1 is ever reached, that session must terminate and be restarted with a sequence number of 1. (§4.1, Packet Header; maximum 255, not 254)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC8907-5-1, so no unit is bound to it.
+No test carries RFC8907-5-1, so there is no linked test.
 
 ### [`RFC8907-7-1`](#rfc8907-7-1)
 
@@ -525,17 +536,17 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) 
 
 When the REPLY status equals TAC_PLUS_AUTHEN_STATUS_GETDATA, TAC_PLUS_AUTHEN_STATUS_GETUSER, or TAC_PLUS_AUTHEN_STATUS_GETPASS, authentication continues and the server SHOULD provide server_msg content for the client to prompt the user for more information. The client MUST then return a CONTINUE packet containing the requested information in the user_msg field. (§5.4, Description of Authentication Process)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC8907-5.4-1, so no unit is bound to it.
+No test carries RFC8907-5.4-1, so there is no linked test.
 
 ### [`RFC8907-5.4-2`](#rfc8907-5.4-2)
 
 If the information being requested by the server from the client is sensitive, then the server should set the TAC_PLUS_REPLY_FLAG_NOECHO flag. When the client queries the user for the information, the response MUST NOT be reflected in the user interface as it is entered. (§5.4, Description of Authentication Process)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC8907-5.4-2, so no unit is bound to it.
+No test carries RFC8907-5.4-2, so there is no linked test.
 
 ### [`RFC8907-5.4.2.2-1`](#rfc8907-5.4.2.2-1)
 
@@ -565,33 +576,33 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 The entire exchange MUST consist of a single START packet and a single REPLY. The START packet MUST contain the username in the user field, and the data field is a concatenation of the PPP id, the challenge, and the response. (§5.4.2.3, CHAP Login)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC8907-5.4.2.3-1, so no unit is bound to it.
+No test carries RFC8907-5.4.2.3-1, so there is no linked test.
 
 ### [`RFC8907-5.4.2.4-1`](#rfc8907-5.4.2.4-1)
 
 The entire exchange MUST consist of a single START packet and a single REPLY. The START packet MUST contain the username in the user field, and the data field will be a concatenation of the PPP id, the MS-CHAP challenge, and the MS-CHAP response. (§5.4.2.4, MS-CHAP v1 Login)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC8907-5.4.2.4-1, so no unit is bound to it.
+No test carries RFC8907-5.4.2.4-1, so there is no linked test.
 
 ### [`RFC8907-5.4.2.5-1`](#rfc8907-5.4.2.5-1)
 
 The entire exchange MUST consist of a single START packet and a single REPLY. The START packet MUST contain the username in the user field, and the data field will be a concatenation of the PPP id, the MS-CHAP challenge, and the MS-CHAP response. (§5.4.2.5, MS-CHAP v2 Login)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC8907-5.4.2.5-1, so no unit is bound to it.
+No test carries RFC8907-5.4.2.5-1, so there is no linked test.
 
 ### [`RFC8907-5.4.2.6-1`](#rfc8907-5.4.2.6-1)
 
 In order to readily distinguish "ENABLE" requests from other types of request, the value of the authen_service field MUST be set to TAC_PLUS_AUTHEN_SVC_ENABLE when requesting an ENABLE. (§5.4.2.6, Enable Requests)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC8907-5.4.2.6-1, so no unit is bound to it.
+No test carries RFC8907-5.4.2.6-1, so there is no linked test.
 
 ### [`RFC8907-5.4.2.6-2`](#rfc8907-5.4.2.6-2)
 
@@ -790,13 +801,13 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) 
 
 To support this mode of operation, TACACS+ client devices MUST be configured to send an accounting start packet for every command entered, irrespective of how the commands were authorized. (§8.3, Accounting Arguments)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent source rejudgment against RFC 8907 Section 8.3's Device Administration command-accounting requirement: clients must send a START for every command entered, irrespective of authorization. Read all tagged units and apiStreamSource. The moved API success test registers a real streaming handler, drains exact lines and asserts caller/arguments plus exactly one START and STOP; the denied-stream test proves handler nonexecution and the same accounting pair despite authorization refusal. The registry's current OneShotSample argument does not remove accounting assertions or convert execution to a mock result. apiStreamSource begins accounting before handler resolution/authorization and stops it on error or deferred handler exit. Remaining tags require denied/unknown/malformed and typed/plugin dispatch accounting, anonymous identity handling, retained STARTs under queue saturation/shutdown, backend lifetime across reload, actual TACACS START/STOP wire records including oversized displays, and refusal of accounting configured with no destination. Valid commands and refusals are distinct controls. Verdict enforced. The API tests assert the accounting-hook boundary, while TACACS wire tests establish transmitted records; no live API-to-TACACS integration run is claimed. No checks ran.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/plugin/server/rfc8907_command_test.go::TestDispatcherAccountingWithoutUsername, internal/component/plugin/server/rfc8907_command_test.go::TestDispatcherAccountsRefusedCommands moved. Independent source rejudgment against RFC 8907 Section 8.3's Device Administration command-accounting requirement: clients must send a START for every command entered, irrespective of authorization. Read all tagged units and apiStreamSource. The moved API success test registers a real streaming handler, drains exact lines and asserts caller/arguments plus exactly one START and STOP; the denied-stream test proves handler nonexecution and the same accounting pair despite authorization refusal. The registry's current OneShotSample argument does not remove accounting assertions or convert execution to a mock result. apiStreamSource begins accounting before handler resolution/authorization and stops it on error or deferred handler exit. Remaining tags require denied/unknown/malformed and typed/plugin dispatch accounting, anonymous identity handling, retained STARTs under queue saturation/shutdown, backend lifetime across reload, actual TACACS START/STOP wire records including oversized displays, and refusal of accounting configured with no destination. Valid commands and refusals are distinct controls. Verdict enforced. The API tests assert the accounting-hook boundary, while TACACS wire tests establish transmitted records; no live API-to-TACACS integration run is claimed. No checks ran.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC8907BundleRetirementWaitsForAccountingPair`](https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc8907_aaa_lifecycle_test.go#L326) | unit/verify | unproven |
 | negative | [`TestAPIStreamSourceAuthorizesReadOnly`](https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc8907_api_test.go#L356) | unit/verify | unproven |
-| negative | [`TestDispatcherAccountsRefusedCommands`](https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/rfc8907_command_test.go#L1292) | unit/verify | unproven |
+| negative | [`TestDispatcherAccountsRefusedCommands`](https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/rfc8907_command_test.go#L1302) | unit/verify | unproven |
 | negative | [`TestRFC8907AccountingStopDrainsAcceptedStarts`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accountant_test.go#L90) | unit/verify | unproven |
 | negative | [`TestRFC8907OversizedCommandAccountingStillReachesWire`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_dispatch_wire_test.go#L302) | unit/verify | unproven |
 | negative | [`TestRFC8907AccountingRequiresDestination`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_security_config_test.go#L123) | unit/verify | unproven |
@@ -804,7 +815,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 | positive | [`TestAPIStreamSourceRunsStreamingHandler`](https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc8907_api_test.go#L290) | unit/verify | unproven |
 | positive | [`TestRFC8907PluginDispatchAccountsCommand`](https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/rfc8907_accounting_test.go#L114) | unit/verify | unproven |
 | positive | [`TestRFC8907TypedDispatchAccountsDeniedCommand`](https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/rfc8907_accounting_test.go#L34) | unit/verify | unproven |
-| positive | [`TestDispatcherAccountingWithoutUsername`](https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/rfc8907_command_test.go#L1228) | unit/verify | unproven |
+| positive | [`TestDispatcherAccountingWithoutUsername`](https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/rfc8907_command_test.go#L1238) | unit/verify | unproven |
 | positive | [`TestRFC8907AccountingSaturationRetainsEveryStart`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accountant_test.go#L46) | unit/verify | unproven |
 | positive | [`TestRFC8907TrustedDispatchIdentitiesReachWire`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_dispatch_wire_test.go#L172) | unit/verify | unproven |
 
@@ -823,9 +834,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) 
 
 New implementations, and upgrades of current implementations, MUST implement these recommendations. (§10.5, TACACS+ Best Practices)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC8907-10.5-1, so no unit is bound to it.
+No test carries RFC8907-10.5-1, so there is no linked test.
 
 ### [`RFC8907-10.5.1-1`](#rfc8907-10.5.1-1)
 
@@ -870,9 +881,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 A request MUST be dropped if TAC_PLUS_UNENCRYPTED_FLAG is set to true. (§4.5, Data Obfuscation; stable historical ID)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC8907-4.6-2, so no unit is bound to it.
+No test carries RFC8907-4.6-2, so there is no linked test.
 
 ### [`RFC8907-x-2`](#rfc8907-x-2)
 
@@ -886,7 +897,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) 
 | positive | [`TestRFC8907AuthorizationFollowDeniesWithoutFallback`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_status_test.go#L135) | unit/verify | unproven |
 | positive | [`TestRFC8907FollowIsNotAuthenticated`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_status_test.go#L127) | unit/verify | revert, verified |
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -905,64 +916,64 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) 
 
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
-| `front` | not stated | 0 | walked | not stated |
-| `1` | not stated | 0 | walked | not stated |
-| `2` | not stated | 0 | walked | not stated |
-| `3` | not stated | 0 | walked | not stated |
-| `3.1` | not stated | 0 | walked | not stated |
-| `3.2` | not stated | 0 | walked | not stated |
-| `3.3` | not stated | 0 | walked | not stated |
-| `3.4` | not stated | 0 | walked | not stated |
-| `3.5` | not stated | 0 | walked | not stated |
-| `3.6` | not stated | 1 | walked | not stated |
-| `3.7` | not stated | 3 | walked | not stated |
-| `4` | not stated | 0 | walked | not stated |
-| `4.1` | not stated | 6 | walked | not stated |
-| `4.2` | not stated | 0 | walked | not stated |
-| `4.3` | not stated | 4 | walked | not stated |
-| `4.4` | not stated | 3 | walked | not stated |
-| `4.5` | not stated | 7 | walked | not stated |
-| `5` | not stated | 0 | walked | not stated |
-| `5.1` | not stated | 1 | walked | not stated |
-| `5.2` | not stated | 0 | walked | not stated |
-| `5.3` | not stated | 0 | walked | not stated |
-| `5.4` | not stated | 2 | walked | not stated |
-| `5.4.1` | not stated | 0 | walked | not stated |
-| `5.4.2` | not stated | 1 | walked | not stated |
-| `5.4.2.1` | not stated | 3 | walked | not stated |
-| `5.4.2.2` | not stated | 3 | walked | not stated |
-| `5.4.2.3` | not stated | 3 | walked | not stated |
-| `5.4.2.4` | not stated | 4 | walked | not stated |
-| `5.4.2.5` | not stated | 4 | walked | not stated |
-| `5.4.2.6` | not stated | 2 | walked | not stated |
-| `5.4.2.7` | not stated | 2 | walked | not stated |
-| `5.4.3` | not stated | 1 | walked | not stated |
-| `6` | not stated | 0 | walked | not stated |
-| `6.1` | not stated | 4 | walked | not stated |
-| `6.2` | not stated | 4 | walked | not stated |
-| `7` | not stated | 0 | walked | not stated |
-| `7.1` | not stated | 0 | walked | not stated |
-| `7.2` | not stated | 5 | walked | not stated |
-| `8` | not stated | 1 | walked | not stated |
-| `8.1` | not stated | 3 | walked | not stated |
-| `8.2` | not stated | 2 | walked | not stated |
-| `8.3` | not stated | 6 | walked | not stated |
-| `9` | not stated | 0 | walked | not stated |
-| `10` | not stated | 0 | walked | not stated |
-| `10.1` | not stated | 1 | walked | not stated |
-| `10.2` | not stated | 2 | walked | not stated |
-| `10.3` | not stated | 0 | walked | not stated |
-| `10.4` | not stated | 0 | walked | not stated |
-| `10.5` | not stated | 3 | walked | not stated |
-| `10.5.1` | not stated | 7 | walked | not stated |
-| `10.5.2` | not stated | 10 | walked | not stated |
-| `10.5.3` | not stated | 2 | walked | not stated |
-| `10.5.4` | not stated | 2 | walked | not stated |
-| `10.5.5` | not stated | 2 | walked | not stated |
-| `11` | not stated | 0 | walked | not stated |
-| `12` | not stated | 0 | walked | not stated |
-| `12.1` | not stated | 0 | walked | not stated |
-| `12.2` | not stated | 0 | walked | not stated |
+| `front` | not stated | 0 | reviewed | not stated |
+| `1` | not stated | 0 | reviewed | not stated |
+| `2` | not stated | 0 | reviewed | not stated |
+| `3` | not stated | 0 | reviewed | not stated |
+| `3.1` | not stated | 0 | reviewed | not stated |
+| `3.2` | not stated | 0 | reviewed | not stated |
+| `3.3` | not stated | 0 | reviewed | not stated |
+| `3.4` | not stated | 0 | reviewed | not stated |
+| `3.5` | not stated | 0 | reviewed | not stated |
+| `3.6` | not stated | 1 | reviewed | not stated |
+| `3.7` | not stated | 3 | reviewed | not stated |
+| `4` | not stated | 0 | reviewed | not stated |
+| `4.1` | not stated | 6 | reviewed | not stated |
+| `4.2` | not stated | 0 | reviewed | not stated |
+| `4.3` | not stated | 4 | reviewed | not stated |
+| `4.4` | not stated | 3 | reviewed | not stated |
+| `4.5` | not stated | 7 | reviewed | not stated |
+| `5` | not stated | 0 | reviewed | not stated |
+| `5.1` | not stated | 1 | reviewed | not stated |
+| `5.2` | not stated | 0 | reviewed | not stated |
+| `5.3` | not stated | 0 | reviewed | not stated |
+| `5.4` | not stated | 2 | reviewed | not stated |
+| `5.4.1` | not stated | 0 | reviewed | not stated |
+| `5.4.2` | not stated | 1 | reviewed | not stated |
+| `5.4.2.1` | not stated | 3 | reviewed | not stated |
+| `5.4.2.2` | not stated | 3 | reviewed | not stated |
+| `5.4.2.3` | not stated | 3 | reviewed | not stated |
+| `5.4.2.4` | not stated | 4 | reviewed | not stated |
+| `5.4.2.5` | not stated | 4 | reviewed | not stated |
+| `5.4.2.6` | not stated | 2 | reviewed | not stated |
+| `5.4.2.7` | not stated | 2 | reviewed | not stated |
+| `5.4.3` | not stated | 1 | reviewed | not stated |
+| `6` | not stated | 0 | reviewed | not stated |
+| `6.1` | not stated | 4 | reviewed | not stated |
+| `6.2` | not stated | 4 | reviewed | not stated |
+| `7` | not stated | 0 | reviewed | not stated |
+| `7.1` | not stated | 0 | reviewed | not stated |
+| `7.2` | not stated | 5 | reviewed | not stated |
+| `8` | not stated | 1 | reviewed | not stated |
+| `8.1` | not stated | 3 | reviewed | not stated |
+| `8.2` | not stated | 2 | reviewed | not stated |
+| `8.3` | not stated | 6 | reviewed | not stated |
+| `9` | not stated | 0 | reviewed | not stated |
+| `10` | not stated | 0 | reviewed | not stated |
+| `10.1` | not stated | 1 | reviewed | not stated |
+| `10.2` | not stated | 2 | reviewed | not stated |
+| `10.3` | not stated | 0 | reviewed | not stated |
+| `10.4` | not stated | 0 | reviewed | not stated |
+| `10.5` | not stated | 3 | reviewed | not stated |
+| `10.5.1` | not stated | 7 | reviewed | not stated |
+| `10.5.2` | not stated | 10 | reviewed | not stated |
+| `10.5.3` | not stated | 2 | reviewed | not stated |
+| `10.5.4` | not stated | 2 | reviewed | not stated |
+| `10.5.5` | not stated | 2 | reviewed | not stated |
+| `11` | not stated | 0 | reviewed | not stated |
+| `12` | not stated | 0 | reviewed | not stated |
+| `12.1` | not stated | 0 | reviewed | not stated |
+| `12.2` | not stated | 0 | reviewed | not stated |
 
 ### Excluded sentences
 

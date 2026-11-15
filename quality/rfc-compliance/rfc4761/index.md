@@ -1,6 +1,6 @@
 # RFC 4761 - Virtual Private LAN Service (VPLS) Using BGP for Auto-Discovery and Signaling
 
-VPLS NLRI. Every requirement this repository extracted from RFC 4761, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+VPLS NLRI. Every requirement listed for RFC 4761, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,24 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 0 | of 18 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0 | of 18 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 18 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 18 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 0 | 0 of 0 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-
-### Neutral
-
-measures that are neither good news nor bad
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Gated MUSTs | 18 | of 27 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 18 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 18 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 18 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 18 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 18 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Tested both ways | 0 | of 18 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0 | of 18 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 18 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 18 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Tests shown to detect a fault | 0 | 0 of 0 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -35,54 +22,74 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 18 | of 18 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Declared gap or no test | 18 | of 18 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 
-The 9 counts marked as a part above are the whole of the 18 gated MUSTs: they add up to 18. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Neutral
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+measures that are neither good news nor bad
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Out of scope | 0 | of 18 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 18 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 18 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 18 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 18 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+
+### Totals
+
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 18 | of 27 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 18 mandatory requirements: they add up to 18. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | VPLS NLRI |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 27 |
-| Gated MUST-level | 18 |
+| Mandatory requirements (MUST level) | 18 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 18 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 0 |
-| Tagged units | 0 |
+| Tests linked to requirements | 0 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 0 |
+| Fault test records | 0 |
 | Summary | `rfc/short/rfc4761.md` |
-| Requirement shard | `rfc/requirements/rfc4761.md` |
+| Requirement table | `rfc/requirements/rfc4761.md` |
 | RFC text | `rfc/full/rfc4761.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: Virtual Private LAN Service / VPLS Using BGP (RFC 4761). Ze fills the VPLS PE role on the control plane only: it registers the L2VPN/VPLS family (AFI 25, SAFI 65), decodes and encodes the VPLS NLRI (internal/component/bgp/plugins/nlri/vpls/), originates VPLS routes from configuration (config.go::parseConfigRoute, encode.go::EncodeRoute) with an operator-supplied Layer2 Info extended community, and keys received routes by RD, VE ID and VE Block Offset for path selection (internal/core/bgp/nlri/nlrisplit/vpls_key.go::keyVPLS). It has no VSI, pseudowire signalling, MAC FIB or VPLS data plane. No owner decision declines any PE procedure, so the 15 MUSTs ze does not meet are gaps, each disclosed by its own annotation, which the derived ledger lists under Unmet; three more (3.2.4-2, 3.4.2-1, 3.5-1) are gaps in proof: ze's code appears to meet them (keyVPLS for 3.5-1, a receive path that decides nothing on a control-flag bit for 3.2.4-2, re-advertising NLRI wire bytes for 3.4.2-1) and no test proves it
+Included in automatic checks: Virtual Private LAN Service / VPLS Using BGP (RFC 4761). Ze fills the VPLS PE role on the control plane only: it registers the L2VPN/VPLS family (AFI 25, SAFI 65), decodes and encodes the VPLS NLRI (internal/component/bgp/plugins/nlri/vpls/), originates VPLS routes from configuration (config.go::parseConfigRoute, encode.go::EncodeRoute) with an operator-supplied Layer2 Info extended community, and keys received routes by RD, VE ID and VE Block Offset for path selection (internal/core/bgp/nlri/nlrisplit/vpls_key.go::keyVPLS). It has no VSI, pseudowire signalling, MAC FIB or VPLS data plane. No owner decision declines any PE procedure, so the 15 MUSTs ze does not meet are gaps, each disclosed by its own annotation, which the derived ledger lists under Unmet; three more (3.2.4-2, 3.4.2-1, 3.5-1) are gaps in proof: ze's code appears to meet them (keyVPLS for 3.5-1, a receive path that decides nothing on a control-flag bit for 3.2.4-2, re-advertising NLRI wire bytes for 3.4.2-1) and no test proves it
 
-## What the public ledger says
+## Published support status
 
 **Area:** VPLS NLRI
 
@@ -97,33 +104,36 @@ Enrolled: Virtual Private LAN Service / VPLS Using BGP (RFC 4761). Ze fills the 
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 0 | one part of the gated population |
-| Annotated (including scoped evidence) | 18 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **18** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 0 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 18 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **18** | every mandatory requirement appears in exactly one group above |
 
 **Annotated (including scoped evidence) (18):** [`RFC4761-2.3-1`](#rfc4761-2.3-1), [`RFC4761-3.2.4-1`](#rfc4761-3.2.4-1), [`RFC4761-3.2.4-2`](#rfc4761-3.2.4-2), [`RFC4761-3.2.4-3`](#rfc4761-3.2.4-3), [`RFC4761-3.2.4-4`](#rfc4761-3.2.4-4), [`RFC4761-3.2.4-5`](#rfc4761-3.2.4-5), [`RFC4761-3.2.4-6`](#rfc4761-3.2.4-6), [`RFC4761-3.2.3-1`](#rfc4761-3.2.3-1), [`RFC4761-3.2.3-2`](#rfc4761-3.2.3-2), [`RFC4761-3.3-1`](#rfc4761-3.3-1), [`RFC4761-3.4.2-1`](#rfc4761-3.4.2-1), [`RFC4761-3.5-1`](#rfc4761-3.5-1), [`RFC4761-3.5-2`](#rfc4761-3.5-2), [`RFC4761-4.2.1-1`](#rfc4761-4.2.1-1), [`RFC4761-4.2.2-1`](#rfc4761-4.2.2-1), [`RFC4761-4.2.5-1`](#rfc4761-4.2.5-1), [`RFC4761-6-1`](#rfc4761-6-1), [`RFC4761-6-2`](#rfc4761-6-2)
 
 ## Figures
 
-- **MUST bar**: Ze correctness gap 18
-- **Overview bar**: SHOULD not decided 9, Ze correctness gap 18
+- **MUST bar**: Not built 18
+- **Overview bar**: Not assessed 9, Not built 18
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 18 |
 | MUST rows kept (the MUST bar) | 18 |
 | Ze proven | 0 |
 | OS verified | 0 |
+| Proof pending | 0 |
 | OS testing gap | 0 |
-| Ze correctness gap | 18 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 18 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -136,11 +146,12 @@ Enrolled: Virtual Private LAN Service / VPLS Using BGP (RFC 4761). Ze fills the 
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 9 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 9 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc4761.json](../../../data/rfc/rfc4761.json).
 
@@ -201,153 +212,153 @@ Source: [data/rfc/rfc4761.json](../../../data/rfc/rfc4761.json).
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC4761-2.3-1`](#rfc4761-2.3-1)
 
 Consequently, an implementation MUST maintain a separate routing storage for each service. (Section 2.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4761-2.3-1, so no unit is bound to it.
+No test carries RFC4761-2.3-1, so there is no linked test.
 
 ### [`RFC4761-3.2.4-1`](#rfc4761-3.2.4-1)
 
 the remaining bits, designated MBZ, MUST be set to zero when sending (Section 3.2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4761-3.2.4-1, so no unit is bound to it.
+No test carries RFC4761-3.2.4-1, so there is no linked test.
 
 ### [`RFC4761-3.2.4-2`](#rfc4761-3.2.4-2)
 
 the remaining bits, designated MBZ, MUST be set to zero when sending and MUST be ignored when receiving this community. (Section 3.2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4761-3.2.4-2, so no unit is bound to it.
+No test carries RFC4761-3.2.4-2, so there is no linked test.
 
 ### [`RFC4761-3.2.4-3`](#rfc4761-3.2.4-3)
 
 A Control word [7] MUST or MUST NOT be present when sending VPLS packets to this PE, depending on whether C is 1 or 0, respectively (Section 3.2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4761-3.2.4-3, so no unit is bound to it.
+No test carries RFC4761-3.2.4-3, so there is no linked test.
 
 ### [`RFC4761-3.2.4-4`](#rfc4761-3.2.4-4)
 
 A Control word [7] MUST or MUST NOT be present when sending VPLS packets to this PE, depending on whether C is 1 or 0, respectively (Section 3.2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4761-3.2.4-4, so no unit is bound to it.
+No test carries RFC4761-3.2.4-4, so there is no linked test.
 
 ### [`RFC4761-3.2.4-5`](#rfc4761-3.2.4-5)
 
 Sequenced delivery of frames MUST or MUST NOT be used when sending VPLS packets to this PE, depending on whether S is 1 or 0, respectively (Section 3.2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4761-3.2.4-5, so no unit is bound to it.
+No test carries RFC4761-3.2.4-5, so there is no linked test.
 
 ### [`RFC4761-3.2.4-6`](#rfc4761-3.2.4-6)
 
 Sequenced delivery of frames MUST or MUST NOT be used when sending VPLS packets to this PE, depending on whether S is 1 or 0, respectively (Section 3.2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4761-3.2.4-6, so no unit is bound to it.
+No test carries RFC4761-3.2.4-6, so there is no linked test.
 
 ### [`RFC4761-3.2.3-1`](#rfc4761-3.2.3-1)
 
 checks if V is part of any 'remote VE set' that PE-b announced, i.e., PE-b checks if V belongs to some remote VE set that PE-b announced, say with VE Block Offset VBO', VE Block Size VBS', and label base LB'. If not, PE-b MUST make a new announcement as described in Section 3.3. (Section 3.2.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4761-3.2.3-1, so no unit is bound to it.
+No test carries RFC4761-3.2.3-1, so there is no linked test.
 
 ### [`RFC4761-3.2.3-2`](#rfc4761-3.2.3-2)
 
 If Y withdraws an NLRI for V that X was using, then X MUST tear down its ends of the pseudowire between X and Y. (Section 3.2.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4761-3.2.3-2, so no unit is bound to it.
+No test carries RFC4761-3.2.3-2, so there is no linked test.
 
 ### [`RFC4761-3.3-1`](#rfc4761-3.3-1)
 
 If PE-a's configuration is changed to remove VE ID V from VPLS foo, then PE-a MUST withdraw all its announcements for VPLS foo that contain VE ID V. (Section 3.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4761-3.3-1, so no unit is bound to it.
+No test carries RFC4761-3.3-1, so there is no linked test.
 
 ### [`RFC4761-3.4.2-1`](#rfc4761-3.4.2-1)
 
 To be precise, the Length, the Route Distinguisher, the VE ID, the VE Block Offset, and the VE Block Size MUST be the same; the Label Base may be different. (Section 3.4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4761-3.4.2-1, so no unit is bound to it.
+No test carries RFC4761-3.4.2-1, so there is no linked test.
 
 ### [`RFC4761-3.5-1`](#rfc4761-3.5-1)
 
 When a BGP speaker receives two equivalent NLRIs (see below for the definition), it applies standard path selection criteria such as Local Preference and AS Path Length to determine which NLRI to choose; it MUST pick only one. (Section 3.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4761-3.5-1, so no unit is bound to it.
+No test carries RFC4761-3.5-1, so there is no linked test.
 
 ### [`RFC4761-3.5-2`](#rfc4761-3.5-2)
 
 If two PEs are assigned the same VE ID in a given VPLS, they MUST use the same Route Distinguisher (Section 3.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4761-3.5-2, so no unit is bound to it.
+No test carries RFC4761-3.5-2, so there is no linked test.
 
 ### [`RFC4761-4.2.1-1`](#rfc4761-4.2.1-1)
 
 If a VE learns a source MAC address S on logical port P, then later sees S on a different port P', then the VE MUST update its FIB to reflect the new port P'. (Section 4.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4761-4.2.1-1, so no unit is bound to it.
+No test carries RFC4761-4.2.1-1, so there is no linked test.
 
 ### [`RFC4761-4.2.2-1`](#rfc4761-4.2.2-1)
 
 If the age exceeds the aging time T, S MUST be flushed from the FIB. (Section 4.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4761-4.2.2-1, so no unit is bound to it.
+No test carries RFC4761-4.2.2-1, so there is no linked test.
 
 ### [`RFC4761-4.2.5-1`](#rfc4761-4.2.5-1)
 
 If, on the other hand, the frame arrived from another PE (say PEy), PEx must send a copy of the packet only to attached CEs. PEx MUST NOT send the frame to other PEs, since PEy would have already done so. (Section 4.2.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4761-4.2.5-1, so no unit is bound to it.
+No test carries RFC4761-4.2.5-1, so there is no linked test.
 
 ### [`RFC4761-6-1`](#rfc4761-6-1)
 
 Any implementation of VPLS that allows VPLS packets to be tunneled as described in that document MUST contain an implementation of IPsec that can be used as therein described. (Section 6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4761-6-1, so no unit is bound to it.
+No test carries RFC4761-6-1, so there is no linked test.
 
 ### [`RFC4761-6-2`](#rfc4761-6-2)
 
 Any implementation that allows MPLS-in-IP and/or MPLS-in-GRE tunneling to be used without IPsec MUST allow the egress PE to validate in this manner the IP source address of any tunneled packet that it receives. (Section 6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4761-6-2, so no unit is bound to it.
+No test carries RFC4761-6-2, so there is no linked test.
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -366,49 +377,49 @@ No test carries RFC4761-6-2, so no unit is bound to it.
 
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
-| `front` | not stated | 1 | walked | Title block, Status of This Memo, Copyright Notice, IESG Note, Abstract and Table of Contents. Walked rather than skipped because the site scan attributes one site here, the Abstract's statement of what the document describes, excluded below. The IESG Note records that RFC 4762 and this document both perform VPLS in different, incompatible manners. |
-| `1` | Introduction | 0 | walked | Introduction. Indicative prose: what a VPLS is, that it glues individual LANs across a packet switched network by MAC learning, flooding and forwarding over pseudowires, what this document adds (auto-discovery and signaling over BGP, and transport of VPLS frames over tunnels), and which alternatives exist, RFC 4762's LDP-signaled VPLS among them. No directive and no site. |
-| `1.1` | Scope of This Document | 1 | walked | Scope of This Document. A roadmap: the functional model in section 2, the BGP control plane in section 3, the forwarding plane in section 4, the deployment options in section 5. Its one site is the roadmap sentence pointing at section 4 and is excluded below. |
-| `1.2` | Conventions Used in This Document | 0 | walked | Conventions Used in This Document. The RFC 2119 key-words paragraph. It tells a reader how to read the other sections and binds no speaker, which is why the derivation excludes it from the site inventory. |
-| `2` | Functional Model | 0 | walked | Functional Model. One sentence introducing Figure 1, the example VPLS with CEs, PEs, a u-PE and five customer sites. No directive and no site. |
-| `2.1` | Terminology | 0 | walked | Terminology. Defines SP, P, PE, CE, u-PE, VE and demultiplexor, records that PE and u-PE devices are VPLS-aware while a CE is not, and that the demultiplexor in this document is an MPLS label. Definitions, not directives, and no site. |
-| `2.2` | Assumptions | 0 | walked | Assumptions. States the assumptions the rest of the document rests on: a packet switched SP network, PEs logically fully meshed with tunnels established outside this document, flooding and learning private to each SP device, and a bidirectional pseudowire between every pair of PEs in a VPLS. Indicative throughout and no site. |
-| `2.3` | Interactions | 1 | walked | Interactions. States what makes VPLS a LAN service, private and virtual, that PE interactions are control-driven rather than data-driven, and that a PE can run VPLS and IP VPNs at once because the two use different AFI/SAFI pairs. Its one capitalised MUST-level site is the separate-routing-storage obligation that follows from that, mapped below to RFC4761-2.3-1. |
-| `3` | Control Plane | 0 | walked | Control Plane. One paragraph naming the two control-plane functions, auto-discovery and signaling, and pointing at sections 3.1 to 3.5. No directive and no site. |
-| `3.1` | Auto-Discovery | 2 | walked | Auto-Discovery. Contrasts configuring every PE by hand with discovering them by protocol. Both sites belong to the description of the manual alternative and are excluded below; the paragraph on auto-discovery that follows states what BGP buys and directs nobody. |
-| `3.1.1` | Functions | 3 | walked | Functions. States what the discovery function has to provide: a PE must be able to tell the others it is a member of a VPLS, to declare that it no longer participates, and so to have a means of identifying a VPLS and of communicating with all other PEs. All three sites bind the VPLS PE performing auto-discovery and are excluded below. |
-| `3.1.2` | Protocol Specification | 0 | walked | Protocol Specification. States that the mechanism uses the Route Target extended community of RFC 4360 to identify VPLS members with RFC 4364's semantics, that one RT suffices for a fully meshed VPLS, and how a PE announces membership by annotating its NLRIs with that RT and withdraws it by withdrawing them. Indicative throughout and no site. |
-| `3.2` | Signaling | 1 | walked | Signaling. States what signaling is (each pair of PEs establishing and tearing down pseudowires, that is exchanging and withdrawing demultiplexors), what a demultiplexor carries, and why one common Update carrying demultiplexors for every remote PE beats N individual messages. Its one site is the pseudowire-establishment sentence, which binds the VPLS PE and is excluded below. |
-| `3.2.1` | Label Blocks | 0 | walked | Label Blocks. Defines a label block as the contiguous set {LB, ..., LB+VBS-1}, extends it with the VE block offset so a block is {LB+VBO, ..., LB+VBO+VBS-1}, and explains how each receiving PE infers its own demultiplexor by adding its VE ID to the label base. Definitions, not directives, and no site. |
-| `3.2.2` | VPLS BGP NLRI | 1 | walked | VPLS BGP NLRI. The document's wire-format section: AFI 25, SAFI 65, and the NLRI's Length, Route Distinguisher, VE ID, VE Block Offset, VE Block Size and 3-octet Label Base, with the one-to-one correspondence between the remote VE set and the label block. The layout is carried by the Wire Formats tables of rfc/short/rfc4761.md, and it is the part of this RFC ze does implement: internal/component/bgp/plugins/nlri/vpls.ParseVPLS decodes exactly these fields and EncodeRoute builds them. Its one site is the VE ID provisioning sentence, which binds the VPLS PE and is excluded below. |
-| `3.2.3` | PW Setup and Teardown | 2 | walked | PW Setup and Teardown. The four-step procedure PE-b runs on an announcement from PE-a, and the teardown rule when an NLRI in use is withdrawn. Its two capitalised MUST-level sites are mapped below to RFC4761-3.2.3-1 and RFC4761-3.2.3-2; steps 1, 2 and 4 are stated in the indicative and the site scan sees nothing in them. |
-| `3.2.4` | Signaling PE Capabilities | 4 | walked | Signaling PE Capabilities. Defines the Layer2 Info Extended Community (0x800A) carrying Encaps Type, Control Flags and Layer-2 MTU, with Encaps Type 19 for VPLS, and the C and S Control Flags. Three of its four sites carry the section's obligations and are mapped below to RFC4761-3.2.4-1, -3 and -5. The other half of each of those three sentences is a second declared row, listed here as an unsourced id, because the splitter keeps one sentence as one site: RFC4761-3.2.4-2 is 'MUST be ignored when receiving this community', RFC4761-3.2.4-4 is the C=0 'MUST NOT be present' half, and RFC4761-3.2.4-6 is the S=0 'MUST NOT be used' half. Site 3.2.4:1 is the Figure 4 bit vector and its legend and is excluded below. |
-| `3.3` | BGP VPLS Operation | 4 | walked | BGP VPLS Operation. Walks the whole life of a BGP VPLS announcement: the administrator picks an RT, the PE is configured with a VE ID and possibly an RD, it generates a label block and a remote VE set, builds the NLRI, attaches the Layer2 Info community and the RT, sets itself as Next Hop and announces. Site 3.3:4 carries the withdrawal obligation and is mapped below to RFC4761-3.3-1; sites 3.3:1, 3.3:2 and 3.3:3 are excluded. The SHOULD listed as an unsourced id is the CE-links-down rule: 'If all of PE-a's links to its CEs in VPLS foo go down, then PE-a SHOULD either withdraw all its NLRIs for VPLS foo or let other PEs in the VPLS foo know in some way that PE-a is no longer connected to its CEs.' |
-| `3.4` | Multi-AS VPLS | 0 | walked | Multi-AS VPLS. States the problem when the sites of a VPLS attach to PEs in different ASes, introduces Figure 5 and the three methods of sections 3.4.1 to 3.4.3 in order of increasing scalability. No directive and no site. |
-| `3.4.1` | Method (a): VPLS-to-VPLS Connections at the ASBRs | 1 | walked | Method (a): VPLS-to-VPLS Connections at the ASBRs. Each ASBR acts as a PE for the VPLSs spanning the two ASes and views the other ASBR as a CE, which requires Ethernet on the interconnect and full PE operation on the ASBR. Its one site is the loop-prevention rule for redundant inter-AS connections and is excluded below. |
-| `3.4.2` | not stated | 3 | walked | Method (b): EBGP Redistribution of VPLS Information between ASBRs. The ASBRs re-advertise the VPLS NLRI with new labels and themselves as next hop, and swap labels in the forwarding path. Site 3.4.2:1 carries the obligation that everything but the Label Base stay identical and is mapped below to RFC4761-3.4.2-1; sites 3.4.2:2 and 3.4.2:3 are the ASBR forwarding-path installations and are excluded. |
-| `3.4.3` | not stated | 0 | walked | Method (c): Multi-Hop EBGP Redistribution of VPLS Information between ASes. A multi-hop E-BGP peering between the PEs or their route reflectors, with a tunnel LSP from PE1 to PE2 and no VPLS state on the ASBRs. Indicative throughout and no site. |
-| `3.4.4` | Allocation of VE IDs across Multiple ASes | 0 | walked | Allocation of VE IDs across Multiple ASes. Suggests allocating a VE ID range per AS to keep VE IDs unique while minimising the number of NLRIs, with no overlap between ranges except for multi-homing. Advisory prose with no site. |
-| `3.5` | Multi-homing and Path Selection | 2 | walked | Multi-homing and Path Selection. When the PEs attached to one site carry the same VE ID, BGP path selection builds the loop-free topology, and two VPLS NLRIs are equivalent when their Route Distinguisher, VE ID and VE Block Offset match. Its two capitalised MUST-level sites are mapped below to RFC4761-3.5-1 and RFC4761-3.5-2. The unsourced id is the SHOULD that closes the second of those sentences, 'they SHOULD announce the same VE Block Size for a given VE Offset', which the splitter keeps in site 3.5:2. |
-| `3.6` | Hierarchical BGP VPLS | 1 | walked | Hierarchical BGP VPLS. How BGP route reflectors scale the VPLS control plane, that RRs introduce no data plane state, that no MAC addresses are exchanged over BGP, and when BGP processing for VPLS happens. Its one site states that something is NOT required and is excluded below. |
-| `4` | Data Plane | 0 | walked | Data Plane. One sentence naming the two aspects sections 4.1 and 4.2 cover, encapsulation and forwarding. No directive and no site. |
-| `4.1` | Encapsulation | 0 | walked | Encapsulation. One sentence: Ethernet frames from CE devices are encapsulated for transmission over the packet switched network as in RFC 4448. No obligation of its own and no site. |
-| `4.2` | Forwarding | 0 | walked | Forwarding. States that a VPLS packet is classified into a service instance by the interface it arrived on, and forwarded within that instance on the destination MAC address. Indicative and no site. |
-| `4.2.1` | MAC Address Learning | 2 | walked | MAC Address Learning. The SP network appears as one logical learning bridge per VPLS, learning associates a source MAC with the logical port it arrived on, and that association is the FIB. Site 4.2.1:2 carries the MAC-move obligation and is mapped below to RFC4761-4.2.1-1; site 4.2.1:1 is the learning-bridge analogy and is excluded. The unsourced id is the MAY that closes the section, 'A VE MAY implement a mechanism to damp flapping of source ports for a given MAC address.' |
-| `4.2.2` | Aging | 2 | walked | Aging. Site 4.2.2:2 carries the capitalised MUST, mapped below to RFC4761-4.2.2-1, and site 4.2.2:1 is the rationale sentence inside the section's opening SHOULD and is excluded. Three declared rows are read from prose here and are the unsourced ids: RFC4761-4.2.2-2 is 'VPLS PEs SHOULD have an aging mechanism to remove a MAC address associated with a logical port', RFC4761-4.2.2-3 is 'An implementation SHOULD provide a configurable knob to set the aging time T on a per-VPLS basis', and RFC4761-4.2.2-4 is the MAY to accelerate aging of every MAC address in a VPLS on a Spanning Tree topology change. |
-| `4.2.3` | Flooding | 0 | walked | Flooding. Describes flooding a frame whose destination is not in the FIB to every other VE in the VPLS, and works the Figure 1 example through PE2, PE1 and a u-PE, including a PE that announces whether it is capable of flooding. Indicative throughout and no site. |
-| `4.2.4` | Broadcast and Multicast | 1 | walked | Broadcast and Multicast. Its one site is the broadcast-delivery rule and is excluded below. The unsourced id is the MAY that follows, 'a VE MAY also use certain techniques to restrict transmission of multicast frames to a smaller set of receivers', whose discussion the section puts out of scope. |
-| `4.2.5` | 'Split Horizon' Forwarding | 4 | walked | 'Split Horizon' Forwarding. Four sites: three describe what a flooding PE sends where, and the fourth is the capitalised split-horizon prohibition mapped below to RFC4761-4.2.5-1. The other three bind the VPLS PE forwarding path and are excluded. The closing sentence extends the rule to broadcast and multicast packets as well as unknown MAC addresses. |
-| `4.2.6` | Qualified and Unqualified Learning | 0 | walked | Qualified and Unqualified Learning. Defines the two learning keys, the MAC address alone or the customer VLAN tag with it, and weighs one global broadcast domain against one per VLAN. Definitions and trade-offs, no directive and no site. |
-| `4.2.7` | Class of Service | 1 | walked | Class of Service. Its one site is the SHOULD that the mapping function be per-VPLS, mapped below to RFC4761-4.2.7-1. The unsourced id is the MAY that opens the section, 'an implementation MAY choose to map 802.1p bits in a customer Ethernet frame with a VLAN tag to an appropriate setting of EXP bits in the pseudowire and/or tunnel label'. |
-| `5` | Deployment Options | 1 | walked | Deployment Options. Defines 'decoupled' operation: the VE closest to the customer can be the PE itself or a u-PE that does the Layer 2 functions and a limited set of Layer 3 functions, and PEs of both kinds mix in one network because discovery and signaling are unchanged. Its one site is the SP's deployment decision and is excluded below. |
-| `6` | Security Considerations | 3 | walked | Security Considerations. States that VPLS offers no confidentiality, integrity or authentication, that both the control plane and the forwarding path have to be protected, that RFC 2385 authenticates the BGP exchanges, and that VPLS labels must be accepted only from valid interfaces. It closes on MPLS-in-IP and MPLS-in-GRE tunneling per RFC 4023: sites 6:2 and 6:3 carry the two capitalised MUST-level obligations and are mapped below to RFC4761-6-1 and RFC4761-6-2, and site 6:1 points at RFC 4023's own security considerations and is excluded. |
+| `front` | not stated | 1 | reviewed | Title block, Status of This Memo, Copyright Notice, IESG Note, Abstract and Table of Contents. Walked rather than skipped because the site scan attributes one site here, the Abstract's statement of what the document describes, excluded below. The IESG Note records that RFC 4762 and this document both perform VPLS in different, incompatible manners. |
+| `1` | Introduction | 0 | reviewed | Introduction. Indicative prose: what a VPLS is, that it glues individual LANs across a packet switched network by MAC learning, flooding and forwarding over pseudowires, what this document adds (auto-discovery and signaling over BGP, and transport of VPLS frames over tunnels), and which alternatives exist, RFC 4762's LDP-signaled VPLS among them. No directive and no site. |
+| `1.1` | Scope of This Document | 1 | reviewed | Scope of This Document. A roadmap: the functional model in section 2, the BGP control plane in section 3, the forwarding plane in section 4, the deployment options in section 5. Its one site is the roadmap sentence pointing at section 4 and is excluded below. |
+| `1.2` | Conventions Used in This Document | 0 | reviewed | Conventions Used in This Document. The RFC 2119 key-words paragraph. It tells a reader how to read the other sections and binds no speaker, which is why the derivation excludes it from the site inventory. |
+| `2` | Functional Model | 0 | reviewed | Functional Model. One sentence introducing Figure 1, the example VPLS with CEs, PEs, a u-PE and five customer sites. No directive and no site. |
+| `2.1` | Terminology | 0 | reviewed | Terminology. Defines SP, P, PE, CE, u-PE, VE and demultiplexor, records that PE and u-PE devices are VPLS-aware while a CE is not, and that the demultiplexor in this document is an MPLS label. Definitions, not directives, and no site. |
+| `2.2` | Assumptions | 0 | reviewed | Assumptions. States the assumptions the rest of the document rests on: a packet switched SP network, PEs logically fully meshed with tunnels established outside this document, flooding and learning private to each SP device, and a bidirectional pseudowire between every pair of PEs in a VPLS. Indicative throughout and no site. |
+| `2.3` | Interactions | 1 | reviewed | Interactions. States what makes VPLS a LAN service, private and virtual, that PE interactions are control-driven rather than data-driven, and that a PE can run VPLS and IP VPNs at once because the two use different AFI/SAFI pairs. Its one capitalised MUST-level site is the separate-routing-storage obligation that follows from that, mapped below to RFC4761-2.3-1. |
+| `3` | Control Plane | 0 | reviewed | Control Plane. One paragraph naming the two control-plane functions, auto-discovery and signaling, and pointing at sections 3.1 to 3.5. No directive and no site. |
+| `3.1` | Auto-Discovery | 2 | reviewed | Auto-Discovery. Contrasts configuring every PE by hand with discovering them by protocol. Both sites belong to the description of the manual alternative and are excluded below; the paragraph on auto-discovery that follows states what BGP buys and directs nobody. |
+| `3.1.1` | Functions | 3 | reviewed | Functions. States what the discovery function has to provide: a PE must be able to tell the others it is a member of a VPLS, to declare that it no longer participates, and so to have a means of identifying a VPLS and of communicating with all other PEs. All three sites bind the VPLS PE performing auto-discovery and are excluded below. |
+| `3.1.2` | Protocol Specification | 0 | reviewed | Protocol Specification. States that the mechanism uses the Route Target extended community of RFC 4360 to identify VPLS members with RFC 4364's semantics, that one RT suffices for a fully meshed VPLS, and how a PE announces membership by annotating its NLRIs with that RT and withdraws it by withdrawing them. Indicative throughout and no site. |
+| `3.2` | Signaling | 1 | reviewed | Signaling. States what signaling is (each pair of PEs establishing and tearing down pseudowires, that is exchanging and withdrawing demultiplexors), what a demultiplexor carries, and why one common Update carrying demultiplexors for every remote PE beats N individual messages. Its one site is the pseudowire-establishment sentence, which binds the VPLS PE and is excluded below. |
+| `3.2.1` | Label Blocks | 0 | reviewed | Label Blocks. Defines a label block as the contiguous set {LB, ..., LB+VBS-1}, extends it with the VE block offset so a block is {LB+VBO, ..., LB+VBO+VBS-1}, and explains how each receiving PE infers its own demultiplexor by adding its VE ID to the label base. Definitions, not directives, and no site. |
+| `3.2.2` | VPLS BGP NLRI | 1 | reviewed | VPLS BGP NLRI. The document's wire-format section: AFI 25, SAFI 65, and the NLRI's Length, Route Distinguisher, VE ID, VE Block Offset, VE Block Size and 3-octet Label Base, with the one-to-one correspondence between the remote VE set and the label block. The layout is carried by the Wire Formats tables of rfc/short/rfc4761.md, and it is the part of this RFC ze does implement: internal/component/bgp/plugins/nlri/vpls.ParseVPLS decodes exactly these fields and EncodeRoute builds them. Its one site is the VE ID provisioning sentence, which binds the VPLS PE and is excluded below. |
+| `3.2.3` | PW Setup and Teardown | 2 | reviewed | PW Setup and Teardown. The four-step procedure PE-b runs on an announcement from PE-a, and the teardown rule when an NLRI in use is withdrawn. Its two capitalised MUST-level sites are mapped below to RFC4761-3.2.3-1 and RFC4761-3.2.3-2; steps 1, 2 and 4 are stated in the indicative and the site scan sees nothing in them. |
+| `3.2.4` | Signaling PE Capabilities | 4 | reviewed | Signaling PE Capabilities. Defines the Layer2 Info Extended Community (0x800A) carrying Encaps Type, Control Flags and Layer-2 MTU, with Encaps Type 19 for VPLS, and the C and S Control Flags. Three of its four sites carry the section's obligations and are mapped below to RFC4761-3.2.4-1, -3 and -5. The other half of each of those three sentences is a second declared row, listed here as an unsourced id, because the splitter keeps one sentence as one site: RFC4761-3.2.4-2 is 'MUST be ignored when receiving this community', RFC4761-3.2.4-4 is the C=0 'MUST NOT be present' half, and RFC4761-3.2.4-6 is the S=0 'MUST NOT be used' half. Site 3.2.4:1 is the Figure 4 bit vector and its legend and is excluded below. |
+| `3.3` | BGP VPLS Operation | 4 | reviewed | BGP VPLS Operation. Walks the whole life of a BGP VPLS announcement: the administrator picks an RT, the PE is configured with a VE ID and possibly an RD, it generates a label block and a remote VE set, builds the NLRI, attaches the Layer2 Info community and the RT, sets itself as Next Hop and announces. Site 3.3:4 carries the withdrawal obligation and is mapped below to RFC4761-3.3-1; sites 3.3:1, 3.3:2 and 3.3:3 are excluded. The SHOULD listed as an unsourced id is the CE-links-down rule: 'If all of PE-a's links to its CEs in VPLS foo go down, then PE-a SHOULD either withdraw all its NLRIs for VPLS foo or let other PEs in the VPLS foo know in some way that PE-a is no longer connected to its CEs.' |
+| `3.4` | Multi-AS VPLS | 0 | reviewed | Multi-AS VPLS. States the problem when the sites of a VPLS attach to PEs in different ASes, introduces Figure 5 and the three methods of sections 3.4.1 to 3.4.3 in order of increasing scalability. No directive and no site. |
+| `3.4.1` | Method (a): VPLS-to-VPLS Connections at the ASBRs | 1 | reviewed | Method (a): VPLS-to-VPLS Connections at the ASBRs. Each ASBR acts as a PE for the VPLSs spanning the two ASes and views the other ASBR as a CE, which requires Ethernet on the interconnect and full PE operation on the ASBR. Its one site is the loop-prevention rule for redundant inter-AS connections and is excluded below. |
+| `3.4.2` | not stated | 3 | reviewed | Method (b): EBGP Redistribution of VPLS Information between ASBRs. The ASBRs re-advertise the VPLS NLRI with new labels and themselves as next hop, and swap labels in the forwarding path. Site 3.4.2:1 carries the obligation that everything but the Label Base stay identical and is mapped below to RFC4761-3.4.2-1; sites 3.4.2:2 and 3.4.2:3 are the ASBR forwarding-path installations and are excluded. |
+| `3.4.3` | not stated | 0 | reviewed | Method (c): Multi-Hop EBGP Redistribution of VPLS Information between ASes. A multi-hop E-BGP peering between the PEs or their route reflectors, with a tunnel LSP from PE1 to PE2 and no VPLS state on the ASBRs. Indicative throughout and no site. |
+| `3.4.4` | Allocation of VE IDs across Multiple ASes | 0 | reviewed | Allocation of VE IDs across Multiple ASes. Suggests allocating a VE ID range per AS to keep VE IDs unique while minimising the number of NLRIs, with no overlap between ranges except for multi-homing. Advisory prose with no site. |
+| `3.5` | Multi-homing and Path Selection | 2 | reviewed | Multi-homing and Path Selection. When the PEs attached to one site carry the same VE ID, BGP path selection builds the loop-free topology, and two VPLS NLRIs are equivalent when their Route Distinguisher, VE ID and VE Block Offset match. Its two capitalised MUST-level sites are mapped below to RFC4761-3.5-1 and RFC4761-3.5-2. The unsourced id is the SHOULD that closes the second of those sentences, 'they SHOULD announce the same VE Block Size for a given VE Offset', which the splitter keeps in site 3.5:2. |
+| `3.6` | Hierarchical BGP VPLS | 1 | reviewed | Hierarchical BGP VPLS. How BGP route reflectors scale the VPLS control plane, that RRs introduce no data plane state, that no MAC addresses are exchanged over BGP, and when BGP processing for VPLS happens. Its one site states that something is NOT required and is excluded below. |
+| `4` | Data Plane | 0 | reviewed | Data Plane. One sentence naming the two aspects sections 4.1 and 4.2 cover, encapsulation and forwarding. No directive and no site. |
+| `4.1` | Encapsulation | 0 | reviewed | Encapsulation. One sentence: Ethernet frames from CE devices are encapsulated for transmission over the packet switched network as in RFC 4448. No obligation of its own and no site. |
+| `4.2` | Forwarding | 0 | reviewed | Forwarding. States that a VPLS packet is classified into a service instance by the interface it arrived on, and forwarded within that instance on the destination MAC address. Indicative and no site. |
+| `4.2.1` | MAC Address Learning | 2 | reviewed | MAC Address Learning. The SP network appears as one logical learning bridge per VPLS, learning associates a source MAC with the logical port it arrived on, and that association is the FIB. Site 4.2.1:2 carries the MAC-move obligation and is mapped below to RFC4761-4.2.1-1; site 4.2.1:1 is the learning-bridge analogy and is excluded. The unsourced id is the MAY that closes the section, 'A VE MAY implement a mechanism to damp flapping of source ports for a given MAC address.' |
+| `4.2.2` | Aging | 2 | reviewed | Aging. Site 4.2.2:2 carries the capitalised MUST, mapped below to RFC4761-4.2.2-1, and site 4.2.2:1 is the rationale sentence inside the section's opening SHOULD and is excluded. Three declared rows are read from prose here and are the unsourced ids: RFC4761-4.2.2-2 is 'VPLS PEs SHOULD have an aging mechanism to remove a MAC address associated with a logical port', RFC4761-4.2.2-3 is 'An implementation SHOULD provide a configurable knob to set the aging time T on a per-VPLS basis', and RFC4761-4.2.2-4 is the MAY to accelerate aging of every MAC address in a VPLS on a Spanning Tree topology change. |
+| `4.2.3` | Flooding | 0 | reviewed | Flooding. Describes flooding a frame whose destination is not in the FIB to every other VE in the VPLS, and works the Figure 1 example through PE2, PE1 and a u-PE, including a PE that announces whether it is capable of flooding. Indicative throughout and no site. |
+| `4.2.4` | Broadcast and Multicast | 1 | reviewed | Broadcast and Multicast. Its one site is the broadcast-delivery rule and is excluded below. The unsourced id is the MAY that follows, 'a VE MAY also use certain techniques to restrict transmission of multicast frames to a smaller set of receivers', whose discussion the section puts out of scope. |
+| `4.2.5` | 'Split Horizon' Forwarding | 4 | reviewed | 'Split Horizon' Forwarding. Four sites: three describe what a flooding PE sends where, and the fourth is the capitalised split-horizon prohibition mapped below to RFC4761-4.2.5-1. The other three bind the VPLS PE forwarding path and are excluded. The closing sentence extends the rule to broadcast and multicast packets as well as unknown MAC addresses. |
+| `4.2.6` | Qualified and Unqualified Learning | 0 | reviewed | Qualified and Unqualified Learning. Defines the two learning keys, the MAC address alone or the customer VLAN tag with it, and weighs one global broadcast domain against one per VLAN. Definitions and trade-offs, no directive and no site. |
+| `4.2.7` | Class of Service | 1 | reviewed | Class of Service. Its one site is the SHOULD that the mapping function be per-VPLS, mapped below to RFC4761-4.2.7-1. The unsourced id is the MAY that opens the section, 'an implementation MAY choose to map 802.1p bits in a customer Ethernet frame with a VLAN tag to an appropriate setting of EXP bits in the pseudowire and/or tunnel label'. |
+| `5` | Deployment Options | 1 | reviewed | Deployment Options. Defines 'decoupled' operation: the VE closest to the customer can be the PE itself or a u-PE that does the Layer 2 functions and a limited set of Layer 3 functions, and PEs of both kinds mix in one network because discovery and signaling are unchanged. Its one site is the SP's deployment decision and is excluded below. |
+| `6` | Security Considerations | 3 | reviewed | Security Considerations. States that VPLS offers no confidentiality, integrity or authentication, that both the control plane and the forwarding path have to be protected, that RFC 2385 authenticates the BGP exchanges, and that VPLS labels must be accepted only from valid interfaces. It closes on MPLS-in-IP and MPLS-in-GRE tunneling per RFC 4023: sites 6:2 and 6:3 carry the two capitalised MUST-level obligations and are mapped below to RFC4761-6-1 and RFC4761-6-2, and site 6:1 points at RFC 4023's own security considerations and is excluded. |
 | `7` | IANA Considerations | 0 | skipped (iana) | IANA Considerations. Records the allocated AFI 25 for L2VPN information and the allocated extended community value 0x800A for the Layer2 Info Extended Community. Binds IANA, not a speaker. |
 | `8` | References | 0 | skipped (references) | References. The heading for sections 8.1 and 8.2. |
 | `8.1` | not stated | 0 | skipped (references) | Normative References: RFC 2119, RFC 2385, RFC 4023, RFC 4760, RFC 4360, RFC 4364 and RFC 4448. |
 | `8.2` | not stated | 0 | skipped (references) | Informative References: RFC 4456, RFC 4664, RFC 4762, the VR-based Layer-3 VPN and Constrained VPN Route Distribution drafts, RFC 4447, the Layer 2 VPNs Over Tunnels draft and IEEE 802.1D. |
 | `A` | Appendix A, Contributors | 0 | skipped (acknowledgements) | Appendix A, Contributors. The list of people who contributed to the document. |
-| `B` | Appendix B, Acknowledgements | 1 | walked | Appendix B, Acknowledgements. Because no numbered heading follows it, the derived span also carries the Editors' Addresses, the Full Copyright Statement, the Intellectual Property boilerplate and the RFC Editor funding note. Walked rather than skipped because the prose scan attributes one site here; that site is IPR boilerplate and is excluded below. Nothing in the span states an obligation on an implementation. |
+| `B` | Appendix B, Acknowledgements | 1 | reviewed | Appendix B, Acknowledgements. Because no numbered heading follows it, the derived span also carries the Editors' Addresses, the Full Copyright Statement, the Intellectual Property boilerplate and the RFC Editor funding note. Walked rather than skipped because the prose scan attributes one site here; that site is IPR boilerplate and is excluded below. Nothing in the span states an obligation on an implementation. |
 
 ### Excluded sentences
 

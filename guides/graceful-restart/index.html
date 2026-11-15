@@ -486,7 +486,7 @@ edges its own Stage 1 declaration carries. <code>bgp-gr</code> declares the same
 at Stage 1 as in its registration, so the order a forked <code>bgp-gr</code> would take
 a DOWN in is the internal one: before <code>bgp-rr</code>, <code>bgp-rs</code> and <code>bgp-rib</code>, with
 its retention verdict queued ahead of their DOWN.</p>
-<!-- source: internal/component/bgp/plugins/gr/register.go -- grRIBDependency, grOptionalDependencies, grStartAfter -->
+<!-- source: internal/component/bgp/plugins/gr/register.go -- grDependencies, grOptionalDependencies, grStartAfter -->
 <!-- source: internal/component/bgp/server/events.go -- sortByReverseDependencyTier -->
 <!-- source: internal/component/bgp/plugins/gr/gr.go -- handleStructuredState -->
 <!-- source: internal/component/bgp/plugins/rib/rib.go -- commandDecls declares the LLGR community mutation commands -->
@@ -717,6 +717,10 @@ A family omitted from GR with zero or unexchanged LLST is not retained.</p>
                         <span class="page-sidebar-link-label">Quickstart</span>
                         <small>Start from a minimal working setup.</small>
                     </a>
+                    <a class="page-sidebar-link" href="../../guides/ai-agent/">
+                        <span class="page-sidebar-link-label">Use Ze with an AI agent</span>
+                        <small>Let Claude Code or Codex drive Ze for you.</small>
+                    </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
                         <small>Install Ze, create the store, and start SSH.</small>
@@ -746,7 +750,7 @@ A family omitted from GR with zero or unexchanged LLST is not retained.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 02:34 UTC</span>
                 </div>
             </div>
         </footer>

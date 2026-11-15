@@ -433,7 +433,7 @@ the eight-hex id `./le commit session` prints. Each shard holds one table:
 
 | Doc | Source | Symbol | Commit | Reason |
 |-----|--------|--------|--------|--------|
-| `docs/contributing/ze-go-style.md` | `internal/le/arch/compoundguard/compoundguard.go` | `Check` | `447c5c24da` | branch swap, same statements; the claim about which lines are judged is unaffected |
+| `docs/contributing/go-style/control-flow.md` | `internal/le/arch/compoundguard/compoundguard.go` | `Check` | `447c5c24da` | branch swap, same statements; the claim about which lines are judged is unaffected |
 
 The key is Doc, Source and Symbol, never a line number. Commit is the object id,
 7 to 40 lowercase hex digits: a ref such as `HEAD` moves, so the check refuses

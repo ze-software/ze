@@ -1,6 +1,6 @@
 # RFC 4861 - Neighbor Discovery for IP version 6 (IPv6)
 
-IPv6 Neighbor Discovery and Router Advertisement. Every requirement this repository extracted from RFC 4861, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+IPv6 Neighbor Discovery and Router Advertisement. Every requirement listed for RFC 4861, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,24 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 10 | of 138 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 20 | of 138 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 138 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 138 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 48 | 48 of 49 tagged units, 0 escaped and 1 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-
-### Neutral
-
-measures that are neither good news nor bad
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Gated MUSTs | 138 | of 217 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 138 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 138 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 91 | of 138 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 138 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 138 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Tested both ways | 10 | of 138 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 20 | of 138 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 138 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 138 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Tests shown to detect a fault | 49 | 49 of 49 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -35,60 +22,80 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 17 | of 138 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Declared gap or no test | 17 | of 138 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 
-The 9 counts marked as a part above are the whole of the 138 gated MUSTs: they add up to 138. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Neutral
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+measures that are neither good news nor bad
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Out of scope | 0 | of 138 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 138 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 91 | of 138 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 138 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 138 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+
+### Totals
+
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 138 | of 217 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 138 mandatory requirements: they add up to 138. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | IPv6 Neighbor Discovery and Router Advertisement |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 217 |
-| Gated MUST-level | 138 |
+| Mandatory requirements (MUST level) | 138 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 17 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 49 |
-| Tagged units | 49 |
+| Tests linked to requirements | 49 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 49 |
+| Fault test records | 49 |
 | Summary | `rfc/short/rfc4861.md` |
-| Requirement shard | `rfc/requirements/rfc4861.md` |
+| Requirement table | `rfc/requirements/rfc4861.md` |
 | RFC text | `rfc/full/rfc4861.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: Ze is an IPv6 router that originates Router Advertisements and answers Router Solicitations on configured interfaces (internal/plugins/iface/ra) and on L2TP subscriber sessions (internal/component/l2tp/ppp ra_send.go), and sends VRRP unsolicited Neighbor Advertisements (internal/plugins/vrrp/transport/na.go). Walked site by site on 2026-10-26 (rfc/extraction/rfc4861.json). Every MUST is classified: the rows the Linux kernel's Neighbor Discovery performs (Neighbor Solicitation and Advertisement, address resolution, NUD, Redirect, host processing of Router Advertisements) are lower-layer; the rows on Router Advertisement origination, Router Solicitation handling and unsolicited Neighbor Advertisements are Ze's and carry tagged tests where Ze meets them; seventeen rows are gaps, each disclosed by its own annotation, which the derived ledger lists under Unmet; the ND proxy and IPsec rows are among them, because no owner ruling names either feature unwanted (ai/META-DECISIONS.md, Goal and scope).
+Included in automatic checks: Ze is an IPv6 router that originates Router Advertisements and answers Router Solicitations on configured interfaces (internal/plugins/iface/ra) and on L2TP subscriber sessions (internal/component/l2tp/ppp ra_send.go), and sends VRRP unsolicited Neighbor Advertisements (internal/plugins/vrrp/transport/na.go). Walked site by site on 2026-10-26 (rfc/extraction/rfc4861.json). Every MUST is classified: the rows the Linux kernel's Neighbor Discovery performs (Neighbor Solicitation and Advertisement, address resolution, NUD, Redirect, host processing of Router Advertisements) are lower-layer; the rows on Router Advertisement origination, Router Solicitation handling and unsolicited Neighbor Advertisements are Ze's and carry tagged tests where Ze meets them; seventeen rows are gaps, each disclosed by its own annotation, which the derived ledger lists under Unmet; the ND proxy and IPsec rows are among them, because no owner ruling names either feature unwanted (ai/META-DECISIONS.md, Goal and scope).
 
-## What the public ledger says
+## Published support status
 
 **Area:** IPv6 Neighbor Discovery and Router Advertisement
 
-**Proof:** 29 of 138 MUST proven
+**Proof:** 30 of 138 MUST proven
 
-**Evidence:** unit 29
+**Evidence:** unit 30
 
 **Unmet:** RFC4861-11.2-1, RFC4861-11.2-2, RFC4861-2.3-1, RFC4861-4.4-3, RFC4861-4.6-1, RFC4861-6.1.1-1, RFC4861-6.1.1-2, RFC4861-6.2.1-1, RFC4861-6.2.1-8, RFC4861-6.2.4-1, RFC4861-6.2.5-1, RFC4861-6.2.5-2, RFC4861-6.2.6-1, RFC4861-7.2.6-1, RFC4861-7.2.8-1, RFC4861-7.2.8-2, RFC4861-9-7
 
@@ -97,14 +104,14 @@ Enrolled: Ze is an IPv6 router that originates Router Advertisements and answers
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 10 | one part of the gated population |
-| Annotated (including scoped evidence) | 128 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **138** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 10 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 128 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **138** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (10):** [`RFC4861-4.2-2`](#rfc4861-4.2-2), [`RFC4861-4.6.2-3`](#rfc4861-4.6.2-3), [`RFC4861-4.6.2-4`](#rfc4861-4.6.2-4), [`RFC4861-4.6.2-6`](#rfc4861-4.6.2-6), [`RFC4861-6.2.1-3`](#rfc4861-6.2.1-3), [`RFC4861-6.2.1-4`](#rfc4861-6.2.1-4), [`RFC4861-6.2.1-5`](#rfc4861-6.2.1-5), [`RFC4861-6.2.1-6`](#rfc4861-6.2.1-6), [`RFC4861-6.2.1-7`](#rfc4861-6.2.1-7), [`RFC4861-6.2.2-1`](#rfc4861-6.2.2-1)
 
@@ -112,20 +119,23 @@ Enrolled: Ze is an IPv6 router that originates Router Advertisements and answers
 
 ## Figures
 
-- **MUST bar**: Ze proven 29, OS testing gap 91, Ze correctness gap 18
-- **Overview bar**: Ze MUST proven 29, SHOULD not decided 79, OS testing gap 91, Ze correctness gap 18
+- **MUST bar**: Ze proven 30, OS testing gap 91, Not built 17
+- **Overview bar**: Ze MUST proven 30, OS testing gap 91, Not assessed 79, Not built 17
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 138 |
 | MUST rows kept (the MUST bar) | 138 |
-| Ze proven | 29 |
+| Ze proven | 30 |
 | OS verified | 0 |
+| Proof pending | 0 |
 | OS testing gap | 91 |
-| Ze correctness gap | 18 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 17 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -138,11 +148,12 @@ Enrolled: Ze is an IPv6 router that originates Router Advertisements and answers
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 79 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 79 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc4861.json](../../../data/rfc/rfc4861.json).
 
@@ -483,21 +494,21 @@ Source: [data/rfc/rfc4861.json](../../../data/rfc/rfc4861.json).
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC4861-2.3-1`](#rfc4861-2.3-1)
 
 All interfaces on routers MUST have a link-local address. (§2.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-2.3-1, so no unit is bound to it.
+No test carries RFC4861-2.3-1, so there is no linked test.
 
 ### [`RFC4861-4.1-1`](#rfc4861-4.1-1)
 
 It MUST be initialized to zero by the sender and MUST be ignored by the receiver. (§4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -508,15 +519,15 @@ Audit verdict: not audited: no reader has judged these tests
 
 MUST NOT be included if the Source Address is the unspecified address. (§4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-4.1-2, so no unit is bound to it.
+No test carries RFC4861-4.1-2, so there is no linked test.
 
 ### [`RFC4861-4.1-3`](#rfc4861-4.1-3)
 
 Receivers MUST silently ignore any options they do not recognize and continue processing the message. (§4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -527,7 +538,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Source Address MUST be the link-local address assigned to the interface from which this message is sent. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -537,7 +548,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 It MUST be initialized to zero by the sender and MUST be ignored by the receiver. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -548,55 +559,55 @@ Audit verdict: not audited: no reader has judged these tests
 
 Receivers MUST silently ignore any options they do not recognize and continue processing the message. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-4.2-3, so no unit is bound to it.
+No test carries RFC4861-4.2-3, so there is no linked test.
 
 ### [`RFC4861-4.3-1`](#rfc4861-4.3-1)
 
 It MUST be initialized to zero by the sender and MUST be ignored by the receiver. (§4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-4.3-1, so no unit is bound to it.
+No test carries RFC4861-4.3-1, so there is no linked test.
 
 ### [`RFC4861-4.3-2`](#rfc4861-4.3-2)
 
 It MUST NOT be a multicast address. (§4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-4.3-2, so no unit is bound to it.
+No test carries RFC4861-4.3-2, so there is no linked test.
 
 ### [`RFC4861-4.3-3`](#rfc4861-4.3-3)
 
 MUST NOT be included when the source IP address is the unspecified address. (§4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-4.3-3, so no unit is bound to it.
+No test carries RFC4861-4.3-3, so there is no linked test.
 
 ### [`RFC4861-4.3-4`](#rfc4861-4.3-4)
 
 Otherwise, on link layers that have addresses this option MUST be included in multicast solicitations and SHOULD be included in unicast solicitations. (§4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-4.3-4, so no unit is bound to it.
+No test carries RFC4861-4.3-4, so there is no linked test.
 
 ### [`RFC4861-4.3-5`](#rfc4861-4.3-5)
 
 Receivers MUST silently ignore any options they do not recognize and continue processing the message. (§4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-4.3-5, so no unit is bound to it.
+No test carries RFC4861-4.3-5, so there is no linked test.
 
 ### [`RFC4861-4.4-1`](#rfc4861-4.4-1)
 
 It MUST NOT be set in multicast advertisements or in unsolicited unicast advertisements. (§4.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -606,7 +617,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 It MUST be initialized to zero by the sender and MUST be ignored by the receiver. (§4.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -616,111 +627,111 @@ Audit verdict: not audited: no reader has judged these tests
 
 The Target Address MUST NOT be a multicast address. (§4.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-4.4-3, so no unit is bound to it.
+No test carries RFC4861-4.4-3, so there is no linked test.
 
 ### [`RFC4861-4.4-4`](#rfc4861-4.4-4)
 
 This option MUST be included on link layers that have addresses when responding to multicast solicitations. (§4.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-4.4-4, so no unit is bound to it.
+No test carries RFC4861-4.4-4, so there is no linked test.
 
 ### [`RFC4861-4.4-5`](#rfc4861-4.4-5)
 
 The option MUST be included for multicast solicitations in order to avoid infinite Neighbor Solicitation "recursion" when the peer node does not have a cache entry to return a Neighbor Advertisements message. (§4.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-4.4-5, so no unit is bound to it.
+No test carries RFC4861-4.4-5, so there is no linked test.
 
 ### [`RFC4861-4.4-6`](#rfc4861-4.4-6)
 
 Receivers MUST silently ignore any options they do not recognize and continue processing the message. (§4.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-4.4-6, so no unit is bound to it.
+No test carries RFC4861-4.4-6, so there is no linked test.
 
 ### [`RFC4861-4.5-1`](#rfc4861-4.5-1)
 
 Source Address MUST be the link-local address assigned to the interface from which this message is sent. (§4.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-4.5-1, so no unit is bound to it.
+No test carries RFC4861-4.5-1, so there is no linked test.
 
 ### [`RFC4861-4.5-2`](#rfc4861-4.5-2)
 
 It MUST be initialized to zero by the sender and MUST be ignored by the receiver. (§4.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-4.5-2, so no unit is bound to it.
+No test carries RFC4861-4.5-2, so there is no linked test.
 
 ### [`RFC4861-4.5-3`](#rfc4861-4.5-3)
 
 When the target is the actual endpoint of communication, i.e., the destination is a neighbor, the Target Address field MUST contain the same value as the ICMP Destination Address field. (§4.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-4.5-3, so no unit is bound to it.
+No test carries RFC4861-4.5-3, so there is no linked test.
 
 ### [`RFC4861-4.5-4`](#rfc4861-4.5-4)
 
 Otherwise, the target is a better first-hop router and the Target Address MUST be the router's link-local address so that hosts can uniquely identify routers. (§4.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-4.5-4, so no unit is bound to it.
+No test carries RFC4861-4.5-4, so there is no linked test.
 
 ### [`RFC4861-4.5-5`](#rfc4861-4.5-5)
 
 In such cases, the option MUST be included in Redirect messages. (§4.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-4.5-5, so no unit is bound to it.
+No test carries RFC4861-4.5-5, so there is no linked test.
 
 ### [`RFC4861-4.6-1`](#rfc4861-4.6-1)
 
 Nodes MUST silently discard an ND packet that contains an option with length zero. (§4.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-4.6-1, so no unit is bound to it.
+No test carries RFC4861-4.6-1, so there is no linked test.
 
 ### [`RFC4861-4.6.1-1`](#rfc4861-4.6.1-1)
 
 These options MUST be silently ignored for other Neighbor Discovery messages. (§4.6.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-4.6.1-1, so no unit is bound to it.
+No test carries RFC4861-4.6.1-1, so there is no linked test.
 
 ### [`RFC4861-4.6.2-1`](#rfc4861-4.6.2-1)
 
 In other words, if the L flag is not set a host MUST NOT conclude that an address derived from the prefix is off-link. (§4.6.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-4.6.2-1, so no unit is bound to it.
+No test carries RFC4861-4.6.2-1, so there is no linked test.
 
 ### [`RFC4861-4.6.2-2`](#rfc4861-4.6.2-2)
 
 That is, it MUST NOT update a previous indication that the address is on-link. (§4.6.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-4.6.2-2, so no unit is bound to it.
+No test carries RFC4861-4.6.2-2, so there is no linked test.
 
 ### [`RFC4861-4.6.2-3`](#rfc4861-4.6.2-3)
 
 It MUST be initialized to zero by the sender and MUST be ignored by the receiver. (§4.6.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -731,7 +742,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Note that the value of this field MUST NOT exceed the Valid Lifetime field to avoid preferring addresses that are no longer valid. (§4.6.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -742,7 +753,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 It MUST be initialized to zero by the sender and MUST be ignored by the receiver. (§4.6.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -752,7 +763,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The bits in the prefix after the prefix length are reserved and MUST be initialized to zero by the sender and ignored by the receiver. (§4.6.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -763,63 +774,63 @@ Audit verdict: not audited: no reader has judged these tests
 
 The Prefix Information option appears in Router Advertisement packets and MUST be silently ignored for other messages. (§4.6.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-4.6.2-7, so no unit is bound to it.
+No test carries RFC4861-4.6.2-7, so there is no linked test.
 
 ### [`RFC4861-4.6.3-1`](#rfc4861-4.6.3-1)
 
 They MUST be initialized to zero by the sender and MUST be ignored by the receiver. (§4.6.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-4.6.3-1, so no unit is bound to it.
+No test carries RFC4861-4.6.3-1, so there is no linked test.
 
 ### [`RFC4861-4.6.3-2`](#rfc4861-4.6.3-2)
 
 This option MUST be silently ignored for other Neighbor Discovery messages. (§4.6.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-4.6.3-2, so no unit is bound to it.
+No test carries RFC4861-4.6.3-2, so there is no linked test.
 
 ### [`RFC4861-4.6.4-1`](#rfc4861-4.6.4-1)
 
 It MUST be initialized to zero by the sender and MUST be ignored by the receiver. (§4.6.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-4.6.4-1, so no unit is bound to it.
+No test carries RFC4861-4.6.4-1, so there is no linked test.
 
 ### [`RFC4861-4.6.4-2`](#rfc4861-4.6.4-2)
 
 This option MUST be silently ignored for other Neighbor Discovery messages. (§4.6.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-4.6.4-2, so no unit is bound to it.
+No test carries RFC4861-4.6.4-2, so there is no linked test.
 
 ### [`RFC4861-6.1.1-1`](#rfc4861-6.1.1-1)
 
 Hosts MUST silently discard any received Router Solicitation Messages. (§6.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-6.1.1-1, so no unit is bound to it.
+No test carries RFC4861-6.1.1-1, so there is no linked test.
 
 ### [`RFC4861-6.1.1-2`](#rfc4861-6.1.1-2)
 
 A router MUST silently discard any received Router Solicitation messages that do not satisfy all of the following validity checks: (§6.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-6.1.1-2, so no unit is bound to it.
+No test carries RFC4861-6.1.1-2, so there is no linked test.
 
 ### [`RFC4861-6.1.1-3`](#rfc4861-6.1.1-3)
 
 The contents of the Reserved field, and of any unrecognized options, MUST be ignored. (§6.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -830,7 +841,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The contents of any defined options that are not specified to be used with Router Solicitation messages MUST be ignored and the packet processed as normal. (§6.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -841,49 +852,49 @@ Audit verdict: not audited: no reader has judged these tests
 
 A node MUST silently discard any received Router Advertisement messages that do not satisfy all of the following validity checks: (§6.1.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-6.1.2-1, so no unit is bound to it.
+No test carries RFC4861-6.1.2-1, so there is no linked test.
 
 ### [`RFC4861-6.1.2-2`](#rfc4861-6.1.2-2)
 
 The contents of the Reserved field, and of any unrecognized options, MUST be ignored. (§6.1.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-6.1.2-2, so no unit is bound to it.
+No test carries RFC4861-6.1.2-2, so there is no linked test.
 
 ### [`RFC4861-6.1.2-3`](#rfc4861-6.1.2-3)
 
 The contents of any defined options that are not specified to be used with Router Advertisement messages MUST be ignored and the packet processed as normal. (§6.1.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-6.1.2-3, so no unit is bound to it.
+No test carries RFC4861-6.1.2-3, so there is no linked test.
 
 ### [`RFC4861-6.2.1-1`](#rfc4861-6.2.1-1)
 
 A router MUST allow for the following conceptual variables to be configured by system management. (§6.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-6.2.1-1, so no unit is bound to it.
+No test carries RFC4861-6.2.1-1, so there is no linked test.
 
 ### [`RFC4861-6.2.1-2`](#rfc4861-6.2.1-2)
 
 Note that AdvSendAdvertisements MUST be FALSE by default so that a node will not accidentally start acting as a router unless it is explicitly configured by system management to send Router Advertisements. (§6.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC4861AdvSendAdvertisementsIsFalseByDefault`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc4861_router_configuration_test.go#L82) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC4861AdvSendAdvertisementsIsFalseByDefault`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc4861_router_configuration_test.go#L82) | unit/verify | revert, verified |
 
 ### [`RFC4861-6.2.1-3`](#rfc4861-6.2.1-3)
 
 MUST be no less than 4 seconds and no greater than 1800 seconds. (§6.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -894,7 +905,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 MUST be no less than 3 seconds and no greater than .75 * MaxRtrAdvInterval. (§6.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -905,7 +916,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 MUST be no greater than 3,600,000 milliseconds (1 hour). (§6.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -916,7 +927,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 MUST be either zero or between MaxRtrAdvInterval and 9000 seconds. (§6.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -927,7 +938,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 This value MUST NOT be larger than AdvValidLifetime. (§6.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -938,15 +949,15 @@ Audit verdict: not audited: no reader has judged these tests
 
 However, external router behavior MUST be the same as host behavior with respect to these variables. (§6.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-6.2.1-8, so no unit is bound to it.
+No test carries RFC4861-6.2.1-8, so there is no linked test.
 
 ### [`RFC4861-6.2.2-1`](#rfc4861-6.2.2-1)
 
 A router MUST NOT send Router Advertisements out any interface that is not an advertising interface. (§6.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -957,7 +968,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 A router MUST join the all-routers multicast address on an advertising interface. (§6.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -967,39 +978,39 @@ Audit verdict: not audited: no reader has judged these tests
 
 A host MUST NOT send Router Advertisement messages at any time. (§6.2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-6.2.4-1, so no unit is bound to it.
+No test carries RFC4861-6.2.4-1, so there is no linked test.
 
 ### [`RFC4861-6.2.5-1`](#rfc4861-6.2.5-1)
 
 In addition, the host MUST ensure that subsequent Neighbor Advertisement messages sent from the interface have the Router flag set to zero. (§6.2.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-6.2.5-1, so no unit is bound to it.
+No test carries RFC4861-6.2.5-1, so there is no linked test.
 
 ### [`RFC4861-6.2.5-2`](#rfc4861-6.2.5-2)
 
 In such cases, subsequent Router Advertisements MUST set the Router Lifetime field to zero. (§6.2.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-6.2.5-2, so no unit is bound to it.
+No test carries RFC4861-6.2.5-2, so there is no linked test.
 
 ### [`RFC4861-6.2.6-1`](#rfc4861-6.2.6-1)
 
 A host MUST silently discard any received Router Solicitation messages. (§6.2.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-6.2.6-1, so no unit is bound to it.
+No test carries RFC4861-6.2.6-1, so there is no linked test.
 
 ### [`RFC4861-6.2.6-2`](#rfc4861-6.2.6-2)
 
 In all cases, Router Advertisements sent in response to a Router Solicitation MUST be delayed by a random time between 0 and MAX_RA_DELAY_TIME seconds. (§6.2.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1009,7 +1020,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 (If a single advertisement is sent in response to multiple solicitations, the delay is relative to the first solicitation.) In addition, consecutive Router Advertisements sent to the all-nodes multicast address MUST be rate limited to no more than one advertisement every MIN_DELAY_BETWEEN_RAS seconds. (§6.2.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1019,7 +1030,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 In all cases, however, unsolicited multicast advertisements MUST NOT be sent more frequently than indicated by MinRtrAdvInterval. (§6.2.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1029,359 +1040,359 @@ Audit verdict: not audited: no reader has judged these tests
 
 Router Solicitations in which the Source Address is the unspecified address MUST NOT update the router's Neighbor Cache; solicitations with a proper source address update the Neighbor Cache as follows. (§6.2.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-6.2.6-5, so no unit is bound to it.
+No test carries RFC4861-6.2.6-5, so there is no linked test.
 
 ### [`RFC4861-6.2.6-6`](#rfc4861-6.2.6-6)
 
 If the router already has a Neighbor Cache entry for the solicitation's sender, the solicitation contains a Source Link-Layer Address option, and the received link-layer address differs from that already in the cache, then the link-layer address SHOULD be updated in the appropriate Neighbor Cache entry, and its reachability state MUST also be set to STALE. (§6.2.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-6.2.6-6, so no unit is bound to it.
+No test carries RFC4861-6.2.6-6, so there is no linked test.
 
 ### [`RFC4861-6.2.6-7`](#rfc4861-6.2.6-7)
 
 Whether or not a Source Link-Layer Address option is provided, if a Neighbor Cache entry for the solicitation's sender exists (or is created) the entry's IsRouter flag MUST be set to FALSE. (§6.2.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-6.2.6-7, so no unit is bound to it.
+No test carries RFC4861-6.2.6-7, so there is no linked test.
 
 ### [`RFC4861-6.3.4-1`](#rfc4861-6.3.4-1)
 
 Hosts accept the union of all received information; the receipt of a Router Advertisement MUST NOT invalidate all information received in a previous advertisement or from another source. (§6.3.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-6.3.4-1, so no unit is bound to it.
+No test carries RFC4861-6.3.4-1, so there is no linked test.
 
 ### [`RFC4861-6.3.4-2`](#rfc4861-6.3.4-2)
 
 In particular, a host MUST NOT interpret the unspecified value as meaning change back to the default value that was in use before the first Router Advertisement was received. (§6.3.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-6.3.4-2, so no unit is bound to it.
+No test carries RFC4861-6.3.4-2, so there is no linked test.
 
 ### [`RFC4861-6.3.4-3`](#rfc4861-6.3.4-3)
 
 However, a host MUST retain at least two router addresses and SHOULD retain more. (§6.3.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-6.3.4-3, so no unit is bound to it.
+No test carries RFC4861-6.3.4-3, so there is no linked test.
 
 ### [`RFC4861-6.3.4-4`](#rfc4861-6.3.4-4)
 
 If the advertisement contains a Source Link-Layer Address option, the link-layer address SHOULD be recorded in the Neighbor Cache entry for the router (creating an entry if necessary) and the IsRouter flag in the Neighbor Cache entry MUST be set to TRUE. (§6.3.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-6.3.4-4, so no unit is bound to it.
+No test carries RFC4861-6.3.4-4, so there is no linked test.
 
 ### [`RFC4861-6.3.4-5`](#rfc4861-6.3.4-5)
 
 If no Source Link-Layer Address is included, but a corresponding Neighbor Cache entry exists, its IsRouter flag MUST be set to TRUE. (§6.3.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-6.3.4-5, so no unit is bound to it.
+No test carries RFC4861-6.3.4-5, so there is no linked test.
 
 ### [`RFC4861-6.3.4-6`](#rfc4861-6.3.4-6)
 
 If a Neighbor Cache entry is created for the router, its reachability state MUST be set to STALE as specified in Section 7.3.3. (§6.3.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-6.3.4-6, so no unit is bound to it.
+No test carries RFC4861-6.3.4-6, so there is no linked test.
 
 ### [`RFC4861-6.3.4-7`](#rfc4861-6.3.4-7)
 
 If a cache entry already exists and is updated with a different link-layer address, the reachability state MUST also be set to STALE. (§6.3.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-6.3.4-7, so no unit is bound to it.
+No test carries RFC4861-6.3.4-7, so there is no linked test.
 
 ### [`RFC4861-6.3.4-8`](#rfc4861-6.3.4-8)
 
 Note, however, that a Prefix Information option with the on-link flag set to zero conveys no information concerning on-link determination and MUST NOT be interpreted to mean that addresses covered by the prefix are off-link. (§6.3.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-6.3.4-8, so no unit is bound to it.
+No test carries RFC4861-6.3.4-8, so there is no linked test.
 
 ### [`RFC4861-6.3.5-1`](#rfc4861-6.3.5-1)
 
 When removing a router from the Default Router list, the node MUST update the Destination Cache in such a way that all entries using the router perform next-hop determination again rather than continue sending traffic to the (deleted) router. (§6.3.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-6.3.5-1, so no unit is bound to it.
+No test carries RFC4861-6.3.5-1, so there is no linked test.
 
 ### [`RFC4861-6.3.7-1`](#rfc4861-6.3.7-1)
 
 Once the host sends a Router Solicitation, and receives a valid Router Advertisement with a non-zero Router Lifetime, the host MUST desist from sending additional solicitations on that interface, until the next time one of the above events occurs. (§6.3.7)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-6.3.7-1, so no unit is bound to it.
+No test carries RFC4861-6.3.7-1, so there is no linked test.
 
 ### [`RFC4861-7.1.1-1`](#rfc4861-7.1.1-1)
 
 A node MUST silently discard any received Neighbor Solicitation messages that do not satisfy all of the following validity checks: (§7.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-7.1.1-1, so no unit is bound to it.
+No test carries RFC4861-7.1.1-1, so there is no linked test.
 
 ### [`RFC4861-7.1.1-2`](#rfc4861-7.1.1-2)
 
 The contents of the Reserved field, and of any unrecognized options, MUST be ignored. (§7.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-7.1.1-2, so no unit is bound to it.
+No test carries RFC4861-7.1.1-2, so there is no linked test.
 
 ### [`RFC4861-7.1.1-3`](#rfc4861-7.1.1-3)
 
 The contents of any defined options that are not specified to be used with Neighbor Solicitation messages MUST be ignored and the packet processed as normal. (§7.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-7.1.1-3, so no unit is bound to it.
+No test carries RFC4861-7.1.1-3, so there is no linked test.
 
 ### [`RFC4861-7.1.2-1`](#rfc4861-7.1.2-1)
 
 A node MUST silently discard any received Neighbor Advertisement messages that do not satisfy all of the following validity checks: (§7.1.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-7.1.2-1, so no unit is bound to it.
+No test carries RFC4861-7.1.2-1, so there is no linked test.
 
 ### [`RFC4861-7.1.2-2`](#rfc4861-7.1.2-2)
 
 The contents of the Reserved field, and of any unrecognized options, MUST be ignored. (§7.1.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-7.1.2-2, so no unit is bound to it.
+No test carries RFC4861-7.1.2-2, so there is no linked test.
 
 ### [`RFC4861-7.1.2-3`](#rfc4861-7.1.2-3)
 
 The contents of any defined options that are not specified to be used with Neighbor Advertisement messages MUST be ignored and the packet processed as normal. (§7.1.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-7.1.2-3, so no unit is bound to it.
+No test carries RFC4861-7.1.2-3, so there is no linked test.
 
 ### [`RFC4861-7.2-1`](#rfc4861-7.2-1)
 
 These messages MUST NOT create or update neighbor cache entries, except with respect to the IsRouter flag as specified in Sections 6.3.4 and 7.2.5. (§7.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-7.2-1, so no unit is bound to it.
+No test carries RFC4861-7.2-1, so there is no linked test.
 
 ### [`RFC4861-7.2.1-1`](#rfc4861-7.2.1-1)
 
 When a multicast-capable interface becomes enabled, the node MUST join the all-nodes multicast address on that interface, as well as the solicited-node multicast address corresponding to each of the IP addresses assigned to the interface. (§7.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-7.2.1-1, so no unit is bound to it.
+No test carries RFC4861-7.2.1-1, so there is no linked test.
 
 ### [`RFC4861-7.2.1-2`](#rfc4861-7.2.1-2)
 
 In such cases the node MUST join and leave the solicited-node multicast address corresponding to the new and old addresses, respectively. (§7.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-7.2.1-2, so no unit is bound to it.
+No test carries RFC4861-7.2.1-2, so there is no linked test.
 
 ### [`RFC4861-7.2.1-3`](#rfc4861-7.2.1-3)
 
 Note that multiple unicast addresses may map into the same solicited-node multicast address; a node MUST NOT leave the solicited-node multicast group until all assigned addresses corresponding to that multicast address have been removed. (§7.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-7.2.1-3, so no unit is bound to it.
+No test carries RFC4861-7.2.1-3, so there is no linked test.
 
 ### [`RFC4861-7.2.2-1`](#rfc4861-7.2.2-1)
 
 If the solicitation is being sent to a solicited-node multicast address, the sender MUST include its link-layer address (if it has one) as a Source Link-Layer Address option. (§7.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-7.2.2-1, so no unit is bound to it.
+No test carries RFC4861-7.2.2-1, so there is no linked test.
 
 ### [`RFC4861-7.2.2-2`](#rfc4861-7.2.2-2)
 
 While waiting for address resolution to complete, the sender MUST, for each neighbor, retain a small queue of packets waiting for address resolution to complete. (§7.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-7.2.2-2, so no unit is bound to it.
+No test carries RFC4861-7.2.2-2, so there is no linked test.
 
 ### [`RFC4861-7.2.2-3`](#rfc4861-7.2.2-3)
 
 The queue MUST hold at least one packet, and MAY contain more. (§7.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-7.2.2-3, so no unit is bound to it.
+No test carries RFC4861-7.2.2-3, so there is no linked test.
 
 ### [`RFC4861-7.2.2-4`](#rfc4861-7.2.2-4)
 
 Retransmissions MUST be rate-limited to at most one solicitation per neighbor every RetransTimer milliseconds. (§7.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-7.2.2-4, so no unit is bound to it.
+No test carries RFC4861-7.2.2-4, so there is no linked test.
 
 ### [`RFC4861-7.2.2-5`](#rfc4861-7.2.2-5)
 
 The sender MUST return ICMP destination unreachable indications with code 3 (Address Unreachable) for each packet queued awaiting address resolution. (§7.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-7.2.2-5, so no unit is bound to it.
+No test carries RFC4861-7.2.2-5, so there is no linked test.
 
 ### [`RFC4861-7.2.3-1`](#rfc4861-7.2.3-1)
 
 A valid Neighbor Solicitation that does not meet any of the following requirements MUST be silently discarded: (§7.2.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-7.2.3-1, so no unit is bound to it.
+No test carries RFC4861-7.2.3-1, so there is no linked test.
 
 ### [`RFC4861-7.2.3-2`](#rfc4861-7.2.3-2)
 
 If an entry already exists, and the cached link-layer address differs from the one in the received Source Link-Layer option, the cached address should be replaced by the received address, and the entry's reachability state MUST be set to STALE. (§7.2.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-7.2.3-2, so no unit is bound to it.
+No test carries RFC4861-7.2.3-2, so there is no linked test.
 
 ### [`RFC4861-7.2.3-3`](#rfc4861-7.2.3-3)
 
 If a Neighbor Cache entry already exists, its IsRouter flag MUST NOT be modified. (§7.2.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-7.2.3-3, so no unit is bound to it.
+No test carries RFC4861-7.2.3-3, so there is no linked test.
 
 ### [`RFC4861-7.2.3-4`](#rfc4861-7.2.3-4)
 
 If the Source Address is the unspecified address, the node MUST NOT create or update the Neighbor Cache entry. (§7.2.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-7.2.3-4, so no unit is bound to it.
+No test carries RFC4861-7.2.3-4, so there is no linked test.
 
 ### [`RFC4861-7.2.4-1`](#rfc4861-7.2.4-1)
 
 If the solicitation's IP Destination Address is a multicast address, the Target Link-Layer option MUST be included in the advertisement. (§7.2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-7.2.4-1, so no unit is bound to it.
+No test carries RFC4861-7.2.4-1, so there is no linked test.
 
 ### [`RFC4861-7.2.4-2`](#rfc4861-7.2.4-2)
 
 Furthermore, if the node is a router, it MUST set the Router flag to one; otherwise, it MUST set the flag to zero. (§7.2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-7.2.4-2, so no unit is bound to it.
+No test carries RFC4861-7.2.4-2, so there is no linked test.
 
 ### [`RFC4861-7.2.4-3`](#rfc4861-7.2.4-3)
 
 If the source of the solicitation is the unspecified address, the node MUST set the Solicited flag to zero and multicast the advertisement to the all-nodes address. (§7.2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-7.2.4-3, so no unit is bound to it.
+No test carries RFC4861-7.2.4-3, so there is no linked test.
 
 ### [`RFC4861-7.2.4-4`](#rfc4861-7.2.4-4)
 
 Otherwise, the node MUST set the Solicited flag to one and unicast the advertisement to the Source Address of the solicitation. (§7.2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-7.2.4-4, so no unit is bound to it.
+No test carries RFC4861-7.2.4-4, so there is no linked test.
 
 ### [`RFC4861-7.2.5-1`](#rfc4861-7.2.5-1)
 
 Otherwise, the received advertisement should be ignored and MUST NOT update the cache. (§7.2.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-7.2.5-1, so no unit is bound to it.
+No test carries RFC4861-7.2.5-1, so there is no linked test.
 
 ### [`RFC4861-7.2.5-2`](#rfc4861-7.2.5-2)
 
 If the Override flag is set, or the supplied link-layer address is the same as that in the cache, or no Target Link-Layer Address option was supplied, the received advertisement MUST update the Neighbor Cache entry as follows: (§7.2.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-7.2.5-2, so no unit is bound to it.
+No test carries RFC4861-7.2.5-2, so there is no linked test.
 
 ### [`RFC4861-7.2.5-3`](#rfc4861-7.2.5-3)
 
 - The link-layer address in the Target Link-Layer Address option MUST be inserted in the cache (if one is supplied and differs from the already recorded address). (§7.2.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-7.2.5-3, so no unit is bound to it.
+No test carries RFC4861-7.2.5-3, so there is no linked test.
 
 ### [`RFC4861-7.2.5-4`](#rfc4861-7.2.5-4)
 
 - If the Solicited flag is set, the state of the entry MUST be set to REACHABLE. (§7.2.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-7.2.5-4, so no unit is bound to it.
+No test carries RFC4861-7.2.5-4, so there is no linked test.
 
 ### [`RFC4861-7.2.5-5`](#rfc4861-7.2.5-5)
 
 If the Solicited flag is zero and the link- layer address was updated with a different address, the state MUST be set to STALE. (§7.2.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-7.2.5-5, so no unit is bound to it.
+No test carries RFC4861-7.2.5-5, so there is no linked test.
 
 ### [`RFC4861-7.2.5-6`](#rfc4861-7.2.5-6)
 
 - The IsRouter flag in the cache entry MUST be set based on the Router flag in the received advertisement. (§7.2.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-7.2.5-6, so no unit is bound to it.
+No test carries RFC4861-7.2.5-6, so there is no linked test.
 
 ### [`RFC4861-7.2.5-7`](#rfc4861-7.2.5-7)
 
 In those cases where the IsRouter flag changes from TRUE to FALSE as a result of this update, the node MUST remove that router from the Default Router List and update the Destination Cache entries for all destinations using that neighbor as a router as specified in Section 7.3.3. (§7.2.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-7.2.5-7, so no unit is bound to it.
+No test carries RFC4861-7.2.5-7, so there is no linked test.
 
 ### [`RFC4861-7.2.6-1`](#rfc4861-7.2.6-1)
 
 These advertisements MUST be separated by at least RetransTimer seconds. (§7.2.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-7.2.6-1, so no unit is bound to it.
+No test carries RFC4861-7.2.6-1, so there is no linked test.
 
 ### [`RFC4861-7.2.6-2`](#rfc4861-7.2.6-2)
 
 The Solicited flag MUST be set to zero, in order to avoid confusing the Neighbor Unreachability Detection algorithm. (§7.2.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1391,7 +1402,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If the node is a router, it MUST set the Router flag to one; otherwise, it MUST set it to zero. (§7.2.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1401,175 +1412,175 @@ Audit verdict: not audited: no reader has judged these tests
 
 A proxy MUST join the solicited-node multicast address(es) that correspond to the IP address(es) assigned to the node for which it is proxying. (§7.2.8)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-7.2.8-1, so no unit is bound to it.
+No test carries RFC4861-7.2.8-1, so there is no linked test.
 
 ### [`RFC4861-7.2.8-2`](#rfc4861-7.2.8-2)
 
 All solicited proxy Neighbor Advertisement messages MUST have the Override flag set to zero. (§7.2.8)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-7.2.8-2, so no unit is bound to it.
+No test carries RFC4861-7.2.8-2, so there is no linked test.
 
 ### [`RFC4861-7.3.1-1`](#rfc4861-7.3.1-1)
 
 Receipt of other Neighbor Discovery messages, such as Router Advertisements and Neighbor Advertisement with the Solicited flag set to zero, MUST NOT be treated as a reachability confirmation. (§7.3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-7.3.1-1, so no unit is bound to it.
+No test carries RFC4861-7.3.1-1, so there is no linked test.
 
 ### [`RFC4861-7.3.3-1`](#rfc4861-7.3.3-1)
 
 A node MUST NOT send Neighbor Solicitations to the same neighbor more frequently than once every RetransTimer milliseconds. (§7.3.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-7.3.3-1, so no unit is bound to it.
+No test carries RFC4861-7.3.3-1, so there is no linked test.
 
 ### [`RFC4861-7.3.3-2`](#rfc4861-7.3.3-2)
 
 To properly detect the case where a router switches from being a router to being a host (e.g., if its IP forwarding capability is turned off by system management), a node MUST compare the Router flag field in all received Neighbor Advertisement messages with the IsRouter flag recorded in the Neighbor Cache entry. (§7.3.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-7.3.3-2, so no unit is bound to it.
+No test carries RFC4861-7.3.3-2, so there is no linked test.
 
 ### [`RFC4861-7.3.3-3`](#rfc4861-7.3.3-3)
 
 When a node detects that a neighbor has changed from being a router to being a host, the node MUST remove that router from the Default Router List and update the Destination Cache as described in Section 6.3.5. (§7.3.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-7.3.3-3, so no unit is bound to it.
+No test carries RFC4861-7.3.3-3, so there is no linked test.
 
 ### [`RFC4861-7.3.3-4`](#rfc4861-7.3.3-4)
 
 However, link-specific information MUST NOT be used to confirm the reachability of a neighbor; such information does not provide end-to-end confirmation between neighboring IP layers. (§7.3.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-7.3.3-4, so no unit is bound to it.
+No test carries RFC4861-7.3.3-4, so there is no linked test.
 
 ### [`RFC4861-8-1`](#rfc4861-8-1)
 
 A router MUST be able to determine the link-local address for each of its neighboring routers in order to ensure that the target address in a Redirect message identifies the neighbor router by its link-local address. (§8)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-8-1, so no unit is bound to it.
+No test carries RFC4861-8-1, so there is no linked test.
 
 ### [`RFC4861-8.1-1`](#rfc4861-8.1-1)
 
 A host MUST silently discard any received Redirect message that does not satisfy all of the following validity checks: (§8.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-8.1-1, so no unit is bound to it.
+No test carries RFC4861-8.1-1, so there is no linked test.
 
 ### [`RFC4861-8.1-2`](#rfc4861-8.1-2)
 
 The contents of the Reserved field, and of any unrecognized options, MUST be ignored. (§8.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-8.1-2, so no unit is bound to it.
+No test carries RFC4861-8.1-2, so there is no linked test.
 
 ### [`RFC4861-8.1-3`](#rfc4861-8.1-3)
 
 The contents of any defined options that are not specified to be used with Redirect messages MUST be ignored and the packet processed as normal. (§8.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-8.1-3, so no unit is bound to it.
+No test carries RFC4861-8.1-3, so there is no linked test.
 
 ### [`RFC4861-8.1-4`](#rfc4861-8.1-4)
 
 A host MUST NOT consider a redirect invalid just because the Target Address of the redirect is not covered under one of the link's prefixes. (§8.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-8.1-4, so no unit is bound to it.
+No test carries RFC4861-8.1-4, so there is no linked test.
 
 ### [`RFC4861-8.2-1`](#rfc4861-8.2-1)
 
 If the target is a router, that router's link-local address MUST be used. (§8.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-8.2-1, so no unit is bound to it.
+No test carries RFC4861-8.2-1, so there is no linked test.
 
 ### [`RFC4861-8.2-2`](#rfc4861-8.2-2)
 
 If the target is a host, the target address field MUST be set to the same value as the Destination Address field. (§8.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-8.2-2, so no unit is bound to it.
+No test carries RFC4861-8.2-2, so there is no linked test.
 
 ### [`RFC4861-8.2-3`](#rfc4861-8.2-3)
 
 A router MUST limit the rate at which Redirect messages are sent, in order to limit the bandwidth and processing costs incurred by the Redirect messages when the source does not correctly respond to the Redirects, or the source chooses to ignore unauthenticated Redirect messages. (§8.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-8.2-3, so no unit is bound to it.
+No test carries RFC4861-8.2-3, so there is no linked test.
 
 ### [`RFC4861-8.2-4`](#rfc4861-8.2-4)
 
 A router MUST NOT update its routing tables upon receipt of a Redirect. (§8.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-8.2-4, so no unit is bound to it.
+No test carries RFC4861-8.2-4, so there is no linked test.
 
 ### [`RFC4861-8.3-1`](#rfc4861-8.3-1)
 
 If a Neighbor Cache entry is created for the target, its reachability state MUST be set to STALE as specified in Section 7.3.3. (§8.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-8.3-1, so no unit is bound to it.
+No test carries RFC4861-8.3-1, so there is no linked test.
 
 ### [`RFC4861-8.3-2`](#rfc4861-8.3-2)
 
 If a cache entry already existed and it is updated with a different link-layer address, its reachability state MUST also be set to STALE. (§8.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-8.3-2, so no unit is bound to it.
+No test carries RFC4861-8.3-2, so there is no linked test.
 
 ### [`RFC4861-8.3-3`](#rfc4861-8.3-3)
 
 If the Target and Destination Addresses are the same, the host MUST treat the Target as on-link. (§8.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-8.3-3, so no unit is bound to it.
+No test carries RFC4861-8.3-3, so there is no linked test.
 
 ### [`RFC4861-8.3-4`](#rfc4861-8.3-4)
 
 If the Target Address is not the same as the Destination Address, the host MUST set IsRouter to TRUE for the target. (§8.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-8.3-4, so no unit is bound to it.
+No test carries RFC4861-8.3-4, so there is no linked test.
 
 ### [`RFC4861-8.3-5`](#rfc4861-8.3-5)
 
 A host MUST NOT send Redirect messages. (§8.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-8.3-5, so no unit is bound to it.
+No test carries RFC4861-8.3-5, so there is no linked test.
 
 ### [`RFC4861-9-1`](#rfc4861-9-1)
 
 In order to ensure that future extensions properly coexist with current implementations, all nodes MUST silently ignore any options they do not recognize in received ND packets and continue processing the packet. (§9)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1580,15 +1591,15 @@ Audit verdict: not audited: no reader has judged these tests
 
 All options specified in this document MUST be recognized. (§9)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-9-2, so no unit is bound to it.
+No test carries RFC4861-9-2, so there is no linked test.
 
 ### [`RFC4861-9-3`](#rfc4861-9-3)
 
 A node MUST NOT ignore valid options just because the ND message contains unrecognized ones. (§9)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1599,7 +1610,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Thus, a receiver MUST NOT associate any action with the absence of an option in a particular packet. (§9)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1610,7 +1621,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Options in Neighbor Discovery packets can appear in any order; receivers MUST be prepared to process them independently of their order. (§9)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1621,23 +1632,23 @@ Audit verdict: not audited: no reader has judged these tests
 
 The amount of data to include in the Redirected Header option MUST be limited so that the entire redirect packet does not exceed the minimum MTU required to support IPv6 as specified in [IPv6]. (§9)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-9-6, so no unit is bound to it.
+No test carries RFC4861-9-6, so there is no linked test.
 
 ### [`RFC4861-9-7`](#rfc4861-9-7)
 
 When adding options to an ND packet, a node MUST NOT exceed the link MTU. (§9)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-9-7, so no unit is bound to it.
+No test carries RFC4861-9-7, so there is no linked test.
 
 ### [`RFC4861-9-8`](#rfc4861-9-8)
 
 Receivers MUST silently ignore any options they do not recognize and continue processing the message. (§9)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1648,27 +1659,27 @@ Audit verdict: not audited: no reader has judged these tests
 
 In any case, if either [IPv6-AUTH] or [IPv6-ESP] is used, ND packets MUST be verified for the purpose of authentication. (§11.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-11.2-1, so no unit is bound to it.
+No test carries RFC4861-11.2-1, so there is no linked test.
 
 ### [`RFC4861-11.2-2`](#rfc4861-11.2-2)
 
 Packets that fail authentication checks MUST be silently discarded. (§11.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-11.2-2, so no unit is bound to it.
+No test carries RFC4861-11.2-2, so there is no linked test.
 
 ### [`RFC4861-D-1`](#rfc4861-d-1)
 
 But when there is no host vs. router information in the ND message, the receipt of the message MUST NOT cause a change to the IsRouter state. (§D)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4861-D-1, so no unit is bound to it.
+No test carries RFC4861-D-1, so there is no linked test.
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -1688,90 +1699,90 @@ No test carries RFC4861-D-1, so no unit is bound to it.
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
 | `front` | not stated | 0 | skipped (front-matter) | Title block, Status of this Memo, copyright notice, Abstract and table of contents. |
-| `1` | not stated | 0 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `2` | not stated | 0 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `2.1` | not stated | 0 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `2.2` | not stated | 0 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `2.3` | not stated | 1 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `2.4` | not stated | 1 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `3` | not stated | 0 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `3.1` | not stated | 0 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `3.2` | not stated | 0 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `3.3` | not stated | 0 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `4` | not stated | 0 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `4.1` | not stated | 3 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `4.2` | not stated | 3 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `4.3` | not stated | 5 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `4.4` | not stated | 6 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `4.5` | not stated | 5 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `4.6` | not stated | 1 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `4.6.1` | not stated | 1 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `4.6.2` | not stated | 7 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `4.6.3` | not stated | 2 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `4.6.4` | not stated | 2 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `5` | not stated | 0 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `5.1` | not stated | 0 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `5.2` | not stated | 0 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `5.3` | not stated | 0 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `6` | not stated | 0 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `6.1` | not stated | 0 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `6.1.1` | not stated | 4 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `6.1.2` | not stated | 3 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `6.2` | not stated | 0 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `6.2.1` | not stated | 8 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `6.2.2` | not stated | 2 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `6.2.3` | not stated | 0 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `6.2.4` | not stated | 1 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `6.2.5` | not stated | 2 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `6.2.6` | not stated | 7 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `6.2.7` | not stated | 0 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `6.2.8` | not stated | 0 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `6.3` | not stated | 0 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `6.3.1` | not stated | 0 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `6.3.2` | not stated | 0 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `6.3.3` | not stated | 0 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `6.3.4` | not stated | 8 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `6.3.5` | not stated | 1 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `6.3.6` | not stated | 0 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `6.3.7` | not stated | 1 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `7` | not stated | 0 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `7.1` | not stated | 0 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `7.1.1` | not stated | 3 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `7.1.2` | not stated | 3 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `7.2` | not stated | 1 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `7.2.1` | not stated | 3 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `7.2.2` | not stated | 5 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `7.2.3` | not stated | 4 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `7.2.4` | not stated | 4 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `7.2.5` | not stated | 7 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `7.2.6` | not stated | 3 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `7.2.7` | not stated | 0 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `7.2.8` | not stated | 2 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `7.3` | not stated | 0 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `7.3.1` | not stated | 1 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `7.3.2` | not stated | 0 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `7.3.3` | not stated | 4 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `8` | not stated | 1 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `8.1` | not stated | 4 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `8.2` | not stated | 4 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `8.3` | not stated | 5 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `9` | not stated | 9 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `10` | not stated | 0 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `11` | not stated | 0 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `11.1` | not stated | 0 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `11.2` | not stated | 2 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `12` | not stated | 0 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `13` | not stated | 0 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `14` | not stated | 0 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `14.1` | not stated | 0 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `14.2` | not stated | 0 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `A` | not stated | 0 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `B` | not stated | 0 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `C` | not stated | 0 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `D` | not stated | 1 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `E` | not stated | 0 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `E.1` | not stated | 0 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
-| `F` | not stated | 0 | walked | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `1` | not stated | 0 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `2` | not stated | 0 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `2.1` | not stated | 0 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `2.2` | not stated | 0 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `2.3` | not stated | 1 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `2.4` | not stated | 1 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `3` | not stated | 0 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `3.1` | not stated | 0 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `3.2` | not stated | 0 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `3.3` | not stated | 0 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `4` | not stated | 0 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `4.1` | not stated | 3 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `4.2` | not stated | 3 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `4.3` | not stated | 5 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `4.4` | not stated | 6 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `4.5` | not stated | 5 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `4.6` | not stated | 1 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `4.6.1` | not stated | 1 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `4.6.2` | not stated | 7 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `4.6.3` | not stated | 2 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `4.6.4` | not stated | 2 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `5` | not stated | 0 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `5.1` | not stated | 0 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `5.2` | not stated | 0 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `5.3` | not stated | 0 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `6` | not stated | 0 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `6.1` | not stated | 0 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `6.1.1` | not stated | 4 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `6.1.2` | not stated | 3 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `6.2` | not stated | 0 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `6.2.1` | not stated | 8 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `6.2.2` | not stated | 2 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `6.2.3` | not stated | 0 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `6.2.4` | not stated | 1 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `6.2.5` | not stated | 2 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `6.2.6` | not stated | 7 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `6.2.7` | not stated | 0 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `6.2.8` | not stated | 0 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `6.3` | not stated | 0 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `6.3.1` | not stated | 0 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `6.3.2` | not stated | 0 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `6.3.3` | not stated | 0 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `6.3.4` | not stated | 8 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `6.3.5` | not stated | 1 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `6.3.6` | not stated | 0 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `6.3.7` | not stated | 1 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `7` | not stated | 0 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `7.1` | not stated | 0 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `7.1.1` | not stated | 3 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `7.1.2` | not stated | 3 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `7.2` | not stated | 1 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `7.2.1` | not stated | 3 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `7.2.2` | not stated | 5 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `7.2.3` | not stated | 4 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `7.2.4` | not stated | 4 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `7.2.5` | not stated | 7 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `7.2.6` | not stated | 3 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `7.2.7` | not stated | 0 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `7.2.8` | not stated | 2 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `7.3` | not stated | 0 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `7.3.1` | not stated | 1 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `7.3.2` | not stated | 0 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `7.3.3` | not stated | 4 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `8` | not stated | 1 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `8.1` | not stated | 4 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `8.2` | not stated | 4 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `8.3` | not stated | 5 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `9` | not stated | 9 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `10` | not stated | 0 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `11` | not stated | 0 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `11.1` | not stated | 0 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `11.2` | not stated | 2 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `12` | not stated | 0 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `13` | not stated | 0 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `14` | not stated | 0 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `14.1` | not stated | 0 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `14.2` | not stated | 0 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `A` | not stated | 0 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `B` | not stated | 0 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `C` | not stated | 0 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `D` | not stated | 1 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `E` | not stated | 0 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `E.1` | not stated | 0 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
+| `F` | not stated | 0 | reviewed | Walked against the source text; every capitalised keyword sentence is captured in the checklist or decided at its site. |
 
 ### Excluded sentences
 

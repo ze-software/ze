@@ -1,6 +1,6 @@
 # 2026-03-23 – 2026-03-29 (1 week)
 
-A full web interface, fleet management, redistribution filtering, and a stack of routing-protocol correctness work all landed together.
+A web interface, fleet management and redistribution filtering were added, alongside fixes to routing protocol behavior.
 
 ## 🖥️ Web interface
 
@@ -14,7 +14,7 @@ A browser-based config editor shipped alongside the existing CLI and SSH editor:
 
 ## 🧩 Fleet management
 
-A managed/fleet-config system landed: named hub blocks with per-client authentication, a managed client with first-boot TLS bootstrap, duplicate-client rejection, and CLI flags for managed mode. A client stops itself automatically if `managed` is turned off in its config.
+A new fleet configuration system provides named hub blocks with per-client authentication, a managed client with first-boot TLS setup, duplicate-client rejection, and CLI flags for managed mode. A client stops itself automatically if `managed` is turned off in its config.
 
 ## 🔌 Redistribution filtering
 

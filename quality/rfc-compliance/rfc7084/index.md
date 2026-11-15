@@ -1,6 +1,6 @@
 # RFC 7084 - Basic Requirements for IPv6 Customer Edge Routers
 
-IPv6 customer edge router. Every requirement this repository extracted from RFC 7084, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+IPv6 customer edge router. Every requirement listed for RFC 7084, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,23 +10,10 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 5 | of 41 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 14 | of 41 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 41 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 30 | 30 of 30 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-
-### Neutral
-
-measures that are neither good news nor bad
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Gated MUSTs | 41 | of 68 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 41 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 41 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 7 | of 41 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 41 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 41 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Tested both ways | 5 | of 41 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 14 | of 41 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 41 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Tests shown to detect a fault | 30 | 30 of 30 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -34,55 +21,75 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Partial proof; remaining gap | 2 | of 41 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| No test at all | 13 | of 41 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Partial proof; remaining gap | 2 | of 41 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Declared gap or no test | 13 | of 41 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 
-The 9 counts marked as a part above are the whole of the 41 gated MUSTs: they add up to 41. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Neutral
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+measures that are neither good news nor bad
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Out of scope | 0 | of 41 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 41 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 7 | of 41 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 41 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 41 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+
+### Totals
+
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 41 | of 68 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 41 mandatory requirements: they add up to 41. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | bad | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | IPv6 customer edge router |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 68 |
-| Gated MUST-level | 41 |
+| Mandatory requirements (MUST level) | 41 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 14 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 30 |
-| Tagged units | 30 |
+| Tests linked to requirements | 30 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 30 |
+| Fault test records | 30 |
 | Summary | `rfc/short/rfc7084.md` |
-| Requirement shard | `rfc/requirements/rfc7084.md` |
+| Requirement table | `rfc/requirements/rfc7084.md` |
 | RFC text | `rfc/full/rfc7084.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: Ze plays the IPv6 CE router of the fttx-edge use case: a DHCPv6 client that requests addresses and delegated prefixes on the WAN unit (internal/plugins/iface/dhcp), SLAAC and router discovery on the WAN through the kernel sysctls Ze writes (internal/component/iface/config_sysctl.go), and Router Advertisements on the LAN (internal/plugins/iface/ra, internal/core/ndp/ra.go). Walked site by site on 2026-10-26 (rfc/extraction/rfc7084.json). Every MUST is classified: the ICMPv6, Ethernet, Router Solicitation, L flag and weak host rows the Linux IPv6 stack performs are lower-layer; WAA-3 and L-1 roll up to rfc9915 and rfc4861; the CE glue between WAN provisioning and LAN advertisement (delegated prefix to LAN /64, Route Information Option, Router Lifetime tied to WAN state and prefixes, RA M/O flags starting DHCPv6, Reconfigure Accept, LAN DHCPv6 server, DNSSL, renumbering, ULA border filtering, IPv6 over PPP on the PPPoE client) is recorded as gaps; the remaining rows are Ze's and carry tagged tests with recorded discrimination. The 6rd and DS-Lite requirements are conditional on features this RFC makes SHOULD-level and Ze does not offer, and are excluded as feature-out-of-scope.
+Included in automatic checks: Ze plays the IPv6 CE router of the fttx-edge use case: a DHCPv6 client that requests addresses and delegated prefixes on the WAN unit (internal/plugins/iface/dhcp), SLAAC and router discovery on the WAN through the kernel sysctls Ze writes (internal/component/iface/config_sysctl.go), and Router Advertisements on the LAN (internal/plugins/iface/ra, internal/core/ndp/ra.go). Walked site by site on 2026-10-26 (rfc/extraction/rfc7084.json). Every MUST is classified: the ICMPv6, Ethernet, Router Solicitation, L flag and weak host rows the Linux IPv6 stack performs are lower-layer; WAA-3 and L-1 roll up to rfc9915 and rfc4861; the CE glue between WAN provisioning and LAN advertisement (delegated prefix to LAN /64, Route Information Option, Router Lifetime tied to WAN state and prefixes, RA M/O flags starting DHCPv6, Reconfigure Accept, LAN DHCPv6 server, DNSSL, renumbering, ULA border filtering, IPv6 over PPP on the PPPoE client) is recorded as gaps; the remaining rows are Ze's and carry tagged tests with recorded discrimination. The 6rd and DS-Lite requirements are conditional on features this RFC makes SHOULD-level and Ze does not offer, and are excluded as feature-out-of-scope.
 
-## What the public ledger says
+## Published support status
 
 **Area:** IPv6 customer edge router
 
@@ -97,14 +104,14 @@ Enrolled: Ze plays the IPv6 CE router of the fttx-edge use case: a DHCPv6 client
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 5 | one part of the gated population |
-| Annotated (including scoped evidence) | 36 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 2 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 2 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **41** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 5 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 36 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 2 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 2 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **41** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (5):** [`RFC7084-4.1-4`](#rfc7084-4.1-4), [`RFC7084-4.1-5`](#rfc7084-4.1-5), [`RFC7084-4.2-10`](#rfc7084-4.2-10), [`RFC7084-4.3-7`](#rfc7084-4.3-7), [`RFC7084-4.3-13`](#rfc7084-4.3-13)
 
@@ -116,20 +123,23 @@ Enrolled: Ze plays the IPv6 CE router of the fttx-edge use case: a DHCPv6 client
 
 ## Figures
 
-- **MUST bar**: Ze proven 19, OS testing gap 7, Ze correctness gap 15
-- **Overview bar**: Ze MUST proven 19, SHOULD not decided 25, OS testing gap 7, Ze correctness gap 15
+- **MUST bar**: Ze proven 19, OS testing gap 7, Not built 15
+- **Overview bar**: Ze MUST proven 19, OS testing gap 7, Not assessed 24, Not built 16
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 41 |
 | MUST rows kept (the MUST bar) | 41 |
 | Ze proven | 19 |
 | OS verified | 0 |
+| Proof pending | 0 |
 | OS testing gap | 7 |
-| Ze correctness gap | 15 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 15 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -142,11 +152,12 @@ Enrolled: Ze plays the IPv6 CE router of the fttx-edge use case: a DHCPv6 client
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 25 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 24 |
+| SHOULD not built | 1 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc7084.json](../../../data/rfc/rfc7084.json).
 
@@ -187,8 +198,8 @@ Source: [data/rfc/rfc7084.json](../../../data/rfc/rfc7084.json).
 | `RFC7084-4.3-2` | ULA-4: By default, the IPv6 CE router MUST act as a site border router according to Section 4.3 of [RFC4193] and filter packets with local IPv6 source or destination addresses accordingly. (§4.3) | MUST | 4.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** no filter of ULA source or destination addresses at the site border is installed by default; such filtering exists only as firewall rules the operator writes |
 | `RFC7084-4.3-3` | ULA-5: An IPv6 CE router MUST NOT advertise itself as a default router with a Router Lifetime greater than zero whenever all of its configured and delegated prefixes are ULA prefixes. (§4.3) | MUST NOT | 4.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the Router Lifetime does not depend on whether the advertised prefixes are all ULA prefixes; internal/component/iface/config_ra.go parseRAConfig takes router-lifetime from the operator (default 1800 seconds) and nothing lowers it |
 | `RFC7084-4.3-4` | L-1: The IPv6 CE router MUST support router behavior according to Neighbor Discovery for IPv6 [RFC4861]. (§4.3) | MUST | 4.3 | **positive:** no positive test. **negative:** no negative test. **{rollup}:** rfc4861; L-1 asks for the router behaviour RFC 4861 states and asserts nothing of its own. **derived:** gap: RFC4861-2.3-1 is annotated {gap} |
-| `RFC7084-4.3-5` | L-2: The IPv6 CE router MUST assign a separate /64 from its delegated prefix(es) (and ULA prefix if configured to provide ULA addressing) for each of its LAN interfaces. (§4.3) | MUST | 4.3 | **positive:** `unit/verify` [`TestDelegatedSubnetDerivation`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc7084_delegated_prefix_test.go#L15). **negative:** `unit/verify` [`TestDelegatedPrefixVerify`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc7084_delegated_prefix_test.go#L111). **{partial}:** tested "MUST assign a separate /64 from its delegated prefix"; gap "and ULA prefix if configured to provide ULA addressing"; Ze holds no ULA prefix of its own to number LAN interfaces from (ULA-1 generation is absent), so internal/component/iface/delegated_prefix.go::deriveDelegatedAddress takes each LAN /64 from a delegated prefix only. **Scoped evidence:** Tests and tag-claim records apply only to Tested; zero whole-requirement credit. not audited: no reader has judged these tests |
-| `RFC7084-4.3-6` | L-3: An IPv6 CE router MUST advertise itself as a router for the delegated prefix(es) (and ULA prefix if configured to provide ULA addressing) using the "Route Information Option" specified in Section 2.3 of [RFC4191]. (§4.3) | MUST | 4.3 | **positive:** `unit/verify` [`TestRFC7084L3RouteInformationOption`](https://github.com/ze-software/ze/blob/main/internal/core/ndp/rfc7084_rio_test.go#L14). **positive:** `unit/verify` [`TestRFC7084RouterLifetimeMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/ra/rfc7084_router_lifetime_test.go#L83). **negative:** `unit/verify` [`TestRFC7084L3DroppedDelegationRIO`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/ra/rfc7084_router_lifetime_test.go#L272). **{partial}:** tested "MUST advertise itself as a router for the delegated prefix"; gap "and ULA prefix if configured to provide ULA addressing"; internal/plugins/iface/ra/advertiser.go::advertiser.build adds a Route Information Option for each delegated prefix only, and none for a ULA prefix the unit advertises. **Scoped evidence:** Tests and tag-claim records apply only to Tested; zero whole-requirement credit. not audited: no reader has judged these tests |
+| `RFC7084-4.3-5` | L-2: The IPv6 CE router MUST assign a separate /64 from its delegated prefix(es) (and ULA prefix if configured to provide ULA addressing) for each of its LAN interfaces. (§4.3) | MUST | 4.3 | **positive:** `unit/verify` [`TestDelegatedSubnetDerivation`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc7084_delegated_prefix_test.go#L15). **negative:** `unit/verify` [`TestDelegatedPrefixVerify`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc7084_delegated_prefix_test.go#L111). **{partial}:** tested "MUST assign a separate /64 from its delegated prefix"; gap "and ULA prefix if configured to provide ULA addressing"; Ze holds no ULA prefix of its own to number LAN interfaces from (ULA-1 generation is absent), so internal/component/iface/delegated_prefix.go::deriveDelegatedAddress takes each LAN /64 from a delegated prefix only. **Partial test coverage:** Tests and fault test records cover only the part marked Tested; they do not prove the whole requirement. not reviewed: no reviewer has checked whether these tests enforce the requirement |
+| `RFC7084-4.3-6` | L-3: An IPv6 CE router MUST advertise itself as a router for the delegated prefix(es) (and ULA prefix if configured to provide ULA addressing) using the "Route Information Option" specified in Section 2.3 of [RFC4191]. (§4.3) | MUST | 4.3 | **positive:** `unit/verify` [`TestRFC7084L3RouteInformationOption`](https://github.com/ze-software/ze/blob/main/internal/core/ndp/rfc7084_rio_test.go#L14). **positive:** `unit/verify` [`TestRFC7084RouterLifetimeMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/ra/rfc7084_router_lifetime_test.go#L83). **negative:** `unit/verify` [`TestRFC7084L3DroppedDelegationRIO`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/ra/rfc7084_router_lifetime_test.go#L272). **{partial}:** tested "MUST advertise itself as a router for the delegated prefix"; gap "and ULA prefix if configured to provide ULA addressing"; internal/plugins/iface/ra/advertiser.go::advertiser.build adds a Route Information Option for each delegated prefix only, and none for a ULA prefix the unit advertises. **Partial test coverage:** Tests and fault test records cover only the part marked Tested; they do not prove the whole requirement. not reviewed: no reviewer has checked whether these tests enforce the requirement |
 | `RFC7084-4.3-7` | L-4: An IPv6 CE router MUST NOT advertise itself as a default router with a Router Lifetime [RFC4861] greater than zero if it has no prefixes configured or delegated to it. (§4.3) | MUST NOT | 4.3 | **positive:** `unit/verify` [`TestRFC7084RouterLifetimeMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/ra/rfc7084_router_lifetime_test.go#L77). **negative:** `unit/verify` [`TestRFC7084RouterLifetimeMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/ra/rfc7084_router_lifetime_test.go#L80) |
 | `RFC7084-4.3-8` | L-5: The IPv6 CE router MUST make each LAN interface an advertising interface according to [RFC4861]. (§4.3) | MUST | 4.3 | **positive:** `unit/verify` [`TestRFC4861OnlyAnAdvertisingInterfaceSends`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc4861_router_configuration_test.go#L101). **negative:** no negative test. **{single-polarity}:** the row asks that a LAN interface advertise, and no input exists under which a conforming router keeps a LAN interface silent |
 | `RFC7084-4.3-9` | L-6: In Router Advertisement messages ([RFC4861]), the Prefix Information option's A and L flags MUST be set to 1 by default. (§4.3) | MUST | 4.3 | **positive:** `unit/verify` [`TestRAConfigParse`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc7084_config_ra_test.go#L104). **negative:** no negative test. **{single-polarity}:** the row fixes a default, and no input exists under which a conforming default leaves A or L clear, so only the default itself can be asserted |
@@ -255,37 +266,37 @@ Source: [data/rfc/rfc7084.json](../../../data/rfc/rfc7084.json).
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC7084-4.1-1`](#rfc7084-4.1-1)
 
 G-2: The IPv6 CE router MUST implement ICMPv6 according to [RFC4443]. (§4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7084-4.1-1, so no unit is bound to it.
+No test carries RFC7084-4.1-1, so there is no linked test.
 
 ### [`RFC7084-4.1-2`](#rfc7084-4.1-2)
 
 In particular, point-to-point links MUST be handled as described in Section 3.1 of [RFC4443]. (§4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7084-4.1-2, so no unit is bound to it.
+No test carries RFC7084-4.1-2, so there is no linked test.
 
 ### [`RFC7084-4.1-3`](#rfc7084-4.1-3)
 
 G-3: The IPv6 CE router MUST NOT forward any IPv6 traffic between its LAN interface(s) and its WAN interface until the router has successfully completed the IPv6 address and the delegated prefix acquisition process. (§4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7084-4.1-3, so no unit is bound to it.
+No test carries RFC7084-4.1-3, so there is no linked test.
 
 ### [`RFC7084-4.1-4`](#rfc7084-4.1-4)
 
 G-4: By default, an IPv6 CE router that has no default router(s) on its WAN interface MUST NOT advertise itself as an IPv6 default router on its LAN interfaces. (§4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -296,7 +307,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 G-5: By default, if the IPv6 CE router is an advertising router and loses its IPv6 default router(s) and/or detects loss of connectivity on the WAN interface, it MUST explicitly invalidate itself as an IPv6 default router on each of its advertising interfaces by immediately transmitting one or more Router Advertisement messages with the "Router Lifetime" field set to zero [RFC4861]. (§4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -307,7 +318,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 W-1: When the router is attached to the WAN interface link, it MUST act as an IPv6 host for the purposes of stateless [RFC4862] or stateful [RFC3315] interface address assignment. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -317,23 +328,23 @@ Audit verdict: not audited: no reader has judged these tests
 
 W-2: The IPv6 CE router MUST generate a link-local address and finish Duplicate Address Detection according to [RFC4862] prior to sending any Router Solicitations on the interface. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7084-4.2-2, so no unit is bound to it.
+No test carries RFC7084-4.2-2, so there is no linked test.
 
 ### [`RFC7084-4.2-3`](#rfc7084-4.2-3)
 
 The source address used in the subsequent Router Solicitation MUST be the link-local address on the WAN interface. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7084-4.2-3, so no unit is bound to it.
+No test carries RFC7084-4.2-3, so there is no linked test.
 
 ### [`RFC7084-4.2-4`](#rfc7084-4.2-4)
 
 W-3: Absent other routing information, the IPv6 CE router MUST use Router Discovery as specified in [RFC4861] to discover a default router(s) and install a default route(s) in its routing table with the discovered router's address as the next hop. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -343,7 +354,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 W-4: The router MUST act as a requesting router for the purposes of DHCPv6 prefix delegation ([RFC3633]). (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -353,7 +364,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 W-5: The IPv6 CE router MUST use a persistent DHCP Unique Identifier (DUID) for DHCPv6 messages. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -363,7 +374,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The DUID MUST NOT change between network-interface resets or IPv6 CE router reboots. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -373,23 +384,23 @@ Audit verdict: not audited: no reader has judged these tests
 
 WLL-1: If the WAN interface supports Ethernet encapsulation, then the IPv6 CE router MUST support IPv6 over Ethernet [RFC2464]. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7084-4.2-8, so no unit is bound to it.
+No test carries RFC7084-4.2-8, so there is no linked test.
 
 ### [`RFC7084-4.2-9`](#rfc7084-4.2-9)
 
 WLL-2: If the WAN interface supports PPP encapsulation, the IPv6 CE router MUST support IPv6 over PPP [RFC5072]. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7084-4.2-9, so no unit is bound to it.
+No test carries RFC7084-4.2-9, so there is no linked test.
 
 ### [`RFC7084-4.2-10`](#rfc7084-4.2-10)
 
 WLL-3: If the WAN interface supports PPP encapsulation, in a dual- stack environment with IPCP and IPV6CP running over one PPP logical channel, the Network Control Protocols (NCPs) MUST be treated as independent of each other and start and terminate independently. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -401,7 +412,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 WAA-1: The IPv6 CE router MUST support Stateless Address Autoconfiguration (SLAAC) [RFC4862]. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -411,47 +422,47 @@ Audit verdict: not audited: no reader has judged these tests
 
 WAA-2: The IPv6 CE router MUST follow the recommendations in Section 4 of [RFC5942], and in particular the handling of the L flag in the Router Advertisement Prefix Information option. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7084-4.2-12, so no unit is bound to it.
+No test carries RFC7084-4.2-12, so there is no linked test.
 
 ### [`RFC7084-4.2-13`](#rfc7084-4.2-13)
 
 WAA-3: The IPv6 CE router MUST support DHCPv6 [RFC3315] client behavior. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7084-4.2-13, so no unit is bound to it.
+No test carries RFC7084-4.2-13, so there is no linked test.
 
 ### [`RFC7084-4.2-14`](#rfc7084-4.2-14)
 
 WAA-4: The IPv6 CE router MUST be able to support the following DHCPv6 options: Identity Association for Non-temporary Address (IA_NA), Reconfigure Accept [RFC3315], and DNS_SERVERS [RFC3646]. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7084-4.2-14, so no unit is bound to it.
+No test carries RFC7084-4.2-14, so there is no linked test.
 
 ### [`RFC7084-4.2-15`](#rfc7084-4.2-15)
 
 WAA-6: If the IPv6 CE router receives a Router Advertisement message (described in [RFC4861]) with the M flag set to 1, the IPv6 CE router MUST do DHCPv6 address assignment (request an IA_NA option). (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7084-4.2-15, so no unit is bound to it.
+No test carries RFC7084-4.2-15, so there is no linked test.
 
 ### [`RFC7084-4.2-16`](#rfc7084-4.2-16)
 
 WAA-7: If the IPv6 CE router does not acquire a global IPv6 address(es) from either SLAAC or DHCPv6, then it MUST create a global IPv6 address(es) from its delegated prefix(es) and configure those on one of its internal virtual network interfaces, unless configured to require a global IPv6 address on the WAN interface. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7084-4.2-16, so no unit is bound to it.
+No test carries RFC7084-4.2-16, so there is no linked test.
 
 ### [`RFC7084-4.2-17`](#rfc7084-4.2-17)
 
 WAA-8: The CE router MUST support the SOL_MAX_RT option [RFC7083] and request the SOL_MAX_RT option in an Option Request Option (ORO). (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -461,15 +472,15 @@ Audit verdict: not audited: no reader has judged these tests
 
 WAA-9: As a router, the IPv6 CE router MUST follow the weak host (Weak End System) model [RFC1122]. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7084-4.2-18, so no unit is bound to it.
+No test carries RFC7084-4.2-18, so there is no linked test.
 
 ### [`RFC7084-4.2-19`](#rfc7084-4.2-19)
 
 WPD-1: The IPv6 CE router MUST support DHCPv6 prefix delegation requesting router behavior as specified in [RFC3633] (Identity Association for Prefix Delegation (IA_PD) option). (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -479,15 +490,15 @@ Audit verdict: not audited: no reader has judged these tests
 
 If so, it MUST ask for a prefix large enough to assign one /64 for each of its interfaces, rounded up to the nearest nibble, and SHOULD be configurable to ask for more. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7084-4.2-20, so no unit is bound to it.
+No test carries RFC7084-4.2-20, so there is no linked test.
 
 ### [`RFC7084-4.2-21`](#rfc7084-4.2-21)
 
 WPD-3: The IPv6 CE router MUST be prepared to accept a delegated prefix size different from what is given in the hint. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -497,15 +508,15 @@ Audit verdict: not audited: no reader has judged these tests
 
 WPD-4: By default, the IPv6 CE router MUST initiate DHCPv6 prefix delegation when either the M or O flags are set to 1 in a received Router Advertisement (RA) message. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7084-4.2-22, so no unit is bound to it.
+No test carries RFC7084-4.2-22, so there is no linked test.
 
 ### [`RFC7084-4.2-23`](#rfc7084-4.2-23)
 
 WPD-6: If the IPv6 CE router requests both an IA_NA and an IA_PD option in DHCPv6, it MUST accept an IA_PD option in DHCPv6 Advertise/Reply messages, even if the message does not contain any addresses, unless configured to only obtain its WAN IPv6 address via DHCPv6; see [DHCPv6-STATEFUL-ISSUES]. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -515,7 +526,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 WPD-7: By default, an IPv6 CE router MUST NOT initiate any dynamic routing protocol on its WAN interface. (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -525,7 +536,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ULA-2: An IPv6 CE router with a ULA prefix MUST maintain this prefix consistently across reboots. (§4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -535,33 +546,33 @@ Audit verdict: not audited: no reader has judged these tests
 
 ULA-4: By default, the IPv6 CE router MUST act as a site border router according to Section 4.3 of [RFC4193] and filter packets with local IPv6 source or destination addresses accordingly. (§4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7084-4.3-2, so no unit is bound to it.
+No test carries RFC7084-4.3-2, so there is no linked test.
 
 ### [`RFC7084-4.3-3`](#rfc7084-4.3-3)
 
 ULA-5: An IPv6 CE router MUST NOT advertise itself as a default router with a Router Lifetime greater than zero whenever all of its configured and delegated prefixes are ULA prefixes. (§4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7084-4.3-3, so no unit is bound to it.
+No test carries RFC7084-4.3-3, so there is no linked test.
 
 ### [`RFC7084-4.3-4`](#rfc7084-4.3-4)
 
 L-1: The IPv6 CE router MUST support router behavior according to Neighbor Discovery for IPv6 [RFC4861]. (§4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7084-4.3-4, so no unit is bound to it.
+No test carries RFC7084-4.3-4, so there is no linked test.
 
 ### [`RFC7084-4.3-5`](#rfc7084-4.3-5)
 
 L-2: The IPv6 CE router MUST assign a separate /64 from its delegated prefix(es) (and ULA prefix if configured to provide ULA addressing) for each of its LAN interfaces. (§4.3)
 
-Scoped tag-claim records only: tested "MUST assign a separate /64 from its delegated prefix"; gap "and ULA prefix if configured to provide ULA addressing"; Ze holds no ULA prefix of its own to number LAN interfaces from (ULA-1 generation is absent), so internal/component/iface/delegated_prefix.go::deriveDelegatedAddress takes each LAN /64 from a delegated prefix only; zero whole-requirement credit.
+Records cover only part of this requirement: tested "MUST assign a separate /64 from its delegated prefix"; gap "and ULA prefix if configured to provide ULA addressing"; Ze holds no ULA prefix of its own to number LAN interfaces from (ULA-1 generation is absent), so internal/component/iface/delegated_prefix.go::deriveDelegatedAddress takes each LAN /64 from a delegated prefix only; they do not prove the whole requirement.
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -572,9 +583,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 L-3: An IPv6 CE router MUST advertise itself as a router for the delegated prefix(es) (and ULA prefix if configured to provide ULA addressing) using the "Route Information Option" specified in Section 2.3 of [RFC4191]. (§4.3)
 
-Scoped tag-claim records only: tested "MUST advertise itself as a router for the delegated prefix"; gap "and ULA prefix if configured to provide ULA addressing"; internal/plugins/iface/ra/advertiser.go::advertiser.build adds a Route Information Option for each delegated prefix only, and none for a ULA prefix the unit advertises; zero whole-requirement credit.
+Records cover only part of this requirement: tested "MUST advertise itself as a router for the delegated prefix"; gap "and ULA prefix if configured to provide ULA addressing"; internal/plugins/iface/ra/advertiser.go::advertiser.build adds a Route Information Option for each delegated prefix only, and none for a ULA prefix the unit advertises; they do not prove the whole requirement.
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -586,7 +597,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 L-4: An IPv6 CE router MUST NOT advertise itself as a default router with a Router Lifetime [RFC4861] greater than zero if it has no prefixes configured or delegated to it. (§4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -597,7 +608,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 L-5: The IPv6 CE router MUST make each LAN interface an advertising interface according to [RFC4861]. (§4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -607,7 +618,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 L-6: In Router Advertisement messages ([RFC4861]), the Prefix Information option's A and L flags MUST be set to 1 by default. (§4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -617,31 +628,31 @@ Audit verdict: not audited: no reader has judged these tests
 
 L-8: The IPv6 CE router MUST support a DHCPv6 server capable of IPv6 address assignment according to [RFC3315] OR a stateless DHCPv6 server according to [RFC3736] on its LAN interfaces. (§4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7084-4.3-10, so no unit is bound to it.
+No test carries RFC7084-4.3-10, so there is no linked test.
 
 ### [`RFC7084-4.3-11`](#rfc7084-4.3-11)
 
 L-10: The IPv6 CE router MUST support providing DNS information in the DHCPv6 DNS_SERVERS and DOMAIN_LIST options [RFC3646]. (§4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7084-4.3-11, so no unit is bound to it.
+No test carries RFC7084-4.3-11, so there is no linked test.
 
 ### [`RFC7084-4.3-12`](#rfc7084-4.3-12)
 
 L-11: The IPv6 CE router MUST support providing DNS information in the Router Advertisement Recursive DNS Server (RDNSS) and DNS Search List options. (§4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7084-4.3-12, so no unit is bound to it.
+No test carries RFC7084-4.3-12, so there is no linked test.
 
 ### [`RFC7084-4.3-13`](#rfc7084-4.3-13)
 
 L-13: If the delegated prefix changes, i.e., the current prefix is replaced with a new prefix without any overlapping time period, then the IPv6 CE router MUST immediately advertise the old prefix with a Preferred Lifetime of zero and a Valid Lifetime of either a) zero or b) the lower of the current Valid Lifetime and two hours (which must be decremented in real time) in a Router Advertisement message as described in Section 5.5.3, (e) of [RFC4862]. (§4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -652,11 +663,11 @@ Audit verdict: not audited: no reader has judged these tests
 
 L-14: The IPv6 CE router MUST send an ICMPv6 Destination Unreachable message, code 5 (Source address failed ingress/egress policy) for packets forwarded to it that use an address from a prefix that has been invalidated. (§4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7084-4.3-14, so no unit is bound to it.
+No test carries RFC7084-4.3-14, so there is no linked test.
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -675,27 +686,27 @@ No test carries RFC7084-4.3-14, so no unit is bound to it.
 
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
-| `front` | not stated | 0 | walked | not stated |
-| `1` | not stated | 0 | walked | not stated |
-| `1.1` | not stated | 0 | walked | not stated |
-| `2` | not stated | 0 | walked | not stated |
-| `3` | not stated | 0 | walked | not stated |
-| `3.1` | not stated | 0 | walked | not stated |
-| `3.2` | not stated | 0 | walked | not stated |
-| `3.2.1` | not stated | 0 | walked | not stated |
-| `4` | not stated | 0 | walked | not stated |
-| `4.1` | not stated | 5 | walked | not stated |
-| `4.2` | not stated | 24 | walked | not stated |
-| `4.3` | not stated | 14 | walked | not stated |
-| `4.4` | not stated | 0 | walked | not stated |
-| `4.4.1` | not stated | 8 | walked | not stated |
-| `4.4.2` | not stated | 3 | walked | not stated |
-| `4.5` | not stated | 1 | walked | not stated |
-| `5` | not stated | 0 | walked | not stated |
-| `6` | not stated | 0 | walked | not stated |
-| `7` | not stated | 0 | walked | not stated |
-| `7.1` | not stated | 0 | walked | not stated |
-| `7.2` | not stated | 0 | walked | not stated |
+| `front` | not stated | 0 | reviewed | not stated |
+| `1` | not stated | 0 | reviewed | not stated |
+| `1.1` | not stated | 0 | reviewed | not stated |
+| `2` | not stated | 0 | reviewed | not stated |
+| `3` | not stated | 0 | reviewed | not stated |
+| `3.1` | not stated | 0 | reviewed | not stated |
+| `3.2` | not stated | 0 | reviewed | not stated |
+| `3.2.1` | not stated | 0 | reviewed | not stated |
+| `4` | not stated | 0 | reviewed | not stated |
+| `4.1` | not stated | 5 | reviewed | not stated |
+| `4.2` | not stated | 24 | reviewed | not stated |
+| `4.3` | not stated | 14 | reviewed | not stated |
+| `4.4` | not stated | 0 | reviewed | not stated |
+| `4.4.1` | not stated | 8 | reviewed | not stated |
+| `4.4.2` | not stated | 3 | reviewed | not stated |
+| `4.5` | not stated | 1 | reviewed | not stated |
+| `5` | not stated | 0 | reviewed | not stated |
+| `6` | not stated | 0 | reviewed | not stated |
+| `7` | not stated | 0 | reviewed | not stated |
+| `7.1` | not stated | 0 | reviewed | not stated |
+| `7.2` | not stated | 0 | reviewed | not stated |
 
 ### Excluded sentences
 

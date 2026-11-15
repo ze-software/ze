@@ -4,18 +4,18 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
-        <title>RFC 7534 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 7534: AS112 Nameserver Operations. 3 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
-        <meta property="og:title" content="RFC 7534 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 7534: AS112 Nameserver Operations. 3 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <title>RFC 7534 requirements and tests - Ze</title>
+        <meta name="description" content="RFC 7534: AS112 Nameserver Operations. 3 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:title" content="RFC 7534 requirements and tests - Ze" />
+        <meta property="og:description" content="RFC 7534: AS112 Nameserver Operations. 3 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="RFC 7534 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 7534: AS112 Nameserver Operations. 3 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:title" content="RFC 7534 requirements and tests - Ze" />
+        <meta name="twitter:description" content="RFC 7534: AS112 Nameserver Operations. 3 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -47,7 +47,7 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">AS112 operations</span>
     <h1 id="rfc-detail-title">RFC 7534 - AS112 Nameserver Operations</h1>
-    <p>Every requirement this repository extracted from RFC 7534, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
+    <p>Every requirement listed for RFC 7534, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.</p>
 </div>
 <style>
 .rfc-table-wrap { overflow-x: auto; }
@@ -57,16 +57,25 @@
 .rfc-verdict p:last-child { margin-bottom: 0; }
 .rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
-.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
-.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: block; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
 .rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
-.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
-.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-card b { display: block; margin: 0; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: .5rem 0 0; color: var(--muted); font-size: .92rem; line-height: 1.6; }
+.rfc-card.rfc-total-card { grid-column: 1 / -1; display: grid; grid-template-columns: 15rem minmax(0, 1fr); column-gap: 1.5rem; align-items: start; }
+.rfc-card.rfc-total-card span, .rfc-card.rfc-total-card strong, .rfc-card.rfc-total-card b { grid-column: 1; }
+.rfc-card.rfc-total-card p { grid-column: 2; grid-row: 1 / span 3; margin: 0; }
+@media (max-width: 760px) {
+  .rfc-card-grid { grid-template-columns: minmax(0, 1fr); }
+  .rfc-card.rfc-total-card { display: block; }
+  .rfc-card.rfc-total-card p { margin: .5rem 0 0; }
+}
 .rfc-ok { border-left: 7px solid var(--green); }
 .rfc-neutral { border-left: 7px solid var(--line-strong); }
 .rfc-warn { border-left: 7px solid var(--amber); }
 .rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-card.rfc-total-card { background: var(--bg-soft); border: 1px solid var(--line-strong); box-shadow: none; }
 .rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
 .rfc-tape span { width: var(--w); min-width: 0; display: block; }
 .rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
@@ -87,6 +96,7 @@
 .rfc-swatch.rfc-neutral { background: var(--line-strong); }
 .rfc-swatch.rfc-warn { background: var(--amber); }
 .rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-swatch.rfc-total-card { background: var(--bg-soft); }
 .rfc-total td { border-top: 2px solid var(--line-strong); }
 .rfc-prose { max-width: 46rem; }
 ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
@@ -118,35 +128,35 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>2</strong><b>of 3 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>1</strong><b>of 3 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 3 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 3 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0</strong><b>of 3 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>6</strong><b>6 of 7 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
-<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>3</strong><b>of 3 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>2</strong><b>of 3 mandatory requirements</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>1</strong><b>of 3 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 3 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 3 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 3 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>6</strong><b>6 of 7 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>3</strong><b>of 3 mandatory requirements reviewed</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>3</strong><b>of 16 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 3 gated MUSTs</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 3 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 3 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 3 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 3 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 3 mandatory requirements</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 3 mandatory requirements</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 3 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 3 mandatory requirements</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 3 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit</p></article>
 </div>
-<p>The 9 counts marked as a part above are the whole of the 3 gated MUSTs: they add up to 3. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.</p>
+<h3>Totals</h3>
+<p>what the cards above are counted against</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-total-card"><span>Mandatory requirements (MUST level)</span><strong>3</strong><b>of 16 requirements this summary lists, at all levels</b><p>The RFC&#39;s MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements.</p></article>
+</div>
+<p>The 9 counts marked as a part above are the whole of the 3 mandatory requirements: they add up to 3. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
-<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
 <tbody>
-<tr><td>Gated MUSTs</td>
-<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
-</tr>
 <tr><td>Out of scope</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
 <td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
@@ -167,9 +177,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
-<tr><td>No test at all</td>
+<tr><td>Declared gap or no test</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+<td>green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
@@ -187,13 +197,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
 <td>neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption</td>
 </tr>
-<tr><td>Proven by a recorded break</td>
+<tr><td>Tests shown to detect a fault</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above</td>
+<td>green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current</td>
+</tr>
+<tr><td>Mandatory requirements (MUST level)</td>
+<td><span class="rfc-swatch rfc-total-card"></span> outlined</td>
+<td>outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad</td>
 </tr>
 </tbody>
 </table>
@@ -208,13 +222,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Public row</td>
 <td>AS112 operations</td>
 </tr>
-<tr><td>Enrolment</td>
-<td>Enrolled</td>
+<tr><td>Automatic checks</td>
+<td>Included</td>
 </tr>
 <tr><td>Requirements</td>
 <td>16</td>
 </tr>
-<tr><td>Gated MUST-level</td>
+<tr><td>Mandatory requirements (MUST level)</td>
 <td>3</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
@@ -226,7 +240,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
 </tr>
-<tr><td>Gated with no test</td>
+<tr><td>Mandatory requirements with no test and no annotation</td>
 <td>0</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
@@ -235,19 +249,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Test tags</td>
 <td>7</td>
 </tr>
-<tr><td>Tagged units</td>
+<tr><td>Tests linked to requirements</td>
 <td>7</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>3</td>
 </tr>
-<tr><td>Discrimination records</td>
+<tr><td>Fault test records</td>
 <td>6</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc7534.md</code></td>
 </tr>
-<tr><td>Requirement shard</td>
+<tr><td>Requirement table</td>
 <td><code>rfc/requirements/rfc7534.md</code></td>
 </tr>
 <tr><td>RFC text</td>
@@ -257,10 +271,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 </section>
-<section><h2>Enrolment</h2>
-<p>Enrolled: AS112 Nameserver Operations: three MUSTs over ze&#39;s authoritative AS112 DNS server (internal/plugins/as112, answerQuestions/zones.go). RFC7534-3.5-1 (answer authoritatively for each delegated zone) both polarities: a query at the apex of a Direct-Delegation reverse zone is answered from that zone (TestZoneAnswer_ReverseZoneNoData) while a name outside every served zone draws REFUSED with AA clear, so the node makes no authority claim over it (TestZoneAnswer_OutOfZoneRefused). RFC7534-3.5-2 (no records beyond SOA and NS) both polarities: a PTR query at the apex yields NODATA (TestZoneAnswer_ReverseZoneNoData) while the zone does contain its SOA + the two blackhole NS records (TestSOA_RFCMandatedParameters). RFC7534-3.5-3 (RFC 1918 records not hosted) is {single-polarity: positive}: the zones hold their records at the apex and nothing below it, so an RFC 1918 reverse PTR yields NXDOMAIN with no PTR in the reply and no such record is ever hosted (TestZoneAnswer_ResponseCodeByNamePosition). Ledger row unchanged (no gap).</p>
+<section><h2>Automatic checks</h2>
+<p>Included in automatic checks: AS112 Nameserver Operations: three MUSTs over ze&#39;s authoritative AS112 DNS server (internal/plugins/as112, answerQuestions/zones.go). RFC7534-3.5-1 (answer authoritatively for each delegated zone) both polarities: a query at the apex of a Direct-Delegation reverse zone is answered from that zone (TestZoneAnswer_ReverseZoneNoData) while a name outside every served zone draws REFUSED with AA clear, so the node makes no authority claim over it (TestZoneAnswer_OutOfZoneRefused). RFC7534-3.5-2 (no records beyond SOA and NS) both polarities: a PTR query at the apex yields NODATA (TestZoneAnswer_ReverseZoneNoData) while the zone does contain its SOA + the two blackhole NS records (TestSOA_RFCMandatedParameters). RFC7534-3.5-3 (RFC 1918 records not hosted) is {single-polarity: positive}: the zones hold their records at the apex and nothing below it, so an RFC 1918 reverse PTR yields NXDOMAIN with no PTR in the reply and no such record is ever hosted (TestZoneAnswer_ResponseCodeByNamePosition). Ledger row unchanged (no gap).</p>
 </section>
-<section><h2>What the public ledger says</h2>
+<section><h2>Published support status</h2>
 <p><strong>Area:</strong> AS112 operations</p>
 <p><strong>Proof:</strong> 2 of 3 MUST proven</p>
 <p><strong>Evidence:</strong> unit 2</p>
@@ -274,33 +288,33 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td>Positive and negative tests</td>
 <td><strong>2</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
 <td><strong>1</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
-<tr><td>One polarity only</td>
+<tr><td>Only a positive or negative test</td>
 <td><strong>0</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
 <td><strong>0</strong></td>
-<td>an overlay: each of these is also counted by the part it falls in</td>
+<td>also counted in one of the groups above</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
-<td>an overlay: each of these is also counted by the part it falls in</td>
+<td>also counted in one of the groups above</td>
 </tr>
 <tr><td>Derived from other rows</td>
 <td><strong>0</strong></td>
-<td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
+<td>excluded from the total: each summarizes the status of other requirements, which are already counted above</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>3</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Mandatory requirements (MUST level)</strong></td><td><strong>3</strong></td><td>every mandatory requirement appears in exactly one group above</td></tr>
 </tbody>
 </table>
 </div>
@@ -309,9 +323,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc7534:must">Ze proven 2, Ze correctness gap 1</div>
+<div data-ze-rfc-bar="rfc7534:must">Ze proven 2, Proof pending 1</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc7534:overview">Ze MUST proven 2, SHOULD not decided 13, Ze correctness gap 1</div>
+<div data-ze-rfc-bar="rfc7534:overview">Ze MUST proven 2, Proof pending 1, Not assessed 13</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -319,10 +333,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>RFCs</td>
 <td><span data-ze-rfc="rfc7534:rfcs">1</span></td>
 </tr>
-<tr><td>Not walked</td>
+<tr><td>Requirements not reviewed</td>
 <td><span data-ze-rfc="rfc7534:not-walked">0</span></td>
 </tr>
-<tr><td>Mandatory register</td>
+<tr><td>Mandatory requirements complete</td>
 <td><span data-ze-rfc="rfc7534:register">not complete</span></td>
 </tr>
 <tr><td>MUST rows</td>
@@ -337,11 +351,20 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc7534:must.os-verified">0</span></td>
 </tr>
+<tr><td>Proof pending</td>
+<td><span data-ze-rfc="rfc7534:must.proof-pending">1</span></td>
+</tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc7534:must.os-gap">0</span></td>
 </tr>
-<tr><td>Ze correctness gap</td>
-<td><span data-ze-rfc="rfc7534:must.ze-gap">1</span></td>
+<tr><td>Exclusion unchecked</td>
+<td><span data-ze-rfc="rfc7534:must.exclusion-unchecked">0</span></td>
+</tr>
+<tr><td>Not assessed</td>
+<td><span data-ze-rfc="rfc7534:must.not-assessed">0</span></td>
+</tr>
+<tr><td>Not built</td>
+<td><span data-ze-rfc="rfc7534:must.not-built">0</span></td>
 </tr>
 <tr><td>MUST rows not owed</td>
 <td><span data-ze-rfc="rfc7534:must.not-owed">0</span></td>
@@ -379,19 +402,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD not owed: not-applicable</td>
 <td><span data-ze-rfc="rfc7534:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
-<tr><td>SHOULD not ever</td>
-<td><span data-ze-rfc="rfc7534:should.not-ever">0</span></td>
+<tr><td>SHOULD proof pending</td>
+<td><span data-ze-rfc="rfc7534:should.proof-pending">0</span></td>
 </tr>
-<tr><td>SHOULD not yet</td>
-<td><span data-ze-rfc="rfc7534:should.not-yet">0</span></td>
+<tr><td>SHOULD exclusion unchecked</td>
+<td><span data-ze-rfc="rfc7534:should.exclusion-unchecked">0</span></td>
 </tr>
-<tr><td>SHOULD not decided</td>
-<td><span data-ze-rfc="rfc7534:should.not-decided">13</span></td>
+<tr><td>SHOULD not assessed</td>
+<td><span data-ze-rfc="rfc7534:should.not-assessed">13</span></td>
+</tr>
+<tr><td>SHOULD not built</td>
+<td><span data-ze-rfc="rfc7534:should.not-built">0</span></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.</p>
+<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
 
 </section>
 <section><h2>Requirements</h2>
@@ -550,10 +576,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Gaps and untested MUSTs</h2>
-<p>RFC 7534 declares no gap, and every gated MUST it carries has a test bound to it.</p>
+<p>RFC 7534 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.</p>
 </section>
 <section><h2>Proof state</h2>
-<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<p>A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.</p>
 <h3><a href="#rfc7534-3.5-1"><code>RFC7534-3.5-1</code></a></h3>
 <p>Each nameserver functions as a single node in an AS112 anycast cloud [RFC4786] and is configured to answer authoritatively for a particular set of nominated zones. (§1)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30. Positive now covers every served Direct-Delegation zone (&gt;=20 probed) through the real handler: SOA at the apex is AA, NOERROR, the zone&#39;s own SOA. Negative TestZoneAnswer_OutOfZoneRefused: a name outside every served zone draws REFUSED with AA clear. Records: answerQuestions revert, positive (author) and negative (judge) observed red.</p>
@@ -620,7 +646,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 </section>
-<section><h2>Extraction sign-off</h2>
+<section><h2>Requirement list review</h2>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
@@ -666,127 +692,127 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td><code>front</code></td>
 <td>not stated</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Title block, Abstract, Status of This Memo, Copyright Notice and Table of Contents. Walked rather than skipped because the site scan attributes two sites here, both excluded below: the Abstract&#39;s last paragraph and the IETF Trust Legal Provisions boilerplate. The Abstract restates section 1 and states that the document obsoletes RFC 6304. Nothing before section 1 binds a nameserver or its operator.</td>
 </tr>
 <tr><td><code>1</code></td>
 <td>Introduction</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Introduction. Indicative throughout: private-use addresses are not globally unique, devices originate reverse lookups for them, those queries are answered by nobody usefully, and the AS112 project is a distributed sink for them. Its one guidance sentence, &#39;it is good practice for site administrators to ensure that such queries are answered locally [RFC6303]&#39;, binds the site administrator whose resolver leaks the query, not the AS112 node; rfc/short/rfc7534.md carries it under Security Considerations and RFC 6303 owns it. The last paragraph states the project&#39;s operating shape, which the AS112 plugin implements: a nameserver configured to answer authoritatively for a nominated zone set, one node in an anycast cloud.</td>
 </tr>
 <tr><td><code>2</code></td>
 <td>AS112 DNS Service, the parent heading</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>AS112 DNS Service, the parent heading. No text of its own.</td>
 </tr>
 <tr><td><code>2.1</code></td>
 <td>Approach, the parent heading of 2.1.1 and 2.1.2</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Approach, the parent heading of 2.1.1 and 2.1.2. No text of its own.</td>
 </tr>
 <tr><td><code>2.1.1</code></td>
 <td>Direct Delegation</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Direct Delegation. Indicative: zones whose traffic should be sunk are delegated directly to AS112 nameservers, and each node is manually configured to answer for them. The delegation half binds the parent zone&#39;s operator and IANA, not the node. The node half is the same obligation as RFC7534-3.5-1, declared unsourced on 3.5.</td>
 </tr>
 <tr><td><code>2.1.2</code></td>
 <td>DNAME Redirection</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>DNAME Redirection. Reports that RFC 7535 defines a different approach, in which queries are redirected to an empty zone also hosted on AS112 servers using DNAME [RFC6672], and that this document introduces the capability. The obligations of that approach belong to RFC 7535, which has its own summary and its own sign-off; nothing here directs a node beyond serving EMPTY.AS112.ARPA, which 2.2 lists and RFC7534-3.5-1 covers.</td>
 </tr>
 <tr><td><code>2.2</code></td>
 <td>Zones</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Zones. The zone list an AS112 nameserver answers authoritatively for: 10.IN-ADDR.ARPA, the sixteen 172.16/12 zones, 168.192.IN-ADDR.ARPA, 254.169.IN-ADDR.ARPA, EMPTY.AS112.ARPA, and the two identification zones HOSTNAME.AS112.NET and HOSTNAME.AS112.ARPA. It is a list of names, not a directive; the obligation to answer authoritatively for each of them is RFC7534-3.5-1, declared unsourced on 3.5. The section closes by pointing at 3.5 for the recommended contents. Ze&#39;s table is buildServedZones in internal/plugins/as112/zones.go, twenty-two zones with the same membership.</td>
 </tr>
 <tr><td><code>2.3</code></td>
 <td>Nameservers</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Nameservers. States which nameserver names and anycast addresses the zones are delegated to (BLACKHOLE-1 and BLACKHOLE-2.IANA.ORG, PRISONER.IANA.ORG as the SOA MNAME, BLACKHOLE.AS112.ARPA for DNAME redirection), and which prefixes cover them. The delegation binds IANA and the parent zone operators. The addresses a node configures are the subject of 3.3 and 3.4 and of RFC7534-3.4-3; the names a node puts in its own SOA and NS records are the subject of 3.5. Nothing is directed at a speaker here that is not directed again there. Ze&#39;s constants are anycastV4DirectDelegationAddr and its three siblings in internal/plugins/as112/register.go.</td>
 </tr>
 <tr><td><code>3</code></td>
 <td>Installation of a New Node, the parent heading</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Installation of a New Node, the parent heading. No text of its own.</td>
 </tr>
 <tr><td><code>3.1</code></td>
 <td>Useful Background Knowledge</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Useful Background Knowledge. Says installation is straightforward and that experience in BGP, DNS authoritative server operations and anycast distribution may prove useful. Advice to a person, directing no software behavior.</td>
 </tr>
 <tr><td><code>3.2</code></td>
 <td>Topological Location</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Topological Location. Says a node may be located anywhere, that an Internet Exchange Point is often advantageous, and that a node may advertise its service prefix for local or for global use. Its one guidance sentence, &#39;It is good operational practice to notify the community of users that may fall within the reach of a new AS112 node before it is installed&#39;, with &#39;coordination with other AS112 operators is highly recommended&#39; for globally reachable nodes, binds the operator installing the node and is repeated in section 5. rfc/short/rfc7534.md declares it as RFC7534-3.2-1 at [SHOULD] and cites both sections; it is declared unsourced here because the modal is the lowercase &#39;recommended&#39; inside &#39;is highly recommended&#39;, which the site scan does not attribute to this section.</td>
 </tr>
 <tr><td><code>3.3</code></td>
 <td>Operating System and Host Considerations</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Operating System and Host Considerations. Four lowercase-&#39;should&#39; sentences, all four declared unsourced here because the site scan attributes no site to this section: the chosen platform &#39;should include either support for cloned loopback interfaces or the capability to bind multiple addresses to a single loopback interface&#39; (RFC7534-3.3-1); a host acting as an AS112 node &#39;should be dedicated to that purpose and should not be used to simultaneously provide other services&#39; (RFC7534-3.3-2); startup order &#39;should be arranged such that routing software startup follows DNS software startup, and DNS software startup follows loopback interface configuration&#39; (RFC7534-3.3-3); and &#39;Wrapper scripts or other arrangements should be employed to ensure that the anycast service prefix for AS112 is not advertised while either the anycast addresses are not configured or the DNS software is not running&#39; (RFC7534-3.3-4). The first three bind the operator choosing and building the host. The fourth lands on ze, which is both the DNS server and the BGP speaker: as112Producer.onServingChanged and withdraw (internal/plugins/as112/redistribute.go) hold the covering prefixes back until the listeners are serving and withdraw them when they stop, so the wrapper the RFC asks an operator to write is inside the product.</td>
 </tr>
 <tr><td><code>3.4</code></td>
 <td>Routing Software</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Routing Software. States that each AS112 node is a BGP speaker announcing 192.175.48.0/24 and 2620:4f:8000::/48 with origin AS 112, that the examples are based on the Quagga Routing Suite, and that an IPv4-only node need not configure the IPv6 elements and an IPv6-only node need not configure the IPv4 ones (RFC7534-3.4-3, [MAY]). Most of the section is an annotated bgpd.conf, and the guidance it carries is stated in the paragraph after it: &#39;two restrictions on what the AS112 should advertise to its BGP neighbours: a prefix filter that permits only the service prefixes, and an AS_PATH filter that matches only locally originated routes&#39;, which rfc/short/rfc7534.md declares as RFC7534-3.4-1 and RFC7534-3.4-2. All three ids are declared unsourced here: the one site the scan attributes to this section is the zebra.conf sentence, which is about Quagga and is excluded below. Ze&#39;s covering prefixes and origin AS are coveringPrefixesFor and as112DefaultASN (internal/plugins/as112/redistribute.go, config.go).</td>
 </tr>
 <tr><td><code>3.5</code></td>
 <td>DNS Software</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>DNS Software. The section that carries every MUST-level id this summary declares, and not one of them is stated with a modal the site scan can see, so all five ids read from here are declared unsourced. &#39;AS112 nodes operate as fully functional and standards-compliant DNS authoritative servers [RFC1034]&#39; is RFC7534-3.5-1, with the named.conf note &#39;the nameserver is configured to act as an authoritative-only server (i.e., recursion is disabled)&#39; as RFC7534-3.5-4. The zone content rules are comments inside db.dd-empty and db.dr-empty: &#39;There should be no other resource records included in this zone&#39; is RFC7534-3.5-2, and &#39;Records that relate to RFC 1918-numbered resources within the site hosting this AS112 node should not be hosted on this nameserver&#39; is RFC7534-3.5-3. &#39;the responses to the queries &#34;HOSTNAME.AS112.NET IN TXT&#34; and &#34;HOSTNAME.AS112.ARPA IN TXT&#34; should fit within a 512-octet DNS/UDP datagram: i.e., it should be available over UDP transport without requiring EDNS0 support by the client&#39; is RFC7534-3.5-5. The SOA field values, the NS targets and the $TTL of 1W are sample zone data rather than sentences, and rfc/short/rfc7534.md carries them in its DNS Software Requirements prose; ze&#39;s constants are soaRefresh, soaRetry, soaExpire, soaMinTTL and zoneTTL in internal/plugins/as112/zones.go, and the answer synthesis is zoneAnswer in the same file. Two further sentences state no obligation ze is left owing. &#39;The optional LOC record [RFC1876] included in each zone apex provides information about the geospatial location of the node&#39; is offered as optional and no id declares it; ze synthesizes SOA, NS and TXT at the apex and no LOC. &#39;Where software implementations support it, operational data should also be carried using NSID [RFC5001]&#39; is conditioned on the DNS software supporting NSID, and ze&#39;s DNS harness (internal/core/dnsserver) reads the EDNS0 OPT record for client-subnet (RFC 7871) and implements no NSID option, so the condition does not hold and the sentence binds nothing here.</td>
 </tr>
 <tr><td><code>3.6</code></td>
 <td>Testing a Newly Installed Node</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Testing a Newly Installed Node. A worked &#39;dig&#39; invocation against hostname.as112.net TXT, how to read a response that names a different node, and the note that a proper test set queries from many places over both UDP and TCP against all three anycast addresses. Instructions to the person commissioning the node, directing no behavior of the node itself. Ze&#39;s equivalent is the operator-facing as112 health command, handleAS112Health in internal/plugins/as112/health.go.</td>
 </tr>
 <tr><td><code>4</code></td>
 <td>Operations, the parent heading</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Operations, the parent heading. No text of its own.</td>
 </tr>
 <tr><td><code>4.1</code></td>
 <td>Monitoring</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Monitoring. One lowercase-&#39;should&#39; sentence, declared unsourced here: &#39;AS112 nodes should be monitored to ensure that they are functioning correctly, just as with any other production service.&#39; It binds the node&#39;s operator, and the rest of the section says why: a node that answers wrongly causes failures and timeouts in dependent systems that are hard to diagnose.</td>
 </tr>
 <tr><td><code>4.2</code></td>
 <td>Downtime</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Downtime. One lowercase-&#39;should&#39; sentence, declared unsourced here: &#39;An AS112 node that needs to go off-line (e.g., for planned maintenance or as part of the diagnosis of some problem) should stop advertising the AS112 service prefixes to its BGP peers&#39;, by shutting the routing software down or by withdrawing the route. The second paragraph gives the reason: an announced prefix with a dead nameserver blackholes the query traffic. The obligation binds the operator taking the node down, and ze gives them the mechanism: as112Producer.withdraw (internal/plugins/as112/redistribute.go) withdraws the covering prefixes when the listeners stop serving.</td>
 </tr>
 <tr><td><code>4.3</code></td>
 <td>Statistics and Measurement</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Statistics and Measurement. One lowercase-&#39;should&#39; sentence, declared unsourced here: &#39;Use of the AS112 node should be measured in order to track long-term trends, identify anomalous conditions, and ensure that the configuration of the AS112 node is sufficient to handle the query load.&#39; It binds the operator. The rest names free monitoring tools (bindgraph, dnstop, DSC) and suggests joining DNS-OARC collection events, which is a recommendation about a community activity and directs no software. Ze publishes the counters an operator measures with: buildMetrics in internal/plugins/as112/metrics.go.</td>
 </tr>
 <tr><td><code>5</code></td>
 <td>Communications</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Communications. Repeats 3.2&#39;s notify-the-community guidance, names the as112-ops@lists.dns-oarc.net mailing list and www.as112.net, says information about a node should also be published in the DNS through the HOSTNAME.AS112.* zones (which is 3.5&#39;s TXT content, RFC7534-3.5-5), and says operators should be aware of RFC 6305 and direct site administrators appropriately. Every obligation binds the node&#39;s operator and is already declared: RFC7534-3.2-1 cites this section beside 3.2, and it is declared unsourced on 3.2 rather than twice.</td>
 </tr>
 <tr><td><code>6</code></td>
 <td>On the Future of AS112 Nodes</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>On the Future of AS112 Nodes. Indicative and predictive: recursive-nameserver operators are recommended by RFC 6303 to answer these zones locally, no trend toward that compliance is observable, vendors are expected to ship such defaults, the query load will not fall to zero, and the community might one day recommend retiring Direct Delegation service -- which the section says explicitly this document does not recommend. The one recommendation named belongs to RFC 6303 and binds a recursive resolver, not an AS112 node.</td>
 </tr>
 <tr><td><code>7</code></td>
@@ -834,7 +860,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td><code>8</code></td>
 <td>Security Considerations</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Security Considerations. Five paragraphs, none of which directs the node&#39;s DNS or BGP behavior. Hosts should never normally send these queries and should answer them locally, which binds the querying site. Responses are unexpected and can trigger intrusion detection, so AS112 operators should expect to be contacted, with RFC 6305 as the advice to give. A loosely coordinated deployment makes a compromised node hard to detect, so operators should protect their nodes as they would any production nameserver, with RFC 2870 named as instructive: that binds the operator. The last paragraph states as fact that AS112 zones are not DNSSEC-signed, because the key material would have to be effectively public; it is a statement of what the service does not do, not an obligation. rfc/short/rfc7534.md carries all five under Security Considerations and declares no id for them.</td>
 </tr>
 <tr><td><code>9</code></td>
@@ -910,7 +936,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     </a>
                     <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
                         <span class="page-sidebar-link-label">Verify debugging</span>
-                        <small>How failed checks route to evidence.</small>
+                        <small>How to investigate failed checks using their logs.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -929,7 +955,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 01:56 UTC</span>
                 </div>
             </div>
         </footer>

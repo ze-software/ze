@@ -69,6 +69,7 @@ process uses the deferred daemon hook described below.</p>
 <li><a href="#metrics-owned-by-daemon-callbacks">Metrics owned by daemon callbacks</a></li>
 <li><a href="#a-plugin-run-in-its-own-process">A plugin run in its own process</a></li>
 </ol></li>
+<li><a href="#system-rib-routing-view-metrics">System RIB routing-view metrics</a></li>
 <li><a href="#nopregistry-fallback">NopRegistry Fallback</a></li>
 <li><a href="#the-task-panic-counter">The Task Panic Counter</a></li>
 <li><a href="#which-plugins-need-metrics">Which Plugins Need Metrics</a></li>
@@ -548,6 +549,12 @@ in the same scope: <code>installed</code>, <code>active</code>, <code>up</code>,
 <td>bgp-rpki</td>
 </tr>
 <tr>
+<td><code>ze_rpki_updates_refused_total</code></td>
+<td>CounterVec</td>
+<td>reason</td>
+<td>bgp-rpki: JSON UPDATEs refused before validation, with <code>unknown-peer-as</code> or <code>malformed-peer-as</code></td>
+</tr>
+<tr>
 <td><code>ze_role_route_rejects_total</code></td>
 <td>CounterVec</td>
 <td>reason</td>
@@ -998,6 +1005,18 @@ in the same scope: <code>installed</code>, <code>active</code>, <code>up</code>,
 <td>plugin (server)</td>
 </tr>
 <tr>
+<td><code>ze_plugin_delivery_failures_total</code></td>
+<td>CounterVec</td>
+<td>plugin</td>
+<td>plugin (process): event batches sent with no caller waiting that failed to reach the plugin</td>
+</tr>
+<tr>
+<td><code>ze_plugin_delivery_slow_batches_total</code></td>
+<td>CounterVec</td>
+<td>plugin</td>
+<td>plugin (process): event batches that took over 500 ms to deliver, on any transport</td>
+</tr>
+<tr>
 <td><code>ze_plugin_filter_batch_routes</code></td>
 <td>Histogram</td>
 <td></td>
@@ -1202,6 +1221,7 @@ rising while <code>ze_iface_carrier_resyncs_total</code> stays flat is the healt
 under load: the worker was behind and the event path still carried every
 interface to its final state. The resync counter moving is the one that says a
 transition never arrived at all.</p>
+<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- SetMetricsRegistry, handleEvent -->
 <!-- source: internal/component/iface/rate.go -- ownedDevices gauge registration -->
 <!-- source: internal/component/iface/link_queue.go -- coalesced and resync counters -->
 <!-- source: internal/component/iface/resolve.go -- onLinkEvent and sendLatest, the discard counter -->
@@ -1449,6 +1469,46 @@ boundary, not parity with native Prometheus's support for infinite aggregates:
 <!-- source: internal/component/plugin/cli/cli.go -- withForkedMetrics -->
 <!-- source: pkg/plugin/sdk/metrics.go -- MetricsPublisher, SetMetricsInterval, FlushMetrics, flushMetricsAtBye -->
 <!-- source: internal/component/plugin/server/dispatch_metrics.go -- pluginMetricSet -->
+<h2 id="system-rib-routing-view-metrics">System RIB routing-view metrics</h2>
+<p>The existing <code>ze_systemrib_events_received_total</code> counter counts each accepted
+nonempty authoritative selected-change batch, including a duplicate input that
+produces no FIB change. Malformed batches and empty selected-feed idle polls do
+not count. Route-change counters count the emitted forwarding effects separately.
+Both placements retain their existing metrics registration and transport.</p>
+<!-- source: internal/component/sysrib/route_view_forwarding.go -- applySelectedBatch -->
+<p>The system RIB's routing-view monitor creates three scalar metrics through
+<code>Plugin.MetricsRegistry</code> before <code>Run</code>. The SDK's existing publisher carries
+them in both placements; the monitor starts no publisher of its own.</p>
+<!-- source: internal/component/sysrib/doctor_route_view.go -- newRouteViewHealth -->
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze_rib_view_resync_total</code></td>
+<td>Reconstruction attempts after the initial consumer starts, including selected-view reset and local capture overflow.</td>
+</tr>
+<tr>
+<td><code>ze_rib_view_pending_prefixes</code></td>
+<td>Distinct prefixes held in an incomplete selected snapshot or collected forwarding work awaiting reconciliation.</td>
+</tr>
+<tr>
+<td><code>ze_rib_view_ready</code></td>
+<td>One after the view and its forwarding output synchronize; zero during initialization, reconstruction, failure or shutdown.</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/sysrib/doctor_route_view.go -- beginResync, setPending, markSynchronized, fail, stop -->
+<p>These names have no labels, so route prefixes and session tokens cannot grow
+their series. The <code>ze_rib_view_</code> names describe the shared routing-view
+transport; the existing system RIB metrics retain <code>ze_systemrib_</code>.</p>
+<!-- source: internal/component/sysrib/doctor_route_view.go -- newRouteViewHealth -->
+<!-- source: internal/component/sysrib/route_view_worker.go -- readSelected -->
+<!-- source: internal/component/sysrib/route_view_worker_operations.go -- reopen, collect -->
 <h2 id="nopregistry-fallback">NopRegistry Fallback</h2>
 <p>When telemetry is disabled in config, plugins receive a <code>NopRegistry</code> that returns
 no-op metric implementations. The nil-check on the atomic pointer handles the case
@@ -1564,7 +1624,7 @@ atomic pointer, periodic update loop, and per-peer label cleanup.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 02:04 UTC</span>
                 </div>
             </div>
         </footer>

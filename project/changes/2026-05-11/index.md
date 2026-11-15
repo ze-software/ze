@@ -4,7 +4,7 @@ CPE features round out, interface config gets restructured, and RPKI gains ASPA 
 
 ## 🏠 CPE / edge router
 
-Several pieces needed for Ze to run as a customer-premises router landed together:
+Ze gained several features needed to run as a customer-premises router:
 
 - A DHCP server plugin (RFC 2131/2132) with lease tracking, static MAC-to-IP mappings, and multi-subnet dispatch
 - A PPPoE client interface kind, dialling an access concentrator and negotiating LCP/CHAP/PAP/IPCP for a routable PPP session

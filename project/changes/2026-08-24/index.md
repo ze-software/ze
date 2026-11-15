@@ -1,6 +1,6 @@
 # 2026-08-24 – 2026-08-30 (1 week)
 
-Standards closure was the plan for the week. The build and test tooling took it instead: the Makefile and 256 shell and Python scripts are gone, replaced by Go, and that move is still in progress. Around it, output formatting moved off flags and onto the pipe operators, and a TACACS+ authentication bypass was closed.
+Fixing the remaining standards compliance gaps was the plan for the week. Instead, most of the time went on build and test tooling: the Makefile and 256 shell and Python scripts are gone, replaced by Go, and that move is still in progress. Output formatting also moved from flags to pipe operators, and a TACACS+ authentication bypass was fixed.
 
 ## 🖥️ CLI
 
@@ -48,7 +48,7 @@ Ze is being checked against every RFC it implements, one MUST at a time. The wor
 
 Of 4,748 requirements, 3,071 are MUST-level and 2,976 are checked. 68 MUSTs still owe work. Six of the 171 documents have been read end to end.
 
-The 68 was 51 last week, and all 17 of the difference come from one document newly written up: RFC 7627, whose MUSTs have no tests yet. No requirement that was already checked was reclassified. Closing a gap moves a requirement between two states that both count as owing nothing, which is why a week of closures leaves that number flat.
+The 68 was 51 last week, and all 17 of the difference come from adding RFC 7627, whose mandatory requirements have no tests yet. No requirement that was already checked was reclassified. The count treats a documented gap and a completed requirement alike, so fixing those gaps does not reduce it.
 
 A green run proves the written list, not its completeness. The remaining 165 documents still need end-to-end reading.
 
@@ -60,4 +60,4 @@ What that turned up this week:
 
 ## 🔭 Coming up
 
-Next week finishes the tooling move, brings the website back up to date, and spends the steadier tooling on defects. Standards closure follows: close what the checking found, then add tests for the 68 MUSTs that still owe work, then read the remaining 165 documents end to end. SHOULD-level work waits behind all of it.
+Next week is planned for finishing the tooling move, bringing the website up to date and fixing defects. Standards compliance follows: fix the defects the checks found, add tests for the 68 mandatory requirements still needing work, then read the remaining 165 documents end to end. Recommendations marked SHOULD come after that.

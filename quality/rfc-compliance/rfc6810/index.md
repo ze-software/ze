@@ -1,6 +1,6 @@
 # RFC 6810 - The Resource Public Key Infrastructure (RPKI) to Router Protocol
 
-RPKI-to-Router Protocol v0 (RPKI-RTR), not spoken: ze speaks versions 1 and 2 only (RFC 8210). Every requirement this repository extracted from RFC 6810, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+RPKI-to-Router Protocol v0 (RPKI-RTR), not spoken: ze speaks versions 1 and 2 only (RFC 8210). Every requirement listed for RFC 6810, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,24 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 0 | of 40 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0 | of 40 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 40 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 40 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 0 | 0 of 0 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-
-### Neutral
-
-measures that are neither good news nor bad
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Gated MUSTs | 40 | of 68 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 40 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 2 | of 40 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 40 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 40 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 40 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Tested both ways | 0 | of 40 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0 | of 40 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 40 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 40 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Tests shown to detect a fault | 0 | 0 of 0 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -35,55 +22,75 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 38 | of 40 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 6 | of 40 gated MUSTs judged | 6 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+| Declared gap or no test | 38 | of 40 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Audit verdicts | 6 | of 40 mandatory requirements reviewed | 6 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
-The 9 counts marked as a part above are the whole of the 40 gated MUSTs: they add up to 40. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Neutral
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+measures that are neither good news nor bad
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Out of scope | 0 | of 40 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 2 | of 40 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 40 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 40 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 40 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+
+### Totals
+
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 40 | of 68 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 40 mandatory requirements: they add up to 40. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | RPKI-to-Router Protocol v0 (RPKI-RTR), not spoken: ze speaks versions 1 and 2 only (RFC 8210) |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 68 |
-| Gated MUST-level | 40 |
+| Mandatory requirements (MUST level) | 40 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 38 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 0 |
-| Tagged units | 0 |
+| Tests linked to requirements | 0 |
 | Recorded audit verdicts | 6 |
-| Discrimination records | 0 |
+| Fault test records | 0 |
 | Summary | `rfc/short/rfc6810.md` |
-| Requirement shard | `rfc/requirements/rfc6810.md` |
+| Requirement table | `rfc/requirements/rfc6810.md` |
 | RFC text | `rfc/full/rfc6810.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: RPKI to Router Protocol v0 / RPKI-RTR (RFC 6810): router (cache-client) role. Ze does not speak RTR protocol version 0, which this document defines: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, as RFC 8210 Section 7 permits in place of a downgrade. Version 0 is owed work (owner ruling 2026-10-30). Of the 40 MUST-level rows, 38 are gaps and 2 are not-applicable (cache obligations, each quoting the RFC sentence that binds the cache). No row counts as met: RFC6810-5-1, 5.1-1, 5.1-3, 6.1-1, 6.3-1, 6.4-1, 7-1 and 8-2 were tagged by tests that run version 1 sessions, which prove RFC 8210 behaviour and not RFC 6810, so under that ruling they are gaps and their RFC6810 tags leave those tests. RFC6810-5.1-3 was added 2026-09-21 from the Section 5.1 sentence the checklist had not carried
+Included in automatic checks: RPKI to Router Protocol v0 / RPKI-RTR (RFC 6810): router (cache-client) role. Ze does not speak RTR protocol version 0, which this document defines: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, as RFC 8210 Section 7 permits in place of a downgrade. Version 0 is owed work (owner ruling 2026-10-30). Of the 40 MUST-level rows, 38 are gaps and 2 are not-applicable (cache obligations, each quoting the RFC sentence that binds the cache). No row counts as met: RFC6810-5-1, 5.1-1, 5.1-3, 6.1-1, 6.3-1, 6.4-1, 7-1 and 8-2 were tagged by tests that run version 1 sessions, which prove RFC 8210 behaviour and not RFC 6810, so under that ruling they are gaps and their RFC6810 tags leave those tests. RFC6810-5.1-3 was added 2026-09-21 from the Section 5.1 sentence the checklist had not carried
 
-## What the public ledger says
+## Published support status
 
 **Area:** RPKI-to-Router Protocol v0 (RPKI-RTR), not spoken: ze speaks versions 1 and 2 only (RFC 8210)
 
@@ -98,33 +105,36 @@ Enrolled: RPKI to Router Protocol v0 / RPKI-RTR (RFC 6810): router (cache-client
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 0 | one part of the gated population |
-| Annotated (including scoped evidence) | 40 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **40** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 0 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 40 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **40** | every mandatory requirement appears in exactly one group above |
 
 **Annotated (including scoped evidence) (40):** [`RFC6810-5-1`](#rfc6810-5-1), [`RFC6810-5.1-1`](#rfc6810-5.1-1), [`RFC6810-5.1-3`](#rfc6810-5.1-3), [`RFC6810-5.6-1`](#rfc6810-5.6-1), [`RFC6810-5.5-1`](#rfc6810-5.5-1), [`RFC6810-5.8-1`](#rfc6810-5.8-1), [`RFC6810-5.10-1`](#rfc6810-5.10-1), [`RFC6810-5.10-2`](#rfc6810-5.10-2), [`RFC6810-5.10-3`](#rfc6810-5.10-3), [`RFC6810-5.10-4`](#rfc6810-5.10-4), [`RFC6810-2-1`](#rfc6810-2-1), [`RFC6810-5.1-2`](#rfc6810-5.1-2), [`RFC6810-4-1`](#rfc6810-4-1), [`RFC6810-6.1-1`](#rfc6810-6.1-1), [`RFC6810-6.2-1`](#rfc6810-6.2-1), [`RFC6810-6.3-1`](#rfc6810-6.3-1), [`RFC6810-6.4-1`](#rfc6810-6.4-1), [`RFC6810-3-1`](#rfc6810-3-1), [`RFC6810-4-2`](#rfc6810-4-2), [`RFC6810-7-1`](#rfc6810-7-1), [`RFC6810-7-2`](#rfc6810-7-2), [`RFC6810-7-3`](#rfc6810-7-3), [`RFC6810-7.1-1`](#rfc6810-7.1-1), [`RFC6810-7.1-2`](#rfc6810-7.1-2), [`RFC6810-8-1`](#rfc6810-8-1), [`RFC6810-8-2`](#rfc6810-8-2), [`RFC6810-7.2-1`](#rfc6810-7.2-1), [`RFC6810-7.2-2`](#rfc6810-7.2-2), [`RFC6810-7.2-3`](#rfc6810-7.2-3), [`RFC6810-7.2-4`](#rfc6810-7.2-4), [`RFC6810-7.2-5`](#rfc6810-7.2-5), [`RFC6810-7.2-6`](#rfc6810-7.2-6), [`RFC6810-7.2-7`](#rfc6810-7.2-7), [`RFC6810-7.2-8`](#rfc6810-7.2-8), [`RFC6810-7.3-1`](#rfc6810-7.3-1), [`RFC6810-7.3-2`](#rfc6810-7.3-2), [`RFC6810-7.4-1`](#rfc6810-7.4-1), [`RFC6810-7.4-2`](#rfc6810-7.4-2), [`RFC6810-7.4-3`](#rfc6810-7.4-3), [`RFC6810-7.4-4`](#rfc6810-7.4-4)
 
 ## Figures
 
-- **MUST bar**: Ze correctness gap 38
-- **Overview bar**: Not owed 2, SHOULD not decided 28, Ze correctness gap 38
+- **MUST bar**: Not built 38
+- **Overview bar**: Not owed 2, Not assessed 28, Not built 38
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 40 |
 | MUST rows kept (the MUST bar) | 38 |
 | Ze proven | 0 |
 | OS verified | 0 |
+| Proof pending | 0 |
 | OS testing gap | 0 |
-| Ze correctness gap | 38 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 38 |
 | MUST rows not owed | 2 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -137,11 +147,12 @@ Enrolled: RPKI to Router Protocol v0 / RPKI-RTR (RFC 6810): router (cache-client
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 28 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 28 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc6810.json](../../../data/rfc/rfc6810.json).
 
@@ -265,15 +276,15 @@ Source: [data/rfc/rfc6810.json](../../../data/rfc/rfc6810.json).
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC6810-5-1`](#rfc6810-5-1)
 
 Fields with unspecified content MUST be zero on transmission (Section 5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC6810-5-1, so no unit is bound to it.
+No test carries RFC6810-5-1, so there is no linked test.
 
 ### [`RFC6810-5.1-1`](#rfc6810-5.1-1)
 
@@ -281,7 +292,7 @@ Max Length: An 8-bit unsigned integer denoting the longest prefix allowed by the
 
 Audit verdict: unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-30 (independent judge) after the row moved to {gap} under the owner ruling that RTR version 0 is owed. RFC 6810 Section 5.1 reads 'Max Length:  An 8-bit unsigned integer denoting the longest prefix allowed by the prefix.  This MUST NOT be less than the Prefix Length element.' and Section 5 defines the Protocol Version as 'An eight-bit unsigned integer, currently 0, denoting the version of this protocol.' The obligation is on a version 0 Prefix PDU, and Ze never processes one: internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handlePDU returns errRtrUnsupportedProtocol for every PDU but a Serial Notify or Error Report whose version is below rtrVersionMin = 1, refuses a cache's Error Report code 4 that offers a version below rtrVersionMin, and RTRSession.syncOnce bounds the downgrade loop at rtrVersionMin. parsePrefixPDU does refuse a Max Length below the Prefix Length, but only in version 1 and 2 sessions; that proof is RFC8210-5.1-2's, and the earlier enforced verdict rested on version 1 tests that no longer carry this id. No version 0 path exists, so the requirement is unmet.
 
-No test carries RFC6810-5.1-1, so no unit is bound to it.
+No test carries RFC6810-5.1-1, so there is no linked test.
 
 ### [`RFC6810-5.1-3`](#rfc6810-5.1-3)
 
@@ -289,87 +300,87 @@ The value of such a field MUST be ignored on receipt. (Section 5.1)
 
 Audit verdict: unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-30 (independent judge) after the row moved to {gap} under the owner ruling that RTR version 0 is owed. RFC 6810 Section 5.1 reads 'Zero:  Fields shown as zero or reserved MUST be zero.  The value of such a field MUST be ignored on receipt.' for the PDUs of protocol version 0 ('currently 0', Section 5). Ze never receives a version 0 PDU into its parsers: internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handlePDU returns errRtrUnsupportedProtocol for every PDU but a Serial Notify or Error Report whose version is below rtrVersionMin = 1, refuses a cache's Error Report code 4 that offers a version below rtrVersionMin, and RTRSession.syncOnce never downgrades below rtrVersionMin. The reserved-field tolerance of parsePrefixPDU and handlePDU is real but is reached only in version 1 and 2 sessions and is proven under RFC8210-5-1 and RFC8210-5.1-1; the tests that once carried this id run version 1 and no longer tag it. No version 0 path exists, so the requirement is unmet.
 
-No test carries RFC6810-5.1-3, so no unit is bound to it.
+No test carries RFC6810-5.1-3, so there is no linked test.
 
 ### [`RFC6810-5.6-1`](#rfc6810-5.6-1)
 
 The cache server MUST ensure that it has told the router client to have one and only one IPvX PDU for a unique {Prefix, Len, Max-Len, ASN} at any one point in time. (Section 5.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC6810-5.6-1, so no unit is bound to it.
+No test carries RFC6810-5.6-1, so there is no linked test.
 
 ### [`RFC6810-5.5-1`](#rfc6810-5.5-1)
 
 When replying to a Reset Query, the cache sends the set of all data records it has; in this case, the withdraw/announce field in the payload PDUs MUST have the value 1 (announce). (Section 5.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC6810-5.5-1, so no unit is bound to it.
+No test carries RFC6810-5.5-1, so there is no linked test.
 
 ### [`RFC6810-5.8-1`](#rfc6810-5.8-1)
 
 The Session ID MUST be the same as that of the corresponding Cache Response that began the, possibly null, sequence of data PDUs. (Section 5.8)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC6810-5.8-1, so no unit is bound to it.
+No test carries RFC6810-5.8-1, so there is no linked test.
 
 ### [`RFC6810-5.10-1`](#rfc6810-5.10-1)
 
 If the error is generic (e.g., "Internal Error") and not associated with the PDU to which it is responding, the Erroneous PDU field MUST be empty and the Length of Encapsulated PDU field MUST be zero. (Section 5.10)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC6810-5.10-1, so no unit is bound to it.
+No test carries RFC6810-5.10-1, so there is no linked test.
 
 ### [`RFC6810-5.10-2`](#rfc6810-5.10-2)
 
 An Error Report PDU MUST NOT be sent for an Error Report PDU (Section 5.10)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC6810-5.10-2, so no unit is bound to it.
+No test carries RFC6810-5.10-2, so there is no linked test.
 
 ### [`RFC6810-5.10-3`](#rfc6810-5.10-3)
 
 If error text is present, it MUST be a string in UTF-8 encoding (see [RFC3269]). (Section 5.10)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC6810-5.10-3, so no unit is bound to it.
+No test carries RFC6810-5.10-3, so there is no linked test.
 
 ### [`RFC6810-5.10-4`](#rfc6810-5.10-4)
 
 The diagnostic text is optional; if not present, the Length of Error Text field MUST be zero. (Section 5.10)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC6810-5.10-4, so no unit is bound to it.
+No test carries RFC6810-5.10-4, so there is no linked test.
 
 ### [`RFC6810-2-1`](#rfc6810-2-1)
 
 As a cache is receiving, new incoming data and implicit deletes are associated with the new serial but MUST NOT be sent until the fetch is complete. (§2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC6810-2-1, so no unit is bound to it.
+No test carries RFC6810-2-1, so there is no linked test.
 
 ### [`RFC6810-5.1-2`](#rfc6810-5.1-2)
 
 If, at any time, either the router or the cache finds the value of the session identifier is not the same as the other's, they MUST completely drop the session and the router MUST flush all data learned from that cache. (Section 5.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC6810-5.1-2, so no unit is bound to it.
+No test carries RFC6810-5.1-2, so there is no linked test.
 
 ### [`RFC6810-4-1`](#rfc6810-4-1)
 
 The router MUST choose the most preferred, by configuration, cache or set of caches so that the operator may control load on their caches and the Global RPKI. (Section 4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC6810-4-1, so no unit is bound to it.
+No test carries RFC6810-4-1, so there is no linked test.
 
 ### [`RFC6810-6.1-1`](#rfc6810-6.1-1)
 
@@ -377,15 +388,15 @@ To limit the length of time a cache must keep the data necessary to generate inc
 
 Audit verdict: unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-30 (independent judge) after the row moved to {gap} under the owner ruling that RTR version 0 is owed. RFC 6810 Section 6.1 reads 'To limit the length of time a cache must keep the data necessary to generate incremental updates, a router MUST send either a Serial Query or a Reset Query no less frequently than once an hour.' The Serial and Reset Queries this binds are version 0 PDUs, and Ze sends none: RTRSession starts at rtrVersionMax, RTRSession.syncOnce bounds the downgrade loop at rtrVersionMin = 1, and internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handlePDU refuses a cache's Error Report code 4 that offers a version below rtrVersionMin and any data PDU below it, so a version 0 cache never gets a session to poll. The periodic re-query on the Refresh and Retry Intervals (cacheGroup.Run, pollDelay) runs only in version 1 and 2 sessions and is proven under RFC8210-8.1-1; RFC 8210 also replaces the fixed hour with the cache-signalled Refresh Interval. No version 0 path exists, so the requirement is unmet.
 
-No test carries RFC6810-6.1-1, so no unit is bound to it.
+No test carries RFC6810-6.1-1, so there is no linked test.
 
 ### [`RFC6810-6.2-1`](#rfc6810-6.2-1)
 
 The cache MUST rate limit Serial Notifies to no more frequently than one per minute. (Section 6.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC6810-6.2-1, so no unit is bound to it.
+No test carries RFC6810-6.2-1, so there is no linked test.
 
 ### [`RFC6810-6.3-1`](#rfc6810-6.3-1)
 
@@ -393,7 +404,7 @@ If there are no more preferred caches, it MUST issue a Reset Query and get an en
 
 Audit verdict: unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-30 (independent judge) after the row moved to {gap} under the owner ruling that RTR version 0 is owed. RFC 6810 Section 6.3 reads 'When a router receives this, the router SHOULD attempt to connect to any more preferred caches in its cache list.  If there are no more preferred caches, it MUST issue a Reset Query and get an entire new load from the cache.' The Cache Reset and Reset Query are version 0 PDUs here, and Ze exchanges none: internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handlePDU returns errRtrUnsupportedProtocol for a Cache Reset whose version is below rtrVersionMin = 1 and refuses a cache's Error Report code 4 that offers such a version, and RTRSession.syncOnce never downgrades below rtrVersionMin. The Cache Reset to Reset Query reload in handlePDU runs only in version 1 and 2 sessions and is proven under RFC8210-8.3-1. No version 0 path exists, so the requirement is unmet.
 
-No test carries RFC6810-6.3-1, so no unit is bound to it.
+No test carries RFC6810-6.3-1, so there is no linked test.
 
 ### [`RFC6810-6.4-1`](#rfc6810-6.4-1)
 
@@ -401,23 +412,23 @@ If no other caches are available, the router MUST issue periodic Reset Queries u
 
 Audit verdict: unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-30 (independent judge) after the row moved to {gap} under the owner ruling that RTR version 0 is owed. RFC 6810 Section 6.4 reads 'When a router receives this kind of error, the router SHOULD attempt to connect to any other caches in its cache list, in preference order.  If no other caches are available, the router MUST issue periodic Reset Queries until it gets a new usable load from the cache.' The No Data Available Error Report and the Reset Queries are version 0 PDUs here. Ze reads an Error Report of any version, but internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handlePDU refuses a cache's Error Report code 4 that offers a version below rtrVersionMin = 1, returns errRtrUnsupportedProtocol for any data PDU below it, and RTRSession.syncOnce never downgrades below rtrVersionMin, so Ze never holds a version 0 session in which to issue a version 0 Reset Query. The repeated Reset Queries after No Data Available run only in version 1 and 2 sessions and are proven under RFC8210-8.4-1. No version 0 path exists, so the requirement is unmet.
 
-No test carries RFC6810-6.4-1, so no unit is bound to it.
+No test carries RFC6810-6.4-1, so there is no linked test.
 
 ### [`RFC6810-3-1`](#rfc6810-3-1)
 
 A relying party, e.g., router or other client, MUST have a trust relationship with, and a trusted transport channel to, any authoritative cache(s) it uses. (Section 3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC6810-3-1, so no unit is bound to it.
+No test carries RFC6810-3-1, so there is no linked test.
 
 ### [`RFC6810-4-2`](#rfc6810-4-2)
 
 As a cache server must evaluate certificates and ROAs (Route Origin Attestations; see [RFC6480]), which are time dependent, servers' clocks MUST be correct to a tolerance of approximately an hour. (Section 4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC6810-4-2, so no unit is bound to it.
+No test carries RFC6810-4-2, so there is no linked test.
 
 ### [`RFC6810-7-1`](#rfc6810-7-1)
 
@@ -425,169 +436,169 @@ Caches and routers MUST implement unprotected transport over TCP using a port, r
 
 Audit verdict: unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-30 (independent judge) after the row moved to {gap} under the owner ruling that RTR version 0 is owed. RFC 6810 Section 7 reads 'Caches and routers MUST implement unprotected transport over TCP using a port, rpki-rtr (323); see Section 12.' The transport is the carrier of the version 0 protocol this document defines, and Ze carries no version 0 session over it: Ze dials unprotected TCP on port 323, but internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handlePDU returns errRtrUnsupportedProtocol for every PDU but a Serial Notify or Error Report whose version is below rtrVersionMin = 1 and refuses a cache's Error Report code 4 that offers such a version, and RTRSession.syncOnce never downgrades below rtrVersionMin. The unprotected TCP transport is proven for versions 1 and 2 under RFC8210-9-1 by tests that no longer carry this id. With no version 0 session, a version 0 cache gets no usable transport from Ze, so the requirement is unmet.
 
-No test carries RFC6810-7-1, so no unit is bound to it.
+No test carries RFC6810-7-1, so there is no linked test.
 
 ### [`RFC6810-7-2`](#rfc6810-7-2)
 
 If unprotected TCP is the transport, the cache and routers MUST be on the same trusted and controlled network. (Section 7)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC6810-7-2, so no unit is bound to it.
+No test carries RFC6810-7-2, so there is no linked test.
 
 ### [`RFC6810-7-3`](#rfc6810-7-3)
 
 If available to the operator, caches and routers MUST use one of the following more protected protocols. (Section 7)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC6810-7-3, so no unit is bound to it.
+No test carries RFC6810-7-3, so there is no linked test.
 
 ### [`RFC6810-7.1-1`](#rfc6810-7.1-1)
 
 Cache servers supporting SSH transport MUST accept RSA and Digital Signature Algorithm (DSA) authentication (Section 7.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC6810-7.1-1, so no unit is bound to it.
+No test carries RFC6810-7.1-1, so there is no linked test.
 
 ### [`RFC6810-7.1-2`](#rfc6810-7.1-2)
 
 User authentication MUST be supported (Section 7.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC6810-7.1-2, so no unit is bound to it.
+No test carries RFC6810-7.1-2, so there is no linked test.
 
 ### [`RFC6810-8-1`](#rfc6810-8-1)
 
 A client may hold data from multiple caches but MUST keep the data marked as to source, as later updates MUST affect the correct data. (Section 8)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC6810-8-1, so no unit is bound to it.
+No test carries RFC6810-8-1, so there is no linked test.
 
 ### [`RFC6810-8-2`](#rfc6810-8-2)
 
 If data from multiple caches are held, implementations MUST NOT distinguish between data sources when performing validation (Section 8)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC6810-8-2, so no unit is bound to it.
+No test carries RFC6810-8-2, so there is no linked test.
 
 ### [`RFC6810-7.2-1`](#rfc6810-7.2-1)
 
 Client routers using TLS transport MUST present client-side certificates to authenticate themselves to the cache in order to allow the cache to manage the load by rejecting connections from unauthorized routers. (Section 7.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC6810-7.2-1, so no unit is bound to it.
+No test carries RFC6810-7.2-1, so there is no linked test.
 
 ### [`RFC6810-7.2-2`](#rfc6810-7.2-2)
 
 Certificates used to authenticate client routers in this protocol MUST include a subjectAltName extension [RFC5280] containing one or more iPAddress identities (Section 7.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC6810-7.2-2, so no unit is bound to it.
+No test carries RFC6810-7.2-2, so there is no linked test.
 
 ### [`RFC6810-7.2-3`](#rfc6810-7.2-3)
 
 when authenticating the router's certificate, the cache MUST check the IP address of the TLS connection against these iPAddress identities (Section 7.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC6810-7.2-3, so no unit is bound to it.
+No test carries RFC6810-7.2-3, so there is no linked test.
 
 ### [`RFC6810-7.2-4`](#rfc6810-7.2-4)
 
 Routers MUST also verify the cache's TLS server certificate, using subjectAltName dNSName identities as described in [RFC6125], to avoid monkey-in-the-middle attacks. (Section 7.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC6810-7.2-4, so no unit is bound to it.
+No test carries RFC6810-7.2-4, so there is no linked test.
 
 ### [`RFC6810-7.2-5`](#rfc6810-7.2-5)
 
 Support for DNS-ID identifier type (that is, the dNSName identity in the subjectAltName extension) is REQUIRED in rpki-rtr server and client implementations that use TLS. (Section 7.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC6810-7.2-5, so no unit is bound to it.
+No test carries RFC6810-7.2-5, so there is no linked test.
 
 ### [`RFC6810-7.2-6`](#rfc6810-7.2-6)
 
 DNS-ID identifier type MUST be present in rpki-rtr server certificates (Section 7.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC6810-7.2-6, so no unit is bound to it.
+No test carries RFC6810-7.2-6, so there is no linked test.
 
 ### [`RFC6810-7.2-7`](#rfc6810-7.2-7)
 
 rpki-rtr implementations that use TLS MUST NOT use CN-ID identifiers; a CN field may be present in the server certificate's subject name, but MUST NOT be used for authentication within the rules described in [RFC6125]. (Section 7.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC6810-7.2-7, so no unit is bound to it.
+No test carries RFC6810-7.2-7, so there is no linked test.
 
 ### [`RFC6810-7.2-8`](#rfc6810-7.2-8)
 
 The client router MUST set its "reference identifier" to the DNS name of the rpki-rtr cache (Section 7.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC6810-7.2-8, so no unit is bound to it.
+No test carries RFC6810-7.2-8, so there is no linked test.
 
 ### [`RFC6810-7.3-1`](#rfc6810-7.3-1)
 
 If TCP MD5 is used, implementations MUST support key lengths of at least 80 printable ASCII bytes, per Section 4.5 of [RFC2385]. (Section 7.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC6810-7.3-1, so no unit is bound to it.
+No test carries RFC6810-7.3-1, so there is no linked test.
 
 ### [`RFC6810-7.3-2`](#rfc6810-7.3-2)
 
 Implementations MUST also support hexadecimal sequences of at least 32 characters, i.e., 128 bits. (Section 7.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC6810-7.3-2, so no unit is bound to it.
+No test carries RFC6810-7.3-2, so there is no linked test.
 
 ### [`RFC6810-7.4-1`](#rfc6810-7.4-1)
 
 Implementations MUST support key lengths of at least 80 printable ASCII bytes. (Section 7.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC6810-7.4-1, so no unit is bound to it.
+No test carries RFC6810-7.4-1, so there is no linked test.
 
 ### [`RFC6810-7.4-2`](#rfc6810-7.4-2)
 
 Implementations MUST also support hexadecimal sequences of at least 32 characters, i.e., 128 bits. (Section 7.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC6810-7.4-2, so no unit is bound to it.
+No test carries RFC6810-7.4-2, so there is no linked test.
 
 ### [`RFC6810-7.4-3`](#rfc6810-7.4-3)
 
 MAC (Message Authentication Code) lengths of at least 96 bits MUST be supported, per Section 5.1 of [RFC5925]. (Section 7.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC6810-7.4-3, so no unit is bound to it.
+No test carries RFC6810-7.4-3, so there is no linked test.
 
 ### [`RFC6810-7.4-4`](#rfc6810-7.4-4)
 
 The cryptographic algorithms and associated parameters described in [RFC5926] MUST be supported. (Section 7.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC6810-7.4-4, so no unit is bound to it.
+No test carries RFC6810-7.4-4, so there is no linked test.
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -606,42 +617,42 @@ No test carries RFC6810-7.4-4, so no unit is bound to it.
 
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
-| `front` | not stated | 0 | walked | not stated |
-| `1` | not stated | 0 | walked | not stated |
-| `1.1` | not stated | 0 | walked | not stated |
-| `2` | not stated | 1 | walked | not stated |
-| `3` | not stated | 1 | walked | not stated |
-| `4` | not stated | 2 | walked | not stated |
-| `5` | not stated | 1 | walked | not stated |
-| `5.1` | not stated | 4 | walked | not stated |
-| `5.2` | not stated | 0 | walked | not stated |
-| `5.3` | not stated | 0 | walked | not stated |
-| `5.4` | not stated | 0 | walked | not stated |
-| `5.5` | not stated | 1 | walked | not stated |
-| `5.6` | not stated | 1 | walked | not stated |
-| `5.7` | not stated | 0 | walked | not stated |
-| `5.8` | not stated | 1 | walked | not stated |
-| `5.9` | not stated | 0 | walked | not stated |
-| `5.10` | not stated | 4 | walked | not stated |
-| `6` | not stated | 0 | walked | not stated |
-| `6.1` | not stated | 2 | walked | not stated |
-| `6.2` | not stated | 2 | walked | not stated |
-| `6.3` | not stated | 1 | walked | not stated |
-| `6.4` | not stated | 1 | walked | not stated |
-| `7` | not stated | 3 | walked | not stated |
-| `7.1` | not stated | 2 | walked | not stated |
-| `7.2` | not stated | 7 | walked | not stated |
-| `7.3` | not stated | 2 | walked | not stated |
-| `7.4` | not stated | 4 | walked | not stated |
-| `8` | not stated | 2 | walked | not stated |
-| `9` | not stated | 0 | walked | not stated |
-| `10` | not stated | 0 | walked | not stated |
-| `11` | not stated | 1 | walked | not stated |
-| `12` | not stated | 0 | walked | not stated |
-| `13` | not stated | 0 | walked | not stated |
-| `14` | not stated | 0 | walked | not stated |
-| `14.1` | not stated | 0 | walked | not stated |
-| `14.2` | not stated | 0 | walked | not stated |
+| `front` | not stated | 0 | reviewed | not stated |
+| `1` | not stated | 0 | reviewed | not stated |
+| `1.1` | not stated | 0 | reviewed | not stated |
+| `2` | not stated | 1 | reviewed | not stated |
+| `3` | not stated | 1 | reviewed | not stated |
+| `4` | not stated | 2 | reviewed | not stated |
+| `5` | not stated | 1 | reviewed | not stated |
+| `5.1` | not stated | 4 | reviewed | not stated |
+| `5.2` | not stated | 0 | reviewed | not stated |
+| `5.3` | not stated | 0 | reviewed | not stated |
+| `5.4` | not stated | 0 | reviewed | not stated |
+| `5.5` | not stated | 1 | reviewed | not stated |
+| `5.6` | not stated | 1 | reviewed | not stated |
+| `5.7` | not stated | 0 | reviewed | not stated |
+| `5.8` | not stated | 1 | reviewed | not stated |
+| `5.9` | not stated | 0 | reviewed | not stated |
+| `5.10` | not stated | 4 | reviewed | not stated |
+| `6` | not stated | 0 | reviewed | not stated |
+| `6.1` | not stated | 2 | reviewed | not stated |
+| `6.2` | not stated | 2 | reviewed | not stated |
+| `6.3` | not stated | 1 | reviewed | not stated |
+| `6.4` | not stated | 1 | reviewed | not stated |
+| `7` | not stated | 3 | reviewed | not stated |
+| `7.1` | not stated | 2 | reviewed | not stated |
+| `7.2` | not stated | 7 | reviewed | not stated |
+| `7.3` | not stated | 2 | reviewed | not stated |
+| `7.4` | not stated | 4 | reviewed | not stated |
+| `8` | not stated | 2 | reviewed | not stated |
+| `9` | not stated | 0 | reviewed | not stated |
+| `10` | not stated | 0 | reviewed | not stated |
+| `11` | not stated | 1 | reviewed | not stated |
+| `12` | not stated | 0 | reviewed | not stated |
+| `13` | not stated | 0 | reviewed | not stated |
+| `14` | not stated | 0 | reviewed | not stated |
+| `14.1` | not stated | 0 | reviewed | not stated |
+| `14.2` | not stated | 0 | reviewed | not stated |
 
 ### Excluded sentences
 

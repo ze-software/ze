@@ -4,7 +4,7 @@ Run Ze as the AS112 sink for RFC 1918 and link-local reverse DNS, then learn the
 
 **RFC completion:** the [DNS coverage page](../../quality/rfc-compliance/profiles/dns/) shows how much of the RFC work behind this use case is proven by tests.
 
-This is a local-network deployment shape. If you intend to advertise an AS112 node to public Internet peers, coordinate it first as RFC 7534 expects, and keep the import and export filters below. The software cannot do that human coordination for you.
+This example runs AS112 inside a local network. If you intend to advertise an AS112 node to public Internet peers, coordinate it first as RFC 7534 expects, and keep the import and export filters below. The software cannot do that human coordination for you.
 
 ## Topology
 
@@ -416,7 +416,7 @@ The existing interop suite already contains the AS112 proof this page is based o
 | Scenario | What it proves |
 | --- | --- |
 | test/interop/scenarios/as112-redistribute-lab | Real AS112 DNS serving plus BGP origination to FRR while the watchdog is healthy |
-| test/interop/scenarios/as112-redistribute-origin-frr | The AS112 redistribute producer carries origin AS 112; FRR sees the iBGP shape and BIRD sees the eBGP prepend shape |
+| test/interop/scenarios/as112-redistribute-origin-frr | Redistributed AS112 routes carry origin AS 112; FRR receives the iBGP AS path, and BIRD receives the eBGP AS path with Ze's local AS prepended |
 | test/interop/scenarios/as112-redistribute-community-frr | The AS112 redistribute producer carries the configured well-known community onto the wire |
 | test/plugin/redistribute-as112-announce.ci | Ze announces the two `/24` and two `/48` covering prefixes, not the `/32` and `/128` host addresses |
 

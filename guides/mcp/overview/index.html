@@ -528,6 +528,18 @@ becomes a tool with an <code>action</code> enum listing its subcommands. When a 
 YANG command is registered, it appears as an MCP tool automatically without
 code changes.</p>
 <p>Run <code>tools/list</code> against a live daemon to see the current tool inventory. <!-- doc-links: ignore (JSON-RPC method name, not a path) --></p>
+<p>When Ze cannot build one tool's definition, <code>tools/list</code> does not return the <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
+list without it. It answers JSON-RPC error <code>-32603</code> (internal error). The
+message names the tool, says why its input schema cannot be written as JSON,
+and asks you to report the message to the Ze developers. Your client then sees
+no tool at all, not an incomplete list that looks complete. No command Ze
+registers causes this today. If you see it, report the full message at
+<a href="https://github.com/ze-software/ze/issues" target="_blank" rel="noopener">https://github.com/ze-software/ze/issues</a>.</p>
+<!-- source: internal/component/mcp/streamable_tools.go -- allTools -->
+<!-- source: internal/component/mcp/tools.go -- generateTools, buildToolDef -->
+<p>Which agent clients have been checked against this tool list, and what they
+report it costs in context, is on the
+<a href="https://github.com/ze-software/ze/blob/main/docs/contributing/mcp-client-verification.md" target="_blank" rel="noopener">MCP client verification</a> page.</p>
 <p>The commands the local <code>ze</code> command answers on the router are tools too:
 <code>show env list</code>, <code>show config validation &lt;file&gt;</code>, <code>request support archive</code>,
 and <code>show doctor</code>, the daemon form of <code>ze doctor</code>, among them. The daemon runs
@@ -675,10 +687,30 @@ so it is never out of date.</p>
 <td><code>ze show skill &lt;name&gt; [--full]</code></td>
 <td>Load version-matched skill content</td>
 </tr>
+<tr>
+<td><code>ze show agent context</code></td>
+<td>The Ze version, whether the daemon answers, and the guide to read</td>
+</tr>
+<tr>
+<td><code>ze create agent skill</code>, <code>ze show agent skill</code>, <code>ze delete agent skill [agent &lt;name|all&gt;]</code></td>
+<td>Install, report and remove the <code>ze</code> stub skill in the caller's agent harnesses</td>
+</tr>
 </tbody>
 </table>
 <p>These commands do not require a running daemon. Agents use them to validate
 and fix config before committing.</p>
+<p>To set Claude Code or Codex up with the <code>ze</code> skill and its session-start hook,
+step by step, see <a href="../../ai-agent/">Use Ze with an AI agent</a>.</p>
+<p>An agent connected over MCP may run on a machine with no <code>ze</code> binary, so the
+three agent skill commands answer it differently through the daemon. They
+read and write nothing on the daemon's host, and answer the files to place
+(create, show) or remove (delete) in the agent's own home: per harness, the
+default path relative to the home directory (<code>~/.claude/skills/ze/SKILL.md</code>,
+<code>~/.agents/skills/ze/SKILL.md</code>), the state <code>not-inspected</code> and, for create
+and show, the stub's content. That stub tells the agent to ask the Ze system
+it is connected to for <code>show skill ze</code> over the connection it already uses,
+and the answer holds no session-start hook, which would need a local <code>ze</code>.</p>
+<!-- source: internal/plugins/skills/agent_skill.go -- remoteAnswer, stubText, agentPlan -->
 <h2 id="testing">Testing</h2>
 <!-- source: internal/test/cli/cmd_mcp.go -- MCP test client -->
 <!-- source: test/plugin/mcp-announce.ci -- MCP functional test -->
@@ -856,6 +888,10 @@ keeps naming the taskId that <code>task-call</code> produced.</p>
                         <span class="page-sidebar-link-label">Quickstart</span>
                         <small>Start from a minimal working setup.</small>
                     </a>
+                    <a class="page-sidebar-link" href="../../../guides/ai-agent/">
+                        <span class="page-sidebar-link-label">Use Ze with an AI agent</span>
+                        <small>Let Claude Code or Codex drive Ze for you.</small>
+                    </a>
                     <a class="page-sidebar-link" href="../../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
                         <small>Install Ze, create the store, and start SSH.</small>
@@ -885,7 +921,7 @@ keeps naming the taskId that <code>task-call</code> produced.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 11:10 UTC</span>
                 </div>
             </div>
         </footer>

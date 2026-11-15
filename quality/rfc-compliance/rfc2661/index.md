@@ -1,6 +1,6 @@
 # RFC 2661 - Layer Two Tunneling Protocol "L2TP"
 
-L2TPv2. Every requirement this repository extracted from RFC 2661, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+L2TPv2. Every requirement listed for RFC 2661, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,24 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 64 | of 95 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 28 | of 95 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 95 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 95 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 207 | 207 of 212 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-
-### Neutral
-
-measures that are neither good news nor bad
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Gated MUSTs | 95 | of 104 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 95 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 95 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 1 | of 95 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 95 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 95 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Tested both ways | 64 | of 95 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 28 | of 95 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 95 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 95 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Tests shown to detect a fault | 207 | 207 of 212 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -35,54 +22,74 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 2 | of 95 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Declared gap or no test | 2 | of 95 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 
-The 9 counts marked as a part above are the whole of the 95 gated MUSTs: they add up to 95. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Neutral
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+measures that are neither good news nor bad
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Out of scope | 0 | of 95 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 95 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 1 | of 95 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 95 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 95 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+
+### Totals
+
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 95 | of 104 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 95 mandatory requirements: they add up to 95. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | L2TPv2 |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 104 |
-| Gated MUST-level | 95 |
+| Mandatory requirements (MUST level) | 95 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 2 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 213 |
-| Tagged units | 212 |
+| Tests linked to requirements | 212 |
 | Recorded audit verdicts | 22 |
-| Discrimination records | 207 |
+| Fault test records | 207 |
 | Summary | `rfc/short/rfc2661.md` |
-| Requirement shard | `rfc/requirements/rfc2661.md` |
+| Requirement table | `rfc/requirements/rfc2661.md` |
 | RFC text | `rfc/full/rfc2661.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: Layer Two Tunneling Protocol / L2TP (RFC 2661): Ze implements the LAC/LNS control plane. The checklist records its requirement inventory; current execution and producer discrimination determine verified coverage, not a fixed count in this paragraph. Hidden-AVP integration remains a gap. Proxy authentication and new-AVP configure-off behavior remain conditional backlog, not features selected by the authorization to finish already-started work.
+Included in automatic checks: Layer Two Tunneling Protocol / L2TP (RFC 2661): Ze implements the LAC/LNS control plane. The checklist records its requirement inventory; current execution and producer discrimination determine verified coverage, not a fixed count in this paragraph. Hidden-AVP integration remains a gap. Proxy authentication and new-AVP configure-off behavior remain conditional backlog, not features selected by the authorization to finish already-started work.
 
-## What the public ledger says
+## Published support status
 
 **Area:** L2TPv2
 
@@ -97,14 +104,14 @@ Enrolled: Layer Two Tunneling Protocol / L2TP (RFC 2661): Ze implements the LAC/
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 64 | one part of the gated population |
-| Annotated (including scoped evidence) | 31 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 1 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **95** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 64 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 31 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 1 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **95** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (64):** [`RFC2661-x-1`](#rfc2661-x-1), [`RFC2661-4.1-1`](#rfc2661-4.1-1), [`RFC2661-4.1-2`](#rfc2661-4.1-2), [`RFC2661-4.1-3`](#rfc2661-4.1-3), [`RFC2661-4.1-4`](#rfc2661-4.1-4), [`RFC2661-5.8-3`](#rfc2661-5.8-3), [`RFC2661-5.8-4`](#rfc2661-5.8-4), [`RFC2661-5.8-5`](#rfc2661-5.8-5), [`RFC2661-5.8-6`](#rfc2661-5.8-6), [`RFC2661-5.8-7`](#rfc2661-5.8-7), [`RFC2661-6.1-1`](#rfc2661-6.1-1), [`RFC2661-6.2-1`](#rfc2661-6.2-1), [`RFC2661-10-1`](#rfc2661-10-1), [`RFC2661-9-1`](#rfc2661-9-1), [`RFC2661-10-2`](#rfc2661-10-2), [`RFC2661-3.1-2`](#rfc2661-3.1-2), [`RFC2661-3.1-5`](#rfc2661-3.1-5), [`RFC2661-3.1-6`](#rfc2661-3.1-6), [`RFC2661-4.1-5`](#rfc2661-4.1-5), [`RFC2661-4.4.1-1`](#rfc2661-4.4.1-1), [`RFC2661-4.4.3-1`](#rfc2661-4.4.3-1), [`RFC2661-4.4.3-3`](#rfc2661-4.4.3-3), [`RFC2661-4.4.3-4`](#rfc2661-4.4.3-4), [`RFC2661-4.4.3-5`](#rfc2661-4.4.3-5), [`RFC2661-4.4.3-6`](#rfc2661-4.4.3-6), [`RFC2661-4.4.3-7`](#rfc2661-4.4.3-7), [`RFC2661-4.4.3-8`](#rfc2661-4.4.3-8), [`RFC2661-4.4.3-9`](#rfc2661-4.4.3-9), [`RFC2661-4.4.4-1`](#rfc2661-4.4.4-1), [`RFC2661-4.4.4-2`](#rfc2661-4.4.4-2), [`RFC2661-4.4.4-3`](#rfc2661-4.4.4-3), [`RFC2661-4.4.4-4`](#rfc2661-4.4.4-4), [`RFC2661-4.4.4-5`](#rfc2661-4.4.4-5), [`RFC2661-5.0-1`](#rfc2661-5.0-1), [`RFC2661-5.0-2`](#rfc2661-5.0-2), [`RFC2661-5.1.1-1`](#rfc2661-5.1.1-1), [`RFC2661-5.1.1-2`](#rfc2661-5.1.1-2), [`RFC2661-5.1.1-3`](#rfc2661-5.1.1-3), [`RFC2661-5.3-1`](#rfc2661-5.3-1), [`RFC2661-5.3-2`](#rfc2661-5.3-2), [`RFC2661-5.4-1`](#rfc2661-5.4-1), [`RFC2661-5.4-2`](#rfc2661-5.4-2), [`RFC2661-5.4-3`](#rfc2661-5.4-3), [`RFC2661-5.7-1`](#rfc2661-5.7-1), [`RFC2661-5.8-10`](#rfc2661-5.8-10), [`RFC2661-6.3-1`](#rfc2661-6.3-1), [`RFC2661-6.4-1`](#rfc2661-6.4-1), [`RFC2661-6.6-1`](#rfc2661-6.6-1), [`RFC2661-6.7-1`](#rfc2661-6.7-1), [`RFC2661-6.8-1`](#rfc2661-6.8-1), [`RFC2661-6.9-1`](#rfc2661-6.9-1), [`RFC2661-6.9-2`](#rfc2661-6.9-2), [`RFC2661-6.10-1`](#rfc2661-6.10-1), [`RFC2661-6.11-1`](#rfc2661-6.11-1), [`RFC2661-6.12-2`](#rfc2661-6.12-2), [`RFC2661-6.13-1`](#rfc2661-6.13-1), [`RFC2661-6.14-1`](#rfc2661-6.14-1), [`RFC2661-6.14-2`](#rfc2661-6.14-2), [`RFC2661-7.2.1-1`](#rfc2661-7.2.1-1), [`RFC2661-7.2.1-2`](#rfc2661-7.2.1-2), [`RFC2661-7.2.1-3`](#rfc2661-7.2.1-3), [`RFC2661-7.5-1`](#rfc2661-7.5-1), [`RFC2661-7.5.1-1`](#rfc2661-7.5.1-1), [`RFC2661-8.1-3`](#rfc2661-8.1-3)
 
@@ -114,20 +121,23 @@ Enrolled: Layer Two Tunneling Protocol / L2TP (RFC 2661): Ze implements the LAC/
 
 ## Figures
 
-- **MUST bar**: Ze proven 89, OS testing gap 1, Ze correctness gap 5
-- **Overview bar**: Ze MUST proven 89, SHOULD proven 2, SHOULD not decided 6, OS testing gap 1, Ze correctness gap 5
+- **MUST bar**: Ze proven 89, Proof pending 3, OS testing gap 1, Not built 2
+- **Overview bar**: Ze MUST proven 89, SHOULD proven 2, Proof pending 3, OS testing gap 1, Not assessed 6, Not built 2
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 95 |
 | MUST rows kept (the MUST bar) | 95 |
 | Ze proven | 89 |
 | OS verified | 0 |
+| Proof pending | 3 |
 | OS testing gap | 1 |
-| Ze correctness gap | 5 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 2 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -140,11 +150,12 @@ Enrolled: Layer Two Tunneling Protocol / L2TP (RFC 2661): Ze implements the LAC/
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 6 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 6 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc2661.json](../../../data/rfc/rfc2661.json).
 
@@ -164,7 +175,7 @@ Source: [data/rfc/rfc2661.json](../../../data/rfc/rfc2661.json).
 | `RFC2661-5.8-5` | Such a message would be considered a duplicate of a message already received and ignored from processing. However, in order to ensure that all messages are acknowledged properly (particularly in the case of a lost ZLB ACK message), receipt of duplicate messages MUST be acknowledged by the reliable transport. This acknowledgement may either piggybacked on a message in queue, or explicitly via a ZLB ACK. (§5.8) | MUST | 5.8 | **positive:** `unit/verify` [`TestOnReceiveDuplicate`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_reliable_test.go#L146). **negative:** `unit/verify` [`TestOnReceiveDuplicate`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_reliable_test.go#L148) |
 | `RFC2661-5.8-6` | An implementation may support a receive window of only 1 (i.e., by sending out a Receive Window Size AVP with a value of 1), but MUST accept a window of up to 4 from its peer (e.g. have the ability to send 4 messages before backing off). (§5.8) | MUST | 5.8 | **positive:** `unit/verify` [`TestRFC2661PeerWindowOfFourAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_obligations_test.go#L544). **positive:** `unit/verify` [`TestWindowAvailable`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_reliable_window_test.go#L183). **negative:** `unit/verify` [`TestRFC2661PeerWindowOfFourAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_obligations_test.go#L547). **negative:** `unit/verify` [`TestWindowPeerRWSZero`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_reliable_window_test.go#L112) |
 | `RFC2661-5.8-7` | When a tunnel is being shut down for reasons other than loss of connectivity, the state and reliable delivery mechanisms MUST be maintained and operated for the full retransmission interval after the final message exchange has occurred. (§5.8) | MUST | 5.8 | **positive:** `unit/verify` [`TestExpired`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_reliable_test.go#L560). **positive:** `unit/verify` [`TestPostTeardownAckRetention`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_reliable_integration_test.go#L191). **positive:** `unit/verify` [`TestRFC2661ClosedTunnelKeptForRetransmissionInterval`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_obligations_test.go#L568). **negative:** `unit/verify` [`TestExpired`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_reliable_test.go#L563). **negative:** `unit/verify` [`TestPostTeardownAckRetention`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_reliable_integration_test.go#L195). **negative:** `unit/verify` [`TestRFC2661ClosedTunnelKeptForRetransmissionInterval`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_obligations_test.go#L572) |
-| `RFC2661-4.3-1` | If the H bit is set in any AVP(s) in a given control message, a Random Vector AVP must also be present in the message and MUST precede the first AVP having an H bit of 1. (§4.3) | MUST | 4.3 | **positive:** `unit/verify` [`TestWriteICCNBodyHiddenAVP33`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_session_initiator_test.go#L197). **negative:** no negative test. **{single-polarity}:** the one hidden AVP Ze sends, AVP 33 of a PAP realm call, follows a Random Vector written just before it (iccn_proxy.go writeICCNProxyPAP); receiving a hidden AVP is the LNS half, plan/post-release/features/spec-l2tp-proxy-authentication.md, and decoders still skip hidden AVPs (avp.go skipHiddenAVP) |
+| `RFC2661-4.3-1` | If the H bit is set in any AVP(s) in a given control message, a Random Vector AVP must also be present in the message and MUST precede the first AVP having an H bit of 1. (§4.3) | MUST | 4.3 | **positive:** `unit/verify` [`TestWriteICCNBodyHiddenAVP33`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_session_initiator_test.go#L198). **negative:** no negative test. **{single-polarity}:** the one hidden AVP Ze sends, AVP 33 of a PAP realm call, follows a Random Vector written just before it (iccn_proxy.go writeICCNProxyPAP); receiving a hidden AVP is the LNS half, plan/post-release/features/spec-l2tp-proxy-authentication.md, and decoders still skip hidden AVPs (avp.go skipHiddenAVP) |
 | `RFC2661-6.1-1` | The following AVPs MUST be present in the SCCRQ: Message Type AVP Protocol Version Host Name Framing Capabilities Assigned Tunnel ID (§6.1) | MUST | 6.1 | **positive:** `unit/verify` [`TestRFC2661SCCRQCarriesSection61AVPs`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_obligations_test.go#L239). **positive:** `unit/verify` [`TestSCCRQWithEveryMandatoryAVPEstablishes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_reactor_sccrq_mandatory_avp_test.go#L108). **negative:** `unit/verify` [`TestSCCRQMissingMandatoryAVPIsAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_reactor_sccrq_mandatory_avp_test.go#L45). **negative:** `unit/verify` [`TestSCCRQWithShortFramingCapabilitiesIsAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_reactor_sccrq_mandatory_avp_test.go#L149). **positive:** `functional/verify` [`rfc2661-sccrq-mandatory-avp.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-sccrq-mandatory-avp.ci#L28). **negative:** `functional/verify` [`rfc2661-sccrq-mandatory-avp.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-sccrq-mandatory-avp.ci#L24) |
 | `RFC2661-6.2-1` | The following AVPs MUST be present in the SCCRP: Message Type Protocol Version Framing Capabilities Host Name Assigned Tunnel ID (§6.2) | MUST | 6.2 | **positive:** `unit/verify` [`TestRFC2661SCCRPCarriesSection62AVPs`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_obligations_test.go#L254). **positive:** `unit/verify` [`TestSCCRPWithEveryMandatoryAVPEstablishes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_initiator_sccrp_mandatory_avp_test.go#L108). **negative:** `unit/verify` [`TestRFC2661SCCRPWithoutMessageTypeRefused`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_obligations_test.go#L269). **negative:** `unit/verify` [`TestSCCRPMissingMandatoryAVPTearsTheTunnelDown`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_initiator_sccrp_mandatory_avp_test.go#L58) |
 | `RFC2661-10-1` | The Call-Disconnect-Notify (CDN) message is an L2TP control message sent by either the LAC or LNS to request disconnection of a specific call within the tunnel. Its purpose is to inform the peer of the disconnection and the reason why the disconnection occurred. The peer MUST clean up any resources, and does not send back any indication of success or failure for such cleanup. (§6.12) | MUST | 6.12 | **positive:** `unit/verify` [`TestRFC2661CDNCleansUpAndSendsNothing`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_obligations_test.go#L392). **positive:** `unit/verify` [`TestRFC2661CDNCleansUpSilently`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L701). **positive:** `unit/verify` [`TestSession_CDN_AnyState`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_session_fsm_test.go#L359). **positive:** `unit/verify` [`TestSession_CDN_EstablishedSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_session_fsm_test.go#L330). **negative:** `unit/verify` [`TestRFC2661CDNCleansUpSilently`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L704). **negative:** `unit/verify` [`TestSession_CDN_UnknownSessionDropped`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_session_fsm_test.go#L383) |
@@ -179,7 +190,7 @@ Source: [data/rfc/rfc2661.json](../../../data/rfc/rfc2661.json).
 | `RFC2661-3.1-7` | In data messages, Nr is reserved and, if present (as indicated by the S-bit), MUST be ignored upon receipt (§3.1) | MUST | 3.1 | **positive:** no positive test. **negative:** no negative test. **{lower-layer}:** Linux L2TP core (net/l2tp/l2tp_core.c, l2tp_recv_common reads Nr and acts on nothing in it), linux:CONFIG_L2TP; internal/component/l2tp/kernel_linux.go::pppSetupReal creates the pppol2tp session the data plane runs on and installs no value the module reads to ignore Nr; internal/component/l2tp/reactor.go::handle drops every data message that reaches Ze's control socket before reading Ns or Nr, so no value Ze writes decides this field |
 | `RFC2661-4.1-5` | If the M bit is not set, an unrecognized AVP MUST be ignored (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC2661UnrecognizedOptionalAVPIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L637). **negative:** `unit/verify` [`TestRFC2661UnrecognizedOptionalAVPIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L641) |
 | `RFC2661-4.2-2` | Use of the M-bit with new AVPs (those not defined in this document) MUST provide the ability to configure the associated feature off, such that the AVP is either not sent, or sent with the M-bit not set (§4.2) | MUST | 4.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze defines no AVP outside this document, so no feature exists to configure off; plan/spec-l2tp-new-avp-definitions.md |
-| `RFC2661-4.3-3` | The H bit MUST only be set if a shared secret exists between the LAC and LNS (§4.3) | MUST | 4.3 | **positive:** `unit/verify` [`TestRFC2661WrittenAVPFlags`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L210). **positive:** `unit/verify` [`TestWriteICCNBodyPAPProxyHiddenOrAbsent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_session_initiator_test.go#L163). **negative:** no negative test. **{single-polarity}:** Ze sets H only on AVP 33 of a PAP realm call, and newICCNProxy sends that AVP only when the remote has a shared-secret; every other body writer emits H=0; the RFC states no receiver refusal |
+| `RFC2661-4.3-3` | The H bit MUST only be set if a shared secret exists between the LAC and LNS (§4.3) | MUST | 4.3 | **positive:** `unit/verify` [`TestRFC2661WrittenAVPFlags`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L210). **positive:** `unit/verify` [`TestWriteICCNBodyPAPProxyHiddenOrAbsent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_session_initiator_test.go#L164). **negative:** no negative test. **{single-polarity}:** Ze sets H only on AVP 33 of a PAP realm call, and newICCNProxy sends that AVP only when the remote has a shared-secret; every other body writer emits H=0; the RFC states no receiver refusal |
 | `RFC2661-4.4.1-1` | Thus, if the M-bit is set within the Message Type AVP and the Message Type is unknown to the implementation, the tunnel MUST be cleared (§4.4.1) | MUST | 4.4.1 | **positive:** `unit/verify` [`TestUnknownMessageTypeClearsTunnelWhenMandatory`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_type_test.go#L30). **negative:** `unit/verify` [`TestUnknownMessageTypeClearsTunnelWhenMandatory`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_type_test.go#L31) |
 | `RFC2661-4.4.1-2` | The M-bit MUST be set to 1 for all message types defined in this document (§4.4.1) | MUST | 4.4.1 | **positive:** `unit/verify` [`TestRFC2661WrittenAVPFlags`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L202). **negative:** no negative test. **{single-polarity}:** a sender obligation on the eleven message writers. reliable.go::makeRecvEntry preserves the received M-bit so handleMessage can reject unknown mandatory types, but the RFC states no receiver refusal of a known type with M=0 |
 | `RFC2661-4.4-3` | This AVP MUST NOT be hidden (the H-bit MUST be 0). (§4.4) | MUST | 4.4 | **positive:** `unit/verify` [`TestRFC2661ProxyICCNAVPFlags`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_iccn_proxy_flags_test.go#L42). **positive:** `unit/verify` [`TestRFC2661WrittenAVPFlags`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L208). **negative:** no negative test. **{single-polarity}:** a sender obligation; avp.go::skipHiddenAVP refuses every hidden AVP on receipt, so no receive-side input distinguishes the MUST-NOT-hide set |
@@ -268,7 +279,7 @@ Source: [data/rfc/rfc2661.json](../../../data/rfc/rfc2661.json).
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC2661-x-1`](#rfc2661-x-1)
 
@@ -287,7 +298,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Send
 
 Reserved bits MUST be set to 0. An AVP received with a reserved bit set to 1 MUST be treated as an unrecognized AVP. (§4.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Send clause: TestAVPCatalogRoundTrip and the .ci read reserved bits zero on every emitted AVP. Receive clause, both message scopes: TestRFC2661ReservedAVPBitTreatedAsUnrecognized (ICRQ, M=0 value ignored, M=1 one CDN) and TestUnrecognizedMandatoryAVPInHelloClearsTunnel (HELLO, reserved-bit AVP with M=1 clears the tunnel with its session, M=0 changes nothing). Producer checked: AVPIterator.Next sets FlagReserved|FlagUnrecognized, and every parser plus parseHello branches on FlagUnrecognized. The HELLO gap of the earlier verdict is closed.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent rejudgment after the unparam edit to writeAVPProxyAuthenID (avp_compound.go), which drops the mandatory parameter and always writes the M-bit clear, as RFC 2661 Section 4.4.5 says: "The M-bit for this AVP MUST be set to 0." Every caller passed false, so the emitted bytes are unchanged. TestAVPCatalogRoundTrip changed only by dropping that false argument from its ProxyAuthenID case; it still writes every catalog AVP, reads it back and fails when FlagReserved is set on the written AVP, so the send clause stays pinned. The receive clause is unchanged: TestRFC2661ReservedAVPBitTreatedAsUnrecognized (ICRQ, M=0 ignored, M=1 one CDN) and TestUnrecognizedMandatoryAVPInHelloClearsTunnel (HELLO, M=1 clears the tunnel, M=0 changes nothing). Producer re-read: AVPIterator.Next sets FlagReserved|FlagUnrecognized. Discrimination records are unchanged. No test was run for this source-only rejudgment.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -428,11 +439,11 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 
 If the H bit is set in any AVP(s) in a given control message, a Random Vector AVP must also be present in the message and MUST precede the first AVP having an H bit of 1. (§4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestWriteICCNBodyHiddenAVP33`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_session_initiator_test.go#L197) | unit/verify | revert, verified |
+| positive | [`TestWriteICCNBodyHiddenAVP33`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_session_initiator_test.go#L198) | unit/verify | revert, verified |
 
 ### [`RFC2661-6.1-1`](#rfc2661-6.1-1)
 
@@ -512,7 +523,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Tags
 
 This bit MUST be set to 1 for control messages (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -522,7 +533,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The S bit MUST be set to 1 for control messages (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -533,7 +544,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The O bit MUST be set to 0 (zero) for control messages (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -543,7 +554,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The P bit MUST be set to 0 for all control messages (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -553,7 +564,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Ver MUST be 2, indicating the version of the L2TP data message header described in this document (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -564,7 +575,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Packets received with an unknown Ver field MUST be discarded (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -575,15 +586,15 @@ Audit verdict: not audited: no reader has judged these tests
 
 In data messages, Nr is reserved and, if present (as indicated by the S-bit), MUST be ignored upon receipt (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2661-3.1-7, so no unit is bound to it.
+No test carries RFC2661-3.1-7, so there is no linked test.
 
 ### [`RFC2661-4.1-5`](#rfc2661-4.1-5)
 
 If the M bit is not set, an unrecognized AVP MUST be ignored (§4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -594,26 +605,26 @@ Audit verdict: not audited: no reader has judged these tests
 
 Use of the M-bit with new AVPs (those not defined in this document) MUST provide the ability to configure the associated feature off, such that the AVP is either not sent, or sent with the M-bit not set (§4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2661-4.2-2, so no unit is bound to it.
+No test carries RFC2661-4.2-2, so there is no linked test.
 
 ### [`RFC2661-4.3-3`](#rfc2661-4.3-3)
 
 The H bit MUST only be set if a shared secret exists between the LAC and LNS (§4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | positive | [`TestRFC2661WrittenAVPFlags`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L210) | unit/verify | revert, verified |
-| positive | [`TestWriteICCNBodyPAPProxyHiddenOrAbsent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_session_initiator_test.go#L163) | unit/verify | revert, verified |
+| positive | [`TestWriteICCNBodyPAPProxyHiddenOrAbsent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_session_initiator_test.go#L164) | unit/verify | revert, verified |
 
 ### [`RFC2661-4.4.1-1`](#rfc2661-4.4.1-1)
 
 Thus, if the M-bit is set within the Message Type AVP and the Message Type is unknown to the implementation, the tunnel MUST be cleared (§4.4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -624,7 +635,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The M-bit MUST be set to 1 for all message types defined in this document (§4.4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -657,7 +668,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 Human readable text in all error messages MUST be provided in the UTF-8 charset using the Default Language [RFC2277] (§4.4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -667,7 +678,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 A peer MUST NOT request an incoming or outgoing call with a Framing Type AVP specifying a value not advertised in the Framing Capabilities AVP it received during control connection establishment (§4.4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -678,7 +689,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 This AVP MUST be present if the sender can place outgoing calls when requested (§4.4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -688,7 +699,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The lower value "wins", and the "loser" MUST silently discard its tunnel (§4.4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -699,7 +710,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 In the case where a tie breaker is present on both sides, and the value is equal, both sides MUST discard their tunnels (§4.4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -720,7 +731,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 The Host Name is of arbitrary length, but MUST be at least 1 octet (§4.4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -731,7 +742,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The L2TP peer MUST place this value in the Tunnel ID header field of all control and data messages that it subsequently transmits over the associated tunnel (§4.4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -742,7 +753,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Before the Assigned Tunnel ID AVP is received from a peer, messages MUST be sent to that peer with a Tunnel ID value of 0 in the header of all control messages (§4.4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -753,7 +764,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 In the StopCCN control message, the Assigned Tunnel ID AVP MUST be the same as the Assigned Tunnel ID AVP first sent to the receiving peer, permitting the peer to identify the appropriate tunnel even if a StopCCN is sent before an Assigned Tunnel ID AVP is received (§4.4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -764,7 +775,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 This AVP MUST be present in an SCCRP or SCCCN if a challenge was received in the preceding SCCRQ or SCCRP (§4.4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -775,7 +786,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The L2TP peer MUST place this value in the Session ID header field of all control and data messages that it subsequently transmits over the tunnel that belong to this session (§4.4.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -786,7 +797,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Before the Assigned Session ID AVP is received from a peer, messages MUST be sent to that peer with a Session ID of 0 in the header of all control messages (§4.4.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -797,7 +808,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Bits in the Value field of this AVP MUST only be set by the LNS for an OCRQ if it was set in the Bearer Capabilities AVP received from the LAC during control connection establishment (§4.4.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -808,7 +819,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Bits in the Value field of this AVP MUST only be set by the LNS for an OCRQ if it was set in the Framing Capabilities AVP received from the LAC during control connection establishment (§4.4.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -819,7 +830,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The Sequencing Required AVP, Attribute Type 39, indicates to the LNS that Sequence Numbers MUST always be present on the data channel (§4.4.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -830,7 +841,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 This AVP MUST be present if proxy authentication is to be utilized (§4.4.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -840,7 +851,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 This AVP MUST be present in messages containing a Proxy Authen Type AVP with an Authen Type of 1, 2, 3 or 5 (§4.4.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -850,7 +861,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 This AVP MUST be present for Proxy Authen Types 2 and 5 (§4.4.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -860,7 +871,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ID is a 2 octet unsigned integer, the most significant octet MUST be 0 (§4.4.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -870,7 +881,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The Proxy Authen ID AVP MUST be present for Proxy authen types 2, 3 and 5 (§4.4.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -880,7 +891,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 This AVP MUST be present for Proxy authen types 1, 2, 3 and 5 (§4.4.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -890,7 +901,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The M-bit for this AVP MUST be set to 0. (§4.4.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -900,7 +911,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Reserved - Not used, MUST be 0 CRC Errors - Number of PPP frames received with CRC errors since call was established Framing Errors - Number of improperly framed PPP packets received Hardware Overruns - Number of receive buffer over-runs since call was established Buffer Overruns - Number of buffer over-runs detected since call was established Time-out Errors - Number of time-outs since call was established Alignment Errors - Number of alignment errors since call was established (§4.4.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -910,7 +921,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The Tunnel and corresponding Control Connection MUST be established before an incoming or outgoing call is initiated (§5.0)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -921,7 +932,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 An L2TP Session MUST be established before L2TP can begin to tunnel PPP frames (§5.0)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -932,7 +943,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If a Challenge AVP is received in an SCCRQ or SCCRP, a Challenge Response AVP MUST be sent in the following SCCRP or SCCCN, respectively (§5.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -943,7 +954,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If the expected response and response received from a peer does not match, establishment of the tunnel MUST be disallowed (§5.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -954,7 +965,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 To participate in tunnel authentication, a single shared secret MUST exist between the LAC and LNS (§5.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -965,7 +976,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 For the cases where a Session ID has not yet been assigned by the peer (i.e., during establishment of a new session or tunnel), the Session ID field MUST be sent as 0, and the Assigned Session ID AVP within the message MUST be used to identify the session (§5.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -976,7 +987,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Similarly, for cases where the Tunnel ID has not yet been assigned from the peer, the Tunnel ID MUST be sent as 0 and Assigned Tunnel ID AVP used to identify the tunnel (§5.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -987,7 +998,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If this AVP is present during session setup, sequence numbers MUST be present at all times (§5.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -998,7 +1009,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Thus, if the LAC receives a data message without sequence numbers present, it MUST stop sending sequence numbers in future data messages (§5.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1009,7 +1020,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If the LAC receives a data message with sequence numbers present, it MUST begin sending sequence numbers in future outgoing data messages (§5.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1020,7 +1031,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The receiver of a StopCCN MUST send a ZLB ACK to acknowledge receipt of the message and maintain enough control connection state to properly accept StopCCN retransmissions over at least a full retransmission cycle (in case the ZLB ACK is lost) (§5.7)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1031,7 +1042,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 A peer MUST NOT withhold acknowledgment of messages as a technique for flow controlling control messages (§5.8)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1042,15 +1053,15 @@ Audit verdict: not audited: no reader has judged these tests
 
 Any "reserved" or "empty" fields MUST be sent as 0 values to allow for protocol extensibility (§6.0)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2661-6.0-1, so no unit is bound to it.
+No test carries RFC2661-6.0-1, so there is no linked test.
 
 ### [`RFC2661-6.3-1`](#rfc2661-6.3-1)
 
 The following AVP MUST be present in the SCCCN: (§6.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1061,7 +1072,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The following AVPs MUST be present in the StopCCN: (§6.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1072,7 +1083,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 A peer MUST NOT expect HELLO messages at any time or interval (§6.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1082,7 +1093,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The Session ID in a HELLO message MUST be 0 (§6.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1092,7 +1103,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The Following AVP MUST be present in the HELLO message: (§6.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1102,7 +1113,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The following AVPs MUST be present in the ICRQ: (§6.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1113,7 +1124,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The following AVPs MUST be present in the ICRP: (§6.7)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1124,7 +1135,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The following AVPs MUST be present in the ICCN: (§6.8)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1135,7 +1146,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 An LNS MUST have received a Bearer Capabilities AVP during tunnel establishment from an LAC in order to request an outgoing call to that LAC (§6.9)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1146,7 +1157,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The following AVPs MUST be present in the OCRQ: (§6.9)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1157,7 +1168,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The following AVPs MUST be present in the OCRP: (§6.10)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1168,7 +1179,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The following AVPs MUST be present in the OCCN: (§6.11)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1179,7 +1190,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The following AVPs MUST be present in the CDN: (§6.12)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1190,7 +1201,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The following AVPs MUST be present in the WEN: (§6.13)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1201,7 +1212,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 These options can change at any time during the life of the call, thus the LAC MUST be able to update its internal call information and behavior on an active PPP session (§6.14)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1212,7 +1223,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The following AVPs MUST be present in the SLI: (§6.14)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1239,7 +1250,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 If the version is earlier and not supported, a StopCCN MUST be sent to the peer and the originator cleans up and terminates the tunnel (§7.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1250,7 +1261,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 In the event of a local termination, the originator MUST send a Stop-Control-Connection-Notification and clean up the tunnel (§7.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1261,7 +1272,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If the originator receives a Stop-Control-Connection-Notification it MUST also clean up the tunnel (§7.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1272,7 +1283,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The LAC MUST respond to the Outgoing-Call-Request message with an Outgoing-Call-Reply message once the LAC determines that the proper facilities exist to place the call and the call is administratively authorized (§7.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1283,7 +1294,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 established If a Call-Disconnect-Notify is received by the LAC, the telco call MUST be released via appropriate mechanisms and the session cleaned up (§7.5.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1294,7 +1305,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If the call is disconnected by the client or the called interface, a Call-Disconnect-Notify message MUST be sent to the LNS (§7.5.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1304,7 +1315,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Once the source and destination ports and addresses are established, they MUST remain static for the life of the tunnel (§8.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1314,7 +1325,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The default for any L2TP implementation is that UDP checksums MUST be enabled for both control and data messages (§8.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1324,7 +1335,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 An L2TP implementation running on a system which does not support L2F MUST silently discard all L2F packets (§8.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1335,7 +1346,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 When operating in IP environments, L2TP MUST offer the UDP encapsulation described in 8.1 as its default configuration for IP operation (§8.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1345,22 +1356,22 @@ Audit verdict: not audited: no reader has judged these tests
 
 If the LNS chooses to implement proxy authentication, it MUST be able to be configured off, requiring a new round a PPP authentication initiated by the LNS (which may or may not include a new round of LCP negotiation) (§9.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2661-9.5-2, so no unit is bound to it.
+No test carries RFC2661-9.5-2, so there is no linked test.
 
 ### [`RFC2661-5.8-8`](#rfc2661-5.8-8)
 
 If no peer response is detected after several retransmissions, (a recommended default is 5, but SHOULD be configurable) (§5.8)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-08 (independent auditor) after 79e3205310, 0cf6ed47ad, 4e987c42f3 and b6b327852c changed config.go::ExtractParameters (realm relay and proxy-lcp validation) and reactor_dial.go::handleDial (a call to a remote with a connecting or established tunnel joins that tunnel's queue, pendingCall became pendingCalls). No changed line touches the retransmit budget: ExtractParameters still parses it, and a new tunnel handleDial creates still takes r.reliableConfig(); the joining paths create no tunnel. Verdict stands. Prior judgement: Rejudged after the RFC 791 Section 3.2 and RFC 5072 Section 2 comment was added inside ExtractParameters before its existing validateMRUNCP call. The diff changes no executable statement, configuration value, test or tag. RFC 2661 Section 5.8 states: "If no peer response is detected after several retransmissions, (a recommended default is 5, but SHOULD be configurable), the tunnel and all sessions within MUST be cleared." This RID owns the configurable-budget SHOULD; RFC2661-5.8-3 separately owns the MUST-clear obligation. Q1 yes: TestRFC2661ConfiguredMaxRetransmitClearsTunnel selects budget 2 before the incoming tunnel is constructed, establishes it, leaves its HELLO unanswered, asserts Established after each of the two allowed retransmissions, then requires Closed and the StopCCN log at the next deadline. This tests a configured count differing from the default 5. Q2 yes by the assertions: ignoring 2 in favor of 5 misses the final Closed assertion, while early exhaustion misses an Established assertion. The existing reliableConfig panic records demonstrate reachability only; this static rejudgment claims no newly observed semantic red. Q3 yes: hello-retries 0 disables competing dead-peer detection, the fixture creates no tunnel timer, and its controlled clock advances past the exponential retransmission deadlines after a completed tunnel handshake. Q4 yes for the complete configurable-budget obligation: TestConfig_MaxRetransmit separately asserts default 5 and parsed explicit 9; TestReloadAppliesMaxRetransmit asserts parsed 8 reaches subsystem and reactor defaults. ExtractParameters still defaults and parses MaxRetransmit and its valid configurations pass the unchanged MRU check. tunnelDefaults carries the value; setMaxRetransmit updates future tunnel defaults; reliableConfig feeds both locateTunnelLocked and handleDial. newTunnel and NewReliableEngine preserve a nonzero selected count, Tick signals teardown only when attempts exceed it, and handleTick consumes that signal through teardownStopCCN. The positive and negative tags cover final exhaustion and preservation before exhaustion, respectively; the separate session-clearing MUST is not claimed from this configurable-count test. No new implementation or coverage defect was found in this scoped audit. No test, build, recorder or stamp was run by this auditor.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/config.go::ExtractParameters moved. Re-judged 2026-11-13 (independent auditor) after bae3903dbb changed reactor.go::locateTunnelLocked: only its doc comment changed (session-downs are now 'delivered (deliverSessionDowns)' with an order ticket instead of 'emitted'); the body, including newTunnel(..., r.reliableConfig(), ...), is byte-identical, and the other cited producers are unchanged apart from a placePendingCallLocked preallocation in reactor_dial.go outside handleDial. RFC 2661 Section 5.8: "If no peer response is detected after several retransmissions, (a recommended default is 5, but SHOULD be configurable), the tunnel and all sessions within MUST be cleared." This RID owns the configurable budget; RFC2661-5.8-3 owns the clearing MUST. TestRFC2661ConfiguredMaxRetransmitClearsTunnel sets max-retransmit 2 before the tunnel exists, disables HELLO dead-peer detection, asserts Established after each of the two allowed retransmissions (negative) and Closed plus the StopCCN log at the next deadline (positive), so ignoring 2 for 5 or exhausting early both fail. TestConfig_MaxRetransmit and TestReloadAppliesMaxRetransmit cover the default 5 and parsed values reaching the reactor.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC2661ConfiguredMaxRetransmitClearsTunnel`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_retransmit_exhaustion_test.go#L81) | unit/verify | revert, verified |
 | positive | [`TestRFC2661ConfiguredMaxRetransmitClearsTunnel`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_retransmit_exhaustion_test.go#L78) | unit/verify | revert, verified |
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -1379,88 +1390,88 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
-| `front` | not stated | 0 | walked | not stated |
-| `1.0` | not stated | 0 | walked | not stated |
-| `1.1` | not stated | 0 | walked | not stated |
-| `1.2` | not stated | 0 | walked | not stated |
-| `2.0` | not stated | 0 | walked | not stated |
-| `3.0` | not stated | 0 | walked | not stated |
-| `3.1` | not stated | 8 | walked | not stated |
-| `3.2` | not stated | 0 | walked | not stated |
-| `4.0` | not stated | 0 | walked | not stated |
-| `4.1` | not stated | 5 | walked | not stated |
-| `4.2` | not stated | 1 | walked | not stated |
-| `4.3` | not stated | 2 | walked | not stated |
-| `4.4` | not stated | 0 | walked | not stated |
-| `4.4.1` | not stated | 7 | walked | not stated |
-| `4.4.2` | not stated | 3 | walked | not stated |
-| `4.4.3` | not stated | 25 | walked | not stated |
-| `4.4.4` | not stated | 22 | walked | not stated |
-| `4.4.5` | not stated | 14 | walked | not stated |
-| `4.4.6` | not stated | 3 | walked | not stated |
-| `5.0` | not stated | 2 | walked | not stated |
-| `5.1` | not stated | 0 | walked | not stated |
-| `5.1.1` | not stated | 3 | walked | not stated |
-| `5.2` | not stated | 0 | walked | not stated |
-| `5.2.1` | not stated | 0 | walked | not stated |
-| `5.2.2` | not stated | 0 | walked | not stated |
-| `5.3` | not stated | 3 | walked | not stated |
-| `5.4` | not stated | 3 | walked | not stated |
-| `5.5` | not stated | 0 | walked | not stated |
-| `5.6` | not stated | 0 | walked | not stated |
-| `5.7` | not stated | 1 | walked | not stated |
-| `5.8` | not stated | 8 | walked | not stated |
-| `6.0` | not stated | 1 | walked | not stated |
-| `6.1` | not stated | 1 | walked | not stated |
-| `6.2` | not stated | 1 | walked | not stated |
-| `6.3` | not stated | 1 | walked | not stated |
-| `6.4` | not stated | 1 | walked | not stated |
-| `6.5` | not stated | 3 | walked | not stated |
-| `6.6` | not stated | 1 | walked | not stated |
-| `6.7` | not stated | 1 | walked | not stated |
-| `6.8` | not stated | 1 | walked | not stated |
-| `6.9` | not stated | 2 | walked | not stated |
-| `6.10` | not stated | 1 | walked | not stated |
-| `6.11` | not stated | 1 | walked | not stated |
-| `6.12` | not stated | 2 | walked | not stated |
-| `6.13` | not stated | 1 | walked | not stated |
-| `6.14` | not stated | 2 | walked | not stated |
-| `7.0` | not stated | 0 | walked | not stated |
-| `7.1` | not stated | 1 | walked | not stated |
-| `7.2` | not stated | 0 | walked | not stated |
-| `7.2.1` | not stated | 3 | walked | not stated |
-| `7.3` | not stated | 0 | walked | not stated |
-| `7.4` | not stated | 0 | walked | not stated |
-| `7.4.1` | not stated | 0 | walked | not stated |
-| `7.4.2` | not stated | 0 | walked | not stated |
-| `7.5` | not stated | 1 | walked | not stated |
-| `7.5.1` | not stated | 2 | walked | not stated |
-| `7.5.2` | not stated | 0 | walked | not stated |
-| `7.6` | not stated | 0 | walked | not stated |
-| `8.0` | not stated | 0 | walked | not stated |
-| `8.1` | not stated | 3 | walked | not stated |
-| `8.2` | not stated | 1 | walked | not stated |
-| `9.0` | not stated | 0 | walked | not stated |
-| `9.1` | not stated | 1 | walked | not stated |
-| `9.2` | not stated | 0 | walked | not stated |
-| `9.3` | not stated | 0 | walked | not stated |
-| `9.4` | not stated | 0 | walked | not stated |
-| `9.5` | not stated | 1 | walked | not stated |
-| `10.0` | not stated | 0 | walked | not stated |
-| `10.1` | not stated | 0 | walked | not stated |
-| `10.2` | not stated | 0 | walked | not stated |
-| `10.3` | not stated | 0 | walked | not stated |
-| `10.3.1` | not stated | 0 | walked | not stated |
-| `10.3.2` | not stated | 0 | walked | not stated |
-| `10.4` | not stated | 0 | walked | not stated |
-| `10.5` | not stated | 0 | walked | not stated |
-| `10.6` | not stated | 0 | walked | not stated |
-| `11.0` | not stated | 0 | walked | not stated |
-| `12.0` | not stated | 0 | walked | not stated |
-| `13.0` | not stated | 0 | walked | not stated |
-| `A` | Appendix A | 0 | walked | Appendix A. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
-| `B` | Appendix B | 0 | walked | Appendix B. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
-| `C` | Appendix C | 0 | walked | Appendix C. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `front` | not stated | 0 | reviewed | not stated |
+| `1.0` | not stated | 0 | reviewed | not stated |
+| `1.1` | not stated | 0 | reviewed | not stated |
+| `1.2` | not stated | 0 | reviewed | not stated |
+| `2.0` | not stated | 0 | reviewed | not stated |
+| `3.0` | not stated | 0 | reviewed | not stated |
+| `3.1` | not stated | 8 | reviewed | not stated |
+| `3.2` | not stated | 0 | reviewed | not stated |
+| `4.0` | not stated | 0 | reviewed | not stated |
+| `4.1` | not stated | 5 | reviewed | not stated |
+| `4.2` | not stated | 1 | reviewed | not stated |
+| `4.3` | not stated | 2 | reviewed | not stated |
+| `4.4` | not stated | 0 | reviewed | not stated |
+| `4.4.1` | not stated | 7 | reviewed | not stated |
+| `4.4.2` | not stated | 3 | reviewed | not stated |
+| `4.4.3` | not stated | 25 | reviewed | not stated |
+| `4.4.4` | not stated | 22 | reviewed | not stated |
+| `4.4.5` | not stated | 14 | reviewed | not stated |
+| `4.4.6` | not stated | 3 | reviewed | not stated |
+| `5.0` | not stated | 2 | reviewed | not stated |
+| `5.1` | not stated | 0 | reviewed | not stated |
+| `5.1.1` | not stated | 3 | reviewed | not stated |
+| `5.2` | not stated | 0 | reviewed | not stated |
+| `5.2.1` | not stated | 0 | reviewed | not stated |
+| `5.2.2` | not stated | 0 | reviewed | not stated |
+| `5.3` | not stated | 3 | reviewed | not stated |
+| `5.4` | not stated | 3 | reviewed | not stated |
+| `5.5` | not stated | 0 | reviewed | not stated |
+| `5.6` | not stated | 0 | reviewed | not stated |
+| `5.7` | not stated | 1 | reviewed | not stated |
+| `5.8` | not stated | 8 | reviewed | not stated |
+| `6.0` | not stated | 1 | reviewed | not stated |
+| `6.1` | not stated | 1 | reviewed | not stated |
+| `6.2` | not stated | 1 | reviewed | not stated |
+| `6.3` | not stated | 1 | reviewed | not stated |
+| `6.4` | not stated | 1 | reviewed | not stated |
+| `6.5` | not stated | 3 | reviewed | not stated |
+| `6.6` | not stated | 1 | reviewed | not stated |
+| `6.7` | not stated | 1 | reviewed | not stated |
+| `6.8` | not stated | 1 | reviewed | not stated |
+| `6.9` | not stated | 2 | reviewed | not stated |
+| `6.10` | not stated | 1 | reviewed | not stated |
+| `6.11` | not stated | 1 | reviewed | not stated |
+| `6.12` | not stated | 2 | reviewed | not stated |
+| `6.13` | not stated | 1 | reviewed | not stated |
+| `6.14` | not stated | 2 | reviewed | not stated |
+| `7.0` | not stated | 0 | reviewed | not stated |
+| `7.1` | not stated | 1 | reviewed | not stated |
+| `7.2` | not stated | 0 | reviewed | not stated |
+| `7.2.1` | not stated | 3 | reviewed | not stated |
+| `7.3` | not stated | 0 | reviewed | not stated |
+| `7.4` | not stated | 0 | reviewed | not stated |
+| `7.4.1` | not stated | 0 | reviewed | not stated |
+| `7.4.2` | not stated | 0 | reviewed | not stated |
+| `7.5` | not stated | 1 | reviewed | not stated |
+| `7.5.1` | not stated | 2 | reviewed | not stated |
+| `7.5.2` | not stated | 0 | reviewed | not stated |
+| `7.6` | not stated | 0 | reviewed | not stated |
+| `8.0` | not stated | 0 | reviewed | not stated |
+| `8.1` | not stated | 3 | reviewed | not stated |
+| `8.2` | not stated | 1 | reviewed | not stated |
+| `9.0` | not stated | 0 | reviewed | not stated |
+| `9.1` | not stated | 1 | reviewed | not stated |
+| `9.2` | not stated | 0 | reviewed | not stated |
+| `9.3` | not stated | 0 | reviewed | not stated |
+| `9.4` | not stated | 0 | reviewed | not stated |
+| `9.5` | not stated | 1 | reviewed | not stated |
+| `10.0` | not stated | 0 | reviewed | not stated |
+| `10.1` | not stated | 0 | reviewed | not stated |
+| `10.2` | not stated | 0 | reviewed | not stated |
+| `10.3` | not stated | 0 | reviewed | not stated |
+| `10.3.1` | not stated | 0 | reviewed | not stated |
+| `10.3.2` | not stated | 0 | reviewed | not stated |
+| `10.4` | not stated | 0 | reviewed | not stated |
+| `10.5` | not stated | 0 | reviewed | not stated |
+| `10.6` | not stated | 0 | reviewed | not stated |
+| `11.0` | not stated | 0 | reviewed | not stated |
+| `12.0` | not stated | 0 | reviewed | not stated |
+| `13.0` | not stated | 0 | reviewed | not stated |
+| `A` | Appendix A | 0 | reviewed | Appendix A. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `B` | Appendix B | 0 | reviewed | Appendix B. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `C` | Appendix C | 0 | reviewed | Appendix C. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
 
 ### Excluded sentences
 

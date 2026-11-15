@@ -47,7 +47,7 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Quality</span>
     <h1 id="verify-and-debugging-workflow">Verify and Debugging Workflow</h1>
-    <p>Use this page when <code>./le verify current</code> fails, when a test needs to be rerun narrowly, or when debug logging should be enabled without turning the whole run into noise.</p>
+    <p>When a test fails, its failure report should identify the next command to run. This page explains how to read those reports and enable logging for the part of Ze under investigation.</p>
 </div>
 <div class="doc-layout">
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
@@ -55,7 +55,7 @@
 <li><a href="#reading-the-failure">Reading the failure</a></li>
 <li><a href="#trace-output">Trace output</a></li>
 <li><a href="#debug-logging">Debug logging</a></li>
-<li><a href="#skips-and-flakes">Skips and flakes</a></li>
+<li><a href="#skipped-and-intermittent-tests">Skipped and intermittent tests</a></li>
 <li><a href="#debugging-order">Debugging order</a></li>
 </ol></details></nav><div class="doc-body">
 <!-- source: ../main/internal/le/verify/engine/run.go -- verify entry point -->
@@ -63,7 +63,7 @@
 <!-- source: ../main/internal/test/runner/failure_group.go -- failure grouping -->
 <!-- source: ../main/internal/test/trace/trace.go -- per-step trace output -->
 <!-- source: ../main/docs/guide/debugging-tools.md -- debugging tools -->
-<p><code>./le verify current</code> is the normal pre-handoff gate. It is staged, locked, and designed to tell a developer where to rerun. The changed-only command is useful during development, but a finished change should pass the shared gate that would catch cross-package and functional regressions.</p>
+<p><code>./le verify current</code> is a release check, also run by GitHub CI on pushed commits. It runs checks in stages, prevents overlapping verification runs, and reports commands for reproducing failures. During development, a change is checked with the tests for the affected packages and behavior; a full verification run is scheduled by the maintainer.</p>
 <pre><code class="language-bash">./le verify current fast
 ./le verify current
 </code></pre>
@@ -71,13 +71,13 @@
 <table>
 <thead><tr><th>Stage</th><th>Purpose</th><th>Typical rerun</th></tr></thead>
 <tbody>
-<tr><td>Lint and architecture checks</td><td>Formatting, static analysis, generated docs, wiring, and project rules.</td><td><code>./le go lint run</code> or the printed validation target.</td></tr>
-<tr><td>Unit and race checks</td><td>Package contracts, changed groups, and race-sensitive paths.</td><td><code>go test -race -run TestName ./path/...</code></td></tr>
+<tr><td>Lint and architecture checks</td><td>Formatting, code analysis, generated docs, component registration, and project rules.</td><td><code>./le go lint run</code> or the printed check command.</td></tr>
+<tr><td>Unit and race checks</td><td>Package behavior, affected test groups, and concurrent memory access.</td><td><code>go test -race -run TestName ./path/...</code></td></tr>
 <tr><td>Functional suites</td><td><code>.ci</code>, <code>.wb</code>, and <code>.et</code> behavior that an operator or browser can observe.</td><td><code>./le test &lt;suite&gt; NAME -v</code></td></tr>
-<tr><td>Compatibility checks</td><td>ExaBGP and related protocol compatibility gates that belong in the local pass.</td><td>The command printed by the failure group.</td></tr>
+<tr><td>Compatibility checks</td><td>ExaBGP and related protocol compatibility checks included in this verification run.</td><td>The command printed by the failure group.</td></tr>
 </tbody>
 </table>
-<p>The verify runner writes logs under <code>tmp/</code>, keeps a compact failure index, and prints grouped failures. Heavy-job admission in <code>internal/le/job/job.go</code> (<code>./le job run</code>) prevents two verify-class runs from corrupting shared temp state or making failures unreadable.</p>
+<p>The verify runner writes logs under <code>tmp/</code>, keeps an index of failures, and groups related failures in its report. The job scheduler in <code>internal/le/job/job.go</code> (<code>./le job run</code>) prevents resource-intensive verification runs from overlapping and interfering with shared temporary files or their reports.</p>
 <h2 id="reading-the-failure">Reading the failure</h2>
 <p>Start with the first failing group. It tells you the stage, summary, related files, and rerun command. If the failure came from a functional transcript, rerun exactly that test with <code>-v</code>. If it came from a Go package, rerun one test or one package before rerunning a group target.</p>
 <pre><code class="language-bash">./le test bgp plugin 42 -v
@@ -93,11 +93,11 @@ go test -race -run TestName ./internal/component/bgp/...
   13 ✗ expect element -&gt; expected element with text "Routes" not found
 VERIFY STEP: {"file":"test/web/foo.wb","step":13,"kind":"expect","status":"fail"}
 </code></pre>
-<p>Trace output is available for <code>.ci</code>, <code>.wb</code>, and <code>.et</code>. Use it to locate the first broken transition, not the last assertion that happened to fail.</p>
+<p>Trace output is available for <code>.ci</code>, <code>.wb</code>, and <code>.et</code>. The first broken transition usually explains later assertion failures, so it is the useful place to begin.</p>
 <h2 id="debug-logging">Debug logging</h2>
-<p>Ze logging is controlled per subsystem through environment variables. Enable the narrow log that matches the failing surface.</p>
+<p>Ze logging is controlled per subsystem through environment variables. Enable the log for the subsystem involved in the failure.</p>
 <table>
-<thead><tr><th>Surface</th><th>Example</th></tr></thead>
+<thead><tr><th>Area</th><th>Example</th></tr></thead>
 <tbody>
 <tr><td>BGP peer behavior</td><td><code>ze.log.bgp.reactor.peer=debug ./le test bgp plugin NAME -v</code></td></tr>
 <tr><td>Plugin server behavior</td><td><code>ze.log.plugin.server=debug ./le test bgp plugin NAME -v</code></td></tr>
@@ -106,11 +106,11 @@ VERIFY STEP: {"file":"test/web/foo.wb","step":13,"kind":"expect","status":"fail"
 </tbody>
 </table>
 <p>Do not turn on every log by default. Broad logs can hide the one line that matters and can change timing in concurrent tests.</p>
-<h2 id="skips-and-flakes">Skips and flakes</h2>
-<p>A skip is not proof. <code>option=needs-linux</code> is the correct marker for functional behavior that requires Linux. <code>.wb</code> has an explicit skip option for external browser fixtures. Go tests should skip only when an optional capability is genuinely absent and another gate covers the required behavior.</p>
-<p>Flakes should be fixed at the source. Replace timing guesses with readiness checks, process waits, observable browser state, or protocol synchronization. If the test only passes after a sleep grows, the runner is missing a signal.</p>
+<h2 id="skipped-and-intermittent-tests">Skipped and intermittent tests</h2>
+<p>A skipped test supplies no result. <code>option=needs-linux</code> marks functional behavior that requires Linux. <code>.wb</code> has an explicit skip option for external browser fixtures. Go tests should skip only when an optional capability is absent and another check covers the required behavior.</p>
+<p>Intermittent failures need their cause fixed. Replace timing guesses with readiness checks, process waits, observable browser state, or protocol synchronization. If increasing a delay makes the test pass, the runner needs to check when the operation has finished.</p>
 <h2 id="debugging-order">Debugging order</h2>
-<p>Use the failure index first, rerun the narrow command second, enable one debug log third, and escalate to QEMU or interop only when the contract needs that environment. After the fix, rerun the narrow command and then the gate that would have caught the regression.</p>
+<p>The failure index gives you a command for reproducing the problem. If its output is insufficient, enable logging for the affected subsystem. A kernel-dependent failure needs Linux, while a disagreement with another daemon needs the interoperability lab. After the fix, rerun the failing test and the other tests reached by the change; CI supplies the full verification.</p>
 </div>
 </div>
             </section>
@@ -140,7 +140,7 @@ VERIFY STEP: {"file":"test/web/foo.wb","step":13,"kind":"expect","status":"fail"
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 02:04 UTC</span>
                 </div>
             </div>
         </footer>

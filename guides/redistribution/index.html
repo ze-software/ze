@@ -530,8 +530,8 @@ was advertised. A commit that fails after IS-IS or OSPF applied it takes the
 new chain back, and the routes are judged again by the chain of the config
 still running.</p>
 <!-- source: internal/plugins/isis/redistribute/export.go -- exportVerdict -->
-<!-- source: internal/plugins/isis/export_chain.go -- exportChainSlot -->
-<!-- source: internal/plugins/ospf/export_chain.go -- exportChainSlot -->
+<!-- source: internal/plugins/isis/config_tx.go -- runtimeConfig -->
+<!-- source: internal/plugins/ospf/config_transaction.go -- ospfTransactionConfig -->
 <!-- source: internal/plugins/isis/redistribute/consumer.go -- Rejudge -->
 <!-- source: internal/plugins/ospf/redistribute/consumer.go -- Rejudge -->
 <!-- source: internal/plugins/isis/register.go -- init, MustRegisterRouteAttachment exportAttachment -->
@@ -568,7 +568,7 @@ token first.</p>
 <tr>
 <td><code>connected</code></td>
 <td>the connected plugin</td>
-<td>prefixes of configured interface addresses, except the unroutable ones below</td>
+<td>prefixes of addresses reported by the active interface provider, except the unroutable ones below</td>
 </tr>
 <tr>
 <td><code>static</code></td>
@@ -597,6 +597,35 @@ token first.</p>
 </tr>
 </tbody>
 </table>
+<p><code>connected</code> needs an active interface provider to learn interface addresses.
+An empty <code>interface { }</code> root starts the configured backend's monitor, including
+addresses already present on the host. When connected starts or restarts, it
+subscribes before requesting that inventory, so addresses need no new change
+to reach the Loc-RIB and redistribution. The same path serves internal and
+external connected plugins. The request does not start an absent provider:
+without one, connected has no initial address inventory and continues without
+waiting for a reply.</p>
+<!-- source: internal/component/iface/register.go -- runEngine, OnConfigure -->
+<!-- source: internal/plugins/connected/eventbus.go -- followInterfaceAddresses, handleEvent -->
+<p>When the internal connected plugin stops, it removes its paths from the
+Loc-RIB and preserves paths that other protocols hold for the same prefixes.</p>
+<!-- source: internal/plugins/connected/locrib.go -- withdrawLocalPaths, removePath -->
+<p>A live removal first drains accepted address changes and redistribution replays,
+then withdraws the connected prefixes from redistribution before acknowledging
+the removal. Later address events and replays cannot announce that stopped
+observer's routes again. If publication fails, the observer tries to restore its
+current announcements and refuses removal. It reports any restoration failure
+too, retains its address inventory and continues accepting events, so a subsequent
+removal can retry.</p>
+<!-- source: internal/plugins/connected/lifecycle.go -- retire -->
+<p>If a connected-route replay fails, connected logs the failed prefix and raises
+an active "Event handler failed" warning through the daemon, in both plugin
+modes. The warning names the publication error and the log command to inspect
+it. A complete successful replay clears the warning, including when all
+addresses have since been removed. A refused warning update is returned as an
+event application error.</p>
+<!-- source: internal/plugins/connected/connected.go -- reemitAll -->
+<!-- source: internal/plugins/connected/eventbus.go -- followInterfaceAddresses, handleEvent -->
 <p><code>connected</code> never offers a prefix whose network address is loopback
 (127.0.0.0/8, ::1/128), link-local (169.254.0.0/16, fe80::/10), multicast
 (224.0.0.0/4) or in the zero network (0.0.0.0/8). The address <code>lo</code> carries
@@ -615,6 +644,18 @@ plugins start. BGP declares a consumer factory, which the orchestrator builds
 over its own connection to the engine. A build without a protocol has neither,
 so a build without BGP has no <code>bgp</code> destination, and a config naming one is
 refused at load with the list of destinations the build does declare.</p>
+<p>When BGP receives a redistributed route with a gateway, it chooses the next hop
+for each destination peer. Internal peers normally keep that gateway. External
+peers use this router's address on their BGP session, so a gateway on another
+internal link does not make the announcement unusable. If the gateway is the
+internal peer itself, the announcement also uses this router's session address.
+An IGP IPv6 link-local gateway uses the session address for internal and external
+peers, because the IGP gateway's interface scope does not carry across sessions.
+The peer's configured next-hop policy can override that default. A route with
+no gateway, such as a connected prefix, uses the session address. Each selected
+address must still meet the wire-format and negotiated-capability checks.</p>
+<!-- source: internal/component/bgp/redistribute/consumer.go -- formatAnnounce -->
+<!-- source: internal/component/bgp/reactor/peer.go -- defaultOriginationNextHop, resolveNextHop -->
 <p><strong>A protocol is never redistributed into itself.</strong> <code>destination isis { import isis }</code> parses and moves nothing, at every guard: the config evaluator, the
 dispatch fan-out and the replay all ask one predicate.</p>
 <!-- source: internal/component/config/redistribute/registry.go -- RegisterSource, LookupSource -->
@@ -694,10 +735,6 @@ and the error names what you typed:</p>
 <td>the load fails: <code>redistribute: unknown source "rip" under destination "ospf"</code></td>
 </tr>
 <tr>
-<td><code>family [ ipv9/unicast ]</code></td>
-<td>the load fails naming the family</td>
-</tr>
-<tr>
 <td><code>destination ospf { }</code> with no import</td>
 <td>the load fails: the destination imports nothing</td>
 </tr>
@@ -713,9 +750,12 @@ and the error names what you typed:</p>
 <td><code>import ospf</code> or <code>destination ospf</code>, and no <code>ospf { }</code> block</td>
 <td>the same refusal: <code>redistribute: "destination ospf" needs ospf configured, and this config has no ospf { } block</code></td>
 </tr>
+<tr>
+<td><code>destination ospv3 { import connected }</code>, a name no protocol in this build declares</td>
+<td>the load, <code>ze config validate</code> and a commit fail: <code>redistribute: "destination ospv3" names no protocol that receives redistributed routes</code>, then a line listing the declared destinations (read from the registry, so it is what this build carries) and the fix</td>
+</tr>
 </tbody>
 </table>
-<p>| <code>destination ospv3 { import connected }</code>, a name no protocol in this build declares | the load, <code>ze config validate</code> and a commit fail: <code>redistribute: "destination ospv3" names no protocol that receives redistributed routes</code>, then a line listing the declared destinations (read from the registry, so it is what this build carries) and the fix |</p>
 <p>A refusal is deliberate. Ze used to warn once and carry on with redistribution
 disabled for the WHOLE file. One mistyped word silently stopped rules that were
 written correctly.</p>
@@ -781,6 +821,10 @@ report and no separate redistribution check exists.</p>
                         <span class="page-sidebar-link-label">Quickstart</span>
                         <small>Start from a minimal working setup.</small>
                     </a>
+                    <a class="page-sidebar-link" href="../../guides/ai-agent/">
+                        <span class="page-sidebar-link-label">Use Ze with an AI agent</span>
+                        <small>Let Claude Code or Codex drive Ze for you.</small>
+                    </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
                         <small>Install Ze, create the store, and start SSH.</small>
@@ -810,7 +854,7 @@ report and no separate redistribution check exists.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 02:34 UTC</span>
                 </div>
             </div>
         </footer>

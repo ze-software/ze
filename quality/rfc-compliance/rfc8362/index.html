@@ -4,18 +4,18 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
-        <title>RFC 8362 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 8362: OSPFv3 Link State Advertisement (LSA) Extensibility. 38 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 34 with no test." />
-        <meta property="og:title" content="RFC 8362 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 8362: OSPFv3 Link State Advertisement (LSA) Extensibility. 38 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 34 with no test." />
+        <title>RFC 8362 requirements and tests - Ze</title>
+        <meta name="description" content="RFC 8362: OSPFv3 Link State Advertisement (LSA) Extensibility. 38 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 34 with no test." />
+        <meta property="og:title" content="RFC 8362 requirements and tests - Ze" />
+        <meta property="og:description" content="RFC 8362: OSPFv3 Link State Advertisement (LSA) Extensibility. 38 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 34 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="RFC 8362 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 8362: OSPFv3 Link State Advertisement (LSA) Extensibility. 38 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 34 with no test." />
+        <meta name="twitter:title" content="RFC 8362 requirements and tests - Ze" />
+        <meta name="twitter:description" content="RFC 8362: OSPFv3 Link State Advertisement (LSA) Extensibility. 38 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 34 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -47,7 +47,7 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">OSPFv3 Extended LSAs</span>
     <h1 id="rfc-detail-title">RFC 8362 - OSPFv3 Link State Advertisement (LSA) Extensibility</h1>
-    <p>Every requirement this repository extracted from RFC 8362, the tests bound to it, and what a reader has verified about them. This summary is not enrolled.</p>
+    <p>Every requirement listed for RFC 8362, the tests linked to it, and their recorded reviews. This summary is excluded from automatic compliance checks.</p>
 </div>
 <style>
 .rfc-table-wrap { overflow-x: auto; }
@@ -57,16 +57,25 @@
 .rfc-verdict p:last-child { margin-bottom: 0; }
 .rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
-.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
-.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: block; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
 .rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
-.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
-.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-card b { display: block; margin: 0; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: .5rem 0 0; color: var(--muted); font-size: .92rem; line-height: 1.6; }
+.rfc-card.rfc-total-card { grid-column: 1 / -1; display: grid; grid-template-columns: 15rem minmax(0, 1fr); column-gap: 1.5rem; align-items: start; }
+.rfc-card.rfc-total-card span, .rfc-card.rfc-total-card strong, .rfc-card.rfc-total-card b { grid-column: 1; }
+.rfc-card.rfc-total-card p { grid-column: 2; grid-row: 1 / span 3; margin: 0; }
+@media (max-width: 760px) {
+  .rfc-card-grid { grid-template-columns: minmax(0, 1fr); }
+  .rfc-card.rfc-total-card { display: block; }
+  .rfc-card.rfc-total-card p { margin: .5rem 0 0; }
+}
 .rfc-ok { border-left: 7px solid var(--green); }
 .rfc-neutral { border-left: 7px solid var(--line-strong); }
 .rfc-warn { border-left: 7px solid var(--amber); }
 .rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-card.rfc-total-card { background: var(--bg-soft); border: 1px solid var(--line-strong); box-shadow: none; }
 .rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
 .rfc-tape span { width: var(--w); min-width: 0; display: block; }
 .rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
@@ -87,6 +96,7 @@
 .rfc-swatch.rfc-neutral { background: var(--line-strong); }
 .rfc-swatch.rfc-warn { background: var(--amber); }
 .rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-swatch.rfc-total-card { background: var(--bg-soft); }
 .rfc-total td { border-top: 2px solid var(--line-strong); }
 .rfc-prose { max-width: 46rem; }
 ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
@@ -118,38 +128,38 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>3</strong><b>of 38 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>1</strong><b>of 38 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 38 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 38 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>9</strong><b>9 of 9 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
-</div>
-<h3>Neutral</h3>
-<p>measures that are neither good news nor bad</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>MUSTs declared</span><strong>38</strong><b>of 50 this summary declares</b><p>MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (out-of-scope), so every count below reads what the summary records rather than what the gate enforces</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 38 gated MUSTs</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 38 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 38 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 38 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 38 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>3</strong><b>of 38 mandatory requirements</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>1</strong><b>of 38 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 38 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 38 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>9</strong><b>9 of 9 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>34</strong><b>of 38 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Declared gap or no test</span><strong>34</strong><b>of 38 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
 </div>
-<p>The 9 counts marked as a part above are the whole of the 38 gated MUSTs: they add up to 38. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.</p>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 38 mandatory requirements</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 38 mandatory requirements</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 38 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 38 mandatory requirements</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 38 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit</p></article>
+</div>
+<h3>Totals</h3>
+<p>what the cards above are counted against</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-total-card"><span>Mandatory requirements (MUST level), not checked</span><strong>38</strong><b>of 50 requirements this summary lists, at all levels</b><p>The RFC&#39;s MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements listed in this summary. This RFC is excluded from automatic checks (out-of-scope), so these requirements are not checked. The counts above show what the summary records.</p></article>
+</div>
+<p>The 9 counts marked as a part above are the whole of the 38 mandatory requirements: they add up to 38. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
-<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
 <tbody>
-<tr><td>MUSTs declared</td>
-<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
-</tr>
 <tr><td>Out of scope</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
 <td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
@@ -170,9 +180,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
-<tr><td>No test at all</td>
+<tr><td>Declared gap or no test</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
-<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+<td>green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
@@ -190,13 +200,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
 <td>neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption</td>
 </tr>
-<tr><td>Proven by a recorded break</td>
+<tr><td>Tests shown to detect a fault</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above</td>
+<td>green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
 <td><span class="rfc-swatch rfc-warn"></span> warn</td>
-<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current</td>
+</tr>
+<tr><td>Mandatory requirements (MUST level), not checked</td>
+<td><span class="rfc-swatch rfc-total-card"></span> outlined</td>
+<td>outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad</td>
 </tr>
 </tbody>
 </table>
@@ -211,13 +225,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Public row</td>
 <td>OSPFv3 Extended LSAs</td>
 </tr>
-<tr><td>Enrolment</td>
-<td>Not enrolled (out-of-scope)</td>
+<tr><td>Automatic checks</td>
+<td>Excluded (out-of-scope)</td>
 </tr>
 <tr><td>Requirements</td>
 <td>50</td>
 </tr>
-<tr><td>Gated MUST-level</td>
+<tr><td>Mandatory requirements (MUST level), not checked</td>
 <td>38</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
@@ -229,7 +243,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
 </tr>
-<tr><td>Gated with no test</td>
+<tr><td>Mandatory requirements with no test and no annotation</td>
 <td>34</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
@@ -238,19 +252,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Test tags</td>
 <td>9</td>
 </tr>
-<tr><td>Tagged units</td>
+<tr><td>Tests linked to requirements</td>
 <td>9</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
 </tr>
-<tr><td>Discrimination records</td>
+<tr><td>Fault test records</td>
 <td>9</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc8362.md</code></td>
 </tr>
-<tr><td>Requirement shard</td>
+<tr><td>Requirement table</td>
 <td><code>rfc/requirements/rfc8362.md</code></td>
 </tr>
 <tr><td>RFC text</td>
@@ -260,10 +274,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 </section>
-<section><h2>Enrolment</h2>
-<p>Not enrolled (out-of-scope, the requirements ARE extracted and the owner decided not to offer the feature for now, so the absence is a scope decision rather than a conformance gap): OSPFv3 Link State Advertisement (LSA) Extensibility. OUT OF SCOPE as a document by owner decision, 2026-09-01, marked for future development. The extraction is COMPLETE: the source text is at rfc/full/rfc8362.txt and this summary declares all 50 requirements, 38 of them MUST-level. What Ze has is a by-product of RFC 8666 Segment Routing rather than the framework this document defines: three of the seven Extended LSA types are originated, and only when segment routing is enabled (v6OriginateSR, internal/plugins/ospf/sr_origination_v6.go); receipt decoding is reached from one place and reads Prefix-SIDs alone (v6ReceivedPrefixSIDs, sr_reception_v6.go); no SPF calculation reads an Extended LSA, because the base Router-LSA remains the sole SPF vertex; and there is no RFC 8362 configuration surface and none of its Appendix A or B migration machinery. Nine MUST-level requirements are genuinely unmet and 20 more are met only because Ze performs no action on their subject. RFC8362-2-1 was the most serious until a9d0b54387 (2026-09-20) set the U-bit on the Extended LS type constants (internal/plugins/ospf/v3/types/lsa.go, 0xA021 E-Router-LSA), as Section 2 requires; TestRFC8362ExtendedLSAsSetUBitOnTheWire reads it on the wire for all three Extended LSA types Ze originates (E-Router, E-Intra-Area-Prefix and, from 2026-10-21, E-Inter-Area-Prefix).</p>
+<section><h2>Automatic checks</h2>
+<p>Excluded from automatic checks (out-of-scope, the requirements ARE extracted and the owner decided not to offer the feature for now, so the absence is a scope decision rather than a conformance gap): OSPFv3 Link State Advertisement (LSA) Extensibility. OUT OF SCOPE as a document by owner decision, 2026-09-01, marked for future development. The extraction is COMPLETE: the source text is at rfc/full/rfc8362.txt and this summary declares all 50 requirements, 38 of them MUST-level. What Ze has is a by-product of RFC 8666 Segment Routing rather than the framework this document defines: three of the seven Extended LSA types are originated, and only when segment routing is enabled (v6OriginateSR, internal/plugins/ospf/sr_origination_v6.go); receipt decoding is reached from one place and reads Prefix-SIDs alone (v6ReceivedPrefixSIDs, sr_reception_v6.go); no SPF calculation reads an Extended LSA, because the base Router-LSA remains the sole SPF vertex; and there is no RFC 8362 configuration surface and none of its Appendix A or B migration machinery. Nine MUST-level requirements are genuinely unmet and 20 more are met only because Ze performs no action on their subject. RFC8362-2-1 was the most serious until a9d0b54387 (2026-09-20) set the U-bit on the Extended LS type constants (internal/plugins/ospf/v3/types/lsa.go, 0xA021 E-Router-LSA), as Section 2 requires; TestRFC8362ExtendedLSAsSetUBitOnTheWire reads it on the wire for all three Extended LSA types Ze originates (E-Router, E-Intra-Area-Prefix and, from 2026-10-21, E-Inter-Area-Prefix).</p>
 </section>
-<section><h2>What the public ledger says</h2>
+<section><h2>Published support status</h2>
 <p><strong>Area:</strong> OSPFv3 Extended LSAs</p>
 <p><strong>Proof:</strong> not walked</p>
 <p><strong>Evidence:</strong> -</p>
@@ -277,33 +291,33 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td>Positive and negative tests</td>
 <td><strong>3</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
 <td><strong>1</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
-<tr><td>One polarity only</td>
+<tr><td>Only a positive or negative test</td>
 <td><strong>0</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>No test and no annotation</td>
 <td><strong>34</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
 <td><strong>0</strong></td>
-<td>an overlay: each of these is also counted by the part it falls in</td>
+<td>also counted in one of the groups above</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
-<td>an overlay: each of these is also counted by the part it falls in</td>
+<td>also counted in one of the groups above</td>
 </tr>
 <tr><td>Derived from other rows</td>
 <td><strong>0</strong></td>
-<td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
+<td>excluded from the total: each summarizes the status of other requirements, which are already counted above</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>38</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Mandatory requirements (MUST level), not checked</strong></td><td><strong>38</strong></td><td>every mandatory requirement appears in exactly one group above</td></tr>
 </tbody>
 </table>
 </div>
@@ -313,9 +327,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc8362:must">not walked</div>
+<div data-ze-rfc-bar="rfc8362:must">requirements not reviewed</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc8362:overview">not walked</div>
+<div data-ze-rfc-bar="rfc8362:overview">requirements not reviewed</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -323,79 +337,91 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>RFCs</td>
 <td><span data-ze-rfc="rfc8362:rfcs">1</span></td>
 </tr>
-<tr><td>Not walked</td>
+<tr><td>Requirements not reviewed</td>
 <td><span data-ze-rfc="rfc8362:not-walked">1</span></td>
 </tr>
-<tr><td>Mandatory register</td>
+<tr><td>Mandatory requirements complete</td>
 <td><span data-ze-rfc="rfc8362:register">not complete</span></td>
 </tr>
 <tr><td>MUST rows</td>
-<td><span data-ze-rfc="rfc8362:must.total">not walked</span></td>
+<td><span data-ze-rfc="rfc8362:must.total">requirements not reviewed</span></td>
 </tr>
 <tr><td>MUST rows kept (the MUST bar)</td>
-<td><span data-ze-rfc="rfc8362:must.kept">not walked</span></td>
+<td><span data-ze-rfc="rfc8362:must.kept">requirements not reviewed</span></td>
 </tr>
 <tr><td>Ze proven</td>
-<td><span data-ze-rfc="rfc8362:must.ze-proven">not walked</span></td>
+<td><span data-ze-rfc="rfc8362:must.ze-proven">requirements not reviewed</span></td>
 </tr>
 <tr><td>OS verified</td>
-<td><span data-ze-rfc="rfc8362:must.os-verified">not walked</span></td>
+<td><span data-ze-rfc="rfc8362:must.os-verified">requirements not reviewed</span></td>
+</tr>
+<tr><td>Proof pending</td>
+<td><span data-ze-rfc="rfc8362:must.proof-pending">requirements not reviewed</span></td>
 </tr>
 <tr><td>OS testing gap</td>
-<td><span data-ze-rfc="rfc8362:must.os-gap">not walked</span></td>
+<td><span data-ze-rfc="rfc8362:must.os-gap">requirements not reviewed</span></td>
 </tr>
-<tr><td>Ze correctness gap</td>
-<td><span data-ze-rfc="rfc8362:must.ze-gap">not walked</span></td>
+<tr><td>Exclusion unchecked</td>
+<td><span data-ze-rfc="rfc8362:must.exclusion-unchecked">requirements not reviewed</span></td>
+</tr>
+<tr><td>Not assessed</td>
+<td><span data-ze-rfc="rfc8362:must.not-assessed">requirements not reviewed</span></td>
+</tr>
+<tr><td>Not built</td>
+<td><span data-ze-rfc="rfc8362:must.not-built">requirements not reviewed</span></td>
 </tr>
 <tr><td>MUST rows not owed</td>
-<td><span data-ze-rfc="rfc8362:must.not-owed">not walked</span></td>
+<td><span data-ze-rfc="rfc8362:must.not-owed">requirements not reviewed</span></td>
 </tr>
 <tr><td>MUST not owed: feature-declined</td>
-<td><span data-ze-rfc="rfc8362:must.not-owed-by-kind.feature-declined">not walked</span></td>
+<td><span data-ze-rfc="rfc8362:must.not-owed-by-kind.feature-declined">requirements not reviewed</span></td>
 </tr>
 <tr><td>MUST not owed: linux-limit</td>
-<td><span data-ze-rfc="rfc8362:must.not-owed-by-kind.linux-limit">not walked</span></td>
+<td><span data-ze-rfc="rfc8362:must.not-owed-by-kind.linux-limit">requirements not reviewed</span></td>
 </tr>
 <tr><td>MUST not owed: not-applicable</td>
-<td><span data-ze-rfc="rfc8362:must.not-owed-by-kind.not-applicable">not walked</span></td>
+<td><span data-ze-rfc="rfc8362:must.not-owed-by-kind.not-applicable">requirements not reviewed</span></td>
 </tr>
 <tr><td>SHOULD / MAY rows</td>
-<td><span data-ze-rfc="rfc8362:should.total">not walked</span></td>
+<td><span data-ze-rfc="rfc8362:should.total">requirements not reviewed</span></td>
 </tr>
 <tr><td>SHOULD proven</td>
-<td><span data-ze-rfc="rfc8362:should.proven">not walked</span></td>
+<td><span data-ze-rfc="rfc8362:should.proven">requirements not reviewed</span></td>
 </tr>
 <tr><td>SHOULD OS verified</td>
-<td><span data-ze-rfc="rfc8362:should.os-verified">not walked</span></td>
+<td><span data-ze-rfc="rfc8362:should.os-verified">requirements not reviewed</span></td>
 </tr>
 <tr><td>SHOULD OS testing gap</td>
-<td><span data-ze-rfc="rfc8362:should.os-gap">not walked</span></td>
+<td><span data-ze-rfc="rfc8362:should.os-gap">requirements not reviewed</span></td>
 </tr>
 <tr><td>SHOULD not owed</td>
-<td><span data-ze-rfc="rfc8362:should.not-owed">not walked</span></td>
+<td><span data-ze-rfc="rfc8362:should.not-owed">requirements not reviewed</span></td>
 </tr>
 <tr><td>SHOULD not owed: feature-declined</td>
-<td><span data-ze-rfc="rfc8362:should.not-owed-by-kind.feature-declined">not walked</span></td>
+<td><span data-ze-rfc="rfc8362:should.not-owed-by-kind.feature-declined">requirements not reviewed</span></td>
 </tr>
 <tr><td>SHOULD not owed: linux-limit</td>
-<td><span data-ze-rfc="rfc8362:should.not-owed-by-kind.linux-limit">not walked</span></td>
+<td><span data-ze-rfc="rfc8362:should.not-owed-by-kind.linux-limit">requirements not reviewed</span></td>
 </tr>
 <tr><td>SHOULD not owed: not-applicable</td>
-<td><span data-ze-rfc="rfc8362:should.not-owed-by-kind.not-applicable">not walked</span></td>
+<td><span data-ze-rfc="rfc8362:should.not-owed-by-kind.not-applicable">requirements not reviewed</span></td>
 </tr>
-<tr><td>SHOULD not ever</td>
-<td><span data-ze-rfc="rfc8362:should.not-ever">not walked</span></td>
+<tr><td>SHOULD proof pending</td>
+<td><span data-ze-rfc="rfc8362:should.proof-pending">requirements not reviewed</span></td>
 </tr>
-<tr><td>SHOULD not yet</td>
-<td><span data-ze-rfc="rfc8362:should.not-yet">not walked</span></td>
+<tr><td>SHOULD exclusion unchecked</td>
+<td><span data-ze-rfc="rfc8362:should.exclusion-unchecked">requirements not reviewed</span></td>
 </tr>
-<tr><td>SHOULD not decided</td>
-<td><span data-ze-rfc="rfc8362:should.not-decided">not walked</span></td>
+<tr><td>SHOULD not assessed</td>
+<td><span data-ze-rfc="rfc8362:should.not-assessed">requirements not reviewed</span></td>
+</tr>
+<tr><td>SHOULD not built</td>
+<td><span data-ze-rfc="rfc8362:should.not-built">requirements not reviewed</span></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.</p>
+<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
 
 </section>
 <section><h2>Requirements</h2>
@@ -1005,10 +1031,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Proof state</h2>
-<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<p>A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.</p>
 <h3><a href="#rfc8362-2-1"><code>RFC8362-2-1</code></a></h3>
 <p>For backward compatibility, the U-bit MUST be set in the LS Type so that the LSAs will be flooded by OSPFv3 routers that do not understand them. (§2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1023,11 +1049,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc8362-3.1.1-1"><code>RFC8362-3.1.1-1</code></a></h3>
 <p>If the N-bit is set and the PrefixLength is NOT 128 for the IPv6 Address Family or 32 for the IPv4 Address Family [OSPFV3-AF], the N-bit MUST be ignored. (§3.1.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8362-3.1.1-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC8362-3.1.1-1, so there is no linked test.</p>
 <h3><a href="#rfc8362-3.2-1"><code>RFC8362-3.2-1</code></a></h3>
 <p>The Router-Link TLV is only applicable to the E-Router-LSA (Section 4.1). Inclusion in other Extended LSAs MUST be ignored. (§3.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1047,7 +1073,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc8362-3.3-1"><code>RFC8362-3.3-1</code></a></h3>
 <p>The Attached-Routers TLV is only applicable to the E-Network-LSA (Section 4.2). Inclusion in other Extended LSAs MUST be ignored. (§3.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1067,107 +1093,107 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc8362-3.4-1"><code>RFC8362-3.4-1</code></a></h3>
 <p>The Inter-Area-Prefix TLV is only applicable to the E-Inter-Area-Prefix-LSA (Section 4.3). Inclusion in other Extended LSAs MUST be ignored. (§3.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8362-3.4-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC8362-3.4-1, so there is no linked test.</p>
 <h3><a href="#rfc8362-3.5-1"><code>RFC8362-3.5-1</code></a></h3>
 <p>The Inter-Area-Router TLV is only applicable to the E-Inter-Area-Router-LSA (Section 4.4). Inclusion in other Extended LSAs MUST be ignored. (§3.5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8362-3.5-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC8362-3.5-1, so there is no linked test.</p>
 <h3><a href="#rfc8362-3.6-1"><code>RFC8362-3.6-1</code></a></h3>
 <p>The External-Prefix TLV is only applicable to the E-AS-External-LSA (Section 4.5) and the E-NSSA-LSA (Section 4.6). Additionally, the PrefixOptions are extended as described in Section 3.1. Inclusion in other Extended LSAs MUST be ignored. (§3.6)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8362-3.6-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC8362-3.6-1, so there is no linked test.</p>
 <h3><a href="#rfc8362-3.7-1"><code>RFC8362-3.7-1</code></a></h3>
 <p>The Intra-Area-Prefix TLV is only applicable to the E-Link-LSA (Section 4.7) and the E-Intra-Area-Prefix-LSA (Section 4.8). Additionally, the PrefixOptions are extended as described in Section 3.1. Inclusion in other Extended LSAs MUST be ignored. (§3.7)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8362-3.7-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC8362-3.7-1, so there is no linked test.</p>
 <h3><a href="#rfc8362-3.8-1"><code>RFC8362-3.8-1</code></a></h3>
 <p>The IPv6 Link-Local Address TLV is only applicable to the E-Link-LSA (Section 4.7). Inclusion in other Extended LSAs MUST be ignored. (§3.8)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8362-3.8-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC8362-3.8-1, so there is no linked test.</p>
 <h3><a href="#rfc8362-3.9-1"><code>RFC8362-3.9-1</code></a></h3>
 <p>The IPv4 Link-Local Address TLV is only applicable to the E-Link-LSA (Section 4.7). Inclusion in other Extended LSAs MUST be ignored. (§3.9)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8362-3.9-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC8362-3.9-1, so there is no linked test.</p>
 <h3><a href="#rfc8362-3.10-1"><code>RFC8362-3.10-1</code></a></h3>
 <p>The sub-TLV is optional and the first specified instance is used as the forwarding address as defined in [OSPFV3]. Instances subsequent to the first MUST be ignored. (§3.10)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8362-3.10-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC8362-3.10-1, so there is no linked test.</p>
 <h3><a href="#rfc8362-3.10-2"><code>RFC8362-3.10-2</code></a></h3>
 <p>The IPv6-Forwarding-Address TLV is to be used with IPv6 address families as defined in [OSPFV3-AF]. It MUST be ignored for other address families. (§3.10)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8362-3.10-2, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC8362-3.10-2, so there is no linked test.</p>
 <h3><a href="#rfc8362-3.11-1"><code>RFC8362-3.11-1</code></a></h3>
 <p>The sub-TLV is optional, and the first specified instance is used as the forwarding address as defined in [OSPFV3]. Instances subsequent to the first MUST be ignored. (§3.11)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8362-3.11-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC8362-3.11-1, so there is no linked test.</p>
 <h3><a href="#rfc8362-3.11-2"><code>RFC8362-3.11-2</code></a></h3>
 <p>The IPv4-Forwarding-Address TLV is to be used with IPv4 address families as defined in [OSPFV3-AF]. It MUST be ignored for other address families. (§3.11)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8362-3.11-2, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC8362-3.11-2, so there is no linked test.</p>
 <h3><a href="#rfc8362-3.12-1"><code>RFC8362-3.12-1</code></a></h3>
 <p>The sub-TLV is optional, and the first specified instance is used as the Route Tag as defined in [OSPFV3]. Instances subsequent to the first MUST be ignored. (§3.12)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8362-3.12-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC8362-3.12-1, so there is no linked test.</p>
 <h3><a href="#rfc8362-4.2-1"><code>RFC8362-4.2-1</code></a></h3>
 <p>Instances of the Attached-Router TLV subsequent to the first MUST be ignored. (§4.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8362-4.2-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC8362-4.2-1, so there is no linked test.</p>
 <h3><a href="#rfc8362-4.3-1"><code>RFC8362-4.3-1</code></a></h3>
 <p>In order to retain compatibility and semantics with the current OSPFv3 specification, each Inter-Area-Prefix LSA MUST contain a single Inter-Area-Prefix TLV. (§4.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8362-4.3-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC8362-4.3-1, so there is no linked test.</p>
 <h3><a href="#rfc8362-4.3-2"><code>RFC8362-4.3-2</code></a></h3>
 <p>Instances of the Inter-Area-Prefix TLV subsequent to the first MUST be ignored. (§4.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8362-4.3-2, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC8362-4.3-2, so there is no linked test.</p>
 <h3><a href="#rfc8362-4.4-1"><code>RFC8362-4.4-1</code></a></h3>
 <p>In order to retain compatibility and semantics with the current OSPFv3 specification, each Inter-Area-Router-LSA MUST contain a single Inter-Area-Router TLV. (§4.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8362-4.4-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC8362-4.4-1, so there is no linked test.</p>
 <h3><a href="#rfc8362-4.4-2"><code>RFC8362-4.4-2</code></a></h3>
 <p>Instances of the Inter-Area-Router TLV subsequent to the first MUST be ignored. (§4.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8362-4.4-2, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC8362-4.4-2, so there is no linked test.</p>
 <h3><a href="#rfc8362-4.5-1"><code>RFC8362-4.5-1</code></a></h3>
 <p>In order to retain compatibility and semantics with the current OSPFv3 specification, each LSA MUST contain a single External-Prefix TLV. (§4.5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8362-4.5-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC8362-4.5-1, so there is no linked test.</p>
 <h3><a href="#rfc8362-4.5-2"><code>RFC8362-4.5-2</code></a></h3>
 <p>Instances of the External-Prefix TLV subsequent to the first MUST be ignored. (§4.5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8362-4.5-2, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC8362-4.5-2, so there is no linked test.</p>
 <h3><a href="#rfc8362-4.7-1"><code>RFC8362-4.7-1</code></a></h3>
 <p>A single instance of the IPv6 Link-Local Address TLV (Section 3.8) SHOULD be included in the E-Link-LSA. Instances following the first MUST be ignored. (§4.7)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8362-4.7-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC8362-4.7-1, so there is no linked test.</p>
 <h3><a href="#rfc8362-4.7-2"><code>RFC8362-4.7-2</code></a></h3>
 <p>A single instance of the IPv6 Link-Local Address TLV (Section 3.8) SHOULD be included in the E-Link-LSA. Instances following the first MUST be ignored. For IPv4 address families as defined in [OSPFV3-AF], this TLV MUST be ignored. (§4.7)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8362-4.7-2, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC8362-4.7-2, so there is no linked test.</p>
 <h3><a href="#rfc8362-4.7-3"><code>RFC8362-4.7-3</code></a></h3>
 <p>Similarly, only a single instance of the IPv4 Link-Local Address TLV (Section 3.9) SHOULD be included in the E-Link-LSA. Instances following the first MUST be ignored. (§4.7)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8362-4.7-3, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC8362-4.7-3, so there is no linked test.</p>
 <h3><a href="#rfc8362-4.8-1"><code>RFC8362-4.8-1</code></a></h3>
 <p>The Referenced LS Type MUST be either an E-Router-LSA (0xA021) or an E-Network-LSA (0xA022). (§4.8)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8362-4.8-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC8362-4.8-1, so there is no linked test.</p>
 <h3><a href="#rfc8362-5-1"><code>RFC8362-5-1</code></a></h3>
 <p>Extended LSAs that have inconsistent length or other encoding errors, as described herein, MUST NOT be installed in the Link State Database, acknowledged, or flooded. (§5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8362-5-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC8362-5-1, so there is no linked test.</p>
 <h3><a href="#rfc8362-5-2"><code>RFC8362-5-2</code></a></h3>
 <p>Additionally, an LSA MUST be considered malformed if it does not include all of the required TLVs and sub-TLVs. (§5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8362-5-2, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC8362-5-2, so there is no linked test.</p>
 <h3><a href="#rfc8362-6.2-1"><code>RFC8362-6.2-1</code></a></h3>
 <p>However, if a top-level TLV is advertised, it MUST include required sub-TLVs, or it will be considered malformed as described in Section 5. (§6.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8362-6.2-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC8362-6.2-1, so there is no linked test.</p>
 <h3><a href="#rfc8362-6.3-1"><code>RFC8362-6.3-1</code></a></h3>
 <p>To ensure compatibility of future TLV-based LSA extensions, all implementations MUST adhere to these rules: 1. Unrecognized TLVs and sub-TLVs are ignored when parsing or processing Extended LSAs. (§6.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1197,39 +1223,39 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc8362-6.3-2"><code>RFC8362-6.3-2</code></a></h3>
 <p>Whether or not partial deployment of a given TLV is supported MUST be specified. (§6.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8362-6.3-2, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC8362-6.3-2, so there is no linked test.</p>
 <h3><a href="#rfc8362-6.3-3"><code>RFC8362-6.3-3</code></a></h3>
 <p>If partial deployment is not supported, mechanisms to ensure the corresponding feature is not deployed MUST be specified in the document defining the new TLV or sub-TLV. (§6.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8362-6.3-3, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC8362-6.3-3, so there is no linked test.</p>
 <h3><a href="#rfc8362-6.3-4"><code>RFC8362-6.3-4</code></a></h3>
 <p>If partial deployment is supported, backward compatibility and partial deployment MUST be specified in the document defining the new TLV or sub-TLV. (§6.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8362-6.3-4, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC8362-6.3-4, so there is no linked test.</p>
 <h3><a href="#rfc8362-6.3-5"><code>RFC8362-6.3-5</code></a></h3>
 <p>Documents specifying future TLVs or Sub-TLVs MUST specify the requirements for usage of those TLVs or sub-TLVs. (§6.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8362-6.3-5, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC8362-6.3-5, so there is no linked test.</p>
 <h3><a href="#rfc8362-8.1-1"><code>RFC8362-8.1-1</code></a></h3>
 <p>Types in the range 32768-33023 are Reserved for Experimental Use; these will not be registered with IANA and MUST NOT be mentioned by RFCs. (§8.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8362-8.1-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC8362-8.1-1, so there is no linked test.</p>
 <h3><a href="#rfc8362-8.1-2"><code>RFC8362-8.1-2</code></a></h3>
 <p>Before any assignments can be made in the 33024-65535 range, there MUST be an IETF specification that specifies IANA Considerations that cover the range being assigned. (§8.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8362-8.1-2, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC8362-8.1-2, so there is no linked test.</p>
 <h3><a href="#rfc8362-8.2-1"><code>RFC8362-8.2-1</code></a></h3>
 <p>Types in the range 32768-33023 are Reserved for Experimental Use; these will not be registered with IANA and MUST NOT be mentioned by RFCs. (§8.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8362-8.2-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC8362-8.2-1, so there is no linked test.</p>
 <h3><a href="#rfc8362-8.2-2"><code>RFC8362-8.2-2</code></a></h3>
 <p>Before any assignments can be made in the 33024-65535 range, there MUST be an IETF specification that specifies IANA Considerations that cover the range being assigned. (§8.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8362-8.2-2, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC8362-8.2-2, so there is no linked test.</p>
 </section>
-<section><h2>Extraction sign-off</h2>
-<p>No extraction sign-off exists for RFC 8362, so no reviewer has walked its text sentence by sentence.</p>
+<section><h2>Requirement list review</h2>
+<p>No requirement list review is recorded for RFC 8362, so there is no recorded check of its requirements against the original RFC, sentence by sentence.</p>
 </section>
 <section><h2>Superseded</h2>
 <p>No document obsoletes RFC 8362, so its obligations are stated where they were written.</p>
@@ -1247,7 +1273,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     </a>
                     <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
                         <span class="page-sidebar-link-label">Verify debugging</span>
-                        <small>How failed checks route to evidence.</small>
+                        <small>How to investigate failed checks using their logs.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -1266,7 +1292,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 01:56 UTC</span>
                 </div>
             </div>
         </footer>

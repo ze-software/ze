@@ -1,6 +1,6 @@
 # RFC 8669 - Segment Routing Prefix Segment Identifier Extensions for BGP
 
-BGP Prefix-SID attribute. Every requirement this repository extracted from RFC 8669, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+BGP Prefix-SID attribute. Every requirement listed for RFC 8669, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,24 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 12 | of 24 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 5 | of 24 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 24 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 24 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 62 | 62 of 83 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-
-### Neutral
-
-measures that are neither good news nor bad
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Gated MUSTs | 24 | of 46 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 24 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 24 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 24 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 24 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 24 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Tested both ways | 12 | of 24 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 5 | of 24 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 24 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 24 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Tests shown to detect a fault | 62 | 62 of 83 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -35,54 +22,74 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 7 | of 24 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Declared gap or no test | 7 | of 24 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 
-The 9 counts marked as a part above are the whole of the 24 gated MUSTs: they add up to 24. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Neutral
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+measures that are neither good news nor bad
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Out of scope | 0 | of 24 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 24 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 24 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 24 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 24 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+
+### Totals
+
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 24 | of 46 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 24 mandatory requirements: they add up to 24. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | BGP Prefix-SID attribute |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 46 |
-| Gated MUST-level | 24 |
+| Mandatory requirements (MUST level) | 24 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 7 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 83 |
-| Tagged units | 83 |
+| Tests linked to requirements | 83 |
 | Recorded audit verdicts | 15 |
-| Discrimination records | 62 |
+| Fault test records | 62 |
 | Summary | `rfc/short/rfc8669.md` |
-| Requirement shard | `rfc/requirements/rfc8669.md` |
+| Requirement table | `rfc/requirements/rfc8669.md` |
 | RFC text | `rfc/full/rfc8669.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: SR Prefix Segment Identifier Extensions for BGP
+Included in automatic checks: SR Prefix Segment Identifier Extensions for BGP
 
-## What the public ledger says
+## Published support status
 
 **Area:** BGP Prefix-SID attribute
 
@@ -97,14 +104,14 @@ Enrolled: SR Prefix Segment Identifier Extensions for BGP
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 12 | one part of the gated population |
-| Annotated (including scoped evidence) | 12 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 1 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **24** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 12 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 12 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 1 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **24** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (12):** [`RFC8669-3-1`](#rfc8669-3-1), [`RFC8669-3.1-3`](#rfc8669-3.1-3), [`RFC8669-3.1-4`](#rfc8669-3.1-4), [`RFC8669-3.1-5`](#rfc8669-3.1-5), [`RFC8669-3.1-6`](#rfc8669-3.1-6), [`RFC8669-3.2-2`](#rfc8669-3.2-2), [`RFC8669-4-1`](#rfc8669-4-1), [`RFC8669-4.1-1`](#rfc8669-4.1-1), [`RFC8669-4.1-2`](#rfc8669-4.1-2), [`RFC8669-8-1`](#rfc8669-8-1), [`RFC8669-6-1`](#rfc8669-6-1), [`RFC8669-6-3`](#rfc8669-6-3)
 
@@ -114,20 +121,23 @@ Enrolled: SR Prefix Segment Identifier Extensions for BGP
 
 ## Figures
 
-- **MUST bar**: Ze proven 13, Ze correctness gap 11
-- **Overview bar**: Ze MUST proven 13, SHOULD proven 3, SHOULD not decided 18, Ze correctness gap 11
+- **MUST bar**: Ze proven 13, Proof pending 4, Not built 7
+- **Overview bar**: Ze MUST proven 13, SHOULD proven 3, Proof pending 4, Not assessed 18, Not built 7
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 24 |
 | MUST rows kept (the MUST bar) | 24 |
 | Ze proven | 13 |
 | OS verified | 0 |
+| Proof pending | 4 |
 | OS testing gap | 0 |
-| Ze correctness gap | 11 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 7 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -140,11 +150,12 @@ Enrolled: SR Prefix Segment Identifier Extensions for BGP
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 18 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 18 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc8669.json](../../../data/rfc/rfc8669.json).
 
@@ -170,7 +181,7 @@ Source: [data/rfc/rfc8669.json](../../../data/rfc/rfc8669.json).
 | `RFC8669-4.1-4` | When a BGP speaker receives a path from a neighbor with an "invalid" or "conflicting" BGP Prefix-SID attribute, or when a BGP speaker receives a path from a neighbor with a BGP Prefix-SID attribute but is unable to process it (e.g., local policy disables the functionality), it MUST ignore the BGP Prefix-SID attribute. (§4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the "invalid" half is implemented and the "conflicting" half is absent. A labeled-unicast Prefix-SID with no Label-Index TLV is classified PrefixSIDInvalidAttribute (internal/core/bgp/attribute/prefixsid_classify.go, ClassifyPrefixSID) and validatePrefixSIDValue maps it to attribute-discard (internal/component/bgp/message/rfc7606.go), so the attribute is ignored and not relayed; TestRFC8669InvalidPrefixSIDLoggedAtDefaultLevel drives it through enforceRFC7606 and RFC8669-4.1-2 is proven both ways. The "conflicting" state is never computed: ze reads no label index and derives no label against a configured SRGB (see RFC8669-4.1-3), so nothing triggers ignoring a conflicting attribute. Ze derives no label from any Label-Index, so no SR-MPLS behavior follows from an attribute it is unable to process |
 | `RFC8669-4.1-5` | For the purposes of label allocation, a BGP speaker MUST assign a local (also called dynamic) label (non-SRGB) for such a prefix as per classic Multiprotocol BGP IPv4/IPv6 Labeled Unicast ([RFC8277]) operation. (§4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze allocates no local label for a BGP prefix at all -- the label programmed for a labeled-unicast route is the one carried in the received NLRI (internal/component/bgp/plugins/rib/rib_bestchange.go:900), and the only MPLS ingress allocators are LDP and RSVP-TE (internal/plugins/ldp/fib.go:135, internal/plugins/rsvpte/fib.go:45) |
 | `RFC8669-4.1-6` | In the case of an "invalid" BGP Prefix-SID attribute, a BGP speaker MUST follow the error-handling rules specified in Section 6. (§4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{rollup}:** RFC8669-4.1-2, RFC8669-6-1; the sentence asserts nothing of its own and binds the "invalid" verdict (RFC8669-4.1-2, a Prefix-SID received without a Label-Index TLV) to the Section 6 rule for "a malformed or invalid BGP Prefix-SID attribute attached to an IPv4/ IPv6 Labeled Unicast prefix" (RFC8669-6-1). ClassifyPrefixSID returns PrefixSIDInvalidAttribute and validatePrefixSIDValue answers attribute-discard for it, which TestRFC8669InvalidPrefixSIDLoggedAtDefaultLevel drives through enforceRFC7606. **derived:** met |
-| `RFC8669-4.1-7` | Specifically, a BGP speaker receiving a prefix with a BGP Prefix-SID attribute and a label NLRI field of Implicit NULL [RFC3032] from a neighbor MUST adhere to standard behavior and program its MPLS data plane to pop the top label when forwarding traffic to the prefix. (§4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the received NLRI label is programmed as an MPLS encapsulation without any implicit-NULL exception -- validateMPLSLabels accepts label 3 like any other value (internal/plugins/fib/kernel/mpls.go:23) and buildMPLSEncap pushes whatever labels it is given (internal/plugins/fib/kernel/nexthop_linux.go:75), so an implicit-NULL labeled-unicast route is programmed as a push of label 3 rather than a pop |
+| `RFC8669-4.1-7` | Specifically, a BGP speaker receiving a prefix with a BGP Prefix-SID attribute and a label NLRI field of Implicit NULL [RFC3032] from a neighbor MUST adhere to standard behavior and program its MPLS data plane to pop the top label when forwarding traffic to the prefix. (§4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the received NLRI label is programmed as an MPLS encapsulation without any implicit-NULL exception -- mplsfib.ValidateOutLabels accepts label 3 like any other value (internal/core/mplsfib/label.go::ValidateOutLabels, called by internal/plugins/fib/kernel/fibkernel.go before a labeled route is installed) and buildMPLSEncap pushes whatever labels it is given (internal/plugins/fib/kernel/nexthop_linux.go:75), so an implicit-NULL labeled-unicast route is programmed as a push of label 3 rather than a pop |
 | `RFC8669-4.1-8` | The label NLRI defines the outbound label that MUST be used by the receiving node (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC8669NLRILabelIsTheOutboundLabel`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/rfc8669_test.go#L33). **negative:** no negative test. **{single-polarity}:** the label taken off the received NLRI is carried unchanged to the forwarding plane (internal/core/bgp/nlri/nlrisplit/labeled.go:110 to internal/component/bgp/plugins/rib/rib_bestchange.go:900 to internal/plugins/fib/kernel/nexthop_linux.go:75); the rule states which label to use, not a condition to reject, so there is no non-conforming input whose rejection could be asserted |
 | `RFC8669-5.1-1` | In all cases, the Label field of the advertised NLRI ([RFC8277] [RFC4364]) MUST be set to the local/incoming label programmed in the MPLS data plane for the given advertised prefix. (§5.1) | MUST | 5.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** BuildLabeledUnicastNLRIBytes writes the label taken from the route configuration into the NLRI (internal/component/bgp/message/update_build_labeled.go:278, fed by internal/component/bgp/reactor/peer_static_routes.go:86) and nothing programs a matching incoming MPLS entry -- the only emitters of MPLS ingress/transit entries are LDP and RSVP-TE (internal/plugins/ldp/fib.go:135, internal/plugins/rsvpte/fib.go:50) |
 | `RFC8669-8-1` | The propagation to other ASes MUST be explicitly configured (§8) | MUST | 8 | **positive:** `unit/verify` [`TestAnnounceRailKeepsPrefixSIDInsideTheSRDomain`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_announce_rail_test.go#L49). **positive:** `unit/verify` [`TestPrefixSIDEgressBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go#L168). **positive:** `unit/verify` [`TestPrefixSIDOriginationBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go#L301). **positive:** `unit/verify` [`TestStaleReadvertiseKeepsPrefixSIDInsideTheSRDomain`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_readvertise_rail_test.go#L149). **negative:** `unit/verify` [`TestAnnounceRailKeepsPrefixSIDInsideTheSRDomain`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_announce_rail_test.go#L46). **negative:** `unit/verify` [`TestPrefixSIDEgressBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go#L169). **negative:** `unit/verify` [`TestPrefixSIDOriginationBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go#L302). **negative:** `unit/verify` [`TestStaleReadvertiseKeepsPrefixSIDInsideTheSRDomain`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_readvertise_rail_test.go#L146). **positive:** `functional/verify` [`prefixsid-announce-rail-boundary.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-announce-rail-boundary.ci#L7). **positive:** `functional/verify` [`prefixsid-ebgp-egress-boundary.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-ebgp-egress-boundary.ci#L7). **negative:** `functional/verify` [`prefixsid-announce-rail-boundary.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-announce-rail-boundary.ci#L4). **negative:** `functional/verify` [`prefixsid-ebgp-egress-boundary.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-ebgp-egress-boundary.ci#L4) |
@@ -208,13 +219,13 @@ Source: [data/rfc/rfc8669.json](../../../data/rfc/rfc8669.json).
 | [`RFC8669-4.1-4`](#rfc8669-4.1-4) When a BGP speaker receives a path from a neighbor with an "invalid" or "conflicting" BGP Prefix-SID attribute, or when a BGP speaker receives a path from a neighbor with a BGP Prefix-SID attribute but is unable to process it (e.g., local policy disables the functionality), it MUST ignore the BGP Prefix-SID attribute. (§4.1) | {gap}, no test | the "invalid" half is implemented and the "conflicting" half is absent. A labeled-unicast Prefix-SID with no Label-Index TLV is classified PrefixSIDInvalidAttribute (internal/core/bgp/attribute/prefixsid_classify.go, ClassifyPrefixSID) and validatePrefixSIDValue maps it to attribute-discard (internal/component/bgp/message/rfc7606.go), so the attribute is ignored and not relayed; TestRFC8669InvalidPrefixSIDLoggedAtDefaultLevel drives it through enforceRFC7606 and RFC8669-4.1-2 is proven both ways. The "conflicting" state is never computed: ze reads no label index and derives no label against a configured SRGB (see RFC8669-4.1-3), so nothing triggers ignoring a conflicting attribute. Ze derives no label from any Label-Index, so no SR-MPLS behavior follows from an attribute it is unable to process |
 | [`RFC8669-4.1-5`](#rfc8669-4.1-5) For the purposes of label allocation, a BGP speaker MUST assign a local (also called dynamic) label (non-SRGB) for such a prefix as per classic Multiprotocol BGP IPv4/IPv6 Labeled Unicast ([RFC8277]) operation. (§4.1) | {gap}, no test | ze allocates no local label for a BGP prefix at all -- the label programmed for a labeled-unicast route is the one carried in the received NLRI (internal/component/bgp/plugins/rib/rib_bestchange.go:900), and the only MPLS ingress allocators are LDP and RSVP-TE (internal/plugins/ldp/fib.go:135, internal/plugins/rsvpte/fib.go:45) |
 | [`RFC8669-4.1-6`](#rfc8669-4.1-6) In the case of an "invalid" BGP Prefix-SID attribute, a BGP speaker MUST follow the error-handling rules specified in Section 6. (§4.1) | no test | no test carries this requirement id; annotated {rollup}: RFC8669-4.1-2, RFC8669-6-1; the sentence asserts nothing of its own and binds the "invalid" verdict (RFC8669-4.1-2, a Prefix-SID received without a Label-Index TLV) to the Section 6 rule for "a malformed or invalid BGP Prefix-SID attribute attached to an IPv4/ IPv6 Labeled Unicast prefix" (RFC8669-6-1). ClassifyPrefixSID returns PrefixSIDInvalidAttribute and validatePrefixSIDValue answers attribute-discard for it, which TestRFC8669InvalidPrefixSIDLoggedAtDefaultLevel drives through enforceRFC7606 |
-| [`RFC8669-4.1-7`](#rfc8669-4.1-7) Specifically, a BGP speaker receiving a prefix with a BGP Prefix-SID attribute and a label NLRI field of Implicit NULL [RFC3032] from a neighbor MUST adhere to standard behavior and program its MPLS data plane to pop the top label when forwarding traffic to the prefix. (§4.1) | {gap}, no test | the received NLRI label is programmed as an MPLS encapsulation without any implicit-NULL exception -- validateMPLSLabels accepts label 3 like any other value (internal/plugins/fib/kernel/mpls.go:23) and buildMPLSEncap pushes whatever labels it is given (internal/plugins/fib/kernel/nexthop_linux.go:75), so an implicit-NULL labeled-unicast route is programmed as a push of label 3 rather than a pop |
+| [`RFC8669-4.1-7`](#rfc8669-4.1-7) Specifically, a BGP speaker receiving a prefix with a BGP Prefix-SID attribute and a label NLRI field of Implicit NULL [RFC3032] from a neighbor MUST adhere to standard behavior and program its MPLS data plane to pop the top label when forwarding traffic to the prefix. (§4.1) | {gap}, no test | the received NLRI label is programmed as an MPLS encapsulation without any implicit-NULL exception -- mplsfib.ValidateOutLabels accepts label 3 like any other value (internal/core/mplsfib/label.go::ValidateOutLabels, called by internal/plugins/fib/kernel/fibkernel.go before a labeled route is installed) and buildMPLSEncap pushes whatever labels it is given (internal/plugins/fib/kernel/nexthop_linux.go:75), so an implicit-NULL labeled-unicast route is programmed as a push of label 3 rather than a pop |
 | [`RFC8669-5.1-1`](#rfc8669-5.1-1) In all cases, the Label field of the advertised NLRI ([RFC8277] [RFC4364]) MUST be set to the local/incoming label programmed in the MPLS data plane for the given advertised prefix. (§5.1) | {gap}, no test | BuildLabeledUnicastNLRIBytes writes the label taken from the route configuration into the NLRI (internal/component/bgp/message/update_build_labeled.go:278, fed by internal/component/bgp/reactor/peer_static_routes.go:86) and nothing programs a matching incoming MPLS entry -- the only emitters of MPLS ingress/transit entries are LDP and RSVP-TE (internal/plugins/ldp/fib.go:135, internal/plugins/rsvpte/fib.go:50) |
 | [`RFC8669-6-2`](#rfc8669-6-2) As per [RFC7606], if the BGP Prefix-SID attribute appears more than once in an UPDATE message, all the occurrences of the attribute other than the first one SHALL be discarded and the UPDATE message will continue to be processed. (§6) | {gap}, no test | unproven for code 40, no longer unimplemented. The processing half holds -- an already-seen non-MP attribute code is skipped without validation (internal/component/bgp/message/rfc7606.go, ValidateUpdateRFC7606) and recorded in DuplicateRanges, on the attribute-discard result as well as the clean one. The wire half is the RFC 7606 Section 3.g keep-first strip in enforceRFC7606 (internal/component/bgp/reactor/session_validation.go), which removes every recorded later copy through StripAttrRanges before the in-place attribute discard runs, so a malformed first occurrence is tombstoned and its duplicate is gone too. What is missing is the proof: no test tagged to this row drives a repeated code 40 through enforceRFC7606 and reads the bytes forwarded on |
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC8669-3-1`](#rfc8669-3-1)
 
@@ -234,9 +245,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 Label-Index TLV MUST be present in the BGP Prefix-SID attribute attached to IPv4/IPv6 Labeled Unicast prefixes (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC8669-3.1-1, so no unit is bound to it.
+No test carries RFC8669-3.1-1, so there is no linked test.
 
 ### [`RFC8669-3.1-2`](#rfc8669-3.1-2)
 
@@ -333,7 +344,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Same
 
 Originator SRGB TLV MUST NOT be changed during the propagation of the BGP update (§3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -368,7 +379,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Clau
 
 When the BGP Prefix-SID attribute is attached to a BGP Labeled IPv4 or IPv6 Unicast [RFC8277] AFI/SAFI, it MUST contain the Label-Index TLV (§4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -379,7 +390,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 A BGP Prefix-SID attribute received without a Label-Index TLV MUST be considered to be "invalid" by the receiving speaker. (§4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -391,47 +402,47 @@ Audit verdict: not audited: no reader has judged these tests
 
 If multiple different prefixes are received with the same label index, all of the different prefixes MUST have their BGP Prefix-SID attribute considered to be "conflicting". (§4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC8669-4.1-3, so no unit is bound to it.
+No test carries RFC8669-4.1-3, so there is no linked test.
 
 ### [`RFC8669-4.1-4`](#rfc8669-4.1-4)
 
 When a BGP speaker receives a path from a neighbor with an "invalid" or "conflicting" BGP Prefix-SID attribute, or when a BGP speaker receives a path from a neighbor with a BGP Prefix-SID attribute but is unable to process it (e.g., local policy disables the functionality), it MUST ignore the BGP Prefix-SID attribute. (§4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC8669-4.1-4, so no unit is bound to it.
+No test carries RFC8669-4.1-4, so there is no linked test.
 
 ### [`RFC8669-4.1-5`](#rfc8669-4.1-5)
 
 For the purposes of label allocation, a BGP speaker MUST assign a local (also called dynamic) label (non-SRGB) for such a prefix as per classic Multiprotocol BGP IPv4/IPv6 Labeled Unicast ([RFC8277]) operation. (§4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC8669-4.1-5, so no unit is bound to it.
+No test carries RFC8669-4.1-5, so there is no linked test.
 
 ### [`RFC8669-4.1-6`](#rfc8669-4.1-6)
 
 In the case of an "invalid" BGP Prefix-SID attribute, a BGP speaker MUST follow the error-handling rules specified in Section 6. (§4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC8669-4.1-6, so no unit is bound to it.
+No test carries RFC8669-4.1-6, so there is no linked test.
 
 ### [`RFC8669-4.1-7`](#rfc8669-4.1-7)
 
 Specifically, a BGP speaker receiving a prefix with a BGP Prefix-SID attribute and a label NLRI field of Implicit NULL [RFC3032] from a neighbor MUST adhere to standard behavior and program its MPLS data plane to pop the top label when forwarding traffic to the prefix. (§4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC8669-4.1-7, so no unit is bound to it.
+No test carries RFC8669-4.1-7, so there is no linked test.
 
 ### [`RFC8669-4.1-8`](#rfc8669-4.1-8)
 
 The label NLRI defines the outbound label that MUST be used by the receiving node (§4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -441,15 +452,15 @@ Audit verdict: not audited: no reader has judged these tests
 
 In all cases, the Label field of the advertised NLRI ([RFC8277] [RFC4364]) MUST be set to the local/incoming label programmed in the MPLS data plane for the given advertised prefix. (§5.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC8669-5.1-1, so no unit is bound to it.
+No test carries RFC8669-5.1-1, so there is no linked test.
 
 ### [`RFC8669-8-1`](#rfc8669-8-1)
 
 The propagation to other ASes MUST be explicitly configured (§8)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -487,9 +498,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 As per [RFC7606], if the BGP Prefix-SID attribute appears more than once in an UPDATE message, all the occurrences of the attribute other than the first one SHALL be discarded and the UPDATE message will continue to be processed. (§6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC8669-6-2, so no unit is bound to it.
+No test carries RFC8669-6-2, so there is no linked test.
 
 ### [`RFC8669-6-3`](#rfc8669-6-3)
 
@@ -543,7 +554,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | positive | [`TestRFC8669InvalidPrefixSIDDiscardBesideAnotherLogsBoth`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_error_log_test.go#L159) | unit/verify | mutant, verified |
 | positive | [`TestRFC8669InvalidPrefixSIDLoggedAtDefaultLevel`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_error_log_test.go#L194) | unit/verify | revert, verified |
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -562,23 +573,23 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
-| `front` | not stated | 1 | walked | not stated |
-| `1` | not stated | 0 | walked | not stated |
-| `2` | not stated | 3 | walked | not stated |
-| `3` | not stated | 1 | walked | not stated |
-| `3.1` | not stated | 4 | walked | not stated |
-| `3.2` | not stated | 4 | walked | not stated |
-| `4` | not stated | 1 | walked | not stated |
-| `4.1` | not stated | 9 | walked | not stated |
-| `5` | not stated | 0 | walked | not stated |
-| `5.1` | not stated | 2 | walked | not stated |
-| `6` | not stated | 4 | walked | The separate SHOULD logging sentence applies when discarding malformed or invalid labeled-unicast Prefix-SID attributes; RFC8669-6-4 records it without asserting a particular logging enum or proving the invalid-state trigger. Site 6:4 remains the unknown-TLV propagation occurrence mapped to RFC8669-3-1. |
-| `7` | not stated | 1 | walked | not stated |
-| `8` | not stated | 1 | walked | not stated |
-| `9` | not stated | 0 | walked | not stated |
-| `10` | not stated | 0 | walked | not stated |
-| `10.1` | not stated | 0 | walked | not stated |
-| `10.2` | not stated | 0 | walked | not stated |
+| `front` | not stated | 1 | reviewed | not stated |
+| `1` | not stated | 0 | reviewed | not stated |
+| `2` | not stated | 3 | reviewed | not stated |
+| `3` | not stated | 1 | reviewed | not stated |
+| `3.1` | not stated | 4 | reviewed | not stated |
+| `3.2` | not stated | 4 | reviewed | not stated |
+| `4` | not stated | 1 | reviewed | not stated |
+| `4.1` | not stated | 9 | reviewed | not stated |
+| `5` | not stated | 0 | reviewed | not stated |
+| `5.1` | not stated | 2 | reviewed | not stated |
+| `6` | not stated | 4 | reviewed | The separate SHOULD logging sentence applies when discarding malformed or invalid labeled-unicast Prefix-SID attributes; RFC8669-6-4 records it without asserting a particular logging enum or proving the invalid-state trigger. Site 6:4 remains the unknown-TLV propagation occurrence mapped to RFC8669-3-1. |
+| `7` | not stated | 1 | reviewed | not stated |
+| `8` | not stated | 1 | reviewed | not stated |
+| `9` | not stated | 0 | reviewed | not stated |
+| `10` | not stated | 0 | reviewed | not stated |
+| `10.1` | not stated | 0 | reviewed | not stated |
+| `10.2` | not stated | 0 | reviewed | not stated |
 
 ### Excluded sentences
 

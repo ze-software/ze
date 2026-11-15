@@ -420,6 +420,21 @@ code changes.
 
 Run `tools/list` against a live daemon to see the current tool inventory. <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 
+When Ze cannot build one tool's definition, `tools/list` does not return the <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
+list without it. It answers JSON-RPC error `-32603` (internal error). The
+message names the tool, says why its input schema cannot be written as JSON,
+and asks you to report the message to the Ze developers. Your client then sees
+no tool at all, not an incomplete list that looks complete. No command Ze
+registers causes this today. If you see it, report the full message at
+<https://github.com/ze-software/ze/issues>.
+
+<!-- source: internal/component/mcp/streamable_tools.go -- allTools -->
+<!-- source: internal/component/mcp/tools.go -- generateTools, buildToolDef -->
+
+Which agent clients have been checked against this tool list, and what they
+report it costs in context, is on the
+[MCP client verification](https://github.com/ze-software/ze/blob/main/docs/contributing/mcp-client-verification.md) page.
+
 The commands the local `ze` command answers on the router are tools too:
 `show env list`, `show config validation <file>`, `request support archive`,
 and `show doctor`, the daemon form of `ze doctor`, among them. The daemon runs
@@ -527,9 +542,25 @@ Offline commands for agent-driven config validation and repair:
 | `ze config fix --plan <file>` | Plan-only repair candidates |
 | `ze show skills [--json]` | List bundled agent skills |
 | `ze show skill <name> [--full]` | Load version-matched skill content |
+| `ze show agent context` | The Ze version, whether the daemon answers, and the guide to read |
+| `ze create agent skill`, `ze show agent skill`, `ze delete agent skill [agent <name\|all>]` | Install, report and remove the `ze` stub skill in the caller's agent harnesses |
 
 These commands do not require a running daemon. Agents use them to validate
 and fix config before committing.
+
+To set Claude Code or Codex up with the `ze` skill and its session-start hook,
+step by step, see [Use Ze with an AI agent](../../ai-agent/index.md).
+
+An agent connected over MCP may run on a machine with no `ze` binary, so the
+three agent skill commands answer it differently through the daemon. They
+read and write nothing on the daemon's host, and answer the files to place
+(create, show) or remove (delete) in the agent's own home: per harness, the
+default path relative to the home directory (`~/.claude/skills/ze/SKILL.md`,
+`~/.agents/skills/ze/SKILL.md`), the state `not-inspected` and, for create
+and show, the stub's content. That stub tells the agent to ask the Ze system
+it is connected to for `show skill ze` over the connection it already uses,
+and the answer holds no session-start hook, which would need a local `ze`.
+<!-- source: internal/plugins/skills/agent_skill.go -- remoteAnswer, stubText, agentPlan -->
 
 ## Testing
 

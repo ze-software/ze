@@ -1,6 +1,6 @@
 # RFC 7012 - Information Model for IP Flow Information Export (IPFIX)
 
-IPFIX Information Model. Every requirement this repository extracted from RFC 7012, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+IPFIX Information Model. Every requirement listed for RFC 7012, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,24 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 0 | of 6 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 1 | of 6 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 6 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 6 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 2 | 2 of 2 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-
-### Neutral
-
-measures that are neither good news nor bad
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Gated MUSTs | 6 | of 6 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 6 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 6 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 6 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 6 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 6 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Tested both ways | 0 | of 6 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 1 | of 6 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 6 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 6 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Tests shown to detect a fault | 2 | 2 of 2 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -35,54 +22,74 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 5 | of 6 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Declared gap or no test | 5 | of 6 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 
-The 9 counts marked as a part above are the whole of the 6 gated MUSTs: they add up to 6. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Neutral
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+measures that are neither good news nor bad
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Out of scope | 0 | of 6 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 6 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 6 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 6 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 6 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+
+### Totals
+
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 6 | of 6 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 6 mandatory requirements: they add up to 6. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | IPFIX Information Model |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 6 |
-| Gated MUST-level | 6 |
+| Mandatory requirements (MUST level) | 6 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 5 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 2 |
-| Tagged units | 2 |
+| Tests linked to requirements | 2 |
 | Recorded audit verdicts | 1 |
-| Discrimination records | 2 |
+| Fault test records | 2 |
 | Summary | `rfc/short/rfc7012.md` |
-| Requirement shard | `rfc/requirements/rfc7012.md` |
+| Requirement table | `rfc/requirements/rfc7012.md` |
 | RFC text | `rfc/full/rfc7012.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: IPFIX Information Model: exporter role. Six rows after the 2026-09-21 extraction walk: 3 gaps in proof (2.1-2, 2.1-3, 4-2, all enterprise-specific IEs ze never emits), 1 gap for IANA-registry authorship that fits neither not-applicable shape (2.1-1), 1 single-polarity positive (4-1 IE identifier 0 never used) and 1 gap in proof, a MUST NOT added by the walk (2.1-5, a value outside an IE's valid inclusive range must not be exported: no exported IE has a registry Range). The walk deleted six rows that stated RFC 7011 obligations and one SHOULD no sentence of RFC 7012 carries; most of this document's remaining MUSTs bind the author of an IE definition in the IANA registry and are excluded in rfc/extraction/rfc7012.json.
+Included in automatic checks: IPFIX Information Model: exporter role. Six rows after the 2026-09-21 extraction walk: 3 gaps in proof (2.1-2, 2.1-3, 4-2, all enterprise-specific IEs ze never emits), 1 gap for IANA-registry authorship that fits neither not-applicable shape (2.1-1), 1 single-polarity positive (4-1 IE identifier 0 never used) and 1 gap in proof, a MUST NOT added by the walk (2.1-5, a value outside an IE's valid inclusive range must not be exported: no exported IE has a registry Range). The walk deleted six rows that stated RFC 7011 obligations and one SHOULD no sentence of RFC 7012 carries; most of this document's remaining MUSTs bind the author of an IE definition in the IANA registry and are excluded in rfc/extraction/rfc7012.json.
 
-## What the public ledger says
+## Published support status
 
 **Area:** IPFIX Information Model
 
@@ -97,33 +104,36 @@ Enrolled: IPFIX Information Model: exporter role. Six rows after the 2026-09-21 
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 0 | one part of the gated population |
-| Annotated (including scoped evidence) | 6 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **6** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 0 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 6 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **6** | every mandatory requirement appears in exactly one group above |
 
 **Annotated (including scoped evidence) (6):** [`RFC7012-2.1-1`](#rfc7012-2.1-1), [`RFC7012-2.1-2`](#rfc7012-2.1-2), [`RFC7012-2.1-3`](#rfc7012-2.1-3), [`RFC7012-2.1-5`](#rfc7012-2.1-5), [`RFC7012-4-1`](#rfc7012-4-1), [`RFC7012-4-2`](#rfc7012-4-2)
 
 ## Figures
 
-- **MUST bar**: Ze proven 1, Ze correctness gap 5
-- **Overview bar**: Ze MUST proven 1, Ze correctness gap 5
+- **MUST bar**: Ze proven 1, Not built 5
+- **Overview bar**: Ze MUST proven 1, Not built 5
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 6 |
 | MUST rows kept (the MUST bar) | 6 |
 | Ze proven | 1 |
 | OS verified | 0 |
+| Proof pending | 0 |
 | OS testing gap | 0 |
-| Ze correctness gap | 5 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 5 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -136,11 +146,12 @@ Enrolled: IPFIX Information Model: exporter role. Six rows after the 2026-09-21 
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 0 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 0 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc7012.json](../../../data/rfc/rfc7012.json).
 
@@ -167,39 +178,39 @@ Source: [data/rfc/rfc7012.json](../../../data/rfc/rfc7012.json).
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC7012-2.1-1`](#rfc7012-2.1-1)
 
 All Information Elements specified for the IPFIX protocol MUST have the following properties defined: name - A unique and meaningful name for the Information Element. elementId - A numeric identifier of the Information Element. If this identifier is used without an enterprise identifier (see [RFC7011] and the definition of enterpriseId listed below), then it is globally unique, and the list of allowed values is administered by IANA. It is used for compact identification of an Information Element when encoding Templates in the protocol. description - The semantics of this Information Element. Describes how this Information Element is derived from the Flow or other information available to the observer. Information Elements of dataType string or octetArray that have length constraints (fixed length, minimum and/or maximum length) MUST note these constraints in their descriptions. dataType - One of the types listed in Section 3.1 of this document or registered in the IANA "IPFIX Information Element Data Types" subregistry. The type space for attributes is constrained to facilitate implementation. The existing type space encompasses most primitive types used in modern programming languages, as well as some derived types (such as ipv4Address) that are common to this domain. status - The status of the specification of this Information Element. Allowed values are 'current' and 'deprecated'. (Section 2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7012-2.1-1, so no unit is bound to it.
+No test carries RFC7012-2.1-1, so there is no linked test.
 
 ### [`RFC7012-2.1-2`](#rfc7012-2.1-2)
 
 Enterprise-specific Information Elements MUST have the following property defined: enterpriseId (Section 2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7012-2.1-2, so no unit is bound to it.
+No test carries RFC7012-2.1-2, so there is no linked test.
 
 ### [`RFC7012-2.1-3`](#rfc7012-2.1-3)
 
 If specifications of enterprise-specific Information Elements are made public and/or if enterprise-specific identifiers are used by the IPFIX protocol outside the enterprise, then the enterprise- specific identifier MUST be made globally unique by combining it with an enterprise identifier. (Section 2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7012-2.1-3, so no unit is bound to it.
+No test carries RFC7012-2.1-3, so there is no linked test.
 
 ### [`RFC7012-2.1-5`](#rfc7012-2.1-5)
 
 values for this Information Element outside the range are invalid and MUST NOT be exported. (Section 2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7012-2.1-5, so no unit is bound to it.
+No test carries RFC7012-2.1-5, so there is no linked test.
 
 ### [`RFC7012-4-1`](#rfc7012-4-1)
 
@@ -216,11 +227,11 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Sing
 
 Enterprise-specific Information Element identifiers have the same range of 1-32767, but they are coupled with an additional enterprise identifier. (Section 4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7012-4-2, so no unit is bound to it.
+No test carries RFC7012-4-2, so there is no linked test.
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -239,58 +250,58 @@ No test carries RFC7012-4-2, so no unit is bound to it.
 
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
-| `front` | not stated | 0 | walked | not stated |
-| `1` | not stated | 0 | walked | not stated |
-| `1.1` | not stated | 0 | walked | not stated |
-| `1.2` | not stated | 0 | walked | not stated |
-| `2` | not stated | 0 | walked | not stated |
-| `2.1` | Information Element properties | 5 | walked | Information Element properties. Five MUST-level sites. Three map to declared ids: the required property set (2.1-1), the enterpriseId property of an enterprise-specific IE (2.1-2), and the globally unique enterprise-specific identifier (2.1-3). One binds the IE definition's description text and is excluded. One binds the EXPORTER and the checklist did not carry it, so the 2026-09-21 walk added RFC7012-2.1-5 for it: "values for this Information Element outside the range are invalid and MUST NOT be exported". The SHOULD in the same sentence, that a valid inclusive range be specified, binds the IE definition and carries no row. |
-| `2.2` | not stated | 0 | walked | not stated |
-| `2.3` | Naming Conventions for Information Elements | 3 | walked | Naming Conventions for Information Elements. Three MUST-level sites, all excluded as binding the author of a registry entry. Its two SHOULDs, that names be descriptive and that enterprise-specific names be prefixed with a vendor name, bind the same role and carry no row. |
-| `3` | not stated | 0 | walked | not stated |
-| `3.1` | not stated | 0 | walked | not stated |
-| `3.1.1` | not stated | 0 | walked | not stated |
-| `3.1.2` | not stated | 0 | walked | not stated |
-| `3.1.3` | not stated | 0 | walked | not stated |
-| `3.1.4` | not stated | 0 | walked | not stated |
-| `3.1.5` | not stated | 0 | walked | not stated |
-| `3.1.6` | not stated | 0 | walked | not stated |
-| `3.1.7` | not stated | 0 | walked | not stated |
-| `3.1.8` | not stated | 0 | walked | not stated |
-| `3.1.9` | not stated | 0 | walked | not stated |
-| `3.1.10` | not stated | 0 | walked | not stated |
-| `3.1.11` | not stated | 0 | walked | not stated |
-| `3.1.12` | not stated | 0 | walked | not stated |
-| `3.1.13` | not stated | 0 | walked | not stated |
-| `3.1.14` | not stated | 0 | walked | not stated |
-| `3.1.15` | not stated | 0 | walked | not stated |
-| `3.1.16` | not stated | 0 | walked | not stated |
-| `3.1.17` | not stated | 0 | walked | not stated |
-| `3.1.18` | not stated | 0 | walked | not stated |
-| `3.1.19` | not stated | 0 | walked | not stated |
-| `3.1.20` | not stated | 0 | walked | not stated |
-| `3.1.21` | not stated | 0 | walked | not stated |
-| `3.1.22` | not stated | 0 | walked | not stated |
-| `3.1.23` | not stated | 0 | walked | not stated |
-| `3.2` | not stated | 0 | walked | not stated |
-| `3.2.1` | not stated | 0 | walked | not stated |
-| `3.2.2` | not stated | 0 | walked | not stated |
-| `3.2.3` | not stated | 0 | walked | not stated |
-| `3.2.4` | identifier semantics | 1 | walked | identifier semantics. One site, excluded as binding the dataType chosen for a registry entry. |
-| `3.2.5` | flags semantics | 1 | walked | flags semantics. One site, excluded as binding the dataType chosen for a registry entry. |
-| `4` | Information Element Identifiers | 0 | walked | Information Element Identifiers. No 2119 keyword: the section states in the indicative that identifier values are in the range 1-32767, that identifier 0 is also reserved for enterprise-specific Information Elements, and that enterprise-specific identifiers share that range coupled with an enterprise identifier. Those are RFC7012-4-1 and RFC7012-4-2, declared unsourced here. |
-| `5` | Information Elements | 0 | walked | Information Elements. No obligation: it records that [IANA-IPFIX] is now the normative reference and lists the RFC 5102 categories as a historical note. |
-| `6` | IANA Considerations | 1 | walked | IANA Considerations. One site, excluded as binding IANA's allocation policy and the Standards Track document that would define a new abstract data type or semantic. |
-| `7` | not stated | 0 | walked | not stated |
-| `7.1` | not stated | 0 | walked | not stated |
-| `7.2` | mplsTopLabelType subregistry | 1 | walked | mplsTopLabelType subregistry. One site, excluded as binding whoever specifies a new MPLS label type. |
-| `7.3` | not stated | 0 | walked | not stated |
-| `7.4` | not stated | 0 | walked | not stated |
-| `8` | Security Considerations | 0 | walked | Security Considerations. No MUST-level site. Its two directives bind the Collector, not the Exporter role ze fills: Collectors MAY take advantage of the machine-readability of the information model, and Collectors SHOULD NOT poll the IANA registry directly at runtime. Neither carries a checklist row. |
-| `9` | not stated | 0 | walked | not stated |
-| `10` | not stated | 0 | walked | not stated |
-| `10.1` | not stated | 0 | walked | not stated |
-| `10.2` | not stated | 0 | walked | not stated |
+| `front` | not stated | 0 | reviewed | not stated |
+| `1` | not stated | 0 | reviewed | not stated |
+| `1.1` | not stated | 0 | reviewed | not stated |
+| `1.2` | not stated | 0 | reviewed | not stated |
+| `2` | not stated | 0 | reviewed | not stated |
+| `2.1` | Information Element properties | 5 | reviewed | Information Element properties. Five MUST-level sites. Three map to declared ids: the required property set (2.1-1), the enterpriseId property of an enterprise-specific IE (2.1-2), and the globally unique enterprise-specific identifier (2.1-3). One binds the IE definition's description text and is excluded. One binds the EXPORTER and the checklist did not carry it, so the 2026-09-21 walk added RFC7012-2.1-5 for it: "values for this Information Element outside the range are invalid and MUST NOT be exported". The SHOULD in the same sentence, that a valid inclusive range be specified, binds the IE definition and carries no row. |
+| `2.2` | not stated | 0 | reviewed | not stated |
+| `2.3` | Naming Conventions for Information Elements | 3 | reviewed | Naming Conventions for Information Elements. Three MUST-level sites, all excluded as binding the author of a registry entry. Its two SHOULDs, that names be descriptive and that enterprise-specific names be prefixed with a vendor name, bind the same role and carry no row. |
+| `3` | not stated | 0 | reviewed | not stated |
+| `3.1` | not stated | 0 | reviewed | not stated |
+| `3.1.1` | not stated | 0 | reviewed | not stated |
+| `3.1.2` | not stated | 0 | reviewed | not stated |
+| `3.1.3` | not stated | 0 | reviewed | not stated |
+| `3.1.4` | not stated | 0 | reviewed | not stated |
+| `3.1.5` | not stated | 0 | reviewed | not stated |
+| `3.1.6` | not stated | 0 | reviewed | not stated |
+| `3.1.7` | not stated | 0 | reviewed | not stated |
+| `3.1.8` | not stated | 0 | reviewed | not stated |
+| `3.1.9` | not stated | 0 | reviewed | not stated |
+| `3.1.10` | not stated | 0 | reviewed | not stated |
+| `3.1.11` | not stated | 0 | reviewed | not stated |
+| `3.1.12` | not stated | 0 | reviewed | not stated |
+| `3.1.13` | not stated | 0 | reviewed | not stated |
+| `3.1.14` | not stated | 0 | reviewed | not stated |
+| `3.1.15` | not stated | 0 | reviewed | not stated |
+| `3.1.16` | not stated | 0 | reviewed | not stated |
+| `3.1.17` | not stated | 0 | reviewed | not stated |
+| `3.1.18` | not stated | 0 | reviewed | not stated |
+| `3.1.19` | not stated | 0 | reviewed | not stated |
+| `3.1.20` | not stated | 0 | reviewed | not stated |
+| `3.1.21` | not stated | 0 | reviewed | not stated |
+| `3.1.22` | not stated | 0 | reviewed | not stated |
+| `3.1.23` | not stated | 0 | reviewed | not stated |
+| `3.2` | not stated | 0 | reviewed | not stated |
+| `3.2.1` | not stated | 0 | reviewed | not stated |
+| `3.2.2` | not stated | 0 | reviewed | not stated |
+| `3.2.3` | not stated | 0 | reviewed | not stated |
+| `3.2.4` | identifier semantics | 1 | reviewed | identifier semantics. One site, excluded as binding the dataType chosen for a registry entry. |
+| `3.2.5` | flags semantics | 1 | reviewed | flags semantics. One site, excluded as binding the dataType chosen for a registry entry. |
+| `4` | Information Element Identifiers | 0 | reviewed | Information Element Identifiers. No 2119 keyword: the section states in the indicative that identifier values are in the range 1-32767, that identifier 0 is also reserved for enterprise-specific Information Elements, and that enterprise-specific identifiers share that range coupled with an enterprise identifier. Those are RFC7012-4-1 and RFC7012-4-2, declared unsourced here. |
+| `5` | Information Elements | 0 | reviewed | Information Elements. No obligation: it records that [IANA-IPFIX] is now the normative reference and lists the RFC 5102 categories as a historical note. |
+| `6` | IANA Considerations | 1 | reviewed | IANA Considerations. One site, excluded as binding IANA's allocation policy and the Standards Track document that would define a new abstract data type or semantic. |
+| `7` | not stated | 0 | reviewed | not stated |
+| `7.1` | not stated | 0 | reviewed | not stated |
+| `7.2` | mplsTopLabelType subregistry | 1 | reviewed | mplsTopLabelType subregistry. One site, excluded as binding whoever specifies a new MPLS label type. |
+| `7.3` | not stated | 0 | reviewed | not stated |
+| `7.4` | not stated | 0 | reviewed | not stated |
+| `8` | Security Considerations | 0 | reviewed | Security Considerations. No MUST-level site. Its two directives bind the Collector, not the Exporter role ze fills: Collectors MAY take advantage of the machine-readability of the information model, and Collectors SHOULD NOT poll the IANA registry directly at runtime. Neither carries a checklist row. |
+| `9` | not stated | 0 | reviewed | not stated |
+| `10` | not stated | 0 | reviewed | not stated |
+| `10.1` | not stated | 0 | reviewed | not stated |
+| `10.2` | not stated | 0 | reviewed | not stated |
 
 ### Excluded sentences
 

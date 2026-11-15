@@ -411,8 +411,8 @@ go tool cover -html=coverage.out
 <h2 id="debugging">Debugging</h2>
 <p>Enable debug logging with ze's hierarchical log system:</p>
 <!-- source: pkg/plugin/sdk/sdk.go -- NewFromEnv -->
-<pre><code class="language-bash"># Set log level for your plugin
-export ZE_LOG_LEVEL=debug
+<pre><code class="language-bash"># Set the base log level (ze.log); ze.log.&lt;subsystem&gt; sets one subsystem
+export ZE_LOG=debug
 ./my-plugin
 </code></pre>
 <p>Or add structured logging in your plugin:</p>
@@ -437,7 +437,7 @@ p.OnEvent(func(event string) error {
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 02:04 UTC</span>
                 </div>
             </div>
         </footer>

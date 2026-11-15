@@ -1,6 +1,6 @@
 # RFC 4302 - IP Authentication Header
 
-Authentication Header. Every requirement this repository extracted from RFC 4302, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+Authentication Header. Every requirement listed for RFC 4302, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,24 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 8 | of 32 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 1 | of 32 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 32 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 32 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 24 | 24 of 24 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-
-### Neutral
-
-measures that are neither good news nor bad
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Gated MUSTs | 32 | of 44 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 32 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 32 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 19 | of 32 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 32 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 32 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Tested both ways | 8 | of 32 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 1 | of 32 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 32 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 32 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Tests shown to detect a fault | 22 | 22 of 24 tests linked to requirements, 0 without a fault test and 2 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -35,54 +22,74 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 4 | of 32 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Declared gap or no test | 4 | of 32 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 
-The 9 counts marked as a part above are the whole of the 32 gated MUSTs: they add up to 32. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Neutral
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+measures that are neither good news nor bad
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Out of scope | 0 | of 32 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 32 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 19 | of 32 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 32 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 32 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+
+### Totals
+
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 32 | of 44 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 32 mandatory requirements: they add up to 32. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | Authentication Header |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 44 |
-| Gated MUST-level | 32 |
+| Mandatory requirements (MUST level) | 32 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 4 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 24 |
-| Tagged units | 24 |
+| Tests linked to requirements | 24 |
 | Recorded audit verdicts | 9 |
-| Discrimination records | 24 |
+| Fault test records | 24 |
 | Summary | `rfc/short/rfc4302.md` |
-| Requirement shard | `rfc/requirements/rfc4302.md` |
+| Requirement table | `rfc/requirements/rfc4302.md` |
 | RFC text | `rfc/full/rfc4302.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: IP Authentication Header (RFC 4302): control plane only. Ze speaks AH through RFC 4552 manually-keyed IPsec for OSPFv3: validateIPsecInterface (plugins/ospf/config_ipsec.go) accepts protocol ah with an SPI at or above 256, an HMAC-SHA algorithm and a hex key of that algorithm length, and refuses an encryption key beside AH; buildIPsecSA and buildIPsecPolicies (plugins/ospf/ipsec_install.go) install one transport-mode SA with Proto ProtoAH and a {::/0, ::/0, proto 89} state selector plus out/in/fwd policies scoped to the interface; planStateAlgos (ike/dataplane/dataplane.go) gives an AH state an integrity transform and no encryption transform, and xfrmStateFromParams (ike/dataplane/xfrm_linux.go) writes it. Every per-packet AH obligation -- header construction, sequence numbers, mutable-field zeroing, ICV, replay window, discard on failure -- is performed by Linux XFRM, which the whole-stack conformance ruling of 2026-08-31 counts as an implementation of the obligation rather than an exemption. Ze never negotiates an AH Child SA over IKEv2, so every AH SA it installs is manually keyed and carries no replay window unless the interface's replay-window leaf asks for one, which defaults to 0 as Section 5 asks. 34 gated rows, none tested and none annotated at enrolment; the interop scenario ospf-ipsec-ah-frr already reads the installed kernel state and is the carrier the coverage work will tag.
+Included in automatic checks: IP Authentication Header (RFC 4302): control plane only. Ze speaks AH through RFC 4552 manually-keyed IPsec for OSPFv3: validateIPsecInterface (plugins/ospf/config_ipsec.go) accepts protocol ah with an SPI at or above 256, an HMAC-SHA algorithm and a hex key of that algorithm length, and refuses an encryption key beside AH; buildIPsecSA and buildIPsecPolicies (plugins/ospf/ipsec_install.go) install one transport-mode SA with Proto ProtoAH and a {::/0, ::/0, proto 89} state selector plus out/in/fwd policies scoped to the interface; planStateAlgos (ike/dataplane/dataplane.go) gives an AH state an integrity transform and no encryption transform, and xfrmStateFromParams (ike/dataplane/xfrm_linux.go) writes it. Every per-packet AH obligation -- header construction, sequence numbers, mutable-field zeroing, ICV, replay window, discard on failure -- is performed by Linux XFRM, which the whole-stack conformance ruling of 2026-08-31 counts as an implementation of the obligation rather than an exemption. Ze never negotiates an AH Child SA over IKEv2, so every AH SA it installs is manually keyed and carries no replay window unless the interface's replay-window leaf asks for one, which defaults to 0 as Section 5 asks. 34 gated rows, none tested and none annotated at enrolment; the interop scenario ospf-ipsec-ah-frr already reads the installed kernel state and is the carrier the coverage work will tag.
 
-## What the public ledger says
+## Published support status
 
 **Area:** Authentication Header
 
@@ -97,14 +104,14 @@ Enrolled: IP Authentication Header (RFC 4302): control plane only. Ze speaks AH 
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 8 | one part of the gated population |
-| Annotated (including scoped evidence) | 24 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 2 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **32** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 8 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 24 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 2 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **32** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (8):** [`RFC4302-2-1`](#rfc4302-2-1), [`RFC4302-2-2`](#rfc4302-2-2), [`RFC4302-2.4-1`](#rfc4302-2.4-1), [`RFC4302-2.4-5`](#rfc4302-2.4-5), [`RFC4302-2.4-6`](#rfc4302-2.4-6), [`RFC4302-3.3.4-1`](#rfc4302-3.3.4-1), [`RFC4302-3.4.2-1`](#rfc4302-3.4.2-1), [`RFC4302-3.4.3-1`](#rfc4302-3.4.3-1)
 
@@ -114,20 +121,23 @@ Enrolled: IP Authentication Header (RFC 4302): control plane only. Ze speaks AH 
 
 ## Figures
 
-- **MUST bar**: Ze proven 9, OS testing gap 19, Ze correctness gap 4
-- **Overview bar**: Ze MUST proven 9, SHOULD not decided 10, OS testing gap 19, Ze correctness gap 4
+- **MUST bar**: Ze proven 9, OS testing gap 19, Not built 4
+- **Overview bar**: Ze MUST proven 9, OS testing gap 19, Not assessed 10, Not built 4
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 32 |
 | MUST rows kept (the MUST bar) | 32 |
 | Ze proven | 9 |
 | OS verified | 0 |
+| Proof pending | 0 |
 | OS testing gap | 19 |
-| Ze correctness gap | 4 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 4 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -140,11 +150,12 @@ Enrolled: IP Authentication Header (RFC 4302): control plane only. Ze speaks AH 
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 10 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 10 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc4302.json](../../../data/rfc/rfc4302.json).
 
@@ -229,7 +240,7 @@ Source: [data/rfc/rfc4302.json](../../../data/rfc/rfc4302.json).
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC4302-2-1`](#rfc4302-2-1)
 
@@ -257,9 +268,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) 
 
 It MUST be set to "zero" by the sender (§2.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4302-2.3-1, so no unit is bound to it.
+No test carries RFC4302-2.3-1, so there is no linked test.
 
 ### [`RFC4302-2.4-1`](#rfc4302-2.4-1)
 
@@ -278,25 +289,25 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 If an IPsec implementation supports multicast, then it MUST support multicast SAs using the algorithm below for mapping inbound IPsec datagrams to SAs. (§2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4302-2.4-2, so no unit is bound to it.
+No test carries RFC4302-2.4-2, so there is no linked test.
 
 ### [`RFC4302-2.4-3`](#rfc4302-2.4-3)
 
 A multicast-capable IPsec implementation MUST correctly de-multiplex inbound traffic even in the context of SPI collisions. (§2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4302-2.4-3, so no unit is bound to it.
+No test carries RFC4302-2.4-3, so there is no linked test.
 
 ### [`RFC4302-2.4-4`](#rfc4302-2.4-4)
 
 any method to accelerate this search, although its externally visible behavior MUST be functionally equivalent to having searched the SAD in the above order. (§2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4302-2.4-4, so no unit is bound to it.
+No test carries RFC4302-2.4-4, so there is no linked test.
 
 ### [`RFC4302-2.4-5`](#rfc4302-2.4-5)
 
@@ -324,97 +335,97 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) 
 
 For a unicast SA or a single-sender multicast SA, the sender MUST increment this field for every transmitted packet. (§2.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4302-2.5-1, so no unit is bound to it.
+No test carries RFC4302-2.5-1, so there is no linked test.
 
 ### [`RFC4302-2.5-2`](#rfc4302-2.5-2)
 
 The field is mandatory and MUST always be present even if the receiver does not elect to enable the anti-replay service for a specific SA. (§2.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4302-2.5-2, so no unit is bound to it.
+No test carries RFC4302-2.5-2, so there is no linked test.
 
 ### [`RFC4302-2.5-3`](#rfc4302-2.5-3)
 
 Processing of the Sequence Number field is at the discretion of the receiver, but all AH implementations MUST be capable of performing the processing described in Section 3.3.2, "Sequence Number Generation", and Section 3.4.3, "Sequence Number Verification". (§2.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4302-2.5-3, so no unit is bound to it.
+No test carries RFC4302-2.5-3, so there is no linked test.
 
 ### [`RFC4302-2.5-5`](#rfc4302-2.5-5)
 
 Thus, the sender's counter and the receiver's counter MUST be reset (by establishing a new SA and thus a new key) prior to the transmission of the 2^32nd packet on an SA. (§2.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4302-2.5-5, so no unit is bound to it.
+No test carries RFC4302-2.5-5, so there is no linked test.
 
 ### [`RFC4302-2.5.1-1`](#rfc4302-2.5.1-1)
 
 Use of an Extended Sequence Number (ESN) MUST be negotiated by an SA management protocol. (§2.5.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4302-2.5.1-1, so no unit is bound to it.
+No test carries RFC4302-2.5.1-1, so there is no linked test.
 
 ### [`RFC4302-2.6-1`](#rfc4302-2.6-1)
 
 All implementations MUST support such padding and MUST insert only enough padding to satisfy the IPv4/IPv6 alignment requirements. (§2.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4302-2.6-1, so no unit is bound to it.
+No test carries RFC4302-2.6-1, so there is no linked test.
 
 ### [`RFC4302-3.3.2-1`](#rfc4302-3.3.2-1)
 
 In other words, the sender MUST NOT send a packet on an SA if doing so would cause the sequence number to cycle. (§3.3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4302-3.3.2-1, so no unit is bound to it.
+No test carries RFC4302-3.3.2-1, so there is no linked test.
 
 ### [`RFC4302-3.3.3.1-1`](#rfc4302-3.3.3.1-1)
 
 If a field may be modified during transit, the value of the field is set to zero for purposes of the ICV computation. If a field is mutable, but its value at the (IPsec) receiver is predictable, then that value is inserted into the field for purposes of the ICV calculation. The Integrity Check Value field is also set to zero in preparation for this computation. (§3.3.3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4302-3.3.3.1-1, so no unit is bound to it.
+No test carries RFC4302-3.3.3.1-1, so there is no linked test.
 
 ### [`RFC4302-3.3.3.2.2-1`](#rfc4302-3.3.3.2.2-1)
 
 If the IP packet length (including AH and the 32 high-order bits of the ESN, if enabled) does not match the blocksize requirements for the algorithm, implicit padding MUST be appended to the end of the packet, prior to ICV computation. (§3.3.3.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4302-3.3.3.2.2-1, so no unit is bound to it.
+No test carries RFC4302-3.3.3.2.2-1, so there is no linked test.
 
 ### [`RFC4302-3.3.3.2.2-2`](#rfc4302-3.3.3.2.2-2)
 
 The padding octets MUST have a value of zero. (§3.3.3.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4302-3.3.3.2.2-2, so no unit is bound to it.
+No test carries RFC4302-3.3.3.2.2-2, so there is no linked test.
 
 ### [`RFC4302-3.3.3.2.2-3`](#rfc4302-3.3.3.2.2-3)
 
 The document that defines an integrity algorithm MUST be consulted to determine if implicit padding is required as described above. (§3.3.3.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4302-3.3.3.2.2-3, so no unit is bound to it.
+No test carries RFC4302-3.3.3.2.2-3, so there is no linked test.
 
 ### [`RFC4302-3.3.3.2.2-4`](#rfc4302-3.3.3.2.2-4)
 
 If the document does not specify an answer to this, then the default is to assume that implicit padding is required (as needed to match the packet length to the algorithm's blocksize.) If padding bytes are needed but the algorithm does not specify the padding contents, then the padding octets MUST have a value of zero. (§3.3.3.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4302-3.3.3.2.2-4, so no unit is bound to it.
+No test carries RFC4302-3.3.3.2.2-4, so there is no linked test.
 
 ### [`RFC4302-3.3.4-1`](#rfc4302-3.3.4-1)
 
@@ -431,9 +442,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 If a packet offered to AH for processing appears to be an IP fragment, i.e., the OFFSET field is nonzero or the MORE FRAGMENTS flag is set, the receiver MUST discard the packet; this is an auditable event. (§3.4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4302-3.4.1-1, so no unit is bound to it.
+No test carries RFC4302-3.4.1-1, so there is no linked test.
 
 ### [`RFC4302-3.4.2-1`](#rfc4302-3.4.2-1)
 
@@ -457,33 +468,33 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestIPsecSAReplayWindow`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L435) | unit/verify | revert, verified |
-| negative | [`TestIPsecInstallerXFRMReplayWindow`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go#L182) | unit/verify | revert, verified |
+| negative | [`TestIPsecInstallerXFRMReplayWindow`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go#L182) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestIPsecSAReplayWindow`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L430) | unit/verify | revert, verified |
-| positive | [`TestIPsecInstallerXFRMReplayWindow`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go#L180) | unit/verify | revert, verified |
+| positive | [`TestIPsecInstallerXFRMReplayWindow`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go#L180) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC4302-3.4.3-2`](#rfc4302-3.4.3-2)
 
 If the receiver has enabled the anti-replay service for this SA, the receive packet counter for the SA MUST be initialized to zero when the SA is established. (§3.4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4302-3.4.3-2, so no unit is bound to it.
+No test carries RFC4302-3.4.3-2, so there is no linked test.
 
 ### [`RFC4302-3.4.3-3`](#rfc4302-3.4.3-3)
 
 For each received packet, the receiver MUST verify that the packet contains a Sequence Number that does not duplicate the Sequence Number of any other packets received during the life of this SA. (§3.4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4302-3.4.3-3, so no unit is bound to it.
+No test carries RFC4302-3.4.3-3, so there is no linked test.
 
 ### [`RFC4302-3.4.3-4`](#rfc4302-3.4.3-4)
 
 If the ICV validation fails, the receiver MUST discard the received IP datagram as invalid. (§3.4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4302-3.4.3-4, so no unit is bound to it.
+No test carries RFC4302-3.4.3-4, so there is no linked test.
 
 ### [`RFC4302-3.4.3-5`](#rfc4302-3.4.3-5)
 
@@ -500,43 +511,43 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 However, if AH is incorporated into a system that supports auditing, then the AH implementation MUST also support auditing and MUST allow a system administrator to enable or disable auditing for AH. (§4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4302-4-1, so no unit is bound to it.
+No test carries RFC4302-4-1, so there is no linked test.
 
 ### [`RFC4302-5-1`](#rfc4302-5-1)
 
 Implementations that claim conformance or compliance with this specification MUST fully implement the AH syntax and processing described here for unicast traffic, and MUST comply with all requirements of the Security Architecture document [Ken-Arch]. (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4302-5-1, so no unit is bound to it.
+No test carries RFC4302-5-1, so there is no linked test.
 
 ### [`RFC4302-5-2`](#rfc4302-5-2)
 
 Additionally, if an implementation claims to support multicast traffic, it MUST comply with the additional requirements specified for support of such traffic. (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4302-5-2, so no unit is bound to it.
+No test carries RFC4302-5-2, so there is no linked test.
 
 ### [`RFC4302-A2-1`](#rfc4302-a2-1)
 
 Note that on the receive side, the IP implementation could leave a Fragmentation Extension Header in place when it does re-assembly. If this happens, then when AH receives the packet, before doing ICV processing, AH MUST "remove" (or skip over) this header and change the previous header's "Next Header" field to be the "Next Header" field in the Fragmentation Extension Header. (§A2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4302-A2-1, so no unit is bound to it.
+No test carries RFC4302-A2-1, so there is no linked test.
 
 ### [`RFC4302-A2-2`](#rfc4302-a2-2)
 
 Note that on the send side, the IP implementation could give the IPsec code a packet with a Fragmentation Extension Header with Offset of 0 (first fragment) and a More Fragments Flag of 0 (last fragment). If this happens, then before doing ICV processing, AH MUST first "remove" (or skip over) this header and change the previous header's "Next Header" field to be the "Next Header" field in the Fragmentation Extension Header. (§A2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4302-A2-2, so no unit is bound to it.
+No test carries RFC4302-A2-2, so there is no linked test.
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -556,61 +567,61 @@ No test carries RFC4302-A2-2, so no unit is bound to it.
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
 | `front` | not stated | 0 | skipped (front-matter) | Status of This Memo, Copyright Notice, Abstract and Table of Contents. |
-| `1` | not stated | 0 | walked | not stated |
-| `2` | not stated | 2 | walked | not stated |
-| `2.1` | not stated | 0 | walked | not stated |
-| `2.2` | not stated | 0 | walked | not stated |
-| `2.3` | not stated | 1 | walked | not stated |
-| `2.4` | not stated | 6 | walked | not stated |
-| `2.5` | not stated | 5 | walked | not stated |
-| `2.5.1` | not stated | 1 | walked | not stated |
-| `2.6` | not stated | 2 | walked | not stated |
-| `3` | not stated | 0 | walked | not stated |
-| `3.1` | not stated | 0 | walked | not stated |
-| `3.1.1` | not stated | 0 | walked | not stated |
-| `3.1.2` | not stated | 0 | walked | not stated |
-| `3.2` | not stated | 0 | walked | not stated |
-| `3.3` | not stated | 0 | walked | not stated |
-| `3.3.1` | not stated | 0 | walked | not stated |
-| `3.3.2` | not stated | 1 | walked | not stated |
-| `3.3.3` | not stated | 0 | walked | not stated |
-| `3.3.3.1` | not stated | 0 | walked | not stated |
-| `3.3.3.1.1` | not stated | 0 | walked | not stated |
-| `3.3.3.1.1.1` | not stated | 0 | walked | not stated |
-| `3.3.3.1.1.2` | not stated | 0 | walked | not stated |
-| `3.3.3.1.2` | not stated | 0 | walked | not stated |
-| `3.3.3.1.2.1` | not stated | 0 | walked | not stated |
-| `3.3.3.1.2.2` | not stated | 0 | walked | not stated |
-| `3.3.3.1.2.3` | not stated | 0 | walked | not stated |
-| `3.3.3.2` | not stated | 0 | walked | not stated |
-| `3.3.3.2.1` | not stated | 0 | walked | not stated |
-| `3.3.3.2.2` | not stated | 4 | walked | not stated |
-| `3.3.4` | not stated | 1 | walked | not stated |
-| `3.4` | not stated | 0 | walked | not stated |
-| `3.4.1` | not stated | 1 | walked | not stated |
-| `3.4.2` | not stated | 1 | walked | not stated |
-| `3.4.3` | not stated | 5 | walked | not stated |
-| `3.4.4` | not stated | 1 | walked | not stated |
-| `4` | not stated | 1 | walked | not stated |
-| `5` | not stated | 2 | walked | not stated |
+| `1` | not stated | 0 | reviewed | not stated |
+| `2` | not stated | 2 | reviewed | not stated |
+| `2.1` | not stated | 0 | reviewed | not stated |
+| `2.2` | not stated | 0 | reviewed | not stated |
+| `2.3` | not stated | 1 | reviewed | not stated |
+| `2.4` | not stated | 6 | reviewed | not stated |
+| `2.5` | not stated | 5 | reviewed | not stated |
+| `2.5.1` | not stated | 1 | reviewed | not stated |
+| `2.6` | not stated | 2 | reviewed | not stated |
+| `3` | not stated | 0 | reviewed | not stated |
+| `3.1` | not stated | 0 | reviewed | not stated |
+| `3.1.1` | not stated | 0 | reviewed | not stated |
+| `3.1.2` | not stated | 0 | reviewed | not stated |
+| `3.2` | not stated | 0 | reviewed | not stated |
+| `3.3` | not stated | 0 | reviewed | not stated |
+| `3.3.1` | not stated | 0 | reviewed | not stated |
+| `3.3.2` | not stated | 1 | reviewed | not stated |
+| `3.3.3` | not stated | 0 | reviewed | not stated |
+| `3.3.3.1` | not stated | 0 | reviewed | not stated |
+| `3.3.3.1.1` | not stated | 0 | reviewed | not stated |
+| `3.3.3.1.1.1` | not stated | 0 | reviewed | not stated |
+| `3.3.3.1.1.2` | not stated | 0 | reviewed | not stated |
+| `3.3.3.1.2` | not stated | 0 | reviewed | not stated |
+| `3.3.3.1.2.1` | not stated | 0 | reviewed | not stated |
+| `3.3.3.1.2.2` | not stated | 0 | reviewed | not stated |
+| `3.3.3.1.2.3` | not stated | 0 | reviewed | not stated |
+| `3.3.3.2` | not stated | 0 | reviewed | not stated |
+| `3.3.3.2.1` | not stated | 0 | reviewed | not stated |
+| `3.3.3.2.2` | not stated | 4 | reviewed | not stated |
+| `3.3.4` | not stated | 1 | reviewed | not stated |
+| `3.4` | not stated | 0 | reviewed | not stated |
+| `3.4.1` | not stated | 1 | reviewed | not stated |
+| `3.4.2` | not stated | 1 | reviewed | not stated |
+| `3.4.3` | not stated | 5 | reviewed | not stated |
+| `3.4.4` | not stated | 1 | reviewed | not stated |
+| `4` | not stated | 1 | reviewed | not stated |
+| `5` | not stated | 2 | reviewed | not stated |
 | `6` | not stated | 0 | skipped (appendix-non-normative) | Security Considerations: it discusses the assurance AH provides and states no obligation the extractor or this reviewer could find. |
 | `7` | not stated | 0 | skipped (appendix-non-normative) | Differences from RFC 2402: a change log against the document this one obsoletes. |
 | `8` | Acknowledgements | 0 | skipped (acknowledgements) | Acknowledgements. |
 | `9` | References | 0 | skipped (references) | References. |
 | `9.1` | Normative References | 0 | skipped (references) | Normative References. |
-| `9.2` | not stated | 0 | walked | not stated |
-| `A` | Appendix A | 0 | walked | Appendix A. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
-| `A1` | Appendix A1 | 0 | walked | Appendix A1. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
-| `A2` | Appendix A2 | 2 | walked | Appendix A2. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of section 9.2, where its 2 site(s) were walked; every decision is carried forward by its verbatim quote. |
-| `B` | Appendix B | 0 | walked | Appendix B. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
-| `B1` | Appendix B1 | 0 | walked | Appendix B1. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
-| `B2` | Appendix B2 | 0 | walked | Appendix B2. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
-| `B2.1` | Appendix B2.1 | 0 | walked | Appendix B2.1. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
-| `B2.2` | Appendix B2.2 | 0 | walked | Appendix B2.2. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
-| `B2.3` | Appendix B2.3 | 0 | walked | Appendix B2.3. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
-| `B3` | Appendix B3 | 0 | walked | Appendix B3. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
-| `B3.1` | Appendix B3.1 | 0 | walked | Appendix B3.1. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
-| `B3.2` | Appendix B3.2 | 0 | walked | Appendix B3.2. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `9.2` | not stated | 0 | reviewed | not stated |
+| `A` | Appendix A | 0 | reviewed | Appendix A. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `A1` | Appendix A1 | 0 | reviewed | Appendix A1. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `A2` | Appendix A2 | 2 | reviewed | Appendix A2. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of section 9.2, where its 2 site(s) were walked; every decision is carried forward by its verbatim quote. |
+| `B` | Appendix B | 0 | reviewed | Appendix B. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `B1` | Appendix B1 | 0 | reviewed | Appendix B1. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `B2` | Appendix B2 | 0 | reviewed | Appendix B2. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `B2.1` | Appendix B2.1 | 0 | reviewed | Appendix B2.1. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `B2.2` | Appendix B2.2 | 0 | reviewed | Appendix B2.2. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `B2.3` | Appendix B2.3 | 0 | reviewed | Appendix B2.3. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `B3` | Appendix B3 | 0 | reviewed | Appendix B3. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `B3.1` | Appendix B3.1 | 0 | reviewed | Appendix B3.1. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
+| `B3.2` | Appendix B3.2 | 0 | reviewed | Appendix B3.2. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved. |
 
 ### Excluded sentences
 

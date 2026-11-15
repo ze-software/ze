@@ -1,6 +1,6 @@
 # DRAFT-IETF-SIDROPS-ASPA-VERIFICATION - BGP AS_PATH Verification Based on Autonomous System Provider Authorization (ASPA) Objects
 
-ASPA path verification. Every requirement this repository extracted from DRAFT-IETF-SIDROPS-ASPA-VERIFICATION, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+ASPA path verification. Every requirement listed for DRAFT-IETF-SIDROPS-ASPA-VERIFICATION, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,24 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 9 | of 10 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0 | of 10 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 10 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 10 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 19 | 19 of 23 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-
-### Neutral
-
-measures that are neither good news nor bad
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Gated MUSTs | 10 | of 20 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 10 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 10 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 10 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 10 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 10 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Tested both ways | 9 | of 10 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0 | of 10 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 10 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 10 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Tests shown to detect a fault | 19 | 19 of 23 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -35,54 +22,74 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 1 | of 10 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Declared gap or no test | 1 | of 10 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 
-The 9 counts marked as a part above are the whole of the 10 gated MUSTs: they add up to 10. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Neutral
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+measures that are neither good news nor bad
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Out of scope | 0 | of 10 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 10 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 10 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 10 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 10 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+
+### Totals
+
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 10 | of 20 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 10 mandatory requirements: they add up to 10. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | ASPA path verification |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 20 |
-| Gated MUST-level | 10 |
+| Mandatory requirements (MUST level) | 10 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 1 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 23 |
-| Tagged units | 23 |
+| Tests linked to requirements | 23 |
 | Recorded audit verdicts | 5 |
-| Discrimination records | 19 |
+| Fault test records | 19 |
 | Summary | `rfc/short/draft-ietf-sidrops-aspa-verification.md` |
-| Requirement shard | `rfc/requirements/draft-ietf-sidrops-aspa-verification.md` |
+| Requirement table | `rfc/requirements/draft-ietf-sidrops-aspa-verification.md` |
 | RFC text | `rfc/drafts/draft-ietf-sidrops-aspa-verification.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: Router-verification requirements follow the cached revision 28. ASPA registration and AS-migration duties remain separate from router verification.
+Included in automatic checks: Router-verification requirements follow the cached revision 28. ASPA registration and AS-migration duties remain separate from router verification.
 
-## What the public ledger says
+## Published support status
 
 **Area:** ASPA path verification
 
@@ -97,14 +104,14 @@ Enrolled: Router-verification requirements follow the cached revision 28. ASPA r
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 9 | one part of the gated population |
-| Annotated (including scoped evidence) | 1 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **10** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 9 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 1 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **10** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (9):** [`DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-4-1`](#draft-ietf-sidrops-aspa-verification-4-1), [`DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-1`](#draft-ietf-sidrops-aspa-verification-5.1-1), [`DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-1`](#draft-ietf-sidrops-aspa-verification-5.4-1), [`DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-2`](#draft-ietf-sidrops-aspa-verification-5.4-2), [`DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.5-1`](#draft-ietf-sidrops-aspa-verification-5.5-1), [`DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-5`](#draft-ietf-sidrops-aspa-verification-5.6-5), [`DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-1`](#draft-ietf-sidrops-aspa-verification-5.6-1), [`DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.2-1`](#draft-ietf-sidrops-aspa-verification-6.2-1), [`DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.2-2`](#draft-ietf-sidrops-aspa-verification-6.2-2)
 
@@ -112,20 +119,23 @@ Enrolled: Router-verification requirements follow the cached revision 28. ASPA r
 
 ## Figures
 
-- **MUST bar**: Ze proven 8, Ze correctness gap 2
-- **Overview bar**: Ze MUST proven 8, SHOULD not decided 10, Ze correctness gap 2
+- **MUST bar**: Ze proven 8, Proof pending 1, Not built 1
+- **Overview bar**: Ze MUST proven 8, Proof pending 1, Not assessed 10, Not built 1
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 10 |
 | MUST rows kept (the MUST bar) | 10 |
 | Ze proven | 8 |
 | OS verified | 0 |
+| Proof pending | 1 |
 | OS testing gap | 0 |
-| Ze correctness gap | 2 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 1 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -138,11 +148,12 @@ Enrolled: Router-verification requirements follow the cached revision 28. ASPA r
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 10 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 10 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/draft-ietf-sidrops-aspa-verification.json](../../../data/rfc/draft-ietf-sidrops-aspa-verification.json).
 
@@ -157,7 +168,7 @@ Source: [data/rfc/draft-ietf-sidrops-aspa-verification.json](../../../data/rfc/d
 | `DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-2` | If the AS_PATH has an AS_SET, then the procedure halts with the outcome "Invalid" (Section 5.5; Section 5.6) | MUST | 5.5 | **positive:** `unit/verify` [`TestASPAVerifyASSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_test.go#L56). **negative:** `unit/verify` [`TestASPAStateForPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_test.go#L180) |
 | `DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.5-1` | If the receiving AS is not an RS-client and the most recently added AS in the AS_PATH does not match the neighbor AS, then the procedure halts with the outcome "Invalid". (§5.5) | MUST | 5.5 | **positive:** `unit/verify` [`TestASPAASTransNeighborUnconfirmed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_as_trans_neighbor_test.go#L116). **negative:** `unit/verify` [`TestASPAASTransNeighborFirstASIsASTrans`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_as_trans_neighbor_test.go#L200). **negative:** `unit/verify` [`TestASPAASTransNeighborRSClientExempt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_as_trans_neighbor_test.go#L242) |
 | `DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-5` | If the most recently added AS in the AS_PATH does not match the neighbor AS, then the procedure halts with the outcome "Invalid". (§5.6) | MUST | 5.6 | **positive:** `unit/verify` [`TestASPAASTransNeighborDownstreamUnconfirmed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_as_trans_neighbor_test.go#L261). **negative:** `unit/verify` [`TestASPAASTransNeighborDownstreamConfirmed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_as_trans_neighbor_test.go#L286) |
-| `DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-1` | If the AS_PATH is determined to be Invalid, then the route SHOULD be considered ineligible for route selection (see Section 3) and MUST be kept in the Adj-RIB-In for potential future re-evaluation (see [RFC9324]). (§5.7) | MUST | 5.7 | **positive:** `unit/verify` [`TestASPARetainedPathReplayRecovery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L65). **positive:** `unit/verify` [`TestASPARetentionReceiveRecovery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L206). **negative:** `unit/verify` [`TestASPARetainedPathReplayRecovery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L68). **negative:** `unit/verify` [`TestASPARetentionReplacementWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L255) |
+| `DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-1` | If the AS_PATH is determined to be Invalid, then the route SHOULD be considered ineligible for route selection (see Section 3) and MUST be kept in the Adj-RIB-In for potential future re-evaluation (see [RFC9324]). (§5.7) | MUST | 5.7 | **positive:** `unit/verify` [`TestASPARetainedPathReplayRecovery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L65). **positive:** `unit/verify` [`TestASPARetentionReceiveRecovery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L210). **negative:** `unit/verify` [`TestASPARetainedPathReplayRecovery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L68). **negative:** `unit/verify` [`TestASPARetentionReplacementWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L259) |
 | `DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.2-1` | The verification procedures described in this document MUST be applied to BGP routes with {AFI, SAFI} combinations {AFI 1 (IPv4), SAFI 1} and {AFI 2 (IPv6), SAFI 1} [IANA-AF] [IANA-SAF]. (Section 6.2) | MUST | 6.2 - The two uppercase MUST sites retain their AFI/SAFI IDs | **positive:** `unit/verify` [`TestASPAAppliesToIPv6Unicast`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go#L110). **negative:** `unit/verify` [`TestASPAAppliesToIPv4Unicast`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go#L132) |
 | `DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.2-2` | The procedures MUST NOT be applied to other address families by default (Section 6.2) | MUST NOT | 6.2 - The two uppercase MUST sites retain their AFI/SAFI IDs | **positive:** `unit/verify` [`TestASPAAppliesToIPv6Unicast`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go#L111). **negative:** `unit/verify` [`TestASPANotAppliedToOtherFamilies`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go#L165) |
 | `DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-2` | If the AS_PATH is determined to be Invalid, then the route SHOULD be considered ineligible for route selection (Section 5.7) | SHOULD | 5.7 | **positive:** no positive test. **negative:** no negative test |
@@ -179,7 +190,7 @@ Source: [data/rfc/draft-ietf-sidrops-aspa-verification.json](../../../data/rfc/d
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-4-1`](#draft-ietf-sidrops-aspa-verification-4-1)
 
@@ -198,9 +209,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 If the aforementioned AS_PATH checks and error handling are implemented, they MUST be applied prior to ASPA verification. (Section 5.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-2, so no unit is bound to it.
+No test carries DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-2, so there is no linked test.
 
 ### [`DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-1`](#draft-ietf-sidrops-aspa-verification-5.1-1)
 
@@ -228,7 +239,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 If the AS_PATH has an AS_SET, then the procedure halts with the outcome "Invalid" (Section 5.5; Section 5.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -239,7 +250,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If the receiving AS is not an RS-client and the most recently added AS in the AS_PATH does not match the neighbor AS, then the procedure halts with the outcome "Invalid". (§5.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -251,7 +262,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If the most recently added AS in the AS_PATH does not match the neighbor AS, then the procedure halts with the outcome "Invalid". (§5.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -267,9 +278,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestASPARetainedPathReplayRecovery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L68) | unit/verify | unproven |
-| negative | [`TestASPARetentionReplacementWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L255) | unit/verify | unproven |
+| negative | [`TestASPARetentionReplacementWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L259) | unit/verify | unproven |
 | positive | [`TestASPARetainedPathReplayRecovery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L65) | unit/verify | unproven |
-| positive | [`TestASPARetentionReceiveRecovery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L206) | unit/verify | unproven |
+| positive | [`TestASPARetentionReceiveRecovery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L210) | unit/verify | unproven |
 
 ### [`DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.2-1`](#draft-ietf-sidrops-aspa-verification-6.2-1)
 
@@ -286,14 +297,14 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 The procedures MUST NOT be applied to other address families by default (Section 6.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestASPANotAppliedToOtherFamilies`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go#L165) | unit/verify | revert, verified |
 | positive | [`TestASPAAppliesToIPv6Unicast`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go#L111) | unit/verify | revert, verified |
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -313,42 +324,42 @@ Audit verdict: not audited: no reader has judged these tests
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
 | `front` | not stated | 0 | skipped (front-matter) | Abstract, draft status, copyright and table of contents; no router-verification obligation. |
-| `1` | not stated | 0 | walked | Introduction describes threats and the purpose of the procedures; it adds no distinct checklist obligation. |
-| `2` | not stated | 0 | walked | BCP 14 keyword interpretation boilerplate; no operational requirement. |
-| `3` | not stated | 0 | walked | Terminology defines route ineligibility, CAS, PAS, SPAS and local peering relationships used by the later algorithms. |
-| `4` | not stated | 4 | walked | The indicative verification rule retained under 4-1 is: "Normally, a SPAS (see Section 3) is not expected to contain both an AS 0 and other Provider ASes, but an unexpected presence of AS 0 has no influence on the AS_PATH verification procedures (see Section 5.3, Section 5)." It carries no uppercase MUST, so it is declared here rather than mapped to a registration site. The uppercase registration sites bind the separate registrar. The SHOULDs to register an ASPA, use a single object, enforce that practice in CA hosting software and keep registries identical, plus the RECOMMENDED advance inclusion of standby providers, likewise address registration/CA operations. Revision 28 omits revision 27's AS0-registration MUST, so old site 4:5 has no current counterpart. |
-| `5` | not stated | 0 | walked | The procedures apply to four-octet-compatible speakers and use the reconstructed AS_PATH when AS_PATH and AS4_PATH arrive together. This input definition is retained in the summary's prerequisite discussion. Former section-5 neighbor-check SHOULD and mismatch SHALL sentences are absent; their allocated IDs are source-level conflicts documented in aspa-metadata-migration.json, not assigned to unrelated current sites. |
-| `5.1` | not stated | 2 | walked | The AS_SET treat-as-withdraw MUST is attributed to RFC 9774/RFC 7606. The draft's own MUST is: "If the aforementioned AS_PATH checks and error handling are implemented, they MUST be applied prior to ASPA verification." This is DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-2. The neighbor-AS check is described with the transparent route-server exception and attributed to RFC 4271/RFC 7606. The following sentence describes ASPA Invalid if the prerequisites are not enforced; it does not restate the former unconditional SHALL. |
-| `5.2` | not stated | 0 | walked | The compression definition retains 5.1-1: "Let the sequence COMPRESSED_AS_PATH {AS(N), AS(N-1),..., AS(2), AS(1)} represent the AS_PATH after removing consecutive duplicate ASNs, where AS(1) is the origin AS, and AS(N) is the most recently added neighbor AS of the receiving/verifying AS." The definition is indicative prose. The section also defines the ramp topology and apex separation used by the formal algorithms. |
-| `5.3` | not stated | 0 | walked | Defines the union of cryptographically valid ASPA provider sets and the Provider+, Not Provider+ and No Attestation results. The summary retains the function table and the restriction that No Attestation means no retrieved or cryptographically valid ASPA. |
-| `5.4` | not stated | 0 | walked | Defines maximum/minimum up-ramp and down-ramp lengths and their Invalid/Unknown/Valid bounds; the summary's ramp table and algorithm steps retain these indicative rules. This is not the current source of the permanently allocated 5.4-1 and 5.4-2 IDs. |
-| `5.5` | not stated | 0 | walked | The role obligation retaining 5.4-1 reads: "The upstream verification algorithm described here is applied when a route is received from a Customer or Peer, or is received by an RS from an RS-client, or is received by an RS-client from an RS." Step 3 retains 5.4-2: "If the AS_PATH has an AS_SET, then the procedure halts with the outcome "Invalid"." Both are indicative algorithm rules. Empty path, neighbor mismatch with the RS-client exception, ramp denial, missing attestation and the Valid fallback are retained in the summary's upstream algorithm. |
-| `5.6` | not stated | 0 | walked | Downstream applies to a route from a Provider and uses both ramps. Step 3 repeats the AS_SET Invalid obligation already recorded as DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-2 under section 5.5; no duplicate requirement is allocated. Step 2, the neighbor-AS mismatch with no RS-client exception, is the indicative algorithm rule DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-5; the upstream step 2 with its RS-client exception is 5.5-1. The summary retains all downstream steps. This is not the source of the old mitigation IDs 5.6-1 to 5.6-4. |
-| `5.7` | not stated | 1 | walked | The MUST-bearing Invalid sentence maps to retained ID 5.6-1, and also says the route "SHOULD be considered ineligible for route selection" (5.6-2). The same paragraph is one inventory site, so the SHOULD has no separate mapping. The other advisory rows come from: "When a route is evaluated as Unknown (using ASPA-based AS_PATH verification), it SHOULD be treated at the same preference level as a route evaluated as Valid." (5.6-3), and "However, the following mitigation policy is RECOMMENDED." (5.6-4), preceded by operator discretion over the specific policy configuration. |
-| `6` | Introduces deployment recommendations | 0 | walked | Introduces deployment recommendations. |
-| `6.1` | not stated | 0 | walked | Links illustrative verification examples; no additional normative requirement. |
-| `6.2` | The two uppercase MUST sites retain their AFI/SAFI IDs | 2 | walked | The two uppercase MUST sites retain their AFI/SAFI IDs. The advisory row reads: "However, the procedures are NOT RECOMMENDED for use on internal BGP (iBGP) sessions or eBGP sessions internal to an AS Confederation." The ingress placement and external Confederation boundary context are retained. |
-| `6.3` | not stated | 0 | walked | 6.3-1: "The BGP Role configuration parameter and its cross-check in BGP OPEN message as specified in [RFC9234] are RECOMMENDED." 6.3-2: "The configured BGP Roles SHOULD be used to automate the use of the above-described AS_PATH verification procedures helping to distinguish whether upstream or downstream procedures should be applied." Both are advisory and outside the uppercase MUST inventory. |
-| `6.4` | not stated | 0 | walked | 6.4-1: "If multiple eBGP sessions can segregate the Complex peering relationship into eBGP sessions with normal peering relationships, the receiving/verifying AS SHOULD select the algorithm (per Section 5.5 or Section 5.6) for each of the normal sessions based on its peering relation type." For a relation that cannot be segregated and where the described per-prefix option is infeasible, 6.4-2 reads: "If this option is not feasible, then an operator MAY apply the algorithm for downstream paths (Section 5.6) to avoid false positive outcomes." |
-| `6.5` | not stated | 1 | walked | The migration notification MUST binds the AS operator's customer-notification process, as classified at 6.5:1. |
-| `6.6` | not stated | 0 | walked | The advisory requirement reads: "For any route with an Invalid AS_PATH, the cause of the Invalid state SHOULD be logged for monitoring and diagnostic purposes." The following prose suggests listing Not Provider+ hops and warns that the logging router cannot necessarily identify the leak's author. |
-| `7` | not stated | 0 | walked | Security considerations heading; substantive text follows in subsections. |
-| `7.1` | not stated | 0 | walked | Explains the cross-family permissiveness caused by a single union of IPv4 and IPv6 providers; retained in the summary. |
-| `7.2` | not stated | 0 | walked | Operational advice to maintain correct ASPAs and monitor customer SPAS membership; explains reduced detection or false Invalid caused by erroneous provider sets. The lowercase modals add no uppercase requirement site. |
-| `7.3` | not stated | 0 | walked | Describes provider-origin/path manipulation that ASPA may not detect and its operational consequences; no new verification rule. |
-| `7.4` | not stated | 0 | walked | ASPA cannot detect added or removed prepends, but that change alone does not affect route-leak detection. It does not authorise removing non-consecutive repeats. |
-| `8` | Relation-to-other-technologies heading | 0 | walked | Relation-to-other-technologies heading. |
-| `8.1` | Explains complementary origin verification with ROAs | 0 | walked | Explains complementary origin verification with ROAs. |
-| `8.2` | not stated | 0 | walked | Explains complementary cryptographic path protection with BGPsec; no ASPA requirement added. |
-| `8.3` | not stated | 0 | walked | Compares ASPA with Peerlock; descriptive text adds no distinct algorithm obligation. |
-| `8.4` | not stated | 0 | walked | The advisory requirement reads: "The implementation of the procedures utilizing the OTC Attribute is RECOMMENDED to complement the ASPA-based AS_PATH verification." It follows the limitations on preventing locally initiated leaks and detecting leaks through Complex relationships. |
+| `1` | not stated | 0 | reviewed | Introduction describes threats and the purpose of the procedures; it adds no distinct checklist obligation. |
+| `2` | not stated | 0 | reviewed | BCP 14 keyword interpretation boilerplate; no operational requirement. |
+| `3` | not stated | 0 | reviewed | Terminology defines route ineligibility, CAS, PAS, SPAS and local peering relationships used by the later algorithms. |
+| `4` | not stated | 4 | reviewed | The indicative verification rule retained under 4-1 is: "Normally, a SPAS (see Section 3) is not expected to contain both an AS 0 and other Provider ASes, but an unexpected presence of AS 0 has no influence on the AS_PATH verification procedures (see Section 5.3, Section 5)." It carries no uppercase MUST, so it is declared here rather than mapped to a registration site. The uppercase registration sites bind the separate registrar. The SHOULDs to register an ASPA, use a single object, enforce that practice in CA hosting software and keep registries identical, plus the RECOMMENDED advance inclusion of standby providers, likewise address registration/CA operations. Revision 28 omits revision 27's AS0-registration MUST, so old site 4:5 has no current counterpart. |
+| `5` | not stated | 0 | reviewed | The procedures apply to four-octet-compatible speakers and use the reconstructed AS_PATH when AS_PATH and AS4_PATH arrive together. This input definition is retained in the summary's prerequisite discussion. Former section-5 neighbor-check SHOULD and mismatch SHALL sentences are absent; their allocated IDs are source-level conflicts documented in aspa-metadata-migration.json, not assigned to unrelated current sites. |
+| `5.1` | not stated | 2 | reviewed | The AS_SET treat-as-withdraw MUST is attributed to RFC 9774/RFC 7606. The draft's own MUST is: "If the aforementioned AS_PATH checks and error handling are implemented, they MUST be applied prior to ASPA verification." This is DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-2. The neighbor-AS check is described with the transparent route-server exception and attributed to RFC 4271/RFC 7606. The following sentence describes ASPA Invalid if the prerequisites are not enforced; it does not restate the former unconditional SHALL. |
+| `5.2` | not stated | 0 | reviewed | The compression definition retains 5.1-1: "Let the sequence COMPRESSED_AS_PATH {AS(N), AS(N-1),..., AS(2), AS(1)} represent the AS_PATH after removing consecutive duplicate ASNs, where AS(1) is the origin AS, and AS(N) is the most recently added neighbor AS of the receiving/verifying AS." The definition is indicative prose. The section also defines the ramp topology and apex separation used by the formal algorithms. |
+| `5.3` | not stated | 0 | reviewed | Defines the union of cryptographically valid ASPA provider sets and the Provider+, Not Provider+ and No Attestation results. The summary retains the function table and the restriction that No Attestation means no retrieved or cryptographically valid ASPA. |
+| `5.4` | not stated | 0 | reviewed | Defines maximum/minimum up-ramp and down-ramp lengths and their Invalid/Unknown/Valid bounds; the summary's ramp table and algorithm steps retain these indicative rules. This is not the current source of the permanently allocated 5.4-1 and 5.4-2 IDs. |
+| `5.5` | not stated | 0 | reviewed | The role obligation retaining 5.4-1 reads: "The upstream verification algorithm described here is applied when a route is received from a Customer or Peer, or is received by an RS from an RS-client, or is received by an RS-client from an RS." Step 3 retains 5.4-2: "If the AS_PATH has an AS_SET, then the procedure halts with the outcome "Invalid"." Both are indicative algorithm rules. Empty path, neighbor mismatch with the RS-client exception, ramp denial, missing attestation and the Valid fallback are retained in the summary's upstream algorithm. |
+| `5.6` | not stated | 0 | reviewed | Downstream applies to a route from a Provider and uses both ramps. Step 3 repeats the AS_SET Invalid obligation already recorded as DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-2 under section 5.5; no duplicate requirement is allocated. Step 2, the neighbor-AS mismatch with no RS-client exception, is the indicative algorithm rule DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-5; the upstream step 2 with its RS-client exception is 5.5-1. The summary retains all downstream steps. This is not the source of the old mitigation IDs 5.6-1 to 5.6-4. |
+| `5.7` | not stated | 1 | reviewed | The MUST-bearing Invalid sentence maps to retained ID 5.6-1, and also says the route "SHOULD be considered ineligible for route selection" (5.6-2). The same paragraph is one inventory site, so the SHOULD has no separate mapping. The other advisory rows come from: "When a route is evaluated as Unknown (using ASPA-based AS_PATH verification), it SHOULD be treated at the same preference level as a route evaluated as Valid." (5.6-3), and "However, the following mitigation policy is RECOMMENDED." (5.6-4), preceded by operator discretion over the specific policy configuration. |
+| `6` | Introduces deployment recommendations | 0 | reviewed | Introduces deployment recommendations. |
+| `6.1` | not stated | 0 | reviewed | Links illustrative verification examples; no additional normative requirement. |
+| `6.2` | The two uppercase MUST sites retain their AFI/SAFI IDs | 2 | reviewed | The two uppercase MUST sites retain their AFI/SAFI IDs. The advisory row reads: "However, the procedures are NOT RECOMMENDED for use on internal BGP (iBGP) sessions or eBGP sessions internal to an AS Confederation." The ingress placement and external Confederation boundary context are retained. |
+| `6.3` | not stated | 0 | reviewed | 6.3-1: "The BGP Role configuration parameter and its cross-check in BGP OPEN message as specified in [RFC9234] are RECOMMENDED." 6.3-2: "The configured BGP Roles SHOULD be used to automate the use of the above-described AS_PATH verification procedures helping to distinguish whether upstream or downstream procedures should be applied." Both are advisory and outside the uppercase MUST inventory. |
+| `6.4` | not stated | 0 | reviewed | 6.4-1: "If multiple eBGP sessions can segregate the Complex peering relationship into eBGP sessions with normal peering relationships, the receiving/verifying AS SHOULD select the algorithm (per Section 5.5 or Section 5.6) for each of the normal sessions based on its peering relation type." For a relation that cannot be segregated and where the described per-prefix option is infeasible, 6.4-2 reads: "If this option is not feasible, then an operator MAY apply the algorithm for downstream paths (Section 5.6) to avoid false positive outcomes." |
+| `6.5` | not stated | 1 | reviewed | The migration notification MUST binds the AS operator's customer-notification process, as classified at 6.5:1. |
+| `6.6` | not stated | 0 | reviewed | The advisory requirement reads: "For any route with an Invalid AS_PATH, the cause of the Invalid state SHOULD be logged for monitoring and diagnostic purposes." The following prose suggests listing Not Provider+ hops and warns that the logging router cannot necessarily identify the leak's author. |
+| `7` | not stated | 0 | reviewed | Security considerations heading; substantive text follows in subsections. |
+| `7.1` | not stated | 0 | reviewed | Explains the cross-family permissiveness caused by a single union of IPv4 and IPv6 providers; retained in the summary. |
+| `7.2` | not stated | 0 | reviewed | Operational advice to maintain correct ASPAs and monitor customer SPAS membership; explains reduced detection or false Invalid caused by erroneous provider sets. The lowercase modals add no uppercase requirement site. |
+| `7.3` | not stated | 0 | reviewed | Describes provider-origin/path manipulation that ASPA may not detect and its operational consequences; no new verification rule. |
+| `7.4` | not stated | 0 | reviewed | ASPA cannot detect added or removed prepends, but that change alone does not affect route-leak detection. It does not authorise removing non-consecutive repeats. |
+| `8` | Relation-to-other-technologies heading | 0 | reviewed | Relation-to-other-technologies heading. |
+| `8.1` | Explains complementary origin verification with ROAs | 0 | reviewed | Explains complementary origin verification with ROAs. |
+| `8.2` | not stated | 0 | reviewed | Explains complementary cryptographic path protection with BGPsec; no ASPA requirement added. |
+| `8.3` | not stated | 0 | reviewed | Compares ASPA with Peerlock; descriptive text adds no distinct algorithm obligation. |
+| `8.4` | not stated | 0 | reviewed | The advisory requirement reads: "The implementation of the procedures utilizing the OTC Attribute is RECOMMENDED to complement the ASPA-based AS_PATH verification." It follows the limitations on preventing locally initiated leaks and detecting leaks through Complex relationships. |
 | `9` | not stated | 0 | skipped (iana) | The section states that the document includes no request to IANA. |
-| `10` | not stated | 0 | walked | Describes third-party implementation reports under RFC 7942 and expressly disclaims independent verification. These reports supply no Ze execution evidence. |
+| `10` | not stated | 0 | reviewed | Describes third-party implementation reports under RFC 7942 and expressly disclaims independent verification. These reports supply no Ze execution evidence. |
 | `11` | Reference-list heading | 0 | skipped (references) | Reference-list heading. |
 | `11.1` | not stated | 0 | skipped (references) | Normative bibliography; titles and dates are not router requirements. |
 | `11.2` | Informative bibliography | 0 | skipped (references) | Informative bibliography. |
 | `A` | Acknowledges contributors | 0 | skipped (acknowledgements) | Acknowledges contributors. |
-| `B` | not stated | 0 | walked | Explains route-leak, forged-origin and forged-segment detection properties and assumptions during partial deployment; introduces no new procedure. Authors' addresses follow without a numbered heading. |
+| `B` | not stated | 0 | reviewed | Explains route-leak, forged-origin and forged-segment detection properties and assumptions during partial deployment; introduces no new procedure. Authors' addresses follow without a numbered heading. |
 
 ### Excluded sentences
 

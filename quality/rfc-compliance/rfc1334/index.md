@@ -1,6 +1,6 @@
 # RFC 1334 - PPP Authentication Protocols
 
-PAP. Every requirement this repository extracted from RFC 1334, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+PAP. Every requirement listed for RFC 1334, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,12 +10,12 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 13 | of 13 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0 | of 13 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 13 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 13 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| No test at all | 0 | of 13 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 34 | 34 of 34 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 13 | of 13 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0 | of 13 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 13 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 13 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Declared gap or no test | 0 | of 13 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Tests shown to detect a fault | 30 | 30 of 34 tests linked to requirements, 0 without a fault test and 4 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Neutral
 
@@ -23,65 +23,72 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 13 | of 16 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 13 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 13 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 13 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 13 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 13 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Out of scope | 0 | of 13 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 13 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 13 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 13 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 13 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
 
-The 9 counts marked as a part above are the whole of the 13 gated MUSTs: they add up to 13. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Totals
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 13 | of 16 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 13 mandatory requirements: they add up to 13. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | ok | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | PAP |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 16 |
-| Gated MUST-level | 13 |
+| Mandatory requirements (MUST level) | 13 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 34 |
-| Tagged units | 34 |
+| Tests linked to requirements | 34 |
 | Recorded audit verdicts | 10 |
-| Discrimination records | 34 |
+| Fault test records | 34 |
 | Summary | `rfc/short/rfc1334.md` |
-| Requirement shard | `rfc/requirements/rfc1334.md` |
+| Requirement table | `rfc/requirements/rfc1334.md` |
 | RFC text | `rfc/full/rfc1334.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: PAP and LCP authentication are implemented by the shared PPP authenticator and PPPoE client. PAP Authenticate-Request retries, changing Identifiers, matching reply validation and post-authentication reanswers are implemented with regression tests, and each of their tags carries a discrimination record in `rfc/discrimination/rfc1334/` (2026-10-09).
+Included in automatic checks: PAP and LCP authentication are implemented by the shared PPP authenticator and PPPoE client. PAP Authenticate-Request retries, changing Identifiers, matching reply validation and post-authentication reanswers are implemented with regression tests, and each of their tags carries a discrimination record in `rfc/discrimination/rfc1334/` (2026-10-09).
 
-## What the public ledger says
+## Published support status
 
 **Area:** PAP
 
-**Proof:** 13 of 13 MUST proven
+**Proof:** 12 of 13 MUST proven
 
-**Evidence:** unit 13
+**Evidence:** unit 12
 
 **Unmet:** -
 
@@ -90,33 +97,36 @@ Enrolled: PAP and LCP authentication are implemented by the shared PPP authentic
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 13 | one part of the gated population |
-| Annotated (including scoped evidence) | 0 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **13** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 13 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 0 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **13** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (13):** [`RFC1334-1-1`](#rfc1334-1-1), [`RFC1334-x-1`](#rfc1334-x-1), [`RFC1334-2.3-1`](#rfc1334-2.3-1), [`RFC1334-2.3-2`](#rfc1334-2.3-2), [`RFC1334-2.2.1-1`](#rfc1334-2.2.1-1), [`RFC1334-2.2.1-2`](#rfc1334-2.2.1-2), [`RFC1334-2.2.1-3`](#rfc1334-2.2.1-3), [`RFC1334-2.2.1-4`](#rfc1334-2.2.1-4), [`RFC1334-2.2.1-5`](#rfc1334-2.2.1-5), [`RFC1334-2.2.1-6`](#rfc1334-2.2.1-6), [`RFC1334-2.2-1`](#rfc1334-2.2-1), [`RFC1334-2.3-3`](#rfc1334-2.3-3), [`RFC1334-2.3-4`](#rfc1334-2.3-4)
 
 ## Figures
 
-- **MUST bar**: Ze proven 13
-- **Overview bar**: Ze MUST proven 13, SHOULD not decided 3
+- **MUST bar**: Ze proven 12, Proof pending 1
+- **Overview bar**: Ze MUST proven 12, Proof pending 1, Not assessed 3
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 13 |
 | MUST rows kept (the MUST bar) | 13 |
-| Ze proven | 13 |
+| Ze proven | 12 |
 | OS verified | 0 |
+| Proof pending | 1 |
 | OS testing gap | 0 |
-| Ze correctness gap | 0 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 0 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -129,11 +139,12 @@ Enrolled: PAP and LCP authentication are implemented by the shared PPP authentic
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 3 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 3 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc1334.json](../../../data/rfc/rfc1334.json).
 
@@ -141,7 +152,7 @@ Source: [data/rfc/rfc1334.json](../../../data/rfc/rfc1334.json).
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC1334-1-1` | If authentication of the link is desired, an implementation MUST specify the Authentication-Protocol Configuration Option during Link Establishment phase. (Section 1) | MUST | 1 | **positive:** `unit/verify` [`TestLocalCONFREQAdvertisesAuthMethod`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_dispatch_test.go#L678). **negative:** `unit/verify` [`TestAuthProtoRejectClearsMethod`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_dispatch_test.go#L148) |
+| `RFC1334-1-1` | If authentication of the link is desired, an implementation MUST specify the Authentication-Protocol Configuration Option during Link Establishment phase. (Section 1) | MUST | 1 | **positive:** `unit/verify` [`TestLocalCONFREQAdvertisesAuthMethod`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_dispatch_test.go#L685). **negative:** `unit/verify` [`TestAuthProtoRejectClearsMethod`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_dispatch_test.go#L148) |
 | `RFC1334-x-1` | Any implementations which include a stronger authentication method (such as CHAP, described below) MUST offer to negotiate that method prior to PAP. (§2) | MUST | 2 | **positive:** `unit/verify` [`TestAuthAllowSelectionMatrix`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_policy_driver_test.go#L33). **positive:** `unit/verify` [`TestAuthOffersCHAPBeforePAP`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_clauses_test.go#L49). **positive:** `unit/verify` [`TestConfiguredPAPStillOffersCHAPFirst`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_clauses_test.go#L98). **positive:** `unit/verify` [`TestInitialAuthMethodCHAPBeforePAPWhateverOrder`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_auth_test.go#L273). **negative:** `unit/verify` [`TestAuthAllowSelectionMatrix`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_policy_driver_test.go#L34). **negative:** `unit/verify` [`TestAuthOffersCHAPBeforePAP`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_clauses_test.go#L50). **negative:** `unit/verify` [`TestConfiguredPAPStillOffersCHAPFirst`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_clauses_test.go#L99). **negative:** `unit/verify` [`TestSelectAuthFallback`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_auth_test.go#L122) |
 | `RFC1334-2.3-1` | If the Peer-ID/Password pair received in an Authenticate-Request is both recognizable and acceptable, then the authenticator MUST transmit a PAP packet with the Code field set to 2 (Authenticate- Ack). (Section 2.2.2) | MUST | 2.2.2 | **positive:** `unit/verify` [`TestPAPRequestEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L293). **negative:** `unit/verify` [`TestPAPRejectWritesNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L411) |
 | `RFC1334-2.3-2` | If the Peer-ID/Password pair received in a Authenticate-Request is not recognizable or acceptable, then the authenticator MUST transmit a PAP packet with the Code field set to 3 (Authenticate- Nak) (§2.2.2) | MUST | 2.2.2 | **positive:** `unit/verify` [`TestPAPRejectWritesNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L407). **negative:** `unit/verify` [`TestPAPRequestEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L297) |
@@ -160,39 +171,39 @@ Source: [data/rfc/rfc1334.json](../../../data/rfc/rfc1334.json).
 
 ## Gaps and untested MUSTs
 
-RFC 1334 declares no gap, and every gated MUST it carries has a test bound to it.
+RFC 1334 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC1334-1-1`](#rfc1334-1-1)
 
 If authentication of the link is desired, an implementation MUST specify the Authentication-Protocol Configuration Option during Link Establishment phase. (Section 1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-read after both units gained AuthFallbackOrder pinned to the configured method (the RFC 1334 Section 2 fix would otherwise put CHAP first); the asserted behaviour is unchanged. TestLocalCONFREQAdvertisesAuthMethod asserts the Auth-Protocol option and its value in the first driver CONFREQ; TestAuthProtoRejectClearsMethod asserts it is absent once the peer Rejects it and authentication is no longer desired. Both observed red under recorded breaks (authMethodToLCPOptions, adjustAuthOnNakOrReject).
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/ppp/auth_dispatch_test.go::TestAuthProtoRejectClearsMethod, internal/component/l2tp/ppp/auth_dispatch_test.go::TestLocalCONFREQAdvertisesAuthMethod moved. Re-read after both units gained AuthFallbackOrder pinned to the configured method (the RFC 1334 Section 2 fix would otherwise put CHAP first); the asserted behaviour is unchanged. TestLocalCONFREQAdvertisesAuthMethod asserts the Auth-Protocol option and its value in the first driver CONFREQ; TestAuthProtoRejectClearsMethod asserts it is absent once the peer Rejects it and authentication is no longer desired. Both observed red under recorded breaks (authMethodToLCPOptions, adjustAuthOnNakOrReject).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestAuthProtoRejectClearsMethod`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_dispatch_test.go#L148) | unit/verify | revert, verified |
-| positive | [`TestLocalCONFREQAdvertisesAuthMethod`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_dispatch_test.go#L678) | unit/verify | revert, verified |
+| negative | [`TestAuthProtoRejectClearsMethod`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_dispatch_test.go#L148) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestLocalCONFREQAdvertisesAuthMethod`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_dispatch_test.go#L685) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 
 ### [`RFC1334-x-1`](#rfc1334-x-1)
 
 Any implementations which include a stronger authentication method (such as CHAP, described below) MUST offer to negotiate that method prior to PAP. (§2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Freshly rejudged the existing recorded enforced verdict after reading the actual new RFC1334-x-1 tags on TestAuthAllowSelectionMatrix, their two current native discrimination records, the exact wire/event assertions and native observation output (artifact 173), all other current tagged units, current producers and the complete RFC 1334 text. Source, Section 2, page 4: Any implementations which include a stronger authentication method (such as CHAP, described below) MUST offer to negotiate that method prior to PAP. Q1 yes: tests enforce stronger permitted methods before PAP rather than prohibit permitted PAP after stronger methods were offered. TestInitialAuthMethodCHAPBeforePAPWhateverOrder covers PAP-derived default, explicit PAP-first ordering, either CHAP initial choice, configured-CHAP precedence and PAP-only/no-auth conditional controls. The deleted broad-default helper is intentionally obsolete; neither its helper nor its historical panic record is needed for this proof. Q2 yes: the matrix positive PAP default case observes wire CHAP-MD5 then PAP after a correlated PAP Nak, and final Configure-Ack publishes PAP at Opened. The current positive initialAuthMethod mutant skips initial CHAP; native output shows the clean matrix passing and PAP_default failing with first offer pap want chap-md5. The independent negative PAP written first case permits [pap, ms-chap-v2, chap-md5] and answers with two correlated PAP Naks: exact wire offers must be MS-CHAPv2, CHAP-MD5, PAP, followed by PAP at Opened. The recorded selectAuthFallback PAP-branch continue-to-break mutant makes only this matrix case fail at its first fallback, offer 1 = pap want chap-md5; native output also shows its clean baseline passing. This is the previously identified coverage escape, now actually tagged and discriminated. Q3 yes: canonical Nak options echo the latest actual request Identifier, offered methods are recorded on successful sends, wire decoding includes the CHAP algorithm, and PAP and both CHAP variants are explicitly permitted in the negative case. Its failure therefore isolates premature PAP before still-untried CHAP, not unlisted-policy rejection, malformed input or stale correlation. Positive and negative use distinct matrix inputs and negotiation states, not two hats on one first frame. Older CHAP-only exhaustion/PAP-excluded controls prove membership, and the two Driver tags share an assertion; neither is relied upon as the independent temporal negative. TestSelectAuthFallback additionally has the genuine allowed-PAP waits-for-untried-CHAP case. Q4 yes: the current tagged set covers initial selection and fallback, default and explicit policy, PAP written first, both stronger variants before PAP, repeated/unknown/outside suggestions, configured CHAP precedence, PAP-only/no-auth boundaries, actual Driver/spawnSession first-offer wiring and negotiated method publication at Opened. TestAuthOffersCHAPBeforePAP and TestConfiguredPAPStillOffersCHAPFirst retain the clause-wire/real-Driver checks. ResolveAuthAllow supplies the safe PAP default, initialAuthMethod chooses stronger first, and the validated Nak dispatcher consumes selectAuthFallback before the next Configure-Request, so no boundary silently drops the selection. The prior pending weak judgment was a real evidence-linkage gap, not a product defect; the new tagged matrix and observed semantic breaks close it. No product fix is needed. This is a pending judgment only: no stamp, check, build or test run was performed by this auditor.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestConfiguredPAPStillOffersCHAPFirst, internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestConfiguredPAPStillOffersCHAPFirst#2 moved. Freshly rejudged the existing recorded enforced verdict after reading the actual new RFC1334-x-1 tags on TestAuthAllowSelectionMatrix, their two current native discrimination records, the exact wire/event assertions and native observation output (artifact 173), all other current tagged units, current producers and the complete RFC 1334 text. Source, Section 2, page 4: Any implementations which include a stronger authentication method (such as CHAP, described below) MUST offer to negotiate that method prior to PAP. Q1 yes: tests enforce stronger permitted methods before PAP rather than prohibit permitted PAP after stronger methods were offered. TestInitialAuthMethodCHAPBeforePAPWhateverOrder covers PAP-derived default, explicit PAP-first ordering, either CHAP initial choice, configured-CHAP precedence and PAP-only/no-auth conditional controls. The deleted broad-default helper is intentionally obsolete; neither its helper nor its historical panic record is needed for this proof. Q2 yes: the matrix positive PAP default case observes wire CHAP-MD5 then PAP after a correlated PAP Nak, and final Configure-Ack publishes PAP at Opened. The current positive initialAuthMethod mutant skips initial CHAP; native output shows the clean matrix passing and PAP_default failing with first offer pap want chap-md5. The independent negative PAP written first case permits [pap, ms-chap-v2, chap-md5] and answers with two correlated PAP Naks: exact wire offers must be MS-CHAPv2, CHAP-MD5, PAP, followed by PAP at Opened. The recorded selectAuthFallback PAP-branch continue-to-break mutant makes only this matrix case fail at its first fallback, offer 1 = pap want chap-md5; native output also shows its clean baseline passing. This is the previously identified coverage escape, now actually tagged and discriminated. Q3 yes: canonical Nak options echo the latest actual request Identifier, offered methods are recorded on successful sends, wire decoding includes the CHAP algorithm, and PAP and both CHAP variants are explicitly permitted in the negative case. Its failure therefore isolates premature PAP before still-untried CHAP, not unlisted-policy rejection, malformed input or stale correlation. Positive and negative use distinct matrix inputs and negotiation states, not two hats on one first frame. Older CHAP-only exhaustion/PAP-excluded controls prove membership, and the two Driver tags share an assertion; neither is relied upon as the independent temporal negative. TestSelectAuthFallback additionally has the genuine allowed-PAP waits-for-untried-CHAP case. Q4 yes: the current tagged set covers initial selection and fallback, default and explicit policy, PAP written first, both stronger variants before PAP, repeated/unknown/outside suggestions, configured CHAP precedence, PAP-only/no-auth boundaries, actual Driver/spawnSession first-offer wiring and negotiated method publication at Opened. TestAuthOffersCHAPBeforePAP and TestConfiguredPAPStillOffersCHAPFirst retain the clause-wire/real-Driver checks. ResolveAuthAllow supplies the safe PAP default, initialAuthMethod chooses stronger first, and the validated Nak dispatcher consumes selectAuthFallback before the next Configure-Request, so no boundary silently drops the selection. The prior pending weak judgment was a real evidence-linkage gap, not a product defect; the new tagged matrix and observed semantic breaks close it. No product fix is needed. This is a pending judgment only: no stamp, check, build or test run was performed by this auditor.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestAuthAllowSelectionMatrix`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_policy_driver_test.go#L34) | unit/verify | mutant, verified |
 | negative | [`TestSelectAuthFallback`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_auth_test.go#L122) | unit/verify | mutant, verified |
 | negative | [`TestAuthOffersCHAPBeforePAP`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_clauses_test.go#L50) | unit/verify | mutant, verified |
-| negative | [`TestConfiguredPAPStillOffersCHAPFirst`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_clauses_test.go#L99) | unit/verify | mutant, verified |
+| negative | [`TestConfiguredPAPStillOffersCHAPFirst`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_clauses_test.go#L99) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
 | positive | [`TestAuthAllowSelectionMatrix`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_policy_driver_test.go#L33) | unit/verify | mutant, verified |
 | positive | [`TestInitialAuthMethodCHAPBeforePAPWhateverOrder`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_auth_test.go#L273) | unit/verify | mutant, verified |
 | positive | [`TestAuthOffersCHAPBeforePAP`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_clauses_test.go#L49) | unit/verify | mutant, verified |
-| positive | [`TestConfiguredPAPStillOffersCHAPFirst`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_clauses_test.go#L98) | unit/verify | mutant, verified |
+| positive | [`TestConfiguredPAPStillOffersCHAPFirst`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_clauses_test.go#L98) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
 
 ### [`RFC1334-2.3-1`](#rfc1334-2.3-1)
 
@@ -220,7 +231,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 
 
 The link peer MUST transmit a PAP packet with the Code field set to 1 (Authenticate-Request) during the Authentication phase (Section 2.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -231,7 +242,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The Authenticate-Request packet MUST be repeated until a valid reply packet is received, or an optional retry counter expires (Section 2.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -275,7 +286,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 Any Authenticate-Request packets received during any other phase MUST be silently discarded (Section 2.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -317,7 +328,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 | negative | [`TestPAPReplyMessageDoesNotAffectOutcome`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go#L56) | unit/verify | revert, verified |
 | positive | [`TestPAPReplyMessageDoesNotAffectOutcome`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go#L55) | unit/verify | revert, verified |
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -336,20 +347,20 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
-| `front` | not stated | 0 | walked | not stated |
-| `1` | not stated | 1 | walked | not stated |
-| `1.1` | not stated | 3 | walked | not stated |
-| `1.2` | not stated | 0 | walked | not stated |
-| `2` | not stated | 1 | walked | not stated |
-| `2.1` | not stated | 0 | walked | not stated |
-| `2.2` | not stated | 0 | walked | not stated |
-| `2.2.1` | not stated | 7 | walked | not stated |
-| `2.2.2` | not stated | 4 | walked | not stated |
-| `3` | not stated | 1 | walked | not stated |
-| `3.1` | not stated | 0 | walked | not stated |
-| `3.2` | not stated | 0 | walked | not stated |
-| `3.2.1` | not stated | 10 | walked | not stated |
-| `3.2.2` | not stated | 4 | walked | not stated |
+| `front` | not stated | 0 | reviewed | not stated |
+| `1` | not stated | 1 | reviewed | not stated |
+| `1.1` | not stated | 3 | reviewed | not stated |
+| `1.2` | not stated | 0 | reviewed | not stated |
+| `2` | not stated | 1 | reviewed | not stated |
+| `2.1` | not stated | 0 | reviewed | not stated |
+| `2.2` | not stated | 0 | reviewed | not stated |
+| `2.2.1` | not stated | 7 | reviewed | not stated |
+| `2.2.2` | not stated | 4 | reviewed | not stated |
+| `3` | not stated | 1 | reviewed | not stated |
+| `3.1` | not stated | 0 | reviewed | not stated |
+| `3.2` | not stated | 0 | reviewed | not stated |
+| `3.2.1` | not stated | 10 | reviewed | not stated |
+| `3.2.2` | not stated | 4 | reviewed | not stated |
 
 ### Excluded sentences
 

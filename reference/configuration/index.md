@@ -3778,10 +3778,12 @@ This container merges profile references into ze-iface-conf. Removing the cos pl
       The session ends when this many Echo-Requests in a row have no Echo-Reply. The range is 1 to 255 and the default is 3, so the default detection time is about 30 seconds.
     - **interval** `uint16`: Seconds between two LCP Echo-Requests.
       Ze sends one LCP Echo-Request each interval while the session is up. The range is 1 to 3600 seconds and the default is 10.
-  - **lcp** `container`: LCP Configure-Request retransmission timer and request limit.
-    LCP retransmits an unanswered Configure-Request after restart-timer milliseconds and ends negotiation after max-configure unanswered requests. A valid negotiation reply renews the request budget. A timing-only change keeps the running session and takes effect on the next session, including its later LCP renegotiations.
+  - **lcp** `container`: LCP retransmission timer and negotiation limits.
+    LCP retransmits an unanswered Configure-Request after restart-timer milliseconds and ends negotiation after max-configure unanswered requests. A valid negotiation reply renews the request budget. A sent Configure-Ack renews the max-failure limit on consecutive Configure-Naks; further unacceptable peer options are rejected. A timing-only change keeps the running session and takes effect on the next session, including its later LCP renegotiations.
     - **max-configure** `uint8`: Maximum LCP Configure-Requests without a valid negotiation reply.
       The number of unanswered LCP Configure-Requests allowed before negotiation ends. The first request counts toward this limit. RFC 1661 Section 4.6 recommends the default of ten requests.
+    - **max-failure** `uint8`: Consecutive LCP Configure-Naks before rejecting unacceptable peer options.
+      After this many consecutive Configure-Naks, further unacceptable peer options receive Configure-Reject with their original bytes. A sent Configure-Ack renews the limit. RFC 1661 Section 4.6 recommends the default of five Configure-Naks.
     - **restart-timer** `uint16`: Milliseconds to wait before retransmitting an unanswered LCP request.
       The timer starts after each LCP Configure-Request. Expiry sends another request while the request budget remains. The default is three seconds, as RFC 1661 Section 4.6 recommends.
   - **mtu** `uint16`: Maximum transmission unit

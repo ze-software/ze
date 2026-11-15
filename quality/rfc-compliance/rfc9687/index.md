@@ -1,6 +1,6 @@
 # RFC 9687 - Border Gateway Protocol 4 (BGP-4) Send Hold Timer
 
-Send Hold Timer. Every requirement this repository extracted from RFC 9687, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+Send Hold Timer. Every requirement listed for RFC 9687, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,13 +10,13 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 13 | of 13 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0 | of 13 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 13 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 13 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| No test at all | 0 | of 13 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 8 | 8 of 35 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-| Audit verdicts | 13 | of 13 gated MUSTs judged | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+| Tested both ways | 13 | of 13 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0 | of 13 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 13 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 13 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Declared gap or no test | 0 | of 13 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Tests shown to detect a fault | 9 | 9 of 36 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Audit verdicts | 13 | of 13 mandatory requirements reviewed | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
 
@@ -24,65 +24,72 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 13 | of 20 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 13 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 13 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 13 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 13 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 13 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Out of scope | 0 | of 13 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 13 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 13 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 13 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 13 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
 
-The 9 counts marked as a part above are the whole of the 13 gated MUSTs: they add up to 13. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Totals
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 13 | of 20 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 13 mandatory requirements: they add up to 13. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | ok | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | ok | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | ok | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | Send Hold Timer |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 20 |
-| Gated MUST-level | 13 |
+| Mandatory requirements (MUST level) | 13 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 35 |
-| Tagged units | 35 |
+| Test tags | 36 |
+| Tests linked to requirements | 36 |
 | Recorded audit verdicts | 13 |
-| Discrimination records | 8 |
+| Fault test records | 9 |
 | Summary | `rfc/short/rfc9687.md` |
-| Requirement shard | `rfc/requirements/rfc9687.md` |
+| Requirement table | `rfc/requirements/rfc9687.md` |
 | RFC text | `rfc/full/rfc9687.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: BGP-4 Send Hold Timer: thirteen MUST-level requirements, every one proven in both polarities over the real session (internal/component/bgp/reactor/rfc9687_test.go, a Session driven to Established on a net.Pipe with Run executing and a FakeClock behind every timer). Ten of the thirteen are read from section 4.3, whose obligations are written in the indicative inside quoted NEW blocks that replace text in RFC 4271 section 8.2.2; RFC 4271 section 8 makes an implementation "support the described functionality and exhibit the same externally visible behavior", which is the same ground on which rfc/short/rfc4271.md gates eighteen rows of that section. RFC9687-4.3-1 is the OpenConfirm Event 26 arming, RFC9687-4.3-2 through -7 are the Event 29 action list (log, release resources, zero the ConnectRetryTimer, drop TCP, increment the ConnectRetryCounter, go to Idle), RFC9687-4.3-8 is the restart on every message sent, RFC9687-4.3-9 the stop when the negotiated HoldTime is zero, RFC9687-4.3-10 the stop on any transition out of Established. RFC9687-5-1 and -2 restate the close and the log as capitalised MUSTs and RFC9687-4.4-1 is the section 4.4 constraint on the attribute. Two of the thirteen were UNMET when the walk started and were fixed in the same change: startSendHoldTimer armed the timer whatever the negotiated HoldTime was, so a peering with a zero Hold Time (RFC 4271 section 4.2, which stops KEEPALIVEs in both directions) was torn down every eight minutes although it sent nothing by design; and parsePeerFromTree accepted send-hold-time 480 beside receive-hold-time 3600, an attribute section 4.4 forbids. Both fixes were proven red before green. The remaining seven rows are 1 RECOMMENDED, 2 SHOULD and 4 MAY. The section-by-section walk is recorded in rfc/extraction/rfc9687.json at register prose. Enrolled 2026-08-31.
+Included in automatic checks: BGP-4 Send Hold Timer: thirteen MUST-level requirements, every one proven in both polarities over the real session (internal/component/bgp/reactor/rfc9687_test.go, a Session driven to Established on a net.Pipe with Run executing and a FakeClock behind every timer). Ten of the thirteen are read from section 4.3, whose obligations are written in the indicative inside quoted NEW blocks that replace text in RFC 4271 section 8.2.2; RFC 4271 section 8 makes an implementation "support the described functionality and exhibit the same externally visible behavior", which is the same ground on which rfc/short/rfc4271.md gates eighteen rows of that section. RFC9687-4.3-1 is the OpenConfirm Event 26 arming, RFC9687-4.3-2 through -7 are the Event 29 action list (log, release resources, zero the ConnectRetryTimer, drop TCP, increment the ConnectRetryCounter, go to Idle), RFC9687-4.3-8 is the restart on every message sent, RFC9687-4.3-9 the stop when the negotiated HoldTime is zero, RFC9687-4.3-10 the stop on any transition out of Established. RFC9687-5-1 and -2 restate the close and the log as capitalised MUSTs and RFC9687-4.4-1 is the section 4.4 constraint on the attribute. Two of the thirteen were UNMET when the walk started and were fixed in the same change: startSendHoldTimer armed the timer whatever the negotiated HoldTime was, so a peering with a zero Hold Time (RFC 4271 section 4.2, which stops KEEPALIVEs in both directions) was torn down every eight minutes although it sent nothing by design; and parsePeerFromTree accepted send-hold-time 480 beside receive-hold-time 3600, an attribute section 4.4 forbids. Both fixes were proven red before green. The remaining seven rows are 1 RECOMMENDED, 2 SHOULD and 4 MAY. The section-by-section walk is recorded in rfc/extraction/rfc9687.json at register prose. Enrolled 2026-08-31.
 
-## What the public ledger says
+## Published support status
 
 **Area:** Send Hold Timer
 
-**Proof:** 3 of 13 MUST proven
+**Proof:** 4 of 13 MUST proven
 
-**Evidence:** unit 3
+**Evidence:** unit 4
 
 **Unmet:** -
 
@@ -91,33 +98,36 @@ Enrolled: BGP-4 Send Hold Timer: thirteen MUST-level requirements, every one pro
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 13 | one part of the gated population |
-| Annotated (including scoped evidence) | 0 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **13** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 13 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 0 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **13** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (13):** [`RFC9687-4.3-1`](#rfc9687-4.3-1), [`RFC9687-4.3-2`](#rfc9687-4.3-2), [`RFC9687-4.3-3`](#rfc9687-4.3-3), [`RFC9687-4.3-4`](#rfc9687-4.3-4), [`RFC9687-4.3-5`](#rfc9687-4.3-5), [`RFC9687-4.3-6`](#rfc9687-4.3-6), [`RFC9687-4.3-7`](#rfc9687-4.3-7), [`RFC9687-4.3-8`](#rfc9687-4.3-8), [`RFC9687-4.3-9`](#rfc9687-4.3-9), [`RFC9687-4.3-10`](#rfc9687-4.3-10), [`RFC9687-4.4-1`](#rfc9687-4.4-1), [`RFC9687-5-1`](#rfc9687-5-1), [`RFC9687-5-2`](#rfc9687-5-2)
 
 ## Figures
 
-- **MUST bar**: Ze proven 3, Ze correctness gap 10
-- **Overview bar**: Ze MUST proven 3, SHOULD not decided 7, Ze correctness gap 10
+- **MUST bar**: Ze proven 4, Proof pending 9
+- **Overview bar**: Ze MUST proven 4, Proof pending 9, Not assessed 7
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 13 |
 | MUST rows kept (the MUST bar) | 13 |
-| Ze proven | 3 |
+| Ze proven | 4 |
 | OS verified | 0 |
+| Proof pending | 9 |
 | OS testing gap | 0 |
-| Ze correctness gap | 10 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 0 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -130,11 +140,12 @@ Enrolled: BGP-4 Send Hold Timer: thirteen MUST-level requirements, every one pro
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 7 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 7 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc9687.json](../../../data/rfc/rfc9687.json).
 
@@ -146,7 +157,7 @@ Source: [data/rfc/rfc9687.json](../../../data/rfc/rfc9687.json).
 | `RFC9687-4.3-2` | logs an error message in the local system with the BGP Error \| Code "Send Hold Timer Expired" (§4.3) | MUST | 4.3 - Changes to the FSM | **positive:** `unit/verify` [`TestRFC9687SendHoldExpiryRunsTheEvent29ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L171). **negative:** `unit/verify` [`TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L268) |
 | `RFC9687-4.3-3` | releases all BGP resources (§4.3) | MUST | 4.3 - Changes to the FSM | **positive:** `unit/verify` [`TestRFC9687Event29ReleasesHoldTimerAndConnection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_reactor_b_test.go#L170). **positive:** `unit/verify` [`TestRFC9687Event29ReleasesTheLivePeersRIB`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_rib_release_test.go#L47). **positive:** `unit/verify` [`TestRFC9687SendHoldExpiryRunsTheEvent29ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L173). **negative:** `unit/verify` [`TestRFC9687Event29ReleasesHoldTimerAndConnection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_reactor_b_test.go#L171). **negative:** `unit/verify` [`TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L269) |
 | `RFC9687-4.3-4` | sets the ConnectRetryTimer to zero (§4.3) | MUST | 4.3 - Changes to the FSM | **positive:** `unit/verify` [`TestRFC9687SendHoldExpiryRunsTheEvent29ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L176). **negative:** `unit/verify` [`TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L271) |
-| `RFC9687-4.3-5` | drops the TCP connection (§4.3) | MUST | 4.3 - Changes to the FSM | **positive:** `unit/verify` [`TestRFC9687SendHoldExpiryRunsTheEvent29ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L178). **negative:** `unit/verify` [`TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L273) |
+| `RFC9687-4.3-5` | drops the TCP connection (§4.3) | MUST | 4.3 - Changes to the FSM | **positive:** `unit/verify` [`TestRFC9687SendHoldExpiryRunsTheEvent29ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L178). **positive:** `unit/verify` [`TestSendHoldExpiryClosesBehindStuckWriter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_wedge_test.go#L234). **negative:** `unit/verify` [`TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L273) |
 | `RFC9687-4.3-6` | increments the ConnectRetryCounter by 1 (§4.3) | MUST | 4.3 - Changes to the FSM | **positive:** `unit/verify` [`TestRFC9687SendHoldExpiryRunsTheEvent29ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L180). **negative:** `unit/verify` [`TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L275) |
 | `RFC9687-4.3-7` | changes its state to Idle (§4.3) | MUST | 4.3 - Changes to the FSM | **positive:** `unit/verify` [`TestRFC9687SendHoldExpiryRunsTheEvent29ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L182). **negative:** `unit/verify` [`TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L277) |
 | `RFC9687-4.3-8` | Each time the local system sends a BGP message, it restarts the \| SendHoldTimer (§4.3) | MUST | 4.3 - Changes to the FSM | **positive:** `unit/verify` [`TestRFC9687EmissionRestartsExactSendHoldDeadline`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_emission_test.go#L183). **positive:** `unit/verify` [`TestRFC9687EveryWriterRestartsTheSendHoldTimer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_reactor_b_test.go#L92). **positive:** `unit/verify` [`TestRFC9687RemainingWritersRestartSendHold`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_remaining_writers_test.go#L17). **positive:** `unit/verify` [`TestRFC9687SendRestartsTheSendHoldTimer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L401). **negative:** `unit/verify` [`TestRFC9687SilenceDoesNotRestartTheSendHoldTimer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L439). **negative:** `unit/verify` [`TestRFC9687SuppressedAttemptsDoNotRestartSendHold`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_emission_test.go#L69) |
@@ -165,11 +176,11 @@ Source: [data/rfc/rfc9687.json](../../../data/rfc/rfc9687.json).
 
 ## Gaps and untested MUSTs
 
-RFC 9687 declares no gap, and every gated MUST it carries has a test bound to it.
+RFC 9687 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC9687-4.3-1`](#rfc9687-4.3-1)
 
@@ -222,12 +233,13 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 
 
 drops the TCP connection (§4.3)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 9687 Section 4.3 Event 29 drops TCP. Both tagged action-list functions were re-read. SendHoldExpiryRunsTheEvent29ActionList advances the isolated SendHold deadline, now requires exact ErrSendHoldTimerExpired, and calls requireConnClosed after Run joins; that helper requires EOF or closed pipe and explicitly refuses deadline expiry. NoSendHoldExpiryLeavesTheSessionIntact advances one nanosecond less, retains Established and the armed timer, and fails if the transport drain reports a close. sendHoldTimerExpired invokes closeConn, backed by Run's common deferred close; a mere Run return is not the transport predicate. The new sentinel check strengthens rather than removes the existing close observation. No native test was run.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-14 at 5d862bbab9 by an independent auditor who authored none of the changes named. RFC 9687 Section 4.3, SendHoldTimer_Expires (Event 29): "drops the TCP connection," is one action of the list the local system performs. The row gained a third tagged unit, TestSendHoldExpiryClosesBehindStuckWriter (session_wedge_test.go, positive), read whole with its helpers. It brings a real Session to Established over a net.Pipe with Run executing and the Send Hold Timer on the real clock (wedgeSendHold 5s; only the FSM timers are on a fake clock that is never advanced, so no KEEPALIVE moves the deadline and no hold timer closes the session). It takes writeMu as a stuck writer holds it, requires sendHoldDeadline non-zero so the expiry is still to come and must meet the held path, then requires the peer end's read to end with io.EOF within the time left to that deadline plus holdExpiryNotifyDeadline (1s) plus wedgeSlack (2s), all before the path is released. Only ze closing its end gives the peer io.EOF; a still-open socket is t.Fatal, and any other read error fails the ErrorIs. So it fails when the expiry waits on the write path for its optional NOTIFICATION or for a flush, which is the defect 1c6795e9e4 removed, and when the close step closes nothing. The producer was read: sendHoldTimerExpired bounds the NOTIFICATION by holdExpiryNotifyDeadline and calls closeConnWithin, which does not wait again after a NOTIFICATION that met the held path and then calls dropConn (expire the write deadline, close the socket). The claim states what the body asserts and no more: closure seen as EOF at the peer, bounded from the expiry, with the path held. The later assertions (Run returns ErrSendHoldTimerExpired, FSM Idle) are outside the claim and outside this row. Its discrimination record names the break of dropConn's body; I did not run it. The two earlier units in rfc9687_test.go are unchanged since their judgement and were not re-read: the check reports neither as moved, and their recorded judgement stands, with one correction to its wording: the expiry now reaches the close through closeConnWithin, not closeConn. The pair holds: the negative unit keeps the session and its transport intact one nanosecond short of expiry. No test or record ran for this rejudgment. Verdict unchanged: enforced.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L273) | unit/verify | unproven |
 | positive | [`TestRFC9687SendHoldExpiryRunsTheEvent29ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L178) | unit/verify | unproven |
+| positive | [`TestSendHoldExpiryClosesBehindStuckWriter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_wedge_test.go#L234) | unit/verify | revert, verified |
 
 ### [`RFC9687-4.3-6`](#rfc9687-4.3-6)
 
@@ -323,7 +335,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 
 | negative | [`TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L283) | unit/verify | unproven |
 | positive | [`TestRFC9687SendHoldExpiryRunsTheEvent29ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L187) | unit/verify | unproven |
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -342,19 +354,19 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 
 
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
-| `front` | not stated | 1 | walked | Title block, Status of This Memo, Copyright Notice, Abstract and Table of Contents. Walked rather than skipped because the site scan attributes one site here, the IETF Trust Legal Provisions boilerplate, excluded below. The Abstract restates section 1: the document defines the SendHoldTimer and the SendHoldTimer_Expires event for the BGP FSM and updates RFC 4271. Nothing before section 1 binds a BGP speaker. |
-| `1` | Introduction | 0 | walked | Introduction. Indicative prose: what the document defines, why a blocked connection harms the inter-domain routing system, and that speakers following the specification close blocked connections locally instead of relying on the remote system. Its one near-directive, 'This specification intends to improve this situation by requiring that BGP connections be terminated', announces the obligation that sections 4.3 and 5 state; it adds none of its own. |
-| `2` | Requirements Language | 0 | walked | Requirements Language. The BCP 14 key-words paragraph, which also states that the key words bind only when they appear in all capitals. It tells a reader how to read the other sections and binds no speaker, which is why the derivation excludes it from the site inventory. |
-| `3` | Example of a Problematic Scenario | 0 | walked | Example of a Problematic Scenario. Describes the fault this document addresses: a remote speaker advertising a TCP Receive Window of zero, BGP's lack of visibility into the socket, and the stale routing information that results. Every sentence is descriptive and none directs a speaker. |
-| `4` | Changes to RFC 4271 - SendHoldTimer | 0 | walked | Changes to RFC 4271 - SendHoldTimer. One paragraph naming what the four subsections add: a BGP timer, SendHoldTimer, and updates to the BGP FSM. No directive. |
-| `4.1` | Session Attributes | 0 | walked | Session Attributes. Adds SendHoldTimer and SendHoldTime as optional session attributes 14 and 15 of RFC 4271 section 8, then defines SendHoldTime: it 'determines how long a BGP speaker will stay in the Established state before the TCP connection is dropped because no BGP messages can be transmitted to its peer', and 'A BGP speaker can configure the value of the SendHoldTime for each peer independently'. Both are definitions of the attribute rather than directives; the permission to make it configurable is the section 6 MAY, RFC9687-6-3, and the constraint on its value is the section 4.4 MUST, RFC9687-4.4-1. The attribute is carried by the Timers table of rfc/short/rfc9687.md. |
-| `4.2` | Timer Event: SendHoldTimer_Expires | 0 | walked | Timer Event: SendHoldTimer_Expires. Adds Event 29 to RFC 4271 section 8.1.3 with a definition ('An event generated when the SendHoldTimer expires') and a status ('Optional'). A registry entry for the FSM's event list, not a directive: what a speaker DOES on Event 29 is section 4.3. The word Optional is title case, so section 2 gives it no RFC 2119 meaning; it marks the event as one an implementation need not have, and ze has it. |
-| `4.3` | Changes to the FSM | 0 | walked | Changes to the FSM. The document's main normative section, and the reason the register derives 'prose': every obligation it states sits inside a quoted NEW block that replaces text in RFC 4271 section 8.2.2, written in the indicative with no modal at all, so no scan attributes a site here. All ten gated ids are declared unsourced. RFC 4271 section 8 is what makes them MUST-level -- an implementation 'MUST support the described functionality and exhibit the same externally visible behavior' -- and rfc/short/rfc4271.md already gates eighteen rows of section 8.2.2 on that ground. RFC9687-4.3-1 is the revised OpenConfirm KeepAliveMsg (Event 26) action list, 'starts the SendHoldTimer if the SendHoldTime is non-zero', produced by handleKeepalive calling startSendHoldTimer (internal/component/bgp/reactor/session_handlers.go). RFC9687-4.3-2 through RFC9687-4.3-7 are the six non-optional items of the Event 29 action list added to the Established state, in the order the RFC lists them: log the error, release all BGP resources, set the ConnectRetryTimer to zero, drop the TCP connection, increment the ConnectRetryCounter by 1, change state to Idle. Their producer is sendHoldTimerExpired (session_write.go), which logs, sends the optional NOTIFICATION, fires the FSM event that increments the counter and moves to Idle (internal/component/bgp/fsm/fsm.go), and closes the connection, with Run's exit StopAll releasing the timers. RFC9687-4.3-8 and RFC9687-4.3-9 split the restart sentence: every message sent restarts the timer (resetSendHoldTimer, called after each successful flush), and a zero SendHoldTime or a zero negotiated HoldTime stops it instead (startSendHoldTimer reads Timers.HoldTime). RFC9687-4.3-10 is the closing sentence, the stop on any transition out of Established, produced by closeConn. Two sentences the scans cannot see are not obligations: the OLD block quotes the RFC 4271 text being replaced, and the two optional items of the action list are the MAY rows RFC9687-4.3-11 and RFC9687-4.3-12, which are not gated. |
-| `4.4` | Changes to BGP Timers | 1 | walked | Changes to BGP Timers. Adds SendHoldTimer to the RFC 4271 section 10 timer summary. Its one site carries the section's only capitalised keyword and is mapped below to RFC9687-4.4-1. The surrounding sentence, 'SendHoldTime is an FSM attribute that stores the initial value for the SendHoldTimer', is a definition already carried by section 4.1 and by the Timers table of rfc/short/rfc9687.md. |
-| `5` | Send Hold Timer Expired Error Handling | 2 | walked | Send Hold Timer Expired Error Handling. Two sites, both mapped below. The first sentence carries a MAY and a MUST: the MUST is RFC9687-5-1 and the MAY is the ungated RFC9687-5-3, which restates the optional NOTIFICATION of section 4.3. The second is RFC9687-5-2, the log obligation. Both restate items of the section 4.3 Event 29 action list at capitalised strength, which is why the summary declares them as their own ids rather than folding them into the 4.3 rows: they are separately quotable obligations at a level the scans can see, and both carry their own tags. |
-| `6` | Implementation Considerations | 0 | walked | Implementation Considerations. Three advisory statements and one value definition, none gated. The RECOMMENDED default-on is RFC9687-6-1, the 'greater of 8 minutes or 2 times the negotiated HoldTime' default is the SHOULD of RFC9687-6-2, and the permission to make the value configurable is RFC9687-6-3. The closing paragraph fixes the NOTIFICATION subcode at 0 with no Data; it is a value assignment, carried by the Wire Formats and Constants sections of rfc/short/rfc9687.md and asserted by the Event 29 test rather than declared as a requirement of its own. |
-| `7` | Operational Considerations | 0 | walked | Operational Considerations. Explains why the NOTIFICATION usually cannot be delivered and asks that the attempt still be made, which is the section 4.3 MAY. Its one capitalised keyword is the SHOULD of RFC9687-7-1, that a speaker provide the reason as part of its operational state; not gated. The modal scan attributes no site to this section. |
-| `8` | Security Considerations | 0 | walked | Security Considerations. States that the specification does not change BGP's security characteristics and that terminating connections with malfunctioning peers enhances resilience. No countermeasure is directed at a speaker. |
+| `front` | not stated | 1 | reviewed | Title block, Status of This Memo, Copyright Notice, Abstract and Table of Contents. Walked rather than skipped because the site scan attributes one site here, the IETF Trust Legal Provisions boilerplate, excluded below. The Abstract restates section 1: the document defines the SendHoldTimer and the SendHoldTimer_Expires event for the BGP FSM and updates RFC 4271. Nothing before section 1 binds a BGP speaker. |
+| `1` | Introduction | 0 | reviewed | Introduction. Indicative prose: what the document defines, why a blocked connection harms the inter-domain routing system, and that speakers following the specification close blocked connections locally instead of relying on the remote system. Its one near-directive, 'This specification intends to improve this situation by requiring that BGP connections be terminated', announces the obligation that sections 4.3 and 5 state; it adds none of its own. |
+| `2` | Requirements Language | 0 | reviewed | Requirements Language. The BCP 14 key-words paragraph, which also states that the key words bind only when they appear in all capitals. It tells a reader how to read the other sections and binds no speaker, which is why the derivation excludes it from the site inventory. |
+| `3` | Example of a Problematic Scenario | 0 | reviewed | Example of a Problematic Scenario. Describes the fault this document addresses: a remote speaker advertising a TCP Receive Window of zero, BGP's lack of visibility into the socket, and the stale routing information that results. Every sentence is descriptive and none directs a speaker. |
+| `4` | Changes to RFC 4271 - SendHoldTimer | 0 | reviewed | Changes to RFC 4271 - SendHoldTimer. One paragraph naming what the four subsections add: a BGP timer, SendHoldTimer, and updates to the BGP FSM. No directive. |
+| `4.1` | Session Attributes | 0 | reviewed | Session Attributes. Adds SendHoldTimer and SendHoldTime as optional session attributes 14 and 15 of RFC 4271 section 8, then defines SendHoldTime: it 'determines how long a BGP speaker will stay in the Established state before the TCP connection is dropped because no BGP messages can be transmitted to its peer', and 'A BGP speaker can configure the value of the SendHoldTime for each peer independently'. Both are definitions of the attribute rather than directives; the permission to make it configurable is the section 6 MAY, RFC9687-6-3, and the constraint on its value is the section 4.4 MUST, RFC9687-4.4-1. The attribute is carried by the Timers table of rfc/short/rfc9687.md. |
+| `4.2` | Timer Event: SendHoldTimer_Expires | 0 | reviewed | Timer Event: SendHoldTimer_Expires. Adds Event 29 to RFC 4271 section 8.1.3 with a definition ('An event generated when the SendHoldTimer expires') and a status ('Optional'). A registry entry for the FSM's event list, not a directive: what a speaker DOES on Event 29 is section 4.3. The word Optional is title case, so section 2 gives it no RFC 2119 meaning; it marks the event as one an implementation need not have, and ze has it. |
+| `4.3` | Changes to the FSM | 0 | reviewed | Changes to the FSM. The document's main normative section, and the reason the register derives 'prose': every obligation it states sits inside a quoted NEW block that replaces text in RFC 4271 section 8.2.2, written in the indicative with no modal at all, so no scan attributes a site here. All ten gated ids are declared unsourced. RFC 4271 section 8 is what makes them MUST-level -- an implementation 'MUST support the described functionality and exhibit the same externally visible behavior' -- and rfc/short/rfc4271.md already gates eighteen rows of section 8.2.2 on that ground. RFC9687-4.3-1 is the revised OpenConfirm KeepAliveMsg (Event 26) action list, 'starts the SendHoldTimer if the SendHoldTime is non-zero', produced by handleKeepalive calling startSendHoldTimer (internal/component/bgp/reactor/session_handlers.go). RFC9687-4.3-2 through RFC9687-4.3-7 are the six non-optional items of the Event 29 action list added to the Established state, in the order the RFC lists them: log the error, release all BGP resources, set the ConnectRetryTimer to zero, drop the TCP connection, increment the ConnectRetryCounter by 1, change state to Idle. Their producer is sendHoldTimerExpired (session_write.go), which logs, sends the optional NOTIFICATION, fires the FSM event that increments the counter and moves to Idle (internal/component/bgp/fsm/fsm.go), and closes the connection, with Run's exit StopAll releasing the timers. RFC9687-4.3-8 and RFC9687-4.3-9 split the restart sentence: every message sent restarts the timer (resetSendHoldTimer, called after each successful flush), and a zero SendHoldTime or a zero negotiated HoldTime stops it instead (startSendHoldTimer reads Timers.HoldTime). RFC9687-4.3-10 is the closing sentence, the stop on any transition out of Established, produced by closeConn. Two sentences the scans cannot see are not obligations: the OLD block quotes the RFC 4271 text being replaced, and the two optional items of the action list are the MAY rows RFC9687-4.3-11 and RFC9687-4.3-12, which are not gated. |
+| `4.4` | Changes to BGP Timers | 1 | reviewed | Changes to BGP Timers. Adds SendHoldTimer to the RFC 4271 section 10 timer summary. Its one site carries the section's only capitalised keyword and is mapped below to RFC9687-4.4-1. The surrounding sentence, 'SendHoldTime is an FSM attribute that stores the initial value for the SendHoldTimer', is a definition already carried by section 4.1 and by the Timers table of rfc/short/rfc9687.md. |
+| `5` | Send Hold Timer Expired Error Handling | 2 | reviewed | Send Hold Timer Expired Error Handling. Two sites, both mapped below. The first sentence carries a MAY and a MUST: the MUST is RFC9687-5-1 and the MAY is the ungated RFC9687-5-3, which restates the optional NOTIFICATION of section 4.3. The second is RFC9687-5-2, the log obligation. Both restate items of the section 4.3 Event 29 action list at capitalised strength, which is why the summary declares them as their own ids rather than folding them into the 4.3 rows: they are separately quotable obligations at a level the scans can see, and both carry their own tags. |
+| `6` | Implementation Considerations | 0 | reviewed | Implementation Considerations. Three advisory statements and one value definition, none gated. The RECOMMENDED default-on is RFC9687-6-1, the 'greater of 8 minutes or 2 times the negotiated HoldTime' default is the SHOULD of RFC9687-6-2, and the permission to make the value configurable is RFC9687-6-3. The closing paragraph fixes the NOTIFICATION subcode at 0 with no Data; it is a value assignment, carried by the Wire Formats and Constants sections of rfc/short/rfc9687.md and asserted by the Event 29 test rather than declared as a requirement of its own. |
+| `7` | Operational Considerations | 0 | reviewed | Operational Considerations. Explains why the NOTIFICATION usually cannot be delivered and asks that the attempt still be made, which is the section 4.3 MAY. Its one capitalised keyword is the SHOULD of RFC9687-7-1, that a speaker provide the reason as part of its operational state; not gated. The modal scan attributes no site to this section. |
+| `8` | Security Considerations | 0 | reviewed | Security Considerations. States that the specification does not change BGP's security characteristics and that terminating connections with malfunctioning peers enhances resilience. No countermeasure is directed at a speaker. |
 | `9` | IANA Considerations | 0 | skipped (iana) | IANA Considerations. Records the registration of value 8, 'Send Hold Timer Expired', in the BGP Error (Notification) Codes registry. Binds IANA, not a speaker. The value is carried by the Constants table of rfc/short/rfc9687.md. |
 | `10` | References, the heading of 10.1 and 10.2 | 0 | skipped (references) | References, the heading of 10.1 and 10.2. |
 | `10.1` | Normative References: RFC 2119, RFC 4271, RFC 8174, RFC 9293 | 0 | skipped (references) | Normative References: RFC 2119, RFC 4271, RFC 8174, RFC 9293. |

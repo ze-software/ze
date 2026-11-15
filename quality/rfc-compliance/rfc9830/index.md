@@ -1,6 +1,6 @@
 # RFC 9830 - BGP Extensions for the Advertisement of Segment Routing (SR) Policies
 
-BGP SR Policy. Every requirement this repository extracted from RFC 9830, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+BGP SR Policy. Every requirement listed for RFC 9830, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,24 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 70 | of 97 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 3 | of 97 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 97 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 97 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 152 | 152 of 229 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-
-### Neutral
-
-measures that are neither good news nor bad
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Gated MUSTs | 97 | of 138 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 97 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 97 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 97 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 97 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 97 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Tested both ways | 70 | of 97 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 3 | of 97 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 97 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 97 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Tests shown to detect a fault | 152 | 152 of 229 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -35,54 +22,74 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 24 | of 97 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Declared gap or no test | 24 | of 97 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 
-The 9 counts marked as a part above are the whole of the 97 gated MUSTs: they add up to 97. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Neutral
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+measures that are neither good news nor bad
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Out of scope | 0 | of 97 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 97 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 97 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 97 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 97 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+
+### Totals
+
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 97 | of 138 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 97 mandatory requirements: they add up to 97. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | BGP SR Policy |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 138 |
-| Gated MUST-level | 97 |
+| Mandatory requirements (MUST level) | 97 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 24 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 230 |
-| Tagged units | 229 |
+| Tests linked to requirements | 229 |
 | Recorded audit verdicts | 61 |
-| Discrimination records | 152 |
+| Fault test records | 152 |
 | Summary | `rfc/short/rfc9830.md` |
-| Requirement shard | `rfc/requirements/rfc9830.md` |
+| Requirement table | `rfc/requirements/rfc9830.md` |
 | RFC text | `rfc/full/rfc9830.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: BGP Extensions for SR Policy
+Included in automatic checks: BGP Extensions for SR Policy
 
-## What the public ledger says
+## Published support status
 
 **Area:** BGP SR Policy
 
@@ -97,14 +104,14 @@ Enrolled: BGP Extensions for SR Policy
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 70 | one part of the gated population |
-| Annotated (including scoped evidence) | 27 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **97** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 70 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 27 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **97** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (70):** [`RFC9830-2.1-1`](#rfc9830-2.1-1), [`RFC9830-2.1-2`](#rfc9830-2.1-2), [`RFC9830-2.1-3`](#rfc9830-2.1-3), [`RFC9830-2.2-1`](#rfc9830-2.2-1), [`RFC9830-2.2-3`](#rfc9830-2.2-3), [`RFC9830-2.3-1`](#rfc9830-2.3-1), [`RFC9830-2.3-3`](#rfc9830-2.3-3), [`RFC9830-2.4-1`](#rfc9830-2.4-1), [`RFC9830-2.4-2`](#rfc9830-2.4-2), [`RFC9830-2.4.1-2`](#rfc9830-2.4.1-2), [`RFC9830-2.4.1-3`](#rfc9830-2.4.1-3), [`RFC9830-2.4.1-4`](#rfc9830-2.4.1-4), [`RFC9830-2.4.1-5`](#rfc9830-2.4.1-5), [`RFC9830-2.4.1-6`](#rfc9830-2.4.1-6), [`RFC9830-2.4.1-7`](#rfc9830-2.4.1-7), [`RFC9830-2.4.2-2`](#rfc9830-2.4.2-2), [`RFC9830-2.4.2-4`](#rfc9830-2.4.2-4), [`RFC9830-2.4.2-12`](#rfc9830-2.4.2-12), [`RFC9830-2.4.2-5`](#rfc9830-2.4.2-5), [`RFC9830-2.4.2-6`](#rfc9830-2.4.2-6), [`RFC9830-2.4.2-7`](#rfc9830-2.4.2-7), [`RFC9830-2.4.2-8`](#rfc9830-2.4.2-8), [`RFC9830-2.4.2-9`](#rfc9830-2.4.2-9), [`RFC9830-2.4.2-10`](#rfc9830-2.4.2-10), [`RFC9830-2.4.2-11`](#rfc9830-2.4.2-11), [`RFC9830-2.4.3-4`](#rfc9830-2.4.3-4), [`RFC9830-2.4.3-5`](#rfc9830-2.4.3-5), [`RFC9830-2.4.3-6`](#rfc9830-2.4.3-6), [`RFC9830-2.4.3-7`](#rfc9830-2.4.3-7), [`RFC9830-2.4.4-4`](#rfc9830-2.4.4-4), [`RFC9830-2.4.4-5`](#rfc9830-2.4.4-5), [`RFC9830-2.4.4.1-2`](#rfc9830-2.4.4.1-2), [`RFC9830-2.4.4.1-3`](#rfc9830-2.4.4.1-3), [`RFC9830-2.4.4.1-4`](#rfc9830-2.4.4.1-4), [`RFC9830-2.4.4.1-5`](#rfc9830-2.4.4.1-5), [`RFC9830-2.4.4.1-6`](#rfc9830-2.4.4.1-6), [`RFC9830-2.4.4.1-7`](#rfc9830-2.4.4.1-7), [`RFC9830-2.4.4.2.1-1`](#rfc9830-2.4.4.2.1-1), [`RFC9830-2.4.4.2.1-2`](#rfc9830-2.4.4.2.1-2), [`RFC9830-2.4.4.2.1-3`](#rfc9830-2.4.4.2.1-3), [`RFC9830-2.4.4.2.1-4`](#rfc9830-2.4.4.2.1-4), [`RFC9830-2.4.4.2.1-5`](#rfc9830-2.4.4.2.1-5), [`RFC9830-2.4.4.2.2-1`](#rfc9830-2.4.4.2.2-1), [`RFC9830-2.4.4.2.2-2`](#rfc9830-2.4.4.2.2-2), [`RFC9830-2.4.4.2.2-3`](#rfc9830-2.4.4.2.2-3), [`RFC9830-2.4.4.2.2-4`](#rfc9830-2.4.4.2.2-4), [`RFC9830-2.4.4.2.3-1`](#rfc9830-2.4.4.2.3-1), [`RFC9830-2.4.4.2.3-2`](#rfc9830-2.4.4.2.3-2), [`RFC9830-2.4.4.2.3-3`](#rfc9830-2.4.4.2.3-3), [`RFC9830-2.4.4.2.4-2`](#rfc9830-2.4.4.2.4-2), [`RFC9830-2.4.4.2.4-3`](#rfc9830-2.4.4.2.4-3), [`RFC9830-2.4.6-3`](#rfc9830-2.4.6-3), [`RFC9830-2.4.6-4`](#rfc9830-2.4.6-4), [`RFC9830-2.4.6-5`](#rfc9830-2.4.6-5), [`RFC9830-2.4.6-6`](#rfc9830-2.4.6-6), [`RFC9830-2.4.7-5`](#rfc9830-2.4.7-5), [`RFC9830-2.4.7-6`](#rfc9830-2.4.7-6), [`RFC9830-2.4.7-7`](#rfc9830-2.4.7-7), [`RFC9830-2.4.8-5`](#rfc9830-2.4.8-5), [`RFC9830-2.4.8-6`](#rfc9830-2.4.8-6), [`RFC9830-2.4.8-7`](#rfc9830-2.4.8-7), [`RFC9830-4.2.1-2`](#rfc9830-4.2.1-2), [`RFC9830-4.2.1-3`](#rfc9830-4.2.1-3), [`RFC9830-4.2.1-6`](#rfc9830-4.2.1-6), [`RFC9830-4.2.1-7`](#rfc9830-4.2.1-7), [`RFC9830-4.2.3-6`](#rfc9830-4.2.3-6), [`RFC9830-5-1`](#rfc9830-5-1), [`RFC9830-5-2`](#rfc9830-5-2), [`RFC9830-5-4`](#rfc9830-5-4), [`RFC9830-5-9`](#rfc9830-5-9)
 
@@ -112,20 +119,23 @@ Enrolled: BGP Extensions for SR Policy
 
 ## Figures
 
-- **MUST bar**: Ze proven 37, Ze correctness gap 60
-- **Overview bar**: Ze MUST proven 37, SHOULD not decided 41, Ze correctness gap 60
+- **MUST bar**: Ze proven 37, Proof pending 36, Not built 24
+- **Overview bar**: Ze MUST proven 37, Proof pending 36, Not assessed 41, Not built 24
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 97 |
 | MUST rows kept (the MUST bar) | 97 |
 | Ze proven | 37 |
 | OS verified | 0 |
+| Proof pending | 36 |
 | OS testing gap | 0 |
-| Ze correctness gap | 60 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 24 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -138,11 +148,12 @@ Enrolled: BGP Extensions for SR Policy
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 41 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 41 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc9830.json](../../../data/rfc/rfc9830.json).
 
@@ -320,13 +331,13 @@ Source: [data/rfc/rfc9830.json](../../../data/rfc/rfc9830.json).
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC9830-2.1-1`](#rfc9830-2.1-1)
 
 The AFI used MUST be IPv4(1) or IPv6(2) (§2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -363,7 +374,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Both
 
 This document specifies the use of the Tunnel Encapsulation Attribute with the SR Policy Tunnel Type and the use of any other Tunnel Type with the SR Policy SAFI MUST be considered malformed and handled by the "treat-as-withdraw" strategy [RFC7606]. (§2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -374,7 +385,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 A Tunnel Encapsulation Attribute MUST NOT contain more than one TLV of type "SR Policy" (§2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -384,7 +395,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 A Tunnel Encapsulation Attribute MUST NOT contain more than one TLV of type "SR Policy"; such updates MUST be considered malformed and handled by the "treat-as-withdraw" strategy [RFC7606]. (§2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -628,7 +639,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 
 The Label field is validated by the SRPM but MUST NOT contain the reserved MPLS label values (0-15). (§2.4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -701,7 +712,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 
 The SRv6 Endpoint Behavior and SID Structure MUST NOT be included when the SRv6 SID has not been included (§2.4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -992,65 +1003,65 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 
 The total of the locator block, locator node, function, and argument lengths MUST be less than or equal to 128 (§2.4.4.2.4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9830-2.4.4.2.4-4, so no unit is bound to it.
+No test carries RFC9830-2.4.4.2.4-4, so there is no linked test.
 
 ### [`RFC9830-2.4.5-2`](#rfc9830-2.4.5-2)
 
 The ENLP sub-TLV is OPTIONAL; it MUST NOT appear more than once in the SR Policy encoding. (§2.4.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9830-2.4.5-2, so no unit is bound to it.
+No test carries RFC9830-2.4.5-2, so there is no linked test.
 
 ### [`RFC9830-2.4.5-3`](#rfc9830-2.4.5-3)
 
 Length: Specifies the length of the value field (i.e., not including Type and Length fields) in terms of octets. The value MUST be 3. (§2.4.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9830-2.4.5-3, so no unit is bound to it.
+No test carries RFC9830-2.4.5-3, so there is no linked test.
 
 ### [`RFC9830-2.4.5-4`](#rfc9830-2.4.5-4)
 
 The Flags field MUST be set to zero on transmission (§2.4.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9830-2.4.5-4, so no unit is bound to it.
+No test carries RFC9830-2.4.5-4, so there is no linked test.
 
 ### [`RFC9830-2.4.5-5`](#rfc9830-2.4.5-5)
 
 The Flags field MUST be set to zero on transmission and MUST be ignored on receipt. (§2.4.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9830-2.4.5-5, so no unit is bound to it.
+No test carries RFC9830-2.4.5-5, so there is no linked test.
 
 ### [`RFC9830-2.4.5-6`](#rfc9830-2.4.5-6)
 
 RESERVED: 1 octet of reserved bits. This field MUST be set to zero on transmission (§2.4.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9830-2.4.5-6, so no unit is bound to it.
+No test carries RFC9830-2.4.5-6, so there is no linked test.
 
 ### [`RFC9830-2.4.5-7`](#rfc9830-2.4.5-7)
 
 RESERVED: 1 octet of reserved bits. This field MUST be set to zero on transmission and MUST be ignored on receipt. (§2.4.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9830-2.4.5-7, so no unit is bound to it.
+No test carries RFC9830-2.4.5-7, so there is no linked test.
 
 ### [`RFC9830-2.4.5-8`](#rfc9830-2.4.5-8)
 
 Implementations adhering to this document MUST ignore the ENLP sub-TLV with unrecognized values (viz. other than 1 through 4). (§2.4.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9830-2.4.5-8, so no unit is bound to it.
+No test carries RFC9830-2.4.5-8, so there is no linked test.
 
 ### [`RFC9830-2.4.6-3`](#rfc9830-2.4.6-3)
 
@@ -1182,25 +1193,25 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 
 Type 3 (bits 11): Reserved for future use and SHOULD NOT be used. Upon reception, an implementation MUST treat it like Type 0. (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9830-3-3, so no unit is bound to it.
+No test carries RFC9830-3-3, so there is no linked test.
 
 ### [`RFC9830-4.1-2`](#rfc9830-4.1-2)
 
 In such a case, the NO_ADVERTISE community [RFC1997] MUST be attached to the SR Policy update (see further details in Section 4.2.3). (§4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9830-4.1-2, so no unit is bound to it.
+No test carries RFC9830-4.1-2, so there is no linked test.
 
 ### [`RFC9830-4.2.1-1`](#rfc9830-4.2.1-1)
 
 When a BGP speaker receives an SR Policy NLRI from a neighbor, it MUST first perform validation based on the following rules in addition to the validation described in Section 5 (§4.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9830-4.2.1-1, so no unit is bound to it.
+No test carries RFC9830-4.2.1-1, so there is no linked test.
 
 ### [`RFC9830-4.2.1-2`](#rfc9830-4.2.1-2)
 
@@ -1217,7 +1228,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 the length of the NLRI MUST be either 12 or 24 octets (depending on the address family of the Endpoint). (§4.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1228,23 +1239,23 @@ Audit verdict: not audited: no reader has judged these tests
 
 * The SR Policy update MUST have either the NO_ADVERTISE community, at least one Route Target extended community in IPv4-address format, or both. (§4.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9830-4.2.1-4, so no unit is bound to it.
+No test carries RFC9830-4.2.1-4, so there is no linked test.
 
 ### [`RFC9830-4.2.1-5`](#rfc9830-4.2.1-5)
 
 If a router supporting this specification receives an SR Policy update with no Route Target extended communities and no NO_ADVERTISE community, the update MUST be considered to be malformed. (§4.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9830-4.2.1-5, so no unit is bound to it.
+No test carries RFC9830-4.2.1-5, so there is no linked test.
 
 ### [`RFC9830-4.2.1-6`](#rfc9830-4.2.1-6)
 
 The Tunnel Encapsulation Attribute MUST be attached to the BGP UPDATE message (§4.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1268,63 +1279,63 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 A router that receives an SR Policy update that is not valid according to these criteria MUST treat the update as malformed (§4.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9830-4.2.1-8, so no unit is bound to it.
+No test carries RFC9830-4.2.1-8, so there is no linked test.
 
 ### [`RFC9830-4.2.1-9`](#rfc9830-4.2.1-9)
 
 A router that receives an SR Policy update that is not valid according to these criteria MUST treat the update as malformed, and the SR Policy CP MUST NOT be passed to the SRPM. (§4.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9830-4.2.1-9, so no unit is bound to it.
+No test carries RFC9830-4.2.1-9, so there is no linked test.
 
 ### [`RFC9830-4.2.2-1`](#rfc9830-4.2.2-1)
 
 If one or more route targets are present, then at least one route target MUST match the BGP Identifier of the receiver for the update to be considered usable. (§4.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9830-4.2.2-1, so no unit is bound to it.
+No test carries RFC9830-4.2.2-1, so there is no linked test.
 
 ### [`RFC9830-4.2.2-2`](#rfc9830-4.2.2-2)
 
 The BGP Identifier is defined in [RFC4271] as a 4-octet IPv4 address and is updated by [RFC6286] as a 4-octet, unsigned, non-zero integer. Therefore, the Route Target extended community MUST be of the same format. (§4.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9830-4.2.2-2, so no unit is bound to it.
+No test carries RFC9830-4.2.2-2, so there is no linked test.
 
 ### [`RFC9830-4.2.2-5`](#rfc9830-4.2.2-5)
 
 When an update for an SR Policy NLRI results in its becoming unusable, BGP MUST delete its corresponding SR Policy CP from the SRPM. (§4.2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9830-4.2.2-5, so no unit is bound to it.
+No test carries RFC9830-4.2.2-5, so there is no linked test.
 
 ### [`RFC9830-4.2.3-1`](#rfc9830-4.2.3-1)
 
 SR Policy NLRIs that have the NO_ADVERTISE community attached to them MUST NOT be propagated. (§4.2.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9830-4.2.3-1, so no unit is bound to it.
+No test carries RFC9830-4.2.3-1, so there is no linked test.
 
 ### [`RFC9830-4.2.3-2`](#rfc9830-4.2.3-2)
 
 By default, a BGP node receiving an SR Policy NLRI MUST NOT propagate it to any External BGP (EBGP) neighbor. (§4.2.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9830-4.2.3-2, so no unit is bound to it.
+No test carries RFC9830-4.2.3-2, so there is no linked test.
 
 ### [`RFC9830-4.2.3-6`](#rfc9830-4.2.3-6)
 
 A BGP node MUST NOT alter the SR Policy information carried in the Tunnel Encapsulation Attribute during propagation (§4.2.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1335,7 +1346,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 A BGP speaker MUST perform the following syntactic validation of the SR Policy NLRI to determine if it is malformed. This includes the validation of the length of each NLRI and the total length of the MP_REACH_NLRI and MP_UNREACH_NLRI attributes. It also includes the validation of the consistency of the NLRI length with the AFI and the endpoint address as specified in Section 2.1. (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1346,7 +1357,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 When the error determined allows for the router to skip the malformed NLRI(s) and continue the processing of the rest of the BGP UPDATE message, then it MUST handle such malformed NLRIs as 'treat-as- withdraw'. (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1358,7 +1369,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Alternately, the router MUST perform "session reset" when the session is only being used for SR Policy or when a "AFI/SAFI disable" action is not possible. (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1369,33 +1380,33 @@ Audit verdict: not audited: no reader has judged these tests
 
 The validation of the TLVs/sub-TLVs introduced in this document and defined in their respective subsections of Section 2.4 MUST be performed to determine if they are malformed or invalid. (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9830-5-5, so no unit is bound to it.
+No test carries RFC9830-5-5, so there is no linked test.
 
 ### [`RFC9830-5-6`](#rfc9830-5-6)
 
 The validation of the Tunnel Encapsulation Attribute itself and the other TLVs/sub-TLVs specified in Section 13 of [RFC9012] MUST be done as described in that document. (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9830-5-6, so no unit is bound to it.
+No test carries RFC9830-5-6, so there is no linked test.
 
 ### [`RFC9830-5-7`](#rfc9830-5-7)
 
 In case of any error detected, either at the attribute or its TLV/sub-TLV level, the "treat-as-withdraw" strategy MUST be applied. (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9830-5-7, so no unit is bound to it.
+No test carries RFC9830-5-7, so there is no linked test.
 
 ### [`RFC9830-5-8`](#rfc9830-5-8)
 
 An SR Policy update that is determined not to be valid (and, therefore, malformed) based on the rules described in Section 4.2.1 MUST be handled by the "treat-as-withdraw" strategy. (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9830-5-8, so no unit is bound to it.
+No test carries RFC9830-5-8, so there is no linked test.
 
 ### [`RFC9830-5-9`](#rfc9830-5-9)
 
@@ -1408,7 +1419,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. inte
 | negative | [`TestRFC9830NoSemanticVerification`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L348) | unit/verify | unproven |
 | positive | [`TestRFC9830NoSemanticVerification`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L336) | unit/verify | unproven |
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -1427,52 +1438,52 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. inte
 
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
-| `front` | not stated | 1 | walked | not stated |
-| `1` | not stated | 0 | walked | not stated |
-| `1.1` | not stated | 0 | walked | not stated |
-| `2` | not stated | 0 | walked | not stated |
-| `2.1` | not stated | 3 | walked | not stated |
-| `2.2` | not stated | 2 | walked | not stated |
-| `2.3` | not stated | 2 | walked | not stated |
-| `2.4` | not stated | 1 | walked | not stated |
-| `2.4.1` | not stated | 4 | walked | not stated |
-| `2.4.2` | not stated | 6 | walked | not stated |
-| `2.4.3` | not stated | 4 | walked | not stated |
-| `2.4.4` | not stated | 2 | walked | not stated |
-| `2.4.4.1` | not stated | 4 | walked | not stated |
-| `2.4.4.2` | not stated | 0 | walked | not stated |
-| `2.4.4.2.1` | not stated | 3 | walked | not stated |
-| `2.4.4.2.2` | not stated | 3 | walked | not stated |
-| `2.4.4.2.3` | not stated | 2 | walked | not stated |
-| `2.4.4.2.4` | not stated | 2 | walked | not stated |
-| `2.4.5` | not stated | 6 | walked | not stated |
-| `2.4.6` | not stated | 3 | walked | not stated |
-| `2.4.7` | not stated | 3 | walked | not stated |
-| `2.4.8` | not stated | 3 | walked | not stated |
-| `3` | not stated | 1 | walked | not stated |
-| `4` | not stated | 0 | walked | not stated |
-| `4.1` | not stated | 1 | walked | not stated |
-| `4.2` | not stated | 0 | walked | not stated |
-| `4.2.1` | not stated | 6 | walked | not stated |
-| `4.2.2` | not stated | 3 | walked | not stated |
-| `4.2.3` | not stated | 3 | walked | not stated |
-| `5` | not stated | 8 | walked | not stated |
-| `6` | not stated | 0 | walked | not stated |
-| `6.1` | not stated | 0 | walked | not stated |
-| `6.2` | not stated | 0 | walked | not stated |
-| `6.3` | not stated | 0 | walked | not stated |
-| `6.4` | not stated | 0 | walked | not stated |
-| `6.5` | not stated | 0 | walked | not stated |
-| `6.6` | not stated | 0 | walked | not stated |
-| `6.7` | not stated | 0 | walked | not stated |
-| `6.8` | not stated | 0 | walked | not stated |
-| `6.9` | not stated | 0 | walked | not stated |
-| `6.10` | not stated | 0 | walked | not stated |
-| `7` | not stated | 0 | walked | not stated |
-| `8` | not stated | 0 | walked | not stated |
-| `9` | not stated | 0 | walked | not stated |
-| `9.1` | not stated | 0 | walked | not stated |
-| `9.2` | not stated | 0 | walked | not stated |
+| `front` | not stated | 1 | reviewed | not stated |
+| `1` | not stated | 0 | reviewed | not stated |
+| `1.1` | not stated | 0 | reviewed | not stated |
+| `2` | not stated | 0 | reviewed | not stated |
+| `2.1` | not stated | 3 | reviewed | not stated |
+| `2.2` | not stated | 2 | reviewed | not stated |
+| `2.3` | not stated | 2 | reviewed | not stated |
+| `2.4` | not stated | 1 | reviewed | not stated |
+| `2.4.1` | not stated | 4 | reviewed | not stated |
+| `2.4.2` | not stated | 6 | reviewed | not stated |
+| `2.4.3` | not stated | 4 | reviewed | not stated |
+| `2.4.4` | not stated | 2 | reviewed | not stated |
+| `2.4.4.1` | not stated | 4 | reviewed | not stated |
+| `2.4.4.2` | not stated | 0 | reviewed | not stated |
+| `2.4.4.2.1` | not stated | 3 | reviewed | not stated |
+| `2.4.4.2.2` | not stated | 3 | reviewed | not stated |
+| `2.4.4.2.3` | not stated | 2 | reviewed | not stated |
+| `2.4.4.2.4` | not stated | 2 | reviewed | not stated |
+| `2.4.5` | not stated | 6 | reviewed | not stated |
+| `2.4.6` | not stated | 3 | reviewed | not stated |
+| `2.4.7` | not stated | 3 | reviewed | not stated |
+| `2.4.8` | not stated | 3 | reviewed | not stated |
+| `3` | not stated | 1 | reviewed | not stated |
+| `4` | not stated | 0 | reviewed | not stated |
+| `4.1` | not stated | 1 | reviewed | not stated |
+| `4.2` | not stated | 0 | reviewed | not stated |
+| `4.2.1` | not stated | 6 | reviewed | not stated |
+| `4.2.2` | not stated | 3 | reviewed | not stated |
+| `4.2.3` | not stated | 3 | reviewed | not stated |
+| `5` | not stated | 8 | reviewed | not stated |
+| `6` | not stated | 0 | reviewed | not stated |
+| `6.1` | not stated | 0 | reviewed | not stated |
+| `6.2` | not stated | 0 | reviewed | not stated |
+| `6.3` | not stated | 0 | reviewed | not stated |
+| `6.4` | not stated | 0 | reviewed | not stated |
+| `6.5` | not stated | 0 | reviewed | not stated |
+| `6.6` | not stated | 0 | reviewed | not stated |
+| `6.7` | not stated | 0 | reviewed | not stated |
+| `6.8` | not stated | 0 | reviewed | not stated |
+| `6.9` | not stated | 0 | reviewed | not stated |
+| `6.10` | not stated | 0 | reviewed | not stated |
+| `7` | not stated | 0 | reviewed | not stated |
+| `8` | not stated | 0 | reviewed | not stated |
+| `9` | not stated | 0 | reviewed | not stated |
+| `9.1` | not stated | 0 | reviewed | not stated |
+| `9.2` | not stated | 0 | reviewed | not stated |
 
 ### Excluded sentences
 

@@ -1,6 +1,6 @@
 # RFC 5880 - Bidirectional Forwarding Detection (BFD)
 
-BFD base. Every requirement this repository extracted from RFC 5880, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+BFD base. Every requirement listed for RFC 5880, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,24 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 90 | of 111 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 9 | of 111 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 111 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 111 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 237 | 237 of 295 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-
-### Neutral
-
-measures that are neither good news nor bad
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Gated MUSTs | 111 | of 137 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 111 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 111 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 111 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 111 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 111 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Tested both ways | 90 | of 111 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 9 | of 111 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 111 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 111 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Tests shown to detect a fault | 237 | 237 of 295 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -35,54 +22,74 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 12 | of 111 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Declared gap or no test | 12 | of 111 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 
-The 9 counts marked as a part above are the whole of the 111 gated MUSTs: they add up to 111. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Neutral
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+measures that are neither good news nor bad
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Out of scope | 0 | of 111 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 111 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 111 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 111 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 111 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+
+### Totals
+
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 111 | of 137 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 111 mandatory requirements: they add up to 111. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | BFD base |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 137 |
-| Gated MUST-level | 111 |
+| Mandatory requirements (MUST level) | 111 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 12 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 295 |
-| Tagged units | 295 |
+| Tests linked to requirements | 295 |
 | Recorded audit verdicts | 104 |
-| Discrimination records | 237 |
+| Fault test records | 237 |
 | Summary | `rfc/short/rfc5880.md` |
-| Requirement shard | `rfc/requirements/rfc5880.md` |
+| Requirement table | `rfc/requirements/rfc5880.md` |
 | RFC text | `rfc/full/rfc5880.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: Bidirectional Forwarding Detection (BFD)
+Included in automatic checks: Bidirectional Forwarding Detection (BFD)
 
-## What the public ledger says
+## Published support status
 
 **Area:** BFD base
 
@@ -97,14 +104,14 @@ Enrolled: Bidirectional Forwarding Detection (BFD)
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 90 | one part of the gated population |
-| Annotated (including scoped evidence) | 21 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **111** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 90 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 21 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **111** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (90):** [`RFC5880-4.1-1`](#rfc5880-4.1-1), [`RFC5880-4.1-2`](#rfc5880-4.1-2), [`RFC5880-6.3-1`](#rfc5880-6.3-1), [`RFC5880-6.8.1-3`](#rfc5880-6.8.1-3), [`RFC5880-6.8.1-4`](#rfc5880-6.8.1-4), [`RFC5880-6.8.1-5`](#rfc5880-6.8.1-5), [`RFC5880-6.8.1-6`](#rfc5880-6.8.1-6), [`RFC5880-6.8.1-7`](#rfc5880-6.8.1-7), [`RFC5880-6.8.1-8`](#rfc5880-6.8.1-8), [`RFC5880-6.8.1-9`](#rfc5880-6.8.1-9), [`RFC5880-6.8.1-10`](#rfc5880-6.8.1-10), [`RFC5880-6.8.1-12`](#rfc5880-6.8.1-12), [`RFC5880-6.8.1-14`](#rfc5880-6.8.1-14), [`RFC5880-6.1-1`](#rfc5880-6.1-1), [`RFC5880-6.1-2`](#rfc5880-6.1-2), [`RFC5880-6.8.3-1`](#rfc5880-6.8.3-1), [`RFC5880-6.8.3-2`](#rfc5880-6.8.3-2), [`RFC5880-6.8.3-3`](#rfc5880-6.8.3-3), [`RFC5880-6.8.3-4`](#rfc5880-6.8.3-4), [`RFC5880-6.8.3-5`](#rfc5880-6.8.3-5), [`RFC5880-6.8.3-6`](#rfc5880-6.8.3-6), [`RFC5880-6.5-1`](#rfc5880-6.5-1), [`RFC5880-6.5-2`](#rfc5880-6.5-2), [`RFC5880-6.6-1`](#rfc5880-6.6-1), [`RFC5880-6.7-1`](#rfc5880-6.7-1), [`RFC5880-4.2-1`](#rfc5880-4.2-1), [`RFC5880-6.7.2-1`](#rfc5880-6.7.2-1), [`RFC5880-6.7.2-8`](#rfc5880-6.7.2-8), [`RFC5880-6.7.3-1`](#rfc5880-6.7.3-1), [`RFC5880-6.7.3-2`](#rfc5880-6.7.3-2), [`RFC5880-6.7.3-4`](#rfc5880-6.7.3-4), [`RFC5880-6.7.3-13`](#rfc5880-6.7.3-13), [`RFC5880-6.7.4-1`](#rfc5880-6.7.4-1), [`RFC5880-6.7.4-2`](#rfc5880-6.7.4-2), [`RFC5880-6.7.4-4`](#rfc5880-6.7.4-4), [`RFC5880-6.7.4-5`](#rfc5880-6.7.4-5), [`RFC5880-6.7.4-7`](#rfc5880-6.7.4-7), [`RFC5880-6.7.3-15`](#rfc5880-6.7.3-15), [`RFC5880-6.7.4-10`](#rfc5880-6.7.4-10), [`RFC5880-6.7.4-11`](#rfc5880-6.7.4-11), [`RFC5880-6.8.6-1`](#rfc5880-6.8.6-1), [`RFC5880-6.8.6-2`](#rfc5880-6.8.6-2), [`RFC5880-6.8.6-3`](#rfc5880-6.8.6-3), [`RFC5880-6.8.6-4`](#rfc5880-6.8.6-4), [`RFC5880-6.8.6-5`](#rfc5880-6.8.6-5), [`RFC5880-6.8.6-6`](#rfc5880-6.8.6-6), [`RFC5880-6.8.6-7`](#rfc5880-6.8.6-7), [`RFC5880-6.8.6-8`](#rfc5880-6.8.6-8), [`RFC5880-6.8.6-9`](#rfc5880-6.8.6-9), [`RFC5880-6.8.6-10`](#rfc5880-6.8.6-10), [`RFC5880-6.8.6-11`](#rfc5880-6.8.6-11), [`RFC5880-6.8.6-12`](#rfc5880-6.8.6-12), [`RFC5880-6.8.6-13`](#rfc5880-6.8.6-13), [`RFC5880-6.8.6-16`](#rfc5880-6.8.6-16), [`RFC5880-6.8.6-18`](#rfc5880-6.8.6-18), [`RFC5880-6.8.7-1`](#rfc5880-6.8.7-1), [`RFC5880-6.8.7-2`](#rfc5880-6.8.7-2), [`RFC5880-6.8.7-3`](#rfc5880-6.8.7-3), [`RFC5880-6.8.7-4`](#rfc5880-6.8.7-4), [`RFC5880-6.8.7-5`](#rfc5880-6.8.7-5), [`RFC5880-6.8.4-1`](#rfc5880-6.8.4-1), [`RFC5880-6.8.5-1`](#rfc5880-6.8.5-1), [`RFC5880-6.8.16-4`](#rfc5880-6.8.16-4), [`RFC5880-6.8.16-5`](#rfc5880-6.8.16-5), [`RFC5880-6.8.8-1`](#rfc5880-6.8.8-1), [`RFC5880-6.8.8-2`](#rfc5880-6.8.8-2), [`RFC5880-6.8.9-1`](#rfc5880-6.8.9-1), [`RFC5880-6.8.9-2`](#rfc5880-6.8.9-2), [`RFC5880-6.8.9-3`](#rfc5880-6.8.9-3), [`RFC5880-9-2`](#rfc5880-9-2), [`RFC5880-6.7.3-7`](#rfc5880-6.7.3-7), [`RFC5880-6.7.2-3`](#rfc5880-6.7.2-3), [`RFC5880-6.7.3-8`](#rfc5880-6.7.3-8), [`RFC5880-6.7.2-4`](#rfc5880-6.7.2-4), [`RFC5880-6.7.2-5`](#rfc5880-6.7.2-5), [`RFC5880-6.7.2-6`](#rfc5880-6.7.2-6), [`RFC5880-6.7.3-16`](#rfc5880-6.7.3-16), [`RFC5880-6.7.3-17`](#rfc5880-6.7.3-17), [`RFC5880-6.7.3-18`](#rfc5880-6.7.3-18), [`RFC5880-6.7.4-14`](#rfc5880-6.7.4-14), [`RFC5880-6.7.4-15`](#rfc5880-6.7.4-15), [`RFC5880-6.7.4-16`](#rfc5880-6.7.4-16), [`RFC5880-6.7.2-7`](#rfc5880-6.7.2-7), [`RFC5880-6.7.3-9`](#rfc5880-6.7.3-9), [`RFC5880-6.7.3-10`](#rfc5880-6.7.3-10), [`RFC5880-6.7.3-11`](#rfc5880-6.7.3-11), [`RFC5880-6.7.4-12`](#rfc5880-6.7.4-12), [`RFC5880-6.7.4-13`](#rfc5880-6.7.4-13), [`RFC5880-6.7.4-17`](#rfc5880-6.7.4-17), [`RFC5880-6.7.3-12`](#rfc5880-6.7.3-12)
 
@@ -112,20 +119,23 @@ Enrolled: Bidirectional Forwarding Detection (BFD)
 
 ## Figures
 
-- **MUST bar**: Ze proven 72, Ze correctness gap 39
-- **Overview bar**: Ze MUST proven 72, SHOULD proven 6, SHOULD not decided 20, Ze correctness gap 39
+- **MUST bar**: Ze proven 72, Proof pending 27, Not built 12
+- **Overview bar**: Ze MUST proven 72, SHOULD proven 6, Proof pending 27, Not assessed 20, Not built 12
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 111 |
 | MUST rows kept (the MUST bar) | 111 |
 | Ze proven | 72 |
 | OS verified | 0 |
+| Proof pending | 27 |
 | OS testing gap | 0 |
-| Ze correctness gap | 39 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 12 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -138,11 +148,12 @@ Enrolled: Bidirectional Forwarding Detection (BFD)
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 20 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 20 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc5880.json](../../../data/rfc/rfc5880.json).
 
@@ -307,7 +318,7 @@ Source: [data/rfc/rfc5880.json](../../../data/rfc/rfc5880.json).
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC5880-4.1-1`](#rfc5880-4.1-1)
 
@@ -459,9 +470,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 This variable MUST be initialized to a random 32-bit value. (§6.8.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5880-6.8.1-11, so no unit is bound to it.
+No test carries RFC5880-6.8.1-11, so there is no linked test.
 
 ### [`RFC5880-6.8.1-12`](#rfc5880-6.8.1-12)
 
@@ -480,9 +491,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 This variable MUST be set to zero after no packets have been received on this session for at least twice the Detection Time. (§6.8.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5880-6.8.1-13, so no unit is bound to it.
+No test carries RFC5880-6.8.1-13, so there is no linked test.
 
 ### [`RFC5880-6.8.1-14`](#rfc5880-6.8.1-14)
 
@@ -646,17 +657,17 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 When the transmitted value of the Demand (D) bit is to be changed, the transmitting system MUST initiate a Poll Sequence in conjunction with changing the bit in order to ensure that both systems are aware of the change. (§6.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5880-6.6-2, so no unit is bound to it.
+No test carries RFC5880-6.6-2, so there is no linked test.
 
 ### [`RFC5880-6.6-3`](#rfc5880-6.6-3)
 
 If Demand mode is active on either or both systems, a Poll Sequence MUST be initiated whenever the contents of the next BFD Control packet to be sent would be different than the contents of the previous packet, with the exception of the Poll (P) and Final (F) bits. (§6.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5880-6.6-3, so no unit is bound to it.
+No test carries RFC5880-6.6-3, so there is no linked test.
 
 ### [`RFC5880-6.7-1`](#rfc5880-6.7-1)
 
@@ -1029,9 +1040,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 If bfd.RemoteDemandMode is 1, bfd.SessionState is Up, and bfd.RemoteSessionState is Up, Demand mode is active on the remote system and the local system MUST cease the periodic transmission of BFD Control packets (see section 6.8.7). (§6.8.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5880-6.8.6-14, so no unit is bound to it.
+No test carries RFC5880-6.8.6-14, so there is no linked test.
 
 ### [`RFC5880-6.8.6-15`](#rfc5880-6.8.6-15)
 
@@ -1138,25 +1149,25 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 A system MUST NOT periodically transmit BFD Control packets if bfd.RemoteMinRxInterval is zero. (§6.8.7)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5880-6.8.7-6, so no unit is bound to it.
+No test carries RFC5880-6.8.7-6, so there is no linked test.
 
 ### [`RFC5880-6.8.7-7`](#rfc5880-6.8.7-7)
 
 A system MUST NOT periodically transmit BFD Control packets if Demand mode is active on the remote system (bfd.RemoteDemandMode is 1, bfd.SessionState is Up, and bfd.RemoteSessionState is Up) and a Poll Sequence is not being transmitted. (§6.8.7)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5880-6.8.7-7, so no unit is bound to it.
+No test carries RFC5880-6.8.7-7, so there is no linked test.
 
 ### [`RFC5880-6.8.7-8`](#rfc5880-6.8.7-8)
 
 If rate limiting is in effect, the advertised value of Desired Min TX Interval MUST be greater than or equal to the interval between transmitted packets imposed by the rate limiting function. (§6.8.7)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5880-6.8.7-8, so no unit is bound to it.
+No test carries RFC5880-6.8.7-8, so there is no linked test.
 
 ### [`RFC5880-6.8.4-1`](#rfc5880-6.8.4-1)
 
@@ -1186,9 +1197,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 When the forwarding plane in the local system is reset for some reason, such that the remote system can no longer rely on the local forwarding state, the local system MUST set bfd.LocalDiag to 4 (Forwarding Plane Reset), and set bfd.SessionState to Down. (§6.8.15)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5880-6.8.15-1, so no unit is bound to it.
+No test carries RFC5880-6.8.15-1, so there is no linked test.
 
 ### [`RFC5880-6.8.16-4`](#rfc5880-6.8.16-4)
 
@@ -1280,17 +1291,17 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 When BFD is used across multiple hops, a congestion control mechanism MUST be implemented (§7)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5880-7-1, so no unit is bound to it.
+No test carries RFC5880-7-1, so there is no linked test.
 
 ### [`RFC5880-7-2`](#rfc5880-7-2)
 
 When BFD is used across multiple hops, a congestion control mechanism MUST be implemented, and when congestion is detected, the BFD implementation MUST reduce the amount of traffic it generates. (§7)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5880-7-2, so no unit is bound to it.
+No test carries RFC5880-7-2, so there is no linked test.
 
 ### [`RFC5880-4.3-1`](#rfc5880-4.3-1)
 
@@ -1384,7 +1395,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 If Demand mode is no longer active on the remote system, the local system MUST begin transmitting periodic BFD Control packets (§6.8.14)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1394,9 +1405,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 If Demand mode is active on the remote system (the local system is not transmitting periodic BFD Control packets), a Poll Sequence MUST be initiated to ensure that the diagnostic code is transmitted. (§6.8.17)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5880-6.8.17-1, so no unit is bound to it.
+No test carries RFC5880-6.8.17-1, so there is no linked test.
 
 ### [`RFC5880-6.8.3-8`](#rfc5880-6.8.3-8)
 
@@ -1645,7 +1656,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 | positive | [`TestRFC5880FirstAuthenticatedPacketSeedsReplayFloor`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L456) | unit/verify | revert, verified |
 | positive | [`TestRFC5880FirstPacketSeedsReplayFloorBeforeDigest`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L480) | unit/verify | revert, verified |
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -1665,52 +1676,52 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
 | `front` | not stated | 0 | skipped (front-matter) | Title block, Abstract, Status of This Memo, copyright notice and table of contents. The Abstract restates section 1 and states no obligation. |
-| `1` | Introduction | 0 | walked | Introduction. States the goal of the protocol and says that application-dependent mechanisms live in companion documents. No obligation. |
-| `1.1` | not stated | 0 | walked | Conventions Used in This Document: the RFC 2119 key-words paragraph. It tells a reader how to read the other sections and binds no speaker, which is why the derivation excludes it from the site inventory. |
-| `2` | Design | 0 | walked | Design. Describes where BFD sits relative to the forwarding plane and what it runs over. Written in the indicative throughout and states no obligation. |
-| `3` | Protocol Overview | 0 | walked | Protocol Overview. Describes the Hello exchange and the rate negotiation in the indicative. No obligation. |
-| `3.1` | Addressing and Session Establishment | 0 | walked | Addressing and Session Establishment. States that the application chooses the addresses and that BFD has no discovery mechanism. No obligation. |
-| `3.2` | Operating Modes | 0 | walked | Operating Modes. Describes Asynchronous mode, Demand mode and the Echo function, and the trade-offs between them. Their obligations are stated in section 6 and captured there. |
-| `4` | BFD Control Packet Format | 0 | walked | BFD Control Packet Format. Section heading only; the formats are in the subsections below. |
-| `4.1` | Generic BFD Control Packet Format | 1 | walked | Generic BFD Control Packet Format. The field descriptions are written in the indicative apart from the Multipoint bit, which is the one site. |
-| `4.2` | Simple Password Authentication Section Format | 2 | walked | Simple Password Authentication Section Format. Two sites: the password length bound and the pointer to the section 6.7.2 encoding rules. |
-| `4.3` | not stated | 2 | walked | Keyed MD5 and Meticulous Keyed MD5 Authentication Section Format. Two sites: the Reserved byte and the pointer to the section 6.7.3 key encoding rules. |
-| `4.4` | not stated | 2 | walked | Keyed SHA1 and Meticulous Keyed SHA1 Authentication Section Format. Two sites: the Reserved byte and the pointer to the section 6.7.4 key encoding rules. |
-| `5` | BFD Echo Packet Format | 0 | walked | BFD Echo Packet Format. The payload is a local matter, so the section states one advisory obligation and no MUST-level one. |
-| `6` | Elements of Procedure | 0 | walked | Elements of Procedure. Introductory text that names section 6.8.1 as the home of the bfd.Xx state variables and warns against enforcing more than the section states. No obligation. |
-| `6.1` | Overview | 3 | walked | Overview. The three role obligations are the sites; the rest of the section describes the session lifecycle in the indicative and is specified normatively in section 6.8. |
-| `6.2` | BFD State Machine | 0 | walked | BFD State Machine. The transitions are described in the indicative and are specified normatively in section 6.8.6 and section 6.8.16. The one advisory obligation is the right to hold a session down. |
-| `6.3` | Demultiplexing and the Discriminator Fields | 1 | walked | Demultiplexing and the Discriminator Fields. One site, the discriminator choice rule. The permission to change a discriminator mid-session is advisory. |
-| `6.4` | The Echo Function and Asymmetry | 0 | walked | The Echo Function and Asymmetry. Describes independent Echo directions in the indicative and states one advisory obligation about advertised intervals. |
-| `6.5` | The Poll Sequence | 2 | walked | The Poll Sequence. Two sites: the P and F exclusion, and the rule that a Poll rides on the scheduled periodic packets. |
-| `6.6` | Demand mode | 3 | walked | Demand mode. Three sites, all about the Demand bit and the Poll Sequences a Demand mode change requires. The permission to enable or disable Demand mode at any time is advisory. |
-| `6.7` | Authentication | 1 | walked | Authentication. Describes the generic authentication section, then states the one obligation of the section: an implementation that supports authentication supports both SHA1 types. |
-| `6.7.1` | Enabling and Disabling Authentication | 0 | walked | Enabling and Disabling Authentication. The section says the mechanism is out of scope and then states two advisory obligations about changing the authentication state on received packets. |
-| `6.7.2` | Simple Password Authentication | 10 | walked | Simple Password Authentication. Ten sites: three transmission field rules, the password bound, the management interface rule, four reception discards and the closing acceptance. The hexadecimal configuration clause is advisory. |
-| `6.7.3` | Keyed MD5 and Meticulous Keyed MD5 Authentication | 17 | walked | Keyed MD5 and Meticulous Keyed MD5 Authentication. Seventeen sites over the transmission and reception rules. The sequence increment guidance for Keyed MD5 is advisory, and the circular increment is a permission. |
-| `6.7.4` | Keyed SHA1 and Meticulous Keyed SHA1 Authentication | 17 | walked | Keyed SHA1 and Meticulous Keyed SHA1 Authentication. Seventeen sites that repeat the section 6.7.3 rules with SHA1 constants. Each SHA1 obligation has its own section 6.7.4 row; the Auth Len transmit rule, the first-packet seeding rule and the accepting face of the hash comparison are excluded as duplicates of the rows that carry them. The hexadecimal key clause and the sequence increment guidance are advisory, and the circular increment for Keyed SHA1 is a permission. |
-| `6.8` | Functional Specifics | 0 | walked | Functional Specifics. Introductory text defining what 'the Echo function active' and 'Demand mode active' mean for the subsections below. No obligation. |
-| `6.8.1` | State Variables | 14 | walked | State Variables. Fourteen sites: the session state preservation rule and the initial value or constraint of each bfd.Xx variable. The random local discriminator and the longer preservation are advisory. |
-| `6.8.2` | Timer Negotiation | 0 | walked | Timer Negotiation. Describes the continuous negotiation in the indicative and defers the detail to section 6.8.7. No obligation. |
-| `6.8.3` | Timer Manipulation | 8 | walked | Timer Manipulation. Eight sites over the Poll Sequence requirement, the two holds while a Poll runs, the one-second floor, the immediate honoring rule and the disambiguation choices. The Echo receive interval floor is advisory. |
-| `6.8.4` | Calculating the Detection Time | 2 | walked | Calculating the Detection Time. Two sites, the Asynchronous and Demand mode expiries. The calculations themselves are written in the indicative. |
-| `6.8.5` | Detecting Failures with the Echo Function | 1 | walked | Detecting Failures with the Echo Function. One site, the transition on Echo failure. The detection method is declared out of scope. |
-| `6.8.6` | Reception of BFD Control Packets | 19 | walked | Reception of BFD Control Packets. Nineteen sites: the ordered procedure lead-in, its stop-on-discard clause, and the discard, demultiplexing, authentication and Demand mode steps. The state machine block in the middle of the section is written in the indicative. |
-| `6.8.7` | Transmitting BFD Control Packets | 11 | walked | Transmitting BFD Control Packets. Eleven sites over the interval floor, jitter, the transmission bars, the Final response, the Demand bit precondition and the field table lead-in. The change-driven extra packet and the Final rate limit are advisory. |
-| `6.8.8` | Reception of BFD Echo Packets | 2 | walked | Reception of BFD Echo Packets. Two sites: demultiplexing and the obligation to detect loss. |
-| `6.8.9` | Transmission of BFD Echo Packets | 3 | walked | Transmission of BFD Echo Packets. Three sites, all bars on when and how fast Echo packets leave. |
-| `6.8.10` | Min Rx Interval Change | 0 | walked | Min Rx Interval Change. States that bfd.RequiredMinRxInterval can change at any time and points at section 6.8.3 for the rules. No obligation of its own. |
-| `6.8.11` | Min Tx Interval Change | 0 | walked | Min Tx Interval Change. States that bfd.DesiredMinTxInterval can change at any time and points at section 6.8.3. No obligation of its own. |
-| `6.8.12` | Detect Multiplier Change | 0 | walked | Detect Multiplier Change. States that bfd.DetectMult can change to any nonzero value without a Poll Sequence and points at section 6.6. No obligation of its own. |
-| `6.8.13` | Enabling or Disabling The Echo Function | 0 | walked | Enabling or Disabling The Echo Function. Two permissions, both advisory, and the summary declares them as one row. |
-| `6.8.14` | Enabling or Disabling Demand Mode | 1 | walked | Enabling or Disabling Demand Mode. One site, the obligation to resume periodic transmission when the remote system leaves Demand mode. |
-| `6.8.15` | Forwarding Plane Reset | 1 | walked | Forwarding Plane Reset. One site, the diagnostic and state transition on a local forwarding plane reset. |
-| `6.8.16` | Administrative Control | 1 | walked | Administrative Control. One site, the enable and disable procedure, whose enable step and disable steps are two rows. The transmission after entering AdminDown is advisory. |
-| `6.8.17` | Concatenated Paths | 1 | walked | Concatenated Paths. One site, the Poll Sequence that carries a concatenated path diagnostic to a remote system in Demand mode. Setting the diagnostic itself is a permission. |
-| `6.8.18` | Holding Down Sessions | 1 | walked | Holding Down Sessions. One site, the REQUIRED state maintenance, which restates the section 6.8.1 preservation rule. The reset of bfd.RemoteMinRxInterval after a Detection Time of silence is advisory. |
-| `7` | Operational Considerations | 1 | walked | Operational Considerations. One site carrying two obligations: implement congestion control across multiple hops, and reduce generated traffic when congestion is detected. The site maps the first; the second is declared here because no separate sentence sources it. The single-hop congestion algorithm is advisory. |
+| `1` | Introduction | 0 | reviewed | Introduction. States the goal of the protocol and says that application-dependent mechanisms live in companion documents. No obligation. |
+| `1.1` | not stated | 0 | reviewed | Conventions Used in This Document: the RFC 2119 key-words paragraph. It tells a reader how to read the other sections and binds no speaker, which is why the derivation excludes it from the site inventory. |
+| `2` | Design | 0 | reviewed | Design. Describes where BFD sits relative to the forwarding plane and what it runs over. Written in the indicative throughout and states no obligation. |
+| `3` | Protocol Overview | 0 | reviewed | Protocol Overview. Describes the Hello exchange and the rate negotiation in the indicative. No obligation. |
+| `3.1` | Addressing and Session Establishment | 0 | reviewed | Addressing and Session Establishment. States that the application chooses the addresses and that BFD has no discovery mechanism. No obligation. |
+| `3.2` | Operating Modes | 0 | reviewed | Operating Modes. Describes Asynchronous mode, Demand mode and the Echo function, and the trade-offs between them. Their obligations are stated in section 6 and captured there. |
+| `4` | BFD Control Packet Format | 0 | reviewed | BFD Control Packet Format. Section heading only; the formats are in the subsections below. |
+| `4.1` | Generic BFD Control Packet Format | 1 | reviewed | Generic BFD Control Packet Format. The field descriptions are written in the indicative apart from the Multipoint bit, which is the one site. |
+| `4.2` | Simple Password Authentication Section Format | 2 | reviewed | Simple Password Authentication Section Format. Two sites: the password length bound and the pointer to the section 6.7.2 encoding rules. |
+| `4.3` | not stated | 2 | reviewed | Keyed MD5 and Meticulous Keyed MD5 Authentication Section Format. Two sites: the Reserved byte and the pointer to the section 6.7.3 key encoding rules. |
+| `4.4` | not stated | 2 | reviewed | Keyed SHA1 and Meticulous Keyed SHA1 Authentication Section Format. Two sites: the Reserved byte and the pointer to the section 6.7.4 key encoding rules. |
+| `5` | BFD Echo Packet Format | 0 | reviewed | BFD Echo Packet Format. The payload is a local matter, so the section states one advisory obligation and no MUST-level one. |
+| `6` | Elements of Procedure | 0 | reviewed | Elements of Procedure. Introductory text that names section 6.8.1 as the home of the bfd.Xx state variables and warns against enforcing more than the section states. No obligation. |
+| `6.1` | Overview | 3 | reviewed | Overview. The three role obligations are the sites; the rest of the section describes the session lifecycle in the indicative and is specified normatively in section 6.8. |
+| `6.2` | BFD State Machine | 0 | reviewed | BFD State Machine. The transitions are described in the indicative and are specified normatively in section 6.8.6 and section 6.8.16. The one advisory obligation is the right to hold a session down. |
+| `6.3` | Demultiplexing and the Discriminator Fields | 1 | reviewed | Demultiplexing and the Discriminator Fields. One site, the discriminator choice rule. The permission to change a discriminator mid-session is advisory. |
+| `6.4` | The Echo Function and Asymmetry | 0 | reviewed | The Echo Function and Asymmetry. Describes independent Echo directions in the indicative and states one advisory obligation about advertised intervals. |
+| `6.5` | The Poll Sequence | 2 | reviewed | The Poll Sequence. Two sites: the P and F exclusion, and the rule that a Poll rides on the scheduled periodic packets. |
+| `6.6` | Demand mode | 3 | reviewed | Demand mode. Three sites, all about the Demand bit and the Poll Sequences a Demand mode change requires. The permission to enable or disable Demand mode at any time is advisory. |
+| `6.7` | Authentication | 1 | reviewed | Authentication. Describes the generic authentication section, then states the one obligation of the section: an implementation that supports authentication supports both SHA1 types. |
+| `6.7.1` | Enabling and Disabling Authentication | 0 | reviewed | Enabling and Disabling Authentication. The section says the mechanism is out of scope and then states two advisory obligations about changing the authentication state on received packets. |
+| `6.7.2` | Simple Password Authentication | 10 | reviewed | Simple Password Authentication. Ten sites: three transmission field rules, the password bound, the management interface rule, four reception discards and the closing acceptance. The hexadecimal configuration clause is advisory. |
+| `6.7.3` | Keyed MD5 and Meticulous Keyed MD5 Authentication | 17 | reviewed | Keyed MD5 and Meticulous Keyed MD5 Authentication. Seventeen sites over the transmission and reception rules. The sequence increment guidance for Keyed MD5 is advisory, and the circular increment is a permission. |
+| `6.7.4` | Keyed SHA1 and Meticulous Keyed SHA1 Authentication | 17 | reviewed | Keyed SHA1 and Meticulous Keyed SHA1 Authentication. Seventeen sites that repeat the section 6.7.3 rules with SHA1 constants. Each SHA1 obligation has its own section 6.7.4 row; the Auth Len transmit rule, the first-packet seeding rule and the accepting face of the hash comparison are excluded as duplicates of the rows that carry them. The hexadecimal key clause and the sequence increment guidance are advisory, and the circular increment for Keyed SHA1 is a permission. |
+| `6.8` | Functional Specifics | 0 | reviewed | Functional Specifics. Introductory text defining what 'the Echo function active' and 'Demand mode active' mean for the subsections below. No obligation. |
+| `6.8.1` | State Variables | 14 | reviewed | State Variables. Fourteen sites: the session state preservation rule and the initial value or constraint of each bfd.Xx variable. The random local discriminator and the longer preservation are advisory. |
+| `6.8.2` | Timer Negotiation | 0 | reviewed | Timer Negotiation. Describes the continuous negotiation in the indicative and defers the detail to section 6.8.7. No obligation. |
+| `6.8.3` | Timer Manipulation | 8 | reviewed | Timer Manipulation. Eight sites over the Poll Sequence requirement, the two holds while a Poll runs, the one-second floor, the immediate honoring rule and the disambiguation choices. The Echo receive interval floor is advisory. |
+| `6.8.4` | Calculating the Detection Time | 2 | reviewed | Calculating the Detection Time. Two sites, the Asynchronous and Demand mode expiries. The calculations themselves are written in the indicative. |
+| `6.8.5` | Detecting Failures with the Echo Function | 1 | reviewed | Detecting Failures with the Echo Function. One site, the transition on Echo failure. The detection method is declared out of scope. |
+| `6.8.6` | Reception of BFD Control Packets | 19 | reviewed | Reception of BFD Control Packets. Nineteen sites: the ordered procedure lead-in, its stop-on-discard clause, and the discard, demultiplexing, authentication and Demand mode steps. The state machine block in the middle of the section is written in the indicative. |
+| `6.8.7` | Transmitting BFD Control Packets | 11 | reviewed | Transmitting BFD Control Packets. Eleven sites over the interval floor, jitter, the transmission bars, the Final response, the Demand bit precondition and the field table lead-in. The change-driven extra packet and the Final rate limit are advisory. |
+| `6.8.8` | Reception of BFD Echo Packets | 2 | reviewed | Reception of BFD Echo Packets. Two sites: demultiplexing and the obligation to detect loss. |
+| `6.8.9` | Transmission of BFD Echo Packets | 3 | reviewed | Transmission of BFD Echo Packets. Three sites, all bars on when and how fast Echo packets leave. |
+| `6.8.10` | Min Rx Interval Change | 0 | reviewed | Min Rx Interval Change. States that bfd.RequiredMinRxInterval can change at any time and points at section 6.8.3 for the rules. No obligation of its own. |
+| `6.8.11` | Min Tx Interval Change | 0 | reviewed | Min Tx Interval Change. States that bfd.DesiredMinTxInterval can change at any time and points at section 6.8.3. No obligation of its own. |
+| `6.8.12` | Detect Multiplier Change | 0 | reviewed | Detect Multiplier Change. States that bfd.DetectMult can change to any nonzero value without a Poll Sequence and points at section 6.6. No obligation of its own. |
+| `6.8.13` | Enabling or Disabling The Echo Function | 0 | reviewed | Enabling or Disabling The Echo Function. Two permissions, both advisory, and the summary declares them as one row. |
+| `6.8.14` | Enabling or Disabling Demand Mode | 1 | reviewed | Enabling or Disabling Demand Mode. One site, the obligation to resume periodic transmission when the remote system leaves Demand mode. |
+| `6.8.15` | Forwarding Plane Reset | 1 | reviewed | Forwarding Plane Reset. One site, the diagnostic and state transition on a local forwarding plane reset. |
+| `6.8.16` | Administrative Control | 1 | reviewed | Administrative Control. One site, the enable and disable procedure, whose enable step and disable steps are two rows. The transmission after entering AdminDown is advisory. |
+| `6.8.17` | Concatenated Paths | 1 | reviewed | Concatenated Paths. One site, the Poll Sequence that carries a concatenated path diagnostic to a remote system in Demand mode. Setting the diagnostic itself is a permission. |
+| `6.8.18` | Holding Down Sessions | 1 | reviewed | Holding Down Sessions. One site, the REQUIRED state maintenance, which restates the section 6.8.1 preservation rule. The reset of bfd.RemoteMinRxInterval after a Detection Time of silence is advisory. |
+| `7` | Operational Considerations | 1 | reviewed | Operational Considerations. One site carrying two obligations: implement congestion control across multiple hops, and reduce generated traffic when congestion is detected. The site maps the first; the second is declared here because no separate sentence sources it. The single-hop congestion algorithm is advisory. |
 | `8` | IANA Considerations | 0 | skipped (iana) | IANA Considerations. Defines the BFD Diagnostic Codes and BFD Authentication Types registries and their initial values. Binds IANA, not a speaker. |
-| `9` | Security Considerations | 1 | walked | Security Considerations. One site, the GTSM rule for a directly connected session. The use of the Authentication Section across multiple hops is advisory, and the rest of the section compares the authentication types without directing a speaker. |
+| `9` | Security Considerations | 1 | reviewed | Security Considerations. One site, the GTSM rule for a directly connected session. The use of the Authentication Section across multiple hops is advisory, and the rest of the section compares the authentication types without directing a speaker. |
 | `10` | References heading | 0 | skipped (references) | References heading. |
 | `10.1` | Normative References: RFC 5082, RFC 2119, RFC 1321, RFC 3174 | 0 | skipped (references) | Normative References: RFC 5082, RFC 2119, RFC 1321, RFC 3174. |
 | `10.2` | Informative References: RFC 2104, RFC 5226, RFC 2328 | 0 | skipped (references) | Informative References: RFC 2104, RFC 5226, RFC 2328. |

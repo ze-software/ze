@@ -51,7 +51,9 @@ environment {
 | `ip` | 0.0.0.0 | Listen IP address |
 | `port` | 11019 | Listen TCP port (IANA assigned for BMP) |
 | `max-sessions` | 100 | Maximum concurrent BMP sessions (1-1000) |
-| `route-action` | monitor | `monitor` (BMP RIB for visibility) or `redistribute` (future: also enter best-path) |
+| `route-action` | monitor | `monitor` is the only value: routes go to the BMP RIB for visibility, never to best-path or the FIB |
+
+<!-- source: internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang -- environment container, route-action -->
 
 Multiple listeners are supported (same pattern as SSH/web):
 
@@ -151,6 +153,16 @@ established peer requires that BGP peer to reconnect before it can be monitored.
 The sender reconnects automatically with exponential backoff (30s to 720s)
 per RFC 7854 recommendations.
 
+Use the internal BMP plugin for `loc-rib true`. Runtime startup and reload
+require the live BGP RIB event bus and refuse this mode when that feed is
+unavailable, before starting BMP sessions. The current external process has
+no transport for this feed. Replace that external instance with
+`plugin { internal bmp { use bgp-bmp; } }`. Offline configuration parsing
+checks syntax independently of this runtime capability.
+
+<!-- source: internal/component/bgp/plugins/bmp/locrib_runtime.go -- validateLocRIBRuntimeConfig -->
+<!-- source: internal/component/bgp/plugins/bmp/bmp.go -- BMPPlugin.registerCallbacks -->
+
 ## CLI Commands
 
 | Command | Description |
@@ -199,6 +211,15 @@ Ze handles all 7 BMP message types defined in RFC 7854:
 
 
 ### Sender Behavior
+
+If a Loc-RIB update cannot be queued for a collector, Ze logs a warning with
+the collector and the original error, and continues sending to the other
+collectors. It also retains the failure as an error event under
+`doctor-recent-events`. `show errors` and the daemon's `show doctor` expose
+that event even if the collector later reconnects. Run `ze show bmp collectors`
+to inspect the collector sessions.
+<!-- source: internal/component/bgp/plugins/bmp/bmp_locrib.go -- BMPPlugin.handleBestChange -->
+<!-- source: internal/component/doctor/checks_recent_events.go -- checkRecentEvents, recentEventsDiagnostic -->
 
 - Sends Initiation with the system identity on each connection
 - Sends Peer Up with the cached sent and received OPEN messages for every established BGP peer, followed by its current route snapshot and per-family End-of-RIB
@@ -489,9 +510,16 @@ When the BMP receiver is enabled, monitored routes are stored in the BMP RIB
 (a separate protocol namespace). These routes are visible through `show bmp rib`
 and looking glass endpoints but never enter BGP best-path selection or the FIB.
 
-The `route-action` leaf controls future behavior:
-- `monitor` (default): store in BMP RIB for visibility only
-- `redistribute`: store in BMP RIB AND redistribute into BGP best-path (not yet implemented)
+The `route-action` leaf has one value, `monitor`, which is also the default. A
+BMP receiver is a monitoring station: RFC 7854 defines no use of the routes it
+is told about, and a Route Monitoring message carries another router's
+unprocessed Adj-RIB-In over a session with no authentication. Ze therefore
+never feeds those routes to best-path selection. Any other value, such as
+`redistribute`, is refused when the config loads or reloads, naming the leaf
+and the accepted value; delete the line or write `route-action monitor;`.
+
+<!-- source: internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang -- route-action -->
+<!-- source: internal/component/bgp/plugins/bmp/bmp.go -- processRouteMonitoring -->
 
 ### CLI
 
@@ -499,7 +527,7 @@ The `route-action` leaf controls future behavior:
 |---------|-------------|
 | `ze show bmp rib` | Show all BMP-monitored routes |
 
-BMP routes are separate from BGP routes: `ze bgp rib show` excludes
+BMP routes are separate from BGP routes: `ze show bgp rib` excludes
 BMP-monitored routes, and `ze show bmp rib` excludes real BGP routes.
 
 ### API Endpoints
@@ -548,8 +576,13 @@ other looking glass frontends.
 
 - **Loc-RIB Route Monitoring** (RFC 9069) carries the best path's own stored
   attributes (ORIGIN, LOCAL_PREF, MED, communities and the rest), which
-  bgp-rib publishes on each best change, with the AS_PATH in four-octet form
-  and the resolved next hop. A best change that arrives without its attribute
-  set is not sent: a Warn log names the prefix, rather than a route with an
-  invented ORIGIN. A change of attributes alone, with the same winning path,
-  next hop and metrics, publishes no best change and so sends no update.
+  bgp-rib publishes on each best change. AS_PATH retains its stored segment
+  types and four-octet ASNs, including an explicitly present empty path for
+  a locally sourced route. The flattened display path never replaces it.
+  The next hop is the resolved one. An announce without that next hop, its
+  attribute set, ORIGIN or AS_PATH is refused and logged with the prefix and
+  cause. A stored attribute change publishes a best change even when the
+  selected peer, next hop and metrics remain the same.
+
+<!-- source: internal/component/bgp/plugins/bmp/bmp_locrib.go -- buildLocRIBUpdateBody, handleBestChange -->
+<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- RIBManager.checkRouteBestChange -->

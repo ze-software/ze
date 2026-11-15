@@ -156,26 +156,6 @@ The shipped daemon speaks BGP, manages Linux interfaces, programs the FIB, and s
 
 Plugins can be compiled Go modules or external processes. Compiled modules load their YANG into the daemon validator; external plugins can expose their model through `ze schema`.
 
-## Latest news
-
- [All updates](https://ze-software.net/project/changes/) Engineering note
-
-### [Keeping documentation in step with the code](https://ze-software.net/blog/reference-from-the-system/)
-
-Ze generates public reference from its code and records, with links to the decisions behind them. Operators…
-
- Recently shipped
-
-### [2026-10-25 – 2026-11-09 (16 days)](https://ze-software.net/project/changes/2026-10-25/)
-
-This update covers two weeks, and a number of the changes can break a working configuration. Following RFC…
-
- RFC compliance progress
-
-### [Mandatory RFC requirements and their test evidence](https://ze-software.net/quality/rfc-compliance/)
-
-One page per RFC, naming each requirement, the test evidence behind it, and the ones that have none.
-
  Evidence for your decision
 
 ## Tests that catch bugs
@@ -192,9 +172,9 @@ Inspect the requirements and remaining gaps for your network role, alongside the
 
 ### Mandatory RFC requirements proven
 
-45.2%
+44.9%
 
-2,149 of 4,752 requirements for Ze or the OS.
+2,136 of 4,752 requirements for Ze or the OS.
 
 **196**RFCs implemented **0**unreviewed requirement lists excluded
 
@@ -246,7 +226,7 @@ A scenario can contain many checks, and many scenarios reuse the same peer imple
 | RADIUS | 12 | Operator login, authorization, subscriber accounting, CoA and disconnect cases. |
 | RSVP-TE | 10 | Transit, label and signaling scenarios. |
 | Multi-node topologies | 18 | Links, routes and service interactions between nodes. |
-| All scenarios | 399 | Each scenario is counted once by its primary protocol or test area, including cases that exercise several protocols. |
+| All scenarios | 399 | Each scenario counts toward one category only. If it tests several protocols, we group it only under the main one it tests. |
 
  Package behavior
 

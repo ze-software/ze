@@ -4,7 +4,7 @@ A hard round of route reflector hardening, a live web dashboard for the chaos to
 
 ## 🔀 Route reflector hardening
 
-The route reflector had a hard week of bug-hunting. Fixes landed for routes being dropped under a slow consumer, deadlocks from subscribing to both directions of a session, incorrect per-family filtering, and log spam during backpressure. The UPDATE cache is now refcounted with configurable size and TTL, out-of-order acknowledgements are treated as no-ops instead of protocol violations, and forwarding moved to per-source and per-destination worker pools so one slow peer no longer stalls the others. Shutdown is faster too: sequential per-component timeouts that used to compound are now parallel waits under a single deadline, so daemon stop is near-instant.
+The route reflector had a hard week of bug-hunting. Fixes addressed routes being dropped under a slow consumer, deadlocks from subscribing to both directions of a session, incorrect per-family filtering, and excessive logging when consumers could not keep up. The UPDATE cache is now refcounted with configurable size and TTL, out-of-order acknowledgements are treated as no-ops instead of protocol violations, and forwarding moved to per-source and per-destination worker pools so one slow peer no longer stalls the others. Shutdown is faster too: sequential per-component timeouts that used to compound are now parallel waits under a single deadline, so daemon stop is near-instant.
 
 ## 🌪️ Chaos tool dashboard
 

@@ -1,6 +1,6 @@
 # RFC 5838 - Support of Address Families in OSPFv3
 
-OSPFv3 multiple address families. Every requirement this repository extracted from RFC 5838, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+OSPFv3 multiple address families. Every requirement listed for RFC 5838, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,24 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 6 | of 16 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 1 | of 16 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 16 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 16 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 14 | 14 of 20 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-
-### Neutral
-
-measures that are neither good news nor bad
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Gated MUSTs | 16 | of 27 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 16 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 16 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 16 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 16 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 16 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Tested both ways | 6 | of 16 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 1 | of 16 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 16 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 16 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Tests shown to detect a fault | 14 | 14 of 20 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -35,54 +22,74 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 9 | of 16 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Declared gap or no test | 9 | of 16 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 
-The 9 counts marked as a part above are the whole of the 16 gated MUSTs: they add up to 16. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Neutral
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+measures that are neither good news nor bad
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Out of scope | 0 | of 16 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 16 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 16 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 16 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 16 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+
+### Totals
+
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 16 | of 27 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 16 mandatory requirements: they add up to 16. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | OSPFv3 multiple address families |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 27 |
-| Gated MUST-level | 16 |
+| Mandatory requirements (MUST level) | 16 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 9 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 20 |
-| Tagged units | 20 |
+| Tests linked to requirements | 20 |
 | Recorded audit verdicts | 6 |
-| Discrimination records | 14 |
+| Fault test records | 14 |
 | Summary | `rfc/short/rfc5838.md` |
-| Requirement shard | `rfc/requirements/rfc5838.md` |
+| Requirement table | `rfc/requirements/rfc5838.md` |
 | RFC text | `rfc/full/rfc5838.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: Support of Address Families in OSPFv3 (RFC 5838): 4 MET (non-default-AF AF-bit discard + base-AF ignore, AF-conformance route-computation gate, IPv4 forwarding-address AF-width, global-IPv6 virtual-link endpoints) + 2 single-polarity positive (base-AF no-reject path, IPv4 forwarding-address remaining-bits-zero) + 10 gap (AF-bit not set in LSAs, IPv4 Link-LSA link-local, section 2.7 per-AF MTU / M6-bit machinery, the shared interface SA ze meets with no test, the IANA 128-255 Standards-Action process)
+Included in automatic checks: Support of Address Families in OSPFv3 (RFC 5838): 4 MET (non-default-AF AF-bit discard + base-AF ignore, AF-conformance route-computation gate, IPv4 forwarding-address AF-width, global-IPv6 virtual-link endpoints) + 2 single-polarity positive (base-AF no-reject path, IPv4 forwarding-address remaining-bits-zero) + 10 gap (AF-bit not set in LSAs, IPv4 Link-LSA link-local, section 2.7 per-AF MTU / M6-bit machinery, the shared interface SA ze meets with no test, the IANA 128-255 Standards-Action process)
 
-## What the public ledger says
+## Published support status
 
 **Area:** OSPFv3 multiple address families
 
@@ -97,14 +104,14 @@ Enrolled: Support of Address Families in OSPFv3 (RFC 5838): 4 MET (non-default-A
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 6 | one part of the gated population |
-| Annotated (including scoped evidence) | 10 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **16** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 6 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 10 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **16** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (6):** [`RFC5838-2.3-1`](#rfc5838-2.3-1), [`RFC5838-2.4-1`](#rfc5838-2.4-1), [`RFC5838-2.5-1`](#rfc5838-2.5-1), [`RFC5838-2.6-1`](#rfc5838-2.6-1), [`RFC5838-2.6-2`](#rfc5838-2.6-2), [`RFC5838-2.8-1`](#rfc5838-2.8-1)
 
@@ -112,20 +119,23 @@ Enrolled: Support of Address Families in OSPFv3 (RFC 5838): 4 MET (non-default-A
 
 ## Figures
 
-- **MUST bar**: Ze proven 4, Ze correctness gap 12
-- **Overview bar**: Ze MUST proven 4, SHOULD not decided 11, Ze correctness gap 12
+- **MUST bar**: Ze proven 4, Proof pending 3, Not built 9
+- **Overview bar**: Ze MUST proven 4, Proof pending 3, Not assessed 11, Not built 9
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 16 |
 | MUST rows kept (the MUST bar) | 16 |
 | Ze proven | 4 |
 | OS verified | 0 |
+| Proof pending | 3 |
 | OS testing gap | 0 |
-| Ze correctness gap | 12 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 9 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -138,11 +148,12 @@ Enrolled: Support of Address Families in OSPFv3 (RFC 5838): 4 MET (non-default-A
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 11 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 11 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc5838.json](../../../data/rfc/rfc5838.json).
 
@@ -163,7 +174,7 @@ Source: [data/rfc/rfc5838.json](../../../data/rfc/rfc5838.json).
 | `RFC5838-2.7-4` | The value used for OSPFv3 maximum packet size determination MUST also be compatible for an adjacency to be established. (§2.7) | MUST | 2.7 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the adjacency MTU-compatibility gate at neighbor/dd.go:45 compares the single interface MTU only; ze does not derive an IPv6-MTU-based maximum packet size distinct from the AF MTU per RFC 5838 §2.7 |
 | `RFC5838-2.7-8` | If the IPv6 and IPv4 MTUs differ, the M6-bit MUST be set for non-IPv6 address families. (§2.7) | MUST | 2.7 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze implements no M6-bit -- a grep for m6 across internal/plugins/ospf returns nothing -- so the DD encoder at encoder_v6.go:90 never sets it for a non-IPv6 AF |
 | `RFC5838-2.7-11` | If the M6-bit is set in a received Database Description packet for a non-IPv6 address family, the receiving router MUST NOT check the Interface MTU in the Database Description packet against the receiving interface's IPv6 MTU. (§2.7) | MUST NOT | 2.7 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze neither sets nor reads the M6-bit and performs only the single-MTU check at neighbor/dd.go:45, so the M6-conditioned suppression of an IPv6-MTU comparison is unimplemented |
-| `RFC5838-2.8-1` | there MUST be a global IPv6 address associated with the virtual link so that OSPFv3 control packets are forwarded correctly by the intermediate hops between virtual link endpoints. (§2.8) | MUST | 2.8 | **positive:** `unit/verify` [`TestV6VirtualEndpointResolvesGlobalAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L518). **negative:** `unit/verify` [`TestRFC5838VirtualLinkRequiresLocalGlobalAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_af_test.go#L143). **negative:** `unit/verify` [`TestV6VirtualEndpointRequiresGlobalAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L554) |
+| `RFC5838-2.8-1` | there MUST be a global IPv6 address associated with the virtual link so that OSPFv3 control packets are forwarded correctly by the intermediate hops between virtual link endpoints. (§2.8) | MUST | 2.8 | **positive:** `unit/verify` [`TestV6VirtualEndpointResolvesGlobalAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L520). **negative:** `unit/verify` [`TestRFC5838VirtualLinkRequiresLocalGlobalAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_af_test.go#L143). **negative:** `unit/verify` [`TestV6VirtualEndpointRequiresGlobalAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L556) |
 | `RFC5838-4-1` | When multiple OSPFv3 instances use the same interface, they all MUST use the same Security Association (SA), since the SA selectors do not provide selection based on data in OSPFv3 Header fields (e.g., the Instance ID). (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** gap in proof: internal/plugins/ospf/ipsec_install.go::buildIPsecPolicies meets it, since the policy selects on upper-protocol 89 and the interface alone, never on the Instance ID, so every OSPFv3 instance on an interface uses the one SA, and validateConfigAF accepts an ipsec block only on the IPv6-unicast family; no test asserts it |
 | `RFC5838-5-3` | Instance IDs in the range 128-255 are not assigned at this time. Before any assignments can be made in this range, there MUST be a Standards Track RFC including an IANA Considerations section explicitly specifying the AF Instance IDs being assigned. (§5) | MUST | 5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** an IANA assignment rule with no implementer role the RFC names; ze assigns no AF Instance ID and refuses one above 127 for AF use (internal/plugins/ospf/multiaf.go, ErrInstanceIDRange in config.go), and no test ties that refusal to this requirement |
 | `RFC5838-2.5-2` | An implementation SHOULD resolve layer 3 to layer 2 mappings via the Address Resolution Protocol (ARP) [ARP] or Neighbor Discovery (ND) [ND] for a DIA even if the IPv4 address is not on the same subnet as the router's interface IP address. (§2.5) | SHOULD | 2.5 | **positive:** no positive test. **negative:** no negative test |
@@ -194,15 +205,15 @@ Source: [data/rfc/rfc5838.json](../../../data/rfc/rfc5838.json).
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC5838-2.2-1`](#rfc5838-2.2-1)
 
 When an OSPFv3 router is supporting AFs as described in this specification, it MUST set the AF-bit in the OSPFv3 Options field of Hello packets, Database Description packets, and LSAs. (§2.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5838-2.2-1, so no unit is bound to it.
+No test carries RFC5838-2.2-1, so there is no linked test.
 
 ### [`RFC5838-2.3-1`](#rfc5838-2.3-1)
 
@@ -242,7 +253,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 the link's IPv4 address will be advertised in the "link local address" field of the IPv4 instance's Link-LSA. This address is placed in the first 32 bits of the "link local address" field and is used for IPv4 next-hop calculations. The remaining bits MUST be set to zero. (§2.5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -279,49 +290,49 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 For address families other than IPv6, both the MTU for the instance address family and the IPv6 MTU used for OSPFv3 maximum packet determination MUST be considered. (§2.7)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5838-2.7-1, so no unit is bound to it.
+No test carries RFC5838-2.7-1, so there is no linked test.
 
 ### [`RFC5838-2.7-2`](#rfc5838-2.7-2)
 
 The MTU in the Database Description packet MUST always contain the MTU corresponding to the advertised address family. (§2.7)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5838-2.7-2, so no unit is bound to it.
+No test carries RFC5838-2.7-2, so there is no linked test.
 
 ### [`RFC5838-2.7-3`](#rfc5838-2.7-3)
 
 For example, if the instance corresponds to an IPv4 address family, the IPv4 MTU for the interface MUST be specified in the interface MTU field. (§2.7)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5838-2.7-3, so no unit is bound to it.
+No test carries RFC5838-2.7-3, so there is no linked test.
 
 ### [`RFC5838-2.7-4`](#rfc5838-2.7-4)
 
 The value used for OSPFv3 maximum packet size determination MUST also be compatible for an adjacency to be established. (§2.7)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5838-2.7-4, so no unit is bound to it.
+No test carries RFC5838-2.7-4, so there is no linked test.
 
 ### [`RFC5838-2.7-8`](#rfc5838-2.7-8)
 
 If the IPv6 and IPv4 MTUs differ, the M6-bit MUST be set for non-IPv6 address families. (§2.7)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5838-2.7-8, so no unit is bound to it.
+No test carries RFC5838-2.7-8, so there is no linked test.
 
 ### [`RFC5838-2.7-11`](#rfc5838-2.7-11)
 
 If the M6-bit is set in a received Database Description packet for a non-IPv6 address family, the receiving router MUST NOT check the Interface MTU in the Database Description packet against the receiving interface's IPv6 MTU. (§2.7)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5838-2.7-11, so no unit is bound to it.
+No test carries RFC5838-2.7-11, so there is no linked test.
 
 ### [`RFC5838-2.8-1`](#rfc5838-2.8-1)
 
@@ -332,26 +343,26 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC5838VirtualLinkRequiresLocalGlobalAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_af_test.go#L143) | unit/verify | revert, verified |
-| negative | [`TestV6VirtualEndpointRequiresGlobalAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L554) | unit/verify | revert, verified |
-| positive | [`TestV6VirtualEndpointResolvesGlobalAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L518) | unit/verify | revert, verified |
+| negative | [`TestV6VirtualEndpointRequiresGlobalAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L556) | unit/verify | revert, verified |
+| positive | [`TestV6VirtualEndpointResolvesGlobalAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L520) | unit/verify | revert, verified |
 
 ### [`RFC5838-4-1`](#rfc5838-4-1)
 
 When multiple OSPFv3 instances use the same interface, they all MUST use the same Security Association (SA), since the SA selectors do not provide selection based on data in OSPFv3 Header fields (e.g., the Instance ID). (§4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5838-4-1, so no unit is bound to it.
+No test carries RFC5838-4-1, so there is no linked test.
 
 ### [`RFC5838-5-3`](#rfc5838-5-3)
 
 Instance IDs in the range 128-255 are not assigned at this time. Before any assignments can be made in this range, there MUST be a Standards Track RFC including an IANA Considerations section explicitly specifying the AF Instance IDs being assigned. (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5838-5-3, so no unit is bound to it.
+No test carries RFC5838-5-3, so there is no linked test.
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -370,30 +381,30 @@ No test carries RFC5838-5-3, so no unit is bound to it.
 
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
-| `front` | not stated | 0 | walked | not stated |
-| `1` | not stated | 0 | walked | not stated |
-| `1.1` | not stated | 0 | walked | not stated |
-| `1.2` | not stated | 0 | walked | not stated |
-| `2` | not stated | 0 | walked | not stated |
-| `2.1` | not stated | 0 | walked | not stated |
-| `2.2` | not stated | 1 | walked | not stated |
-| `2.3` | not stated | 1 | walked | not stated |
-| `2.4` | not stated | 2 | walked | not stated |
-| `2.5` | not stated | 1 | walked | not stated |
-| `2.6` | not stated | 2 | walked | not stated |
-| `2.7` | not stated | 6 | walked | not stated |
-| `2.8` | not stated | 1 | walked | not stated |
-| `3` | not stated | 0 | walked | not stated |
-| `4` | not stated | 1 | walked | not stated |
-| `5` | not stated | 1 | walked | not stated |
-| `6` | not stated | 0 | walked | not stated |
-| `6.1` | not stated | 0 | walked | not stated |
-| `6.2` | not stated | 0 | walked | not stated |
-| `A` | not stated | 0 | walked | not stated |
+| `front` | not stated | 0 | reviewed | not stated |
+| `1` | not stated | 0 | reviewed | not stated |
+| `1.1` | not stated | 0 | reviewed | not stated |
+| `1.2` | not stated | 0 | reviewed | not stated |
+| `2` | not stated | 0 | reviewed | not stated |
+| `2.1` | not stated | 0 | reviewed | not stated |
+| `2.2` | not stated | 1 | reviewed | not stated |
+| `2.3` | not stated | 1 | reviewed | not stated |
+| `2.4` | not stated | 2 | reviewed | not stated |
+| `2.5` | not stated | 1 | reviewed | not stated |
+| `2.6` | not stated | 2 | reviewed | not stated |
+| `2.7` | not stated | 6 | reviewed | not stated |
+| `2.8` | not stated | 1 | reviewed | not stated |
+| `3` | not stated | 0 | reviewed | not stated |
+| `4` | not stated | 1 | reviewed | not stated |
+| `5` | not stated | 1 | reviewed | not stated |
+| `6` | not stated | 0 | reviewed | not stated |
+| `6.1` | not stated | 0 | reviewed | not stated |
+| `6.2` | not stated | 0 | reviewed | not stated |
+| `A` | not stated | 0 | reviewed | not stated |
 
 ### Excluded sentences
 
-The walk over RFC 5838 declined no sentence: every site it found is mapped to a requirement.
+The review of RFC 5838 excluded no sentences: every sentence identified as an obligation is linked to a requirement.
 
 ## Superseded
 

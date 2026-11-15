@@ -1,6 +1,6 @@
 # RFC 4724 - Graceful Restart Mechanism for BGP
 
-Graceful Restart. Every requirement this repository extracted from RFC 4724, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+Graceful Restart. Every requirement listed for RFC 4724, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,24 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 16 | of 26 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 1 | of 26 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 26 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 26 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 40 | 40 of 75 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-
-### Neutral
-
-measures that are neither good news nor bad
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Gated MUSTs | 26 | of 31 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 26 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 26 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 26 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 26 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 26 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Tested both ways | 16 | of 26 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 1 | of 26 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 26 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 26 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Tests shown to detect a fault | 42 | 42 of 76 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -35,54 +22,74 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 9 | of 26 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Declared gap or no test | 9 | of 26 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 
-The 9 counts marked as a part above are the whole of the 26 gated MUSTs: they add up to 26. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Neutral
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+measures that are neither good news nor bad
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Out of scope | 0 | of 26 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 26 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 26 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 26 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 26 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+
+### Totals
+
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 26 | of 31 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 26 mandatory requirements: they add up to 26. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | Graceful Restart |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 31 |
-| Gated MUST-level | 26 |
+| Mandatory requirements (MUST level) | 26 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 9 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 75 |
-| Tagged units | 75 |
+| Test tags | 76 |
+| Tests linked to requirements | 76 |
 | Recorded audit verdicts | 17 |
-| Discrimination records | 40 |
+| Fault test records | 42 |
 | Summary | `rfc/short/rfc4724.md` |
-| Requirement shard | `rfc/requirements/rfc4724.md` |
+| Requirement table | `rfc/requirements/rfc4724.md` |
 | RFC text | `rfc/full/rfc4724.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: Graceful Restart Mechanism for BGP (RFC 4724): 16 MET (GR capability advertise + last-instance negotiate, Restart-State/Forwarding-State bit encoding, End-of-RIB send + detect, mark-stale on non-NOTIFICATION drop, stale deletion on consecutive restart / Restart-Time expiry / F-bit-clear / no-GR-cap re-establish, GR-stale level-1 competes normally in best-path) + 1 single-polarity positive + 9 gap (GR-capability collision-detection override and related receiving-speaker obligations, and the no-wait-for-End-of-RIB rule ze meets with no test)
+Included in automatic checks: Graceful Restart Mechanism for BGP (RFC 4724): 16 MET (GR capability advertise + last-instance negotiate, Restart-State/Forwarding-State bit encoding, End-of-RIB send + detect, mark-stale on non-NOTIFICATION drop, stale deletion on consecutive restart / Restart-Time expiry / F-bit-clear / no-GR-cap re-establish, GR-stale level-1 competes normally in best-path) + 1 single-polarity positive + 9 gap (GR-capability collision-detection override and related receiving-speaker obligations, and the no-wait-for-End-of-RIB rule ze meets with no test)
 
-## What the public ledger says
+## Published support status
 
 **Area:** Graceful Restart
 
@@ -97,14 +104,14 @@ Enrolled: Graceful Restart Mechanism for BGP (RFC 4724): 16 MET (GR capability a
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 16 | one part of the gated population |
-| Annotated (including scoped evidence) | 10 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **26** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 16 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 10 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **26** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (16):** [`RFC4724-3-2`](#rfc4724-3-2), [`RFC4724-3-3`](#rfc4724-3-3), [`RFC4724-3-4`](#rfc4724-3-4), [`RFC4724-4-1`](#rfc4724-4-1), [`RFC4724-4-2`](#rfc4724-4-2), [`RFC4724-4.1-4`](#rfc4724-4.1-4), [`RFC4724-4.1-7`](#rfc4724-4.1-7), [`RFC4724-4.2-3`](#rfc4724-4.2-3), [`RFC4724-4.2-4`](#rfc4724-4.2-4), [`RFC4724-4.2-5`](#rfc4724-4.2-5), [`RFC4724-4.2-6`](#rfc4724-4.2-6), [`RFC4724-4.2-7`](#rfc4724-4.2-7), [`RFC4724-4.2-8`](#rfc4724-4.2-8), [`RFC4724-4.2-9`](#rfc4724-4.2-9), [`RFC4724-4.2-10`](#rfc4724-4.2-10), [`RFC4724-4.2-11`](#rfc4724-4.2-11)
 
@@ -112,20 +119,23 @@ Enrolled: Graceful Restart Mechanism for BGP (RFC 4724): 16 MET (GR capability a
 
 ## Figures
 
-- **MUST bar**: Ze proven 14, Ze correctness gap 12
-- **Overview bar**: Ze MUST proven 14, SHOULD proven 1, SHOULD not decided 4, Ze correctness gap 12
+- **MUST bar**: Ze proven 14, Proof pending 3, Not built 9
+- **Overview bar**: Ze MUST proven 14, SHOULD proven 1, Proof pending 3, Not assessed 4, Not built 9
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 26 |
 | MUST rows kept (the MUST bar) | 26 |
 | Ze proven | 14 |
 | OS verified | 0 |
+| Proof pending | 3 |
 | OS testing gap | 0 |
-| Ze correctness gap | 12 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 9 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -138,11 +148,12 @@ Enrolled: Graceful Restart Mechanism for BGP (RFC 4724): 16 MET (GR capability a
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 4 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 4 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc4724.json](../../../data/rfc/rfc4724.json).
 
@@ -155,7 +166,7 @@ Source: [data/rfc/rfc4724.json](../../../data/rfc/rfc4724.json).
 | `RFC4724-3-3` | The remaining bits are reserved and MUST be set to zero by the sender and ignored by the receiver. (Section 3) | MUST | 3 | **positive:** `unit/verify` [`TestGracefulRestartEncodeReservedBits`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L484). **positive:** `unit/verify` [`TestRFC4724ReceiverIgnoresReservedAddressFamilyFlags`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc4724_reserved_bits_test.go#L73). **negative:** `unit/verify` [`TestGracefulRestartEncodeReservedBits`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L498). **negative:** `unit/verify` [`TestRFC4724ReceiverIgnoresReservedAddressFamilyFlags`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc4724_reserved_bits_test.go#L74) |
 | `RFC4724-3-4` | If more than one instance of the Graceful Restart Capability is carried in the capability advertisement, the receiver of the advertisement MUST ignore all but the last instance of the Graceful Restart Capability. (Section 3) | MUST | 3 | **positive:** `unit/verify` [`TestNegotiateGracefulRestartLastInstance`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L62). **negative:** `unit/verify` [`TestNegotiateGracefulRestartLastInstance`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L70) |
 | `RFC4724-3-5` | When set (value 1), this bit indicates that the BGP speaker has restarted, and its peer MUST NOT wait for the End-of-RIB marker from the speaker before advertising routing information to the speaker. (Section 3) | MUST NOT | 3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** gap in proof: internal/component/bgp/reactor/peer_initial_sync.go::sendInitialRoutes meets it, since ze advertises its Adj-RIB-Out and End-of-RIB on reaching Established without waiting for the peer's End-of-RIB, and the only End-of-RIB timer (session_health.go, startEORTimer) raises a health warning and defers nothing; no test asserts it |
-| `RFC4724-4-1` | The End-of-RIB marker MUST be sent by a BGP speaker to its peer once it completes the initial routing update (including the case when there is no update to send) for an address family after the BGP session is established. (Section 4) | MUST | 4 | **positive:** `unit/verify` [`TestBuildEOR_IPv4Unicast`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4724_eor_test.go#L16). **positive:** `unit/verify` [`TestInitialSyncEORReachesTheSilentFamilyToo`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L111). **positive:** `unit/verify` [`TestInitialSyncEORSentWhenNeitherSideDeclaredAFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L757). **positive:** `unit/verify` [`TestInitialSyncMarkerWaitsForNoProcess`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L790). **positive:** `unit/verify` [`TestInitialSyncShutsTheQueueGateAndFreesTheRailsWithTheMarker`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L353). **positive:** `unit/verify` [`TestRoutePushingBindingsCountBothRails`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L431). **negative:** `unit/verify` [`TestIsEndOfRIBAnyFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4724_eor_test.go#L224). **negative:** `unit/verify` [`TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4724_reactor_b_test.go#L23). **positive:** `interop/nightly` [`checkNoFamilyEndOfRIB`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1235) |
+| `RFC4724-4-1` | The End-of-RIB marker MUST be sent by a BGP speaker to its peer once it completes the initial routing update (including the case when there is no update to send) for an address family after the BGP session is established. (Section 4) | MUST | 4 | **positive:** `unit/verify` [`TestBuildEOR_IPv4Unicast`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4724_eor_test.go#L16). **positive:** `unit/verify` [`TestInitialSyncEORReachesTheSilentFamilyToo`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L111). **positive:** `unit/verify` [`TestInitialSyncEORSentWhenNeitherSideDeclaredAFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L763). **positive:** `unit/verify` [`TestInitialSyncMarkerWaitsForNoProcess`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L796). **positive:** `unit/verify` [`TestInitialSyncShutsTheQueueGateAndFreesTheRailsWithTheMarker`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L356). **positive:** `unit/verify` [`TestPredecessorSyncWritesNothingOnSuccessor`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4724_rapid_reconnect_test.go#L95). **positive:** `unit/verify` [`TestRoutePushingBindingsCountBothRails`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L437). **negative:** `unit/verify` [`TestIsEndOfRIBAnyFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4724_eor_test.go#L224). **negative:** `unit/verify` [`TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4724_reactor_b_test.go#L23). **positive:** `interop/nightly` [`checkNoFamilyEndOfRIB`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1276) |
 | `RFC4724-4-2` | It is noted that the normal BGP procedures MUST be followed when the TCP session terminates due to the sending or receiving of a BGP NOTIFICATION message. (Section 4) | MUST | 4 | **positive:** `unit/verify` [`TestGRStateManagerNotificationBypass`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L219). **positive:** `unit/verify` [`TestPeerCloseNamesTheNotificationTheNeighborSent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_close_test.go#L46). **positive:** `unit/verify` [`TestRFC4724NotificationCloseRetainsNothing`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_close_reason_test.go#L25). **negative:** `unit/verify` [`TestGRStateManagerRouteRetention`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L45). **negative:** `unit/verify` [`TestPeerCloseNamesTheTransportLoss`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_close_test.go#L74). **negative:** `unit/verify` [`TestRFC4724TransportCloseRetains`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_close_reason_test.go#L43) |
 | `RFC4724-4.1-1` | When the Restarting Speaker restarts, it MUST retain, if possible, the forwarding state for the BGP routes in the Loc-RIB (Section 4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze's Restarting Speaker path implements only GR signaling -- it writes a restart marker and sets the R bit (internal/component/bgp/grmarker/grmarker.go, internal/component/bgp/reactor/peer.go:574) -- and does not retain its own in-memory Loc-RIB forwarding state across a process restart within the bgp packages; the Loc-RIB is rebuilt from scratch on restart |
 | `RFC4724-4.1-2` | When the Restarting Speaker restarts, it MUST retain, if possible, the forwarding state for the BGP routes in the Loc-RIB and MUST mark them as stale. (Section 4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** because ze does not retain its own Loc-RIB across a restart (see RFC4724-4.1-1), there is no retained own-forwarding state to mark stale; the stale-marking machinery (internal/component/bgp/plugins/rib/rib_commands.go:817 markStaleCommand) applies to routes received from a restarting peer, not to ze's own routes on ze's restart |
@@ -198,13 +209,13 @@ Source: [data/rfc/rfc4724.json](../../../data/rfc/rfc4724.json).
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC4724-3-1`](#rfc4724-3-1)
 
 A BGP speaker MUST NOT include more than one instance of the Graceful Restart Capability in the capability advertisement (Section 3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -251,15 +262,15 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. two 
 
 When set (value 1), this bit indicates that the BGP speaker has restarted, and its peer MUST NOT wait for the End-of-RIB marker from the speaker before advertising routing information to the speaker. (Section 3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4724-3-5, so no unit is bound to it.
+No test carries RFC4724-3-5, so there is no linked test.
 
 ### [`RFC4724-4-1`](#rfc4724-4-1)
 
 The End-of-RIB marker MUST be sent by a BGP speaker to its peer once it completes the initial routing update (including the case when there is no update to send) for an address family after the BGP session is established. (Section 4)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/le/interoplab/bgp/check_rfc.go::checkNoFamilyEndOfRIB moved. Re-judged 2026-10-12 (independent auditor). SHIFTED by 4e731b2d96 (owner-approved lint-only reactor test edits). The tagged unit is byte-identical (gate-verified); the file-level changes are comment punctuation, slices.Concat over the same bytes, joined appends, strings.SplitSeq, newDefaultOriginatePeer taking its fixed addresses from constants with the same values, and registerTypeLenRecognizer losing a lo every caller passed as 1, none of which changes what a helper this unit calls produces. Verdict stands. Positives: sendInitialRoutes puts one End-of-RIB per negotiated family on the wire, including a silent family and a no-MP session. Negative TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes: while a plugin producing the initial update has not acknowledged peer-up, sendInitialRoutes is observed waiting and nothing is on the wire (EORSent 0); after the acknowledgement exactly the IPv4 unicast marker is written. Red on a marker sent ahead of the initial update or not sent after it. TestIsEndOfRIBAnyFamily is a neighbouring detector rule. Rejudged 2026-10-12 after commit ce62c78c3b moved peer_initial_sync_test.go around these units: the tagged functions there were re-read and are byte-identical, their assertions and fixtures still carry the evidence this note cites, and the other cited units did not change, so the verdict stands. Rejudged 2026-10-12 after 7a637d6df5 renamed SendUpdateHeld to sendUpdateHeld in two comments of peer_initial_sync_test.go: every tagged unit cited here is byte-identical (gate-verified), the comment edits sit outside them, and the assertions and fixtures still carry the evidence this note cites, so the verdict stands.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-14 by an independent auditor who authored neither 4aa1f84ff6 nor its test change. RFC 4724 Section 4 read: "The End-of-RIB marker MUST be sent by a BGP speaker to its peer once it completes the initial routing update (including the case when there is no update to send) for an address family after the BGP session is established." Stale unit TestInitialSyncMarkerWaitsForNoProcess re-read as committed: it names two route-pushing processes (sendUpdateOnly, sendRawOnly) plus an event-only listener, seeds the expectation set with the two pushers, and now raises the replay fence over both (raiseTestReplayFence sets replayFence and initialUpdateOwed), then runs the production sync body (runInitialSyncNow, Peer.sendInitialRoutes) with neither pusher reporting. It requires the sync to return within 2s, then asserts the fence is still up, zero reports credited (len apiSyncSignalled), and exactly the IPv4 unicast End-of-RIB bytes on the wire (eorWire equality). The deleted assertion (apiSyncReady channel still open) is replaced by fence-still-up plus no-credit over the same two silent processes: a sync that waited again for those reports, or for the fence to lower, never returns and goes red on the Eventually, and a marker missing or duplicated goes red on the byte equality. peer_initial_sync.go never reads initialUpdateOwed, so the extra assertions isolate that the marker left with the fence still raised. Question 1: the test asserts the RFC's own trigger, completion of ze's own initial update, not a process report. Question 2: yes, for a reintroduced wait or a missing marker. Question 3: the input is isolated, one negotiated family, no routes. Question 4: this unit proves the timing clause; the no-update case and every-family clause rest on the sibling positives below, unchanged. The tag's claim paragraph is unchanged and states no more than the body checks. The other cited units are byte-identical (TestInitialSyncEORReachesTheSilentFamilyToo only shifted). Verdict unchanged: enforced. Earlier judgement follows. Re-judged 2026-11-14 by an independent auditor who authored neither 08fe903803 nor the uncommitted phase 2 of spec-single-owner-lifecycle-2-bgp-session. Units read: TestInitialSyncEORReachesTheSilentFamilyToo, TestInitialSyncEORSentWhenNeitherSideDeclaredAFamily, TestInitialSyncMarkerWaitsForNoProcess, TestInitialSyncShutsTheQueueGateAndFreesTheRailsWithTheMarker, TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes (sync call only), and TestPredecessorSyncWritesNothingOnSuccessor (positive: the successor session carries exactly one UPDATE with the queued route, then the exact IPv4 unicast End-of-RIB, then no UPDATE for syncJoinProbe). checkNoFamilyEndOfRIB requires FRR's own bgp_update_receive_eor decode on the original session after the route arrived. Positives: sendInitialRoutes puts one End-of-RIB per negotiated family on the wire, including a silent family and a no-MP session. Negative TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes: while a plugin producing the initial update has not acknowledged peer-up, sendInitialRoutes is observed waiting and nothing is on the wire (EORSent 0); after the acknowledgement exactly the IPv4 unicast marker is written. Red on a marker sent ahead of the initial update or not sent after it. TestIsEndOfRIBAnyFamily is a neighbouring detector rule.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -267,11 +278,12 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 | negative | [`TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4724_reactor_b_test.go#L23) | unit/verify | revert, verified |
 | positive | [`TestBuildEOR_IPv4Unicast`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4724_eor_test.go#L16) | unit/verify | unproven |
 | positive | [`TestInitialSyncEORReachesTheSilentFamilyToo`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L111) | unit/verify | unproven |
-| positive | [`TestInitialSyncEORSentWhenNeitherSideDeclaredAFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L757) | unit/verify | unproven |
-| positive | [`TestInitialSyncMarkerWaitsForNoProcess`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L790) | unit/verify | unproven |
-| positive | [`TestInitialSyncShutsTheQueueGateAndFreesTheRailsWithTheMarker`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L353) | unit/verify | unproven |
-| positive | [`TestRoutePushingBindingsCountBothRails`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L431) | unit/verify | unproven |
-| positive | [`checkNoFamilyEndOfRIB`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1235) | interop/nightly | unproven |
+| positive | [`TestInitialSyncEORSentWhenNeitherSideDeclaredAFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L763) | unit/verify | unproven |
+| positive | [`TestInitialSyncMarkerWaitsForNoProcess`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L796) | unit/verify | revert, verified |
+| positive | [`TestInitialSyncShutsTheQueueGateAndFreesTheRailsWithTheMarker`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L356) | unit/verify | unproven |
+| positive | [`TestRoutePushingBindingsCountBothRails`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L437) | unit/verify | unproven |
+| positive | [`TestPredecessorSyncWritesNothingOnSuccessor`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4724_rapid_reconnect_test.go#L95) | unit/verify | mutant, verified |
+| positive | [`checkNoFamilyEndOfRIB`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1276) | interop/nightly | unproven |
 
 ### [`RFC4724-4-2`](#rfc4724-4-2)
 
@@ -292,25 +304,25 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 When the Restarting Speaker restarts, it MUST retain, if possible, the forwarding state for the BGP routes in the Loc-RIB (Section 4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4724-4.1-1, so no unit is bound to it.
+No test carries RFC4724-4.1-1, so there is no linked test.
 
 ### [`RFC4724-4.1-2`](#rfc4724-4.1-2)
 
 When the Restarting Speaker restarts, it MUST retain, if possible, the forwarding state for the BGP routes in the Loc-RIB and MUST mark them as stale. (Section 4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4724-4.1-2, so no unit is bound to it.
+No test carries RFC4724-4.1-2, so there is no linked test.
 
 ### [`RFC4724-4.1-3`](#rfc4724-4.1-3)
 
 It MUST NOT differentiate between stale and other information during forwarding. (Section 4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4724-4.1-3, so no unit is bound to it.
+No test carries RFC4724-4.1-3, so there is no linked test.
 
 ### [`RFC4724-4.1-4`](#rfc4724-4.1-4)
 
@@ -329,23 +341,23 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 However, it MUST defer route selection for an address family until it either (a) receives the End-of-RIB marker from all its peers (excluding the ones with the "Restart State" bit set in the received capability and excluding the ones that do not advertise the graceful restart capability) or (b) the Selection_Deferral_Timer referred to below has expired. (Section 4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4724-4.1-5, so no unit is bound to it.
+No test carries RFC4724-4.1-5, so there is no linked test.
 
 ### [`RFC4724-4.1-6`](#rfc4724-4.1-6)
 
 After the BGP speaker performs route selection, the forwarding state of the speaker MUST be updated and any previously marked stale information MUST be removed. (Section 4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4724-4.1-6, so no unit is bound to it.
+No test carries RFC4724-4.1-6, so there is no linked test.
 
 ### [`RFC4724-4.1-7`](#rfc4724-4.1-7)
 
 Once the initial update is complete for an address family (including the case that there is no routing update to send), the End-of-RIB marker MUST be sent. (Section 4.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. New unit TestRFC4724EndOfRIBSentOnceTheInitialUpdateIsComplete drives peer.sendInitialRoutes on an established peer and reads the socket. Positive: empty table -> the wire is exactly the IPv4 unicast EoR (the RFC's "including the case that there is no routing update to send"); with default-originate -> [UPDATE 0.0.0.0/0, EoR], EORSent 1. Negative: no EoR precedes the route and exactly one follows it (a marker before completion violates "Once the initial update is complete"). Observed-red records +/- (revert peer_initial_sync.go::sendEORFamilies); both polarities share one break, which reddens the unit as a whole rather than the ordering clause alone. Message-level EoR encoding units stay as supplementary.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-14 by an independent auditor who authored neither 08fe903803 nor the uncommitted phase 2 of spec-single-owner-lifecycle-2-bgp-session. RFC 4724 Section 4.1 read: "Once the initial update is complete for an address family (including the case that there is no routing update to send), the End-of-RIB marker MUST be sent." Unit read: TestRFC4724EndOfRIBSentOnceTheInitialUpdateIsComplete (both tags); only its two sync calls changed. 08fe903803 moved the initial-sync gate (sendingInitialRoutes) and the End-of-RIB owed mark (initialSyncEOROwed) from Peer onto Session. In the tagged units named stale it replaced peer.sendInitialRoutes() with peer.runInitialSyncNow(), which is Peer.sendInitialRoutes(p.testInitialSync()) (initial_sync_helpers_test.go): the same production sync body, run on the session the fixture installed (or one built with NewSession(p.settings) and published through establishedSession as enterEstablished does); it replaced peer.<flag>.Store(v) with peer.testInitialSync().<flag>.Store(v) or setTestInitialSync, and drainAndCloseQueueGate now takes that session. git diff 08fe903803^ against the working tree shows no assertion, expected byte, driven input or tag prose changed in any of them, each under the RFC-approved line 08fe903803 carries. Questions 1, 3 and 4 answer exactly as the earlier judgement below; question 2 still rests on the same producers, whose discrimination records are retaken by ./le rfc record after this stamp. Verdict unchanged: enforced. Earlier judgement follows. New unit TestRFC4724EndOfRIBSentOnceTheInitialUpdateIsComplete drives peer.sendInitialRoutes on an established peer and reads the socket. Positive: empty table -> the wire is exactly the IPv4 unicast EoR (the RFC's "including the case that there is no routing update to send"); with default-originate -> [UPDATE 0.0.0.0/0, EoR], EORSent 1. Negative: no EoR precedes the route and exactly one follows it (a marker before completion violates "Once the initial update is complete"). Observed-red records +/- (revert peer_initial_sync.go::sendEORFamilies); both polarities share one break, which reddens the unit as a whole rather than the ordering clause alone. Message-level EoR encoding units stay as supplementary.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -358,25 +370,25 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. New 
 
 To put an upper bound on the amount of time a router defers its route selection, an implementation MUST support a (configurable) timer that imposes this upper bound. (Section 4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4724-4.1-8, so no unit is bound to it.
+No test carries RFC4724-4.1-8, so there is no linked test.
 
 ### [`RFC4724-4.2-1`](#rfc4724-4.2-1)
 
 In case it does not detect the termination of the old TCP session and still considers the BGP session as being established, it MUST treat the subsequent open connection from the peer as an indication of the termination of the old TCP session and act accordingly (when the Graceful Restart Capability has been received from the peer). (Section 4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4724-4.2-1, so no unit is bound to it.
+No test carries RFC4724-4.2-1, so there is no linked test.
 
 ### [`RFC4724-4.2-2`](#rfc4724-4.2-2)
 
 "Acting accordingly" in this context means that the previous TCP session MUST be closed, and the new one retained. (Section 4.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4724-4.2-2, so no unit is bound to it.
+No test carries RFC4724-4.2-2, so there is no linked test.
 
 ### [`RFC4724-4.2-3`](#rfc4724-4.2-3)
 
@@ -463,7 +475,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 The Receiving Speaker MUST send the End-of-RIB marker once it completes the initial update for an address family (including the case that it has no routes to send) to the peer. (Section 4.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-12 (independent auditor). SHIFTED by 4e731b2d96 (owner-approved lint-only reactor test edits). The tagged unit is byte-identical (gate-verified); the file-level changes are comment punctuation, slices.Concat over the same bytes, joined appends, strings.SplitSeq, newDefaultOriginatePeer taking its fixed addresses from constants with the same values, and registerTypeLenRecognizer losing a lo every caller passed as 1, none of which changes what a helper this unit calls produces. Verdict stands. Positive TestInitialSyncEORReachesTheSilentFamilyToo proves the marker is sent including for a family with no routes. Negative TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes: no End-of-RIB before the initial update for IPv4 unicast completes (plugin barrier held, sendInitialRoutes observed waiting, wire empty), then exactly that marker once it does. TestBuildEOR_IPv4Unicast proves encoding only. Rejudged 2026-10-12 after commit ce62c78c3b moved peer_initial_sync_test.go around these units: the tagged functions there were re-read and are byte-identical, their assertions and fixtures still carry the evidence this note cites, and the other cited units did not change, so the verdict stands. Rejudged 2026-10-12 after 7a637d6df5 renamed SendUpdateHeld to sendUpdateHeld in two comments of peer_initial_sync_test.go: every tagged unit cited here is byte-identical (gate-verified), the comment edits sit outside them, and the assertions and fixtures still carry the evidence this note cites, so the verdict stands.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-14 by an independent auditor who authored neither 08fe903803 nor the uncommitted phase 2 of spec-single-owner-lifecycle-2-bgp-session. RFC 4724 Section 4.2 read: "The Receiving Speaker MUST send the End-of-RIB marker once it completes the initial update for an address family (including the case that it has no routes to send) to the peer." Units read: TestInitialSyncEORReachesTheSilentFamilyToo, TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes; only their sync calls changed. 08fe903803 moved the initial-sync gate (sendingInitialRoutes) and the End-of-RIB owed mark (initialSyncEOROwed) from Peer onto Session. In the tagged units named stale it replaced peer.sendInitialRoutes() with peer.runInitialSyncNow(), which is Peer.sendInitialRoutes(p.testInitialSync()) (initial_sync_helpers_test.go): the same production sync body, run on the session the fixture installed (or one built with NewSession(p.settings) and published through establishedSession as enterEstablished does); it replaced peer.<flag>.Store(v) with peer.testInitialSync().<flag>.Store(v) or setTestInitialSync, and drainAndCloseQueueGate now takes that session. git diff 08fe903803^ against the working tree shows no assertion, expected byte, driven input or tag prose changed in any of them, each under the RFC-approved line 08fe903803 carries. Questions 1, 3 and 4 answer exactly as the earlier judgement below; question 2 still rests on the same producers, whose discrimination records are retaken by ./le rfc record after this stamp. Verdict unchanged: enforced. Earlier judgement follows. Re-judged 2026-10-12 (independent auditor). SHIFTED by 4e731b2d96 (owner-approved lint-only reactor test edits). The tagged unit is byte-identical (gate-verified); the file-level changes are comment punctuation, slices.Concat over the same bytes, joined appends, strings.SplitSeq, newDefaultOriginatePeer taking its fixed addresses from constants with the same values, and registerTypeLenRecognizer losing a lo every caller passed as 1, none of which changes what a helper this unit calls produces. Verdict stands. Positive TestInitialSyncEORReachesTheSilentFamilyToo proves the marker is sent including for a family with no routes. Negative TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes: no End-of-RIB before the initial update for IPv4 unicast completes (plugin barrier held, sendInitialRoutes observed waiting, wire empty), then exactly that marker once it does. TestBuildEOR_IPv4Unicast proves encoding only. Rejudged 2026-10-12 after commit ce62c78c3b moved peer_initial_sync_test.go around these units: the tagged functions there were re-read and are byte-identical, their assertions and fixtures still carry the evidence this note cites, and the other cited units did not change, so the verdict stands. Rejudged 2026-10-12 after 7a637d6df5 renamed SendUpdateHeld to sendUpdateHeld in two comments of peer_initial_sync_test.go: every tagged unit cited here is byte-identical (gate-verified), the comment edits sit outside them, and the assertions and fixtures still carry the evidence this note cites, so the verdict stands.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -509,7 +521,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | positive | [`TestRFC4724GRCapabilityListsTheFamiliesOfTheSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_gr_capability_test.go#L101) | unit/verify | revert, verified |
 | positive | [`TestRFC4724GRCapabilityKeepsEveryFamilyTheRIBStores`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_rib_families_test.go#L93) | unit/verify | revert, verified |
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -528,22 +540,22 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
-| `front` | not stated | 0 | walked | not stated |
-| `1` | not stated | 0 | walked | not stated |
-| `1.1` | not stated | 0 | walked | not stated |
-| `2` | not stated | 0 | walked | not stated |
-| `3` | not stated | 5 | walked | not stated |
-| `4` | not stated | 3 | walked | not stated |
-| `4.1` | not stated | 7 | walked | not stated |
-| `4.2` | not stated | 11 | walked | not stated |
-| `5` | not stated | 2 | walked | not stated |
-| `6` | not stated | 0 | walked | not stated |
-| `7` | not stated | 0 | walked | not stated |
-| `8` | not stated | 0 | walked | not stated |
-| `9` | not stated | 0 | walked | not stated |
-| `10` | not stated | 0 | walked | not stated |
-| `10.1` | not stated | 0 | walked | not stated |
-| `10.2` | not stated | 0 | walked | not stated |
+| `front` | not stated | 0 | reviewed | not stated |
+| `1` | not stated | 0 | reviewed | not stated |
+| `1.1` | not stated | 0 | reviewed | not stated |
+| `2` | not stated | 0 | reviewed | not stated |
+| `3` | not stated | 5 | reviewed | not stated |
+| `4` | not stated | 3 | reviewed | not stated |
+| `4.1` | not stated | 7 | reviewed | not stated |
+| `4.2` | not stated | 11 | reviewed | not stated |
+| `5` | not stated | 2 | reviewed | not stated |
+| `6` | not stated | 0 | reviewed | not stated |
+| `7` | not stated | 0 | reviewed | not stated |
+| `8` | not stated | 0 | reviewed | not stated |
+| `9` | not stated | 0 | reviewed | not stated |
+| `10` | not stated | 0 | reviewed | not stated |
+| `10.1` | not stated | 0 | reviewed | not stated |
+| `10.2` | not stated | 0 | reviewed | not stated |
 
 ### Excluded sentences
 

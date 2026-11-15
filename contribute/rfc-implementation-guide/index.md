@@ -766,8 +766,12 @@ declaration cannot authorize an approval. The existing tag-scope reader keeps
 its conservative behavior for incomplete source.
 <!-- source: internal/le/rfc/approvalunits.go -- ResolveApprovalUnit -->
 
-Approvals live in the existing `tmp/commit-rfc-approved-<session>.md` table.
-Ordinary rows are unbound and admit only their own change carrier. To judge an
+Approvals live in the existing `tmp/commit-rfc-approved-<session>.md` table,
+`| Test | Reason | Target | Content |`. Ordinary rows have no target and admit
+only their own change carrier, and only while the unit still matches the
+`Content` digests recorded with the verdict: a later different change of the
+same unit makes the row stale (`docs/architecture/testing/test-health.md`, "One
+approval names one test"). To judge an
 already committed change, use
 `./le rfc approve commit <fullSHA> unit <package>.<TestName> reason "<verdict>"`.
 The full canonical SHA must resolve, and its parent/commit blobs must change

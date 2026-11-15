@@ -4,18 +4,18 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
-        <title>RFC 6286 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 6286: Autonomous-System-Wide Unique BGP Identifier for BGP-4. 4 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
-        <meta property="og:title" content="RFC 6286 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 6286: Autonomous-System-Wide Unique BGP Identifier for BGP-4. 4 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <title>RFC 6286 requirements and tests - Ze</title>
+        <meta name="description" content="RFC 6286: Autonomous-System-Wide Unique BGP Identifier for BGP-4. 4 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:title" content="RFC 6286 requirements and tests - Ze" />
+        <meta property="og:description" content="RFC 6286: Autonomous-System-Wide Unique BGP Identifier for BGP-4. 4 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="RFC 6286 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 6286: Autonomous-System-Wide Unique BGP Identifier for BGP-4. 4 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:title" content="RFC 6286 requirements and tests - Ze" />
+        <meta name="twitter:description" content="RFC 6286: Autonomous-System-Wide Unique BGP Identifier for BGP-4. 4 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -47,7 +47,7 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">AS-wide unique BGP Identifier</span>
     <h1 id="rfc-detail-title">RFC 6286 - Autonomous-System-Wide Unique BGP Identifier for BGP-4</h1>
-    <p>Every requirement this repository extracted from RFC 6286, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
+    <p>Every requirement listed for RFC 6286, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.</p>
 </div>
 <style>
 .rfc-table-wrap { overflow-x: auto; }
@@ -57,16 +57,25 @@
 .rfc-verdict p:last-child { margin-bottom: 0; }
 .rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
-.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
-.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: block; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
 .rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
-.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
-.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-card b { display: block; margin: 0; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: .5rem 0 0; color: var(--muted); font-size: .92rem; line-height: 1.6; }
+.rfc-card.rfc-total-card { grid-column: 1 / -1; display: grid; grid-template-columns: 15rem minmax(0, 1fr); column-gap: 1.5rem; align-items: start; }
+.rfc-card.rfc-total-card span, .rfc-card.rfc-total-card strong, .rfc-card.rfc-total-card b { grid-column: 1; }
+.rfc-card.rfc-total-card p { grid-column: 2; grid-row: 1 / span 3; margin: 0; }
+@media (max-width: 760px) {
+  .rfc-card-grid { grid-template-columns: minmax(0, 1fr); }
+  .rfc-card.rfc-total-card { display: block; }
+  .rfc-card.rfc-total-card p { margin: .5rem 0 0; }
+}
 .rfc-ok { border-left: 7px solid var(--green); }
 .rfc-neutral { border-left: 7px solid var(--line-strong); }
 .rfc-warn { border-left: 7px solid var(--amber); }
 .rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-card.rfc-total-card { background: var(--bg-soft); border: 1px solid var(--line-strong); box-shadow: none; }
 .rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
 .rfc-tape span { width: var(--w); min-width: 0; display: block; }
 .rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
@@ -87,6 +96,7 @@
 .rfc-swatch.rfc-neutral { background: var(--line-strong); }
 .rfc-swatch.rfc-warn { background: var(--amber); }
 .rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-swatch.rfc-total-card { background: var(--bg-soft); }
 .rfc-total td { border-top: 2px solid var(--line-strong); }
 .rfc-prose { max-width: 46rem; }
 ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
@@ -118,39 +128,39 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>3</strong><b>of 4 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0</strong><b>of 4 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 4 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0</strong><b>of 4 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>5</strong><b>5 of 16 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
-</div>
-<h3>Neutral</h3>
-<p>measures that are neither good news nor bad</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>4</strong><b>of 5 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 4 gated MUSTs</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 4 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 4 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 4 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 4 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>3</strong><b>of 4 mandatory requirements</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0</strong><b>of 4 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 4 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 4 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>5</strong><b>5 of 16 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Partial proof; remaining gap</span><strong>1</strong><b>of 4 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>5</strong><b>of 4 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Partial proof; remaining gap</span><strong>1</strong><b>of 4 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>5</strong><b>of 4 mandatory requirements reviewed</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
-<p>The 9 counts marked as a part above are the whole of the 4 gated MUSTs: they add up to 4. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.</p>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 4 mandatory requirements</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 4 mandatory requirements</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 4 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 4 mandatory requirements</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 4 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit</p></article>
+</div>
+<h3>Totals</h3>
+<p>what the cards above are counted against</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-total-card"><span>Mandatory requirements (MUST level)</span><strong>4</strong><b>of 5 requirements this summary lists, at all levels</b><p>The RFC&#39;s MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements.</p></article>
+</div>
+<p>The 9 counts marked as a part above are the whole of the 4 mandatory requirements: they add up to 4. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
-<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
 <tbody>
-<tr><td>Gated MUSTs</td>
-<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
-</tr>
 <tr><td>Out of scope</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
 <td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
@@ -171,9 +181,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
-<tr><td>No test at all</td>
+<tr><td>Declared gap or no test</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+<td>green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
@@ -191,13 +201,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
 <td>neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption</td>
 </tr>
-<tr><td>Proven by a recorded break</td>
+<tr><td>Tests shown to detect a fault</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above</td>
+<td>green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
-<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current</td>
+</tr>
+<tr><td>Mandatory requirements (MUST level)</td>
+<td><span class="rfc-swatch rfc-total-card"></span> outlined</td>
+<td>outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad</td>
 </tr>
 </tbody>
 </table>
@@ -212,13 +226,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Public row</td>
 <td>AS-wide unique BGP Identifier</td>
 </tr>
-<tr><td>Enrolment</td>
-<td>Enrolled</td>
+<tr><td>Automatic checks</td>
+<td>Included</td>
 </tr>
 <tr><td>Requirements</td>
 <td>5</td>
 </tr>
-<tr><td>Gated MUST-level</td>
+<tr><td>Mandatory requirements (MUST level)</td>
 <td>4</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
@@ -230,7 +244,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
 </tr>
-<tr><td>Gated with no test</td>
+<tr><td>Mandatory requirements with no test and no annotation</td>
 <td>0</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
@@ -239,19 +253,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Test tags</td>
 <td>16</td>
 </tr>
-<tr><td>Tagged units</td>
+<tr><td>Tests linked to requirements</td>
 <td>16</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>5</td>
 </tr>
-<tr><td>Discrimination records</td>
+<tr><td>Fault test records</td>
 <td>5</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc6286.md</code></td>
 </tr>
-<tr><td>Requirement shard</td>
+<tr><td>Requirement table</td>
 <td><code>rfc/requirements/rfc6286.md</code></td>
 </tr>
 <tr><td>RFC text</td>
@@ -261,10 +275,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 </section>
-<section><h2>Enrolment</h2>
-<p>Enrolled: Autonomous-System-Wide Unique BGP Identifier for BGP-4: three short protocol revisions to RFC 4271 that ze now implements end to end -- the Section 2.2 reception check on both OPEN rails, the Section 2.1 AS-wide identifier claim (and its operator opt-out), and the Section 2.3 collision tie-break.</p>
+<section><h2>Automatic checks</h2>
+<p>Included in automatic checks: Autonomous-System-Wide Unique BGP Identifier for BGP-4: three short protocol revisions to RFC 4271 that ze now implements end to end -- the Section 2.2 reception check on both OPEN rails, the Section 2.1 AS-wide identifier claim (and its operator opt-out), and the Section 2.3 collision tie-break.</p>
 </section>
-<section><h2>What the public ledger says</h2>
+<section><h2>Published support status</h2>
 <p><strong>Area:</strong> AS-wide unique BGP Identifier</p>
 <p><strong>Proof:</strong> 0 of 4 MUST proven</p>
 <p><strong>Evidence:</strong> -</p>
@@ -278,33 +292,33 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td>Positive and negative tests</td>
 <td><strong>3</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
 <td><strong>1</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
-<tr><td>One polarity only</td>
+<tr><td>Only a positive or negative test</td>
 <td><strong>0</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
 <td><strong>1</strong></td>
-<td>an overlay: each of these is also counted by the part it falls in</td>
+<td>also counted in one of the groups above</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
-<td>an overlay: each of these is also counted by the part it falls in</td>
+<td>also counted in one of the groups above</td>
 </tr>
 <tr><td>Derived from other rows</td>
 <td><strong>0</strong></td>
-<td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
+<td>excluded from the total: each summarizes the status of other requirements, which are already counted above</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>4</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Mandatory requirements (MUST level)</strong></td><td><strong>4</strong></td><td>every mandatory requirement appears in exactly one group above</td></tr>
 </tbody>
 </table>
 </div>
@@ -314,9 +328,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc6286:must">Ze correctness gap 4</div>
+<div data-ze-rfc-bar="rfc6286:must">Proof pending 3, Not built 1</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc6286:overview">SHOULD proven 1, Ze correctness gap 4</div>
+<div data-ze-rfc-bar="rfc6286:overview">SHOULD proven 1, Proof pending 3, Not built 1</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -324,10 +338,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>RFCs</td>
 <td><span data-ze-rfc="rfc6286:rfcs">1</span></td>
 </tr>
-<tr><td>Not walked</td>
+<tr><td>Requirements not reviewed</td>
 <td><span data-ze-rfc="rfc6286:not-walked">0</span></td>
 </tr>
-<tr><td>Mandatory register</td>
+<tr><td>Mandatory requirements complete</td>
 <td><span data-ze-rfc="rfc6286:register">not complete</span></td>
 </tr>
 <tr><td>MUST rows</td>
@@ -342,11 +356,20 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc6286:must.os-verified">0</span></td>
 </tr>
+<tr><td>Proof pending</td>
+<td><span data-ze-rfc="rfc6286:must.proof-pending">3</span></td>
+</tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc6286:must.os-gap">0</span></td>
 </tr>
-<tr><td>Ze correctness gap</td>
-<td><span data-ze-rfc="rfc6286:must.ze-gap">4</span></td>
+<tr><td>Exclusion unchecked</td>
+<td><span data-ze-rfc="rfc6286:must.exclusion-unchecked">0</span></td>
+</tr>
+<tr><td>Not assessed</td>
+<td><span data-ze-rfc="rfc6286:must.not-assessed">0</span></td>
+</tr>
+<tr><td>Not built</td>
+<td><span data-ze-rfc="rfc6286:must.not-built">1</span></td>
 </tr>
 <tr><td>MUST rows not owed</td>
 <td><span data-ze-rfc="rfc6286:must.not-owed">0</span></td>
@@ -384,19 +407,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD not owed: not-applicable</td>
 <td><span data-ze-rfc="rfc6286:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
-<tr><td>SHOULD not ever</td>
-<td><span data-ze-rfc="rfc6286:should.not-ever">0</span></td>
+<tr><td>SHOULD proof pending</td>
+<td><span data-ze-rfc="rfc6286:should.proof-pending">0</span></td>
 </tr>
-<tr><td>SHOULD not yet</td>
-<td><span data-ze-rfc="rfc6286:should.not-yet">0</span></td>
+<tr><td>SHOULD exclusion unchecked</td>
+<td><span data-ze-rfc="rfc6286:should.exclusion-unchecked">0</span></td>
 </tr>
-<tr><td>SHOULD not decided</td>
-<td><span data-ze-rfc="rfc6286:should.not-decided">0</span></td>
+<tr><td>SHOULD not assessed</td>
+<td><span data-ze-rfc="rfc6286:should.not-assessed">0</span></td>
+</tr>
+<tr><td>SHOULD not built</td>
+<td><span data-ze-rfc="rfc6286:should.not-built">0</span></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.</p>
+<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
 
 </section>
 <section><h2>Requirements</h2>
@@ -413,7 +439,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_router_id_test.go#L35" title="internal/component/bgp/reactor/rfc6286_router_id_test.go" target="_blank" rel="noopener"><code>TestRFC6286GlobalZeroRouterIDRejected</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_router_id_test.go#L39" title="internal/component/bgp/reactor/rfc6286_router_id_test.go" target="_blank" rel="noopener"><code>TestRFC6286GlobalZeroRouterIDRejected</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_router_id_test.go#L10" title="internal/component/bgp/reactor/rfc6286_router_id_test.go" target="_blank" rel="noopener"><code>TestRFC6286NonZeroRouterIDAccepted</code></a></span></div>
-</div><p class="rfc-mark"><strong>{partial}:</strong> tested &#34;non-zero integer&#34;; gap &#34;is determined on startup and is the same for every local interface and every BGP peer&#34;; a config reload also applies a changed global router-id at runtime (internal/component/bgp/reactor/reload_globals.go::applyGlobalsJournaled), so the startup clause is unmet too; owner-approved deviation (spec-bgp-open-session-rfc-defects Q2, owner 2026-10-13: &#34;we should have a global router-id which can be overwritten per peer which is over what the RFC allows&#34;), not counted conformant: the global `router-id` is the default and a peer or group may override it with the `session router-id` leaf, and each OPEN carries its own peer&#39;s identifier, so a configured override gives that peer an identifier different from the others&#39;; internal/component/bgp/reactor/config.go::parsePeerSettings reads the override. The non-zero clause is enforced: parseRouterID rejects 0.0.0.0 for the global leaf and a per-peer override</p><p class="rfc-mark"><strong>Scoped evidence:</strong> Tests and tag-claim records apply only to Tested; zero whole-requirement credit. partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. Re-judged 2026-11-03 (independent auditor, authored none of 2eebb4ac72). RFC 6286 Section 2.1: &#34;The BGP Identifier is a 4-octet, unsigned, non-zero integer that should be unique within an AS. The value of the BGP Identifier for a BGP speaker is determined on startup and is the same for every local interface and every BGP peer.&#34; 2eebb4ac72 changed internal/component/bgp/reactor/config.go::parsePeerSettings only by adding checkASN4DisabledReachable (session_open_as.go), an RFC 6793 Section 4.1 refusal of asn4 disable with a four-octet remote AS; it reads DisableASN4, PeerAS, LocalAS and MigrationAS and never the identifier, and runs after the session router-id override is parsed, so it cannot preempt the zero refusal and does not fire on any tagged tree (none sets asn4 disable). The router-id path is unchanged: the global value is the default, session router-id overrides it per peer or group through parseRouterID, which still refuses 0 with the RFC 6286 Section 2.1 error. Tested &#39;non-zero integer&#39;: TestParsePeerFromTreeInvalid zero_router_id_rejected and TestRFC6286GlobalZeroRouterIDRejected assert the exact error for 0.0.0.0 on the per-peer and global leaves, and TestRFC6286NonZeroRouterIDAccepted plus the 0.0.0.1 half accept identifier 1 exactly; widening or removing the zero check reds them. All ran green 2026-11-03 under -race. Gap &#39;is determined on startup and is the same for every local interface and every BGP peer&#39; stands: internal/component/bgp/reactor/reload_globals.go::applyGlobalsJournaled still applies a reloaded global router-id at runtime, and the per-peer override is the owner-approved deviation, not counted conformant. Tag polarity words read inverted (positive tags the rejecting cases), both directions present. Partial, zero whole-requirement credit.</p></td>
+</div><p class="rfc-mark"><strong>{partial}:</strong> tested &#34;non-zero integer&#34;; gap &#34;is determined on startup and is the same for every local interface and every BGP peer&#34;; a config reload also applies a changed global router-id at runtime (internal/component/bgp/reactor/reload_globals.go::applyGlobalsJournaled), so the startup clause is unmet too; owner-approved deviation (spec-bgp-open-session-rfc-defects Q2, owner 2026-10-13: &#34;we should have a global router-id which can be overwritten per peer which is over what the RFC allows&#34;), not counted conformant: the global `router-id` is the default and a peer or group may override it with the `session router-id` leaf, and each OPEN carries its own peer&#39;s identifier, so a configured override gives that peer an identifier different from the others&#39;; internal/component/bgp/reactor/config.go::parsePeerSettings reads the override. The non-zero clause is enforced: parseRouterID rejects 0.0.0.0 for the global leaf and a per-peer override</p><p class="rfc-mark"><strong>Partial test coverage:</strong> Tests and fault test records cover only the part marked Tested; they do not prove the whole requirement. partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. Re-judged 2026-11-03 (independent auditor, authored none of 2eebb4ac72). RFC 6286 Section 2.1: &#34;The BGP Identifier is a 4-octet, unsigned, non-zero integer that should be unique within an AS. The value of the BGP Identifier for a BGP speaker is determined on startup and is the same for every local interface and every BGP peer.&#34; 2eebb4ac72 changed internal/component/bgp/reactor/config.go::parsePeerSettings only by adding checkASN4DisabledReachable (session_open_as.go), an RFC 6793 Section 4.1 refusal of asn4 disable with a four-octet remote AS; it reads DisableASN4, PeerAS, LocalAS and MigrationAS and never the identifier, and runs after the session router-id override is parsed, so it cannot preempt the zero refusal and does not fire on any tagged tree (none sets asn4 disable). The router-id path is unchanged: the global value is the default, session router-id overrides it per peer or group through parseRouterID, which still refuses 0 with the RFC 6286 Section 2.1 error. Tested &#39;non-zero integer&#39;: TestParsePeerFromTreeInvalid zero_router_id_rejected and TestRFC6286GlobalZeroRouterIDRejected assert the exact error for 0.0.0.0 on the per-peer and global leaves, and TestRFC6286NonZeroRouterIDAccepted plus the 0.0.0.1 half accept identifier 1 exactly; widening or removing the zero check reds them. All ran green 2026-11-03 under -race. Gap &#39;is determined on startup and is the same for every local interface and every BGP peer&#39; stands: internal/component/bgp/reactor/reload_globals.go::applyGlobalsJournaled still applies a reloaded global router-id at runtime, and the per-peer override is the owner-approved deviation, not counted conformant. Tag polarity words read inverted (positive tags the rejecting cases), both directions present. Partial, zero whole-requirement credit.</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6286-2.1-2">RFC6286-2.1-2</code></td><td colspan="3"><span class="rfc-subject">The BGP Identifier is a 4-octet, unsigned, non-zero integer that should be unique within an AS. (Section 2.1)</span></td></tr>
 <tr><td></td>
@@ -474,10 +500,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Proof state</h2>
-<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<p>A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.</p>
 <h3><a href="#rfc6286-2.1-1"><code>RFC6286-2.1-1</code></a></h3>
 <p>The BGP Identifier is a 4-octet, unsigned, non-zero integer that should be unique within an AS. The value of the BGP Identifier for a BGP speaker is determined on startup and is the same for every local interface and every BGP peer. (Section 2.1)</p>
-<p>Scoped tag-claim records only: tested &#34;non-zero integer&#34;; gap &#34;is determined on startup and is the same for every local interface and every BGP peer&#34;; a config reload also applies a changed global router-id at runtime (internal/component/bgp/reactor/reload_globals.go::applyGlobalsJournaled), so the startup clause is unmet too; owner-approved deviation (spec-bgp-open-session-rfc-defects Q2, owner 2026-10-13: &#34;we should have a global router-id which can be overwritten per peer which is over what the RFC allows&#34;), not counted conformant: the global `router-id` is the default and a peer or group may override it with the `session router-id` leaf, and each OPEN carries its own peer&#39;s identifier, so a configured override gives that peer an identifier different from the others&#39;; internal/component/bgp/reactor/config.go::parsePeerSettings reads the override. The non-zero clause is enforced: parseRouterID rejects 0.0.0.0 for the global leaf and a per-peer override; zero whole-requirement credit.</p>
+<p>Records cover only part of this requirement: tested &#34;non-zero integer&#34;; gap &#34;is determined on startup and is the same for every local interface and every BGP peer&#34;; a config reload also applies a changed global router-id at runtime (internal/component/bgp/reactor/reload_globals.go::applyGlobalsJournaled), so the startup clause is unmet too; owner-approved deviation (spec-bgp-open-session-rfc-defects Q2, owner 2026-10-13: &#34;we should have a global router-id which can be overwritten per peer which is over what the RFC allows&#34;), not counted conformant: the global `router-id` is the default and a peer or group may override it with the `session router-id` leaf, and each OPEN carries its own peer&#39;s identifier, so a configured override gives that peer an identifier different from the others&#39;; internal/component/bgp/reactor/config.go::parsePeerSettings reads the override. The non-zero clause is enforced: parseRouterID rejects 0.0.0.0 for the global leaf and a per-peer override; they do not prove the whole requirement.</p>
 <p><strong>Audit verdict:</strong> partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. Re-judged 2026-11-03 (independent auditor, authored none of 2eebb4ac72). RFC 6286 Section 2.1: &#34;The BGP Identifier is a 4-octet, unsigned, non-zero integer that should be unique within an AS. The value of the BGP Identifier for a BGP speaker is determined on startup and is the same for every local interface and every BGP peer.&#34; 2eebb4ac72 changed internal/component/bgp/reactor/config.go::parsePeerSettings only by adding checkASN4DisabledReachable (session_open_as.go), an RFC 6793 Section 4.1 refusal of asn4 disable with a four-octet remote AS; it reads DisableASN4, PeerAS, LocalAS and MigrationAS and never the identifier, and runs after the session router-id override is parsed, so it cannot preempt the zero refusal and does not fire on any tagged tree (none sets asn4 disable). The router-id path is unchanged: the global value is the default, session router-id overrides it per peer or group through parseRouterID, which still refuses 0 with the RFC 6286 Section 2.1 error. Tested &#39;non-zero integer&#39;: TestParsePeerFromTreeInvalid zero_router_id_rejected and TestRFC6286GlobalZeroRouterIDRejected assert the exact error for 0.0.0.0 on the per-peer and global leaves, and TestRFC6286NonZeroRouterIDAccepted plus the 0.0.0.1 half accept identifier 1 exactly; widening or removing the zero check reds them. All ran green 2026-11-03 under -race. Gap &#39;is determined on startup and is the same for every local interface and every BGP peer&#39; stands: internal/component/bgp/reactor/reload_globals.go::applyGlobalsJournaled still applies a reloaded global router-id at runtime, and the per-peer override is the owner-approved deviation, not counted conformant. Tag polarity words read inverted (positive tags the rejecting cases), both directions present. Partial, zero whole-requirement credit.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -607,7 +633,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 </section>
-<section><h2>Extraction sign-off</h2>
+<section><h2>Requirement list review</h2>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
@@ -653,49 +679,49 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td><code>front</code></td>
 <td>not stated</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Title block, Abstract, Status of This Memo and Copyright Notice. Walked rather than skipped because the site scan attributes two sites here, both excluded below: the Abstract&#39;s restatement of what the document does to RFC 4271, and the IETF Trust Legal Provisions boilerplate. Nothing before section 1 binds a BGP speaker.</td>
 </tr>
 <tr><td><code>1</code></td>
 <td>Introduction</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Introduction. Reports that RFC 4271 specifies the BGP Identifier as a valid IPv4 host address assigned to the speaker, that deployed code requires two speakers to carry distinct Identifiers, and that this document relaxes both so an IPv6-only network can comply. Its one site, 1:1, is that report and is excluded below. The relaxed definition itself is stated in section 2.1.</td>
 </tr>
 <tr><td><code>2</code></td>
 <td>Protocol Revisions, the parent heading</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Protocol Revisions, the parent heading. One sentence naming what the revisions cover: the definition of the BGP Identifier and the procedures for a speaker that supports the AS-wide Unique BGP Identifier. It directs nobody; 2.1, 2.2 and 2.3 carry the obligations.</td>
 </tr>
 <tr><td><code>2.1</code></td>
 <td>Definition of the BGP Identifier</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Definition of the BGP Identifier. The obligation is the indented replacement text: &#39;The BGP Identifier is a 4-octet, unsigned, non-zero integer that should be unique within an AS. The value of the BGP Identifier for a BGP speaker is determined on startup and is the same for every local interface and every BGP peer.&#39; It is written in the indicative with a lowercase &#39;should&#39;, so neither the capitalised scan nor the modal scan attributes a site to this section, and both ids read from it are declared unsourced here. RFC6286-2.1-1 is the 4-octet, unsigned, NON-ZERO definition, whose non-zero half ze enforces on reception through Open.ValidateBGPIdentifier and refuses to originate through parseRouterID (internal/component/bgp/reactor/config.go). RFC6286-2.1-2 is the lowercase &#39;should&#39; of AS-wide uniqueness, enforced by default through the claim registry in internal/component/bgp/reactor/routerid_unique.go, which keys routerIDKey on (peer AS, identifier), with bgp/session/allow-shared-router-id as the operator opt-out the advisory level permits.</td>
 </tr>
 <tr><td><code>2.2</code></td>
 <td>Open Message Error Handling</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Open Message Error Handling. The obligation is the indented replacement text for RFC 4271 section 6.2: &#39;If the BGP Identifier field of the OPEN message is zero, or if it is the same as the BGP Identifier of the local BGP speaker and the message is from an internal peer, then the Error Subcode is set to &#34;Bad BGP Identifier&#34;.&#39; Written in the indicative with no modal at all, so no scan attributes a site to this section. It states two rejection conditions and the second is gated on the peer being internal, which is why the summary declares two ids and both are declared unsourced here. Session.validateOpenIdentifier (internal/component/bgp/reactor/session_open_validation.go) is the producer for both, on the handleOpen and processOpen rails.</td>
 </tr>
 <tr><td><code>2.3</code></td>
 <td>Connection Collision Resolution</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Connection Collision Resolution. The obligation is the indented extension to RFC 4271 section 6.8: &#39;If the BGP Identifiers of the peers involved in the connection collision are identical, then the connection initiated by the BGP speaker with the larger AS number is preserved.&#39; Indicative, no modal, no site. Declared unsourced here as RFC6286-2.3-1. The lead-in scopes it to an external peer, because an internal peer presenting this speaker&#39;s identifier is already rejected by 2.2, and the closing sentence says the extension covers 4-octet AS numbers [RFC4893]. Both facts qualify the same single obligation and neither adds one.</td>
 </tr>
 <tr><td><code>3</code></td>
 <td>Remarks</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Remarks. Five indicative observations, none of which directs a speaker: an Identifier allocated per RFC 4271 already fits the revised definition; a confederation counts as one AS for the purpose of AS-wide uniqueness; a speaker supporting this cannot share an Identifier with an external neighbor until that neighbor is upgraded, which is a consequence of the un-upgraded neighbor still applying RFC 4271&#39;s stricter test; and the Identifier is also used in AGGREGATOR, in the route-reflection attributes and in route selection. The section&#39;s own closing sentence states its purpose: to conclude that the revisions introduce no backward compatibility issue. The confederation observation scopes the lowercase &#39;should&#39; of 2.1 and adds no obligation of its own, so it earns no id; rfc/short/rfc6286.md carries all five observations under Remarks.</td>
 </tr>
 <tr><td><code>4</code></td>
 <td>Security Considerations</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Security Considerations. Two sentences: this extension introduces no new security considerations, and BGP&#39;s are discussed in RFC 4271. No countermeasure is directed at a speaker.</td>
 </tr>
 <tr><td><code>5</code></td>
@@ -753,7 +779,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     </a>
                     <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
                         <span class="page-sidebar-link-label">Verify debugging</span>
-                        <small>How failed checks route to evidence.</small>
+                        <small>How to investigate failed checks using their logs.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -772,7 +798,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 01:56 UTC</span>
                 </div>
             </div>
         </footer>

@@ -1,20 +1,17 @@
 {
   "gate": {
     "ok": false,
-    "error-count": 144,
+    "error-count": 206,
     "gated-must": 4802,
     "enrolled-rfcs": 204,
-    "test-tags": 9817,
-    "message": "rfc-requirements: 144 violation(s)",
+    "test-tags": 9819,
+    "message": "rfc-requirements: 206 violation(s)",
     "violations": [
-      "rfc/short/rfc1661.md:710: RFC1661-4.6-1 is annotated {gap} but IS tested (internal/component/l2tp/ppp/rfc1661_configured_restart_test.go:38, internal/component/l2tp/ppp/rfc1661_configured_restart_test.go:39); the annotation is stale -- remove it",
-      "rfc/short/rfc1661.md:711: RFC1661-4.6-2 is annotated {gap} but IS tested (internal/component/l2tp/ppp/rfc1661_configured_restart_test.go:158, internal/component/l2tp/ppp/rfc1661_configured_restart_test.go:159); the annotation is stale -- remove it",
-      "rfc/short/rfc1661.md:712: RFC1661-4.6-3 is annotated {gap} but IS tested (internal/component/l2tp/ppp/rfc1661_configured_restart_test.go:86, internal/component/l2tp/ppp/rfc1661_configured_restart_test.go:87); the annotation is stale -- remove it",
-      "rfc/short/rfc1661.md:713: RFC1661-4.6-4 is annotated {gap} but IS tested (internal/component/l2tp/ppp/rfc1661_configured_restart_test.go:190, internal/component/l2tp/ppp/rfc1661_configured_restart_test.go:191); the annotation is stale -- remove it",
       "rfc/short/rfc9234.md:271: RFC9234-5-9 [MUST NOT] has no negative test (only positive). A negative-less test cannot distinguish correct behavior from blanket accept/reject. Add one, or annotate {single-polarity: ...; why}",
       "internal/component/ike/engine/fragment_boundary_integration_linux_test.go: test file name: it carries a naming marker but is not named for any RFC: delete the marker",
       "internal/component/ike/engine/fragment_forward_integration_linux_test.go: test file name: it carries a naming marker but is not named for any RFC: delete the marker",
       "internal/component/ike/engine/mh_selector_boundary_integration_linux_test.go: test file name: it carries a naming marker but is not named for any RFC: delete the marker",
+      "internal/le/scratch: `go vet` cannot type-check this package, and a package holding RFC requirement tags depends on it, so those tests cannot run either. go vet said: internal/le/scratch/livetrim.go:176:28: undefined: session.TreeIdle / internal/le/scratch/livetrim.go:298:18: undefined: session.TreeIdle / internal/le/scratch/livetrim.go:391:28: undefined: session.TreeIdle / internal/le/scratch/livetrim.go:546:20: undefined: treeIdle. Fix the package so `./le verify deps unit-cached` compiles it, then re-run `./le rfc check`",
       "rfc/audit/rfc4301/RFC4301-5.2-2.json: RFC4301-5.2-2 is 'partial' without its gap-context producer in the code map",
       "rfc/audit/rfc4301/RFC4301-5.2-2.json: RFC4301-5.2-2 partial note must identify tested and missing behavior and boundary: internal/component/ike/dataplane/espform_program_linux.go::espFormFastPathInstructions",
       "RFC4301-5.2-2 partial scope needs a current verified mutant/revert for negative internal/component/ike/engine/rfc4301_espform_policy_integration_linux_test.go::TestRFC4301BareESPOnTemplatedSAIsPolicyChecked",
@@ -25,7 +22,64 @@
       "RFC4301-5.2-2 partial scope needs a current verified mutant/revert for positive internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy",
       "RFC4301-4.4.1-3 partial scope needs a current verified mutant/revert for negative internal/component/ike/engine/rfc4301_unmatched_xfrm_interface_test.go::TestInterfaceSPDCatchAllInstallFailureFailsTheApply",
       "RFC4301-4.4.1-3 partial scope needs a current verified mutant/revert for positive internal/component/ike/engine/rfc4301_unmatched_xfrm_interface_test.go::TestReleaseRemovesInterfaceSPDAndGuard",
-      "rfc/short/rfc1661.md:715: RFC1661-4.4-2 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/ppp/rfc1661_configured_restart_test.go::TestConfiguredLCPZeroRestartPeriod (func-scoped), internal/component/l2tp/ppp/rfc1661_configured_restart_test.go::TestConfiguredLCPZeroRestartPeriod#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1661 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc1332.md:348: RFC1332-2.1-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/ncp_test.go::TestIPCPNoAddressBeforeOpened, internal/component/l2tp/ppp/ncp_test.go::TestIPResponseConfiguresInterface), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1332",
+      "rfc/short/rfc1332.md:349: RFC1332-2.1-3 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/ppp/rfc1332_mtu_test.go::TestIPMTUInstalledFromNegotiatedMRU (func-scoped), internal/component/l2tp/ppp/rfc1332_mtu_test.go::TestIPMTUInstalledFromNegotiatedMRU#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1332 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc1332.md:350: RFC1332-2.1-4 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/ppp/rfc1332_mtu_test.go::TestIPMTUInstalledFromNegotiatedMRU (func-scoped), internal/component/l2tp/ppp/rfc1332_mtu_test.go::TestIPMTUInstalledFromNegotiatedMRU#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1332 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc1334.md:235: RFC1334-1-1 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/ppp/auth_dispatch_test.go::TestAuthProtoRejectClearsMethod (func-scoped), internal/component/l2tp/ppp/auth_dispatch_test.go::TestLocalCONFREQAdvertisesAuthMethod (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1334 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc1334.md:236: RFC1334-x-1 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestConfiguredPAPStillOffersCHAPFirst (func-scoped), internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestConfiguredPAPStillOffersCHAPFirst#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1334 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc1661.md:653: RFC1661-2-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661CompliantProtocolRecognized, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NonCompliantProtocolTreatedUnrecognized), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+      "rfc/short/rfc1661.md:657: RFC1661-6-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientInvalidOptionLengthDrawsNak, internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientInvalidOptionLengthDrawsNak#2), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+      "rfc/short/rfc1661.md:658: RFC1661-6-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRequestPastEndSilentlyDiscarded, internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRequestPastEndSilentlyDiscarded#2), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+      "rfc/short/rfc1661.md:660: RFC1661-3.1-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NCPConfiguresEachFamilySeparately, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoNCPPacketsWhenNoNetworkProtocol), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+      "rfc/short/rfc1661.md:662: RFC1661-3.5-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661AuthProtocolRequestedDuringEstablishment, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoAuthProtocolWhenNotDesired), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+      "rfc/short/rfc1661.md:664: RFC1661-3.5-3 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NetworkPhaseRunsAfterAuthCompletes, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoNetworkPhaseUntilAuthCompletes), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+      "rfc/short/rfc1661.md:666: RFC1661-3.6-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NCPConfiguresEachFamilySeparately, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NCPStatesAreIndependent), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+      "rfc/short/rfc1661.md:667: RFC1661-3.6-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NetworkLayerPacketDiscardedBeforeNCPOpened), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+      "rfc/short/rfc1661.md:669: RFC1661-3.7-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661TerminateAckSentAndLinkHeld), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+      "rfc/short/rfc1661.md:671: RFC1661-4.3-1 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go::TestRFC1661ClientRenegotiatesLCPInNetworkPhase (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1661 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc1661.md:672: RFC1661-4.3-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NewConfigureRequestAcceptedAfterTerminateRequest), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+      "rfc/short/rfc1661.md:674: RFC1661-5.1-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661OpenTransmitsConfigureRequest, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661UpWithoutOpenSendsNoConfigureRequest), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+      "rfc/short/rfc1661.md:675: RFC1661-5.1-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureAckEchoesOptionsVerbatim, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureRejectForUnrecognizedOption), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+      "rfc/short/rfc1661.md:676: RFC1661-5.1-3 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPNakChangesIdentifierAndDropsStaleReply (func-scoped), internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1661 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc1661.md:677: RFC1661-5.2-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureAckEchoesOptionsVerbatim, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureRejectForUnrecognizedOption), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+      "rfc/short/rfc1661.md:678: RFC1661-5.2-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureAckDoesNotReorderOptions, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureAckEchoesOptionsVerbatim), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+      "rfc/short/rfc1661.md:679: RFC1661-5.2-3 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation (func-scoped), internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1661 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc1661.md:680: RFC1661-5.2-4 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation (func-scoped), internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1661 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc1661.md:681: RFC1661-5.3-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureNakSuggestsAcceptableValue, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoNakForAcceptableValue), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+      "rfc/short/rfc1661.md:682: RFC1661-5.3-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661BooleanOptionsUseRejectNotNak, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ValuedOptionUsesNak), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+      "rfc/short/rfc1661.md:683: RFC1661-5.3-3 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureNakSuggestsAcceptableValue, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoNakForAcceptableValue), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+      "rfc/short/rfc1661.md:685: RFC1661-5.3-5 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakValueIsAcceptable, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661RejectedValueStaysUnacceptable), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+      "rfc/short/rfc1661.md:686: RFC1661-5.3-6 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakOrderFollowsRequestNotAFixedOrder, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakPreservesRequestOrder), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+      "rfc/short/rfc1661.md:687: RFC1661-5.3-7 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPNakChangesIdentifierAndDropsStaleReply (func-scoped), internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1661 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc1661.md:688: RFC1661-5.3-8 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakHandlesDifferentOptionLength, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakTooShortOptionNotDecoded), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+      "rfc/short/rfc1661.md:689: RFC1661-5.4-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureRejectForUnrecognizedOption, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoConfigureRejectWhenAllOptionsRecognized, internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientAcceptsServerAuthProtocol, internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientUnrecognizedTypeOutranksInvalidLength, internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientUnrecognizedTypeOutranksInvalidLength#2), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+      "rfc/short/rfc1661.md:690: RFC1661-5.4-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureRejectDoesNotReorderOptions, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureRejectForUnrecognizedOption, internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRejectEchoesTheRefusedOptionUnmodified, internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRejectEchoesTheRefusedOptionUnmodified#2), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+      "rfc/short/rfc1661.md:691: RFC1661-5.4-3 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions (func-scoped), internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1661 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc1661.md:692: RFC1661-5.4-4 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions (func-scoped), internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1661 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc1661.md:693: RFC1661-5.4-5 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions (func-scoped), internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1661 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc1661.md:694: RFC1661-5.5-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoTerminateAckForTerminateAck, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661TerminateAckSentAndLinkHeld), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+      "rfc/short/rfc1661.md:695: RFC1661-5.6-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661CodeRejectForUnknownCode, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoCodeRejectForKnownCode), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+      "rfc/short/rfc1661.md:702: RFC1661-5.8-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoReplyInOpened, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoEchoOutsideOpened), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+      "rfc/short/rfc1661.md:703: RFC1661-5.8-2 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/pppoeclient/rfc1661_lcp_transition_test.go::TestClientLCPEchoBeforeOpenDiscarded (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1661 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc1661.md:705: RFC1661-5.9-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661DiscardRequestSilentlyDiscarded), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+      "rfc/short/rfc1661.md:706: RFC1661-6.2-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661SingleAuthProtocolOptionInRequest), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+      "rfc/short/rfc1661.md:707: RFC1661-6.4-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661UnknownOptionRejectedWhileMagicIsNot, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ZeroMagicNumberRefused), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+      "rfc/short/rfc1661.md:708: RFC1661-6.4-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoReplyDoesNotMirrorPeerMagic, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoReplyInOpened), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+      "rfc/short/rfc1661.md:709: RFC1661-6.4-3 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661PeerMagicNumberAcked, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ZeroMagicNumberRefused, internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientNaksZeroMagicWithAValueOfItsOwn, internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientNaksZeroMagicWithAValueOfItsOwn#2), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+      "rfc/short/rfc1661.md:710: RFC1661-6.5-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661TwoOctetProtocolField), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+      "rfc/short/rfc1661.md:711: RFC1661-6.5-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661TwoOctetProtocolField), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+      "rfc/short/rfc1661.md:720: RFC1661-4.4-2 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/ppp/rfc1661_configured_restart_test.go::TestConfiguredLCPZeroRestartPeriod (func-scoped), internal/component/l2tp/ppp/rfc1661_configured_restart_test.go::TestConfiguredLCPZeroRestartPeriod#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1661 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc1661.md:725: RFC1661-6.1-1 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/ppp/rfc1661_proxy_policy_driver_test.go::TestReceiveFullFrameBelowConfiguredMRU (func-scoped), internal/component/l2tp/ppp/rfc1661_proxy_policy_driver_test.go::TestReceiveFullFrameBelowConfiguredMRU#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1661 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc1661.md:728: RFC1661-6.4-7 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue (func-scoped), internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1661 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc1994.md:284: RFC1994-1-1 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/ppp/auth_dispatch_test.go::TestAuthProtoRejectClearsMethod (func-scoped), internal/component/l2tp/ppp/auth_dispatch_test.go::TestLocalCONFREQAdvertisesAuthMethod (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1994 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc1994.md:287: RFC1994-4.1-3 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier, internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994EqualResponseValueDrawsSuccessThroughLocalVerifier), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1994",
+      "rfc/short/rfc1994.md:288: RFC1994-4.2-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier, internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994EqualResponseValueDrawsSuccessThroughLocalVerifier), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1994",
+      "rfc/short/rfc1994.md:289: RFC1994-4.2-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier, internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994EqualResponseValueDrawsSuccessThroughLocalVerifier), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1994",
+      "rfc/short/rfc1994.md:295: RFC1994-4.1-8 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/ppp/rfc1994_chap_reauth_test.go::TestCHAPRepeatedResponseAfterSuccessKeepsSessionUp (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1994 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc1994.md:297: RFC1994-4.1-10 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1994_chap_reauth_test.go::TestCHAPResponseOutsideAuthPhaseSilentlyDiscarded), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1994",
+      "rfc/short/rfc1994.md:300: RFC1994-2-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1994_failure_terminates_link_test.go::TestRFC1994CHAPFailureTerminatesTheLink, internal/component/l2tp/ppp/rfc1994_failure_terminates_link_test.go::TestRFC1994CHAPSuccessKeepsTheLink), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1994",
+      "rfc/short/rfc1994.md:301: RFC1994-4.2-5 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1994_failure_terminates_link_test.go::TestRFC1994CHAPFailureTerminatesTheLink, internal/component/l2tp/ppp/rfc1994_failure_terminates_link_test.go::TestRFC1994CHAPSuccessKeepsTheLink), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1994",
+      "rfc/short/rfc2516.md:280: RFC2516-x-9 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/pppoeclient/rfc2516_host_session_mtu_test.go::TestRFC2516HostSessionMTUDefaultsToThePPPoECeiling (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc2516 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
       "rfc/short/rfc2661.md:586: RFC2661-5.8-8 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/config.go::ExtractParameters (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc2661 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
       "rfc/short/rfc3948.md:216: RFC3948-3.1.2-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/le/interoplab/ipsec/checkers.go::checkNATTTransportInnerChecksum, internal/le/interoplab/ipsec/checkers.go::checkNATTTunnelInnerChecksum), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc3948",
       "rfc/short/rfc4301.md:472: RFC4301-4.2-1 has a STALE audit verdict -- what it judged changed: internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc4301 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
@@ -43,8 +97,16 @@
       "rfc/short/rfc4303.md:189: RFC4303-3.4.4.1-2 has a STALE audit verdict -- what it judged changed: internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc4303 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
       "rfc/short/rfc4456.md:90: RFC4456-8-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal, internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal#2), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc4456",
       "rfc/short/rfc4456.md:91: RFC4456-8-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal, internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal#2), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc4456",
-      "rfc/short/rfc5072.md:281: RFC5072-4.1-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/pppoeclient/rfc5072_ipv6cp_client_test.go::TestRFC5072ClientConfigureRequestOneIdentifier), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc5072",
-      "rfc/short/rfc5072.md:287: RFC5072-4.1-7 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/pppoeclient/rfc5072_ipv6cp_client_test.go::TestRFC5072ClientAdoptsNakSuggestion), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc5072",
+      "rfc/short/rfc5072.md:275: RFC5072-3-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNoResponseBeforeNetworkPhase, internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPOpenedEmitsAssigned), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc5072",
+      "rfc/short/rfc5072.md:276: RFC5072-2-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/ncp_test.go::TestIPv6ServiceStartsOnlyAfterIPv6CPOpened), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc5072",
+      "rfc/short/rfc5072.md:281: RFC5072-4.1-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPDuplicateIdentifierOptionIsNotAcked, internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPRequestWithoutIdentifierIsNotAcked, internal/component/l2tp/pppoeclient/rfc5072_ipv6cp_client_test.go::TestRFC5072ClientConfigureRequestOneIdentifier), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc5072",
+      "rfc/short/rfc5072.md:283: RFC5072-4.1-3 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPAcksDifferentNonZeroInterfaceID, internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNaksZeroInterfaceID), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc5072",
+      "rfc/short/rfc5072.md:284: RFC5072-4.1-4 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNakOnEqualNonZeroIdentifiers), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc5072",
+      "rfc/short/rfc5072.md:285: RFC5072-4.1-5 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPSuggestionDiffersFromLocalIdentifier), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc5072",
+      "rfc/short/rfc5072.md:286: RFC5072-4.1-6 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPBothZeroIsRejected), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc5072",
+      "rfc/short/rfc5072.md:287: RFC5072-4.1-7 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNakInvalidSuggestionNotAdopted, internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPResendsCRWithNakSuggestedID, internal/component/l2tp/pppoeclient/rfc5072_ipv6cp_client_test.go::TestRFC5072ClientAdoptsNakSuggestion), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc5072",
+      "rfc/short/rfc5072.md:292: RFC5072-4.1-12 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPInterfaceIDRejectIsFatal, internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPUnknownOptionRejectNotFatal), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc5072",
+      "rfc/short/rfc5072.md:305: RFC5072-4.1-19 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPMissingOptionIsNakedOnce), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc5072",
       "rfc/short/rfc5549.md:219: RFC5549-4-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_CrossFamilyNoCap, internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_ExtendedNH), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc5549",
       "rfc/short/rfc5549.md:224: RFC5549-4-4 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_CrossFamilyNoCap, internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_ExtendedNH, internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_NilSendCtx), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc5549",
       "rfc/short/rfc7296.md:490: RFC7296-2.7-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/le/interoplab/ipsec/checkers.go::checkESNBothOffered, internal/le/interoplab/ipsec/checkers.go::checkESNExtendedOnlyRefused), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc7296",
@@ -154,46 +216,6 @@
     ],
     "findings": [
       {
-        "message": "rfc/short/rfc1661.md:710: RFC1661-4.6-1 is annotated {gap} but IS tested (internal/component/l2tp/ppp/rfc1661_configured_restart_test.go:38, internal/component/l2tp/ppp/rfc1661_configured_restart_test.go:39); the annotation is stale -- remove it",
-        "where": "rfc/short/rfc1661.md:710",
-        "rid": "RFC1661-4.6-1",
-        "level": "MUST",
-        "section": "4.6",
-        "text": "The Restart timer MUST be configurable (§4.6)",
-        "issue": "is annotated {gap} and IS tested, so the annotation is stale",
-        "check": "test-evidence"
-      },
-      {
-        "message": "rfc/short/rfc1661.md:711: RFC1661-4.6-2 is annotated {gap} but IS tested (internal/component/l2tp/ppp/rfc1661_configured_restart_test.go:158, internal/component/l2tp/ppp/rfc1661_configured_restart_test.go:159); the annotation is stale -- remove it",
-        "where": "rfc/short/rfc1661.md:711",
-        "rid": "RFC1661-4.6-2",
-        "level": "MUST",
-        "section": "4.6",
-        "text": "Max-Terminate MUST be configurable (§4.6)",
-        "issue": "is annotated {gap} and IS tested, so the annotation is stale",
-        "check": "test-evidence"
-      },
-      {
-        "message": "rfc/short/rfc1661.md:712: RFC1661-4.6-3 is annotated {gap} but IS tested (internal/component/l2tp/ppp/rfc1661_configured_restart_test.go:86, internal/component/l2tp/ppp/rfc1661_configured_restart_test.go:87); the annotation is stale -- remove it",
-        "where": "rfc/short/rfc1661.md:712",
-        "rid": "RFC1661-4.6-3",
-        "level": "MUST",
-        "section": "4.6",
-        "text": "Max-Configure MUST be configurable (§4.6)",
-        "issue": "is annotated {gap} and IS tested, so the annotation is stale",
-        "check": "test-evidence"
-      },
-      {
-        "message": "rfc/short/rfc1661.md:713: RFC1661-4.6-4 is annotated {gap} but IS tested (internal/component/l2tp/ppp/rfc1661_configured_restart_test.go:190, internal/component/l2tp/ppp/rfc1661_configured_restart_test.go:191); the annotation is stale -- remove it",
-        "where": "rfc/short/rfc1661.md:713",
-        "rid": "RFC1661-4.6-4",
-        "level": "MUST",
-        "section": "4.6",
-        "text": "Max-Failure MUST be configurable (§4.6)",
-        "issue": "is annotated {gap} and IS tested, so the annotation is stale",
-        "check": "test-evidence"
-      },
-      {
         "message": "rfc/short/rfc9234.md:271: RFC9234-5-9 [MUST NOT] has no negative test (only positive). A negative-less test cannot distinguish correct behavior from blanket accept/reject. Add one, or annotate {single-polarity: ...; why}",
         "where": "rfc/short/rfc9234.md:271",
         "rid": "RFC9234-5-9",
@@ -213,6 +235,10 @@
       },
       {
         "message": "internal/component/ike/engine/mh_selector_boundary_integration_linux_test.go: test file name: it carries a naming marker but is not named for any RFC: delete the marker",
+        "check": "test-evidence"
+      },
+      {
+        "message": "internal/le/scratch: `go vet` cannot type-check this package, and a package holding RFC requirement tags depends on it, so those tests cannot run either. go vet said: internal/le/scratch/livetrim.go:176:28: undefined: session.TreeIdle / internal/le/scratch/livetrim.go:298:18: undefined: session.TreeIdle / internal/le/scratch/livetrim.go:391:28: undefined: session.TreeIdle / internal/le/scratch/livetrim.go:546:20: undefined: treeIdle. Fix the package so `./le verify deps unit-cached` compiles it, then re-run `./le rfc check`",
         "check": "test-evidence"
       },
       {
@@ -256,7 +282,235 @@
         "check": "audits"
       },
       {
-        "message": "rfc/short/rfc1661.md:715: RFC1661-4.4-2 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/ppp/rfc1661_configured_restart_test.go::TestConfiguredLCPZeroRestartPeriod (func-scoped), internal/component/l2tp/ppp/rfc1661_configured_restart_test.go::TestConfiguredLCPZeroRestartPeriod#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1661 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+        "message": "rfc/short/rfc1332.md:348: RFC1332-2.1-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/ncp_test.go::TestIPCPNoAddressBeforeOpened, internal/component/l2tp/ppp/ncp_test.go::TestIPResponseConfiguresInterface), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1332",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1332.md:349: RFC1332-2.1-3 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/ppp/rfc1332_mtu_test.go::TestIPMTUInstalledFromNegotiatedMRU (func-scoped), internal/component/l2tp/ppp/rfc1332_mtu_test.go::TestIPMTUInstalledFromNegotiatedMRU#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1332 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1332.md:350: RFC1332-2.1-4 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/ppp/rfc1332_mtu_test.go::TestIPMTUInstalledFromNegotiatedMRU (func-scoped), internal/component/l2tp/ppp/rfc1332_mtu_test.go::TestIPMTUInstalledFromNegotiatedMRU#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1332 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1334.md:235: RFC1334-1-1 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/ppp/auth_dispatch_test.go::TestAuthProtoRejectClearsMethod (func-scoped), internal/component/l2tp/ppp/auth_dispatch_test.go::TestLocalCONFREQAdvertisesAuthMethod (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1334 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1334.md:236: RFC1334-x-1 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestConfiguredPAPStillOffersCHAPFirst (func-scoped), internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestConfiguredPAPStillOffersCHAPFirst#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1334 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1661.md:653: RFC1661-2-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661CompliantProtocolRecognized, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NonCompliantProtocolTreatedUnrecognized), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1661.md:657: RFC1661-6-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientInvalidOptionLengthDrawsNak, internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientInvalidOptionLengthDrawsNak#2), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1661.md:658: RFC1661-6-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRequestPastEndSilentlyDiscarded, internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRequestPastEndSilentlyDiscarded#2), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1661.md:660: RFC1661-3.1-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NCPConfiguresEachFamilySeparately, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoNCPPacketsWhenNoNetworkProtocol), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1661.md:662: RFC1661-3.5-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661AuthProtocolRequestedDuringEstablishment, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoAuthProtocolWhenNotDesired), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1661.md:664: RFC1661-3.5-3 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NetworkPhaseRunsAfterAuthCompletes, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoNetworkPhaseUntilAuthCompletes), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1661.md:666: RFC1661-3.6-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NCPConfiguresEachFamilySeparately, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NCPStatesAreIndependent), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1661.md:667: RFC1661-3.6-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NetworkLayerPacketDiscardedBeforeNCPOpened), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1661.md:669: RFC1661-3.7-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661TerminateAckSentAndLinkHeld), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1661.md:671: RFC1661-4.3-1 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go::TestRFC1661ClientRenegotiatesLCPInNetworkPhase (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1661 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1661.md:672: RFC1661-4.3-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NewConfigureRequestAcceptedAfterTerminateRequest), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1661.md:674: RFC1661-5.1-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661OpenTransmitsConfigureRequest, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661UpWithoutOpenSendsNoConfigureRequest), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1661.md:675: RFC1661-5.1-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureAckEchoesOptionsVerbatim, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureRejectForUnrecognizedOption), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1661.md:676: RFC1661-5.1-3 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPNakChangesIdentifierAndDropsStaleReply (func-scoped), internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1661 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1661.md:677: RFC1661-5.2-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureAckEchoesOptionsVerbatim, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureRejectForUnrecognizedOption), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1661.md:678: RFC1661-5.2-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureAckDoesNotReorderOptions, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureAckEchoesOptionsVerbatim), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1661.md:679: RFC1661-5.2-3 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation (func-scoped), internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1661 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1661.md:680: RFC1661-5.2-4 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation (func-scoped), internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1661 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1661.md:681: RFC1661-5.3-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureNakSuggestsAcceptableValue, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoNakForAcceptableValue), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1661.md:682: RFC1661-5.3-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661BooleanOptionsUseRejectNotNak, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ValuedOptionUsesNak), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1661.md:683: RFC1661-5.3-3 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureNakSuggestsAcceptableValue, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoNakForAcceptableValue), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1661.md:685: RFC1661-5.3-5 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakValueIsAcceptable, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661RejectedValueStaysUnacceptable), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1661.md:686: RFC1661-5.3-6 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakOrderFollowsRequestNotAFixedOrder, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakPreservesRequestOrder), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1661.md:687: RFC1661-5.3-7 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPNakChangesIdentifierAndDropsStaleReply (func-scoped), internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1661 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1661.md:688: RFC1661-5.3-8 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakHandlesDifferentOptionLength, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakTooShortOptionNotDecoded), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1661.md:689: RFC1661-5.4-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureRejectForUnrecognizedOption, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoConfigureRejectWhenAllOptionsRecognized, internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientAcceptsServerAuthProtocol, internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientUnrecognizedTypeOutranksInvalidLength, internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientUnrecognizedTypeOutranksInvalidLength#2), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1661.md:690: RFC1661-5.4-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureRejectDoesNotReorderOptions, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureRejectForUnrecognizedOption, internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRejectEchoesTheRefusedOptionUnmodified, internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRejectEchoesTheRefusedOptionUnmodified#2), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1661.md:691: RFC1661-5.4-3 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions (func-scoped), internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1661 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1661.md:692: RFC1661-5.4-4 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions (func-scoped), internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1661 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1661.md:693: RFC1661-5.4-5 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions (func-scoped), internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1661 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1661.md:694: RFC1661-5.5-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoTerminateAckForTerminateAck, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661TerminateAckSentAndLinkHeld), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1661.md:695: RFC1661-5.6-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661CodeRejectForUnknownCode, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoCodeRejectForKnownCode), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1661.md:702: RFC1661-5.8-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoReplyInOpened, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoEchoOutsideOpened), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1661.md:703: RFC1661-5.8-2 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/pppoeclient/rfc1661_lcp_transition_test.go::TestClientLCPEchoBeforeOpenDiscarded (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1661 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1661.md:705: RFC1661-5.9-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661DiscardRequestSilentlyDiscarded), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1661.md:706: RFC1661-6.2-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661SingleAuthProtocolOptionInRequest), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1661.md:707: RFC1661-6.4-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661UnknownOptionRejectedWhileMagicIsNot, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ZeroMagicNumberRefused), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1661.md:708: RFC1661-6.4-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoReplyDoesNotMirrorPeerMagic, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoReplyInOpened), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1661.md:709: RFC1661-6.4-3 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661PeerMagicNumberAcked, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ZeroMagicNumberRefused, internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientNaksZeroMagicWithAValueOfItsOwn, internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientNaksZeroMagicWithAValueOfItsOwn#2), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1661.md:710: RFC1661-6.5-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661TwoOctetProtocolField), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1661.md:711: RFC1661-6.5-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661TwoOctetProtocolField), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1661.md:720: RFC1661-4.4-2 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/ppp/rfc1661_configured_restart_test.go::TestConfiguredLCPZeroRestartPeriod (func-scoped), internal/component/l2tp/ppp/rfc1661_configured_restart_test.go::TestConfiguredLCPZeroRestartPeriod#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1661 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1661.md:725: RFC1661-6.1-1 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/ppp/rfc1661_proxy_policy_driver_test.go::TestReceiveFullFrameBelowConfiguredMRU (func-scoped), internal/component/l2tp/ppp/rfc1661_proxy_policy_driver_test.go::TestReceiveFullFrameBelowConfiguredMRU#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1661 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1661.md:728: RFC1661-6.4-7 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue (func-scoped), internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1661 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1994.md:284: RFC1994-1-1 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/ppp/auth_dispatch_test.go::TestAuthProtoRejectClearsMethod (func-scoped), internal/component/l2tp/ppp/auth_dispatch_test.go::TestLocalCONFREQAdvertisesAuthMethod (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1994 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1994.md:287: RFC1994-4.1-3 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier, internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994EqualResponseValueDrawsSuccessThroughLocalVerifier), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1994",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1994.md:288: RFC1994-4.2-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier, internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994EqualResponseValueDrawsSuccessThroughLocalVerifier), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1994",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1994.md:289: RFC1994-4.2-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier, internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994EqualResponseValueDrawsSuccessThroughLocalVerifier), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1994",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1994.md:295: RFC1994-4.1-8 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/ppp/rfc1994_chap_reauth_test.go::TestCHAPRepeatedResponseAfterSuccessKeepsSessionUp (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1994 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1994.md:297: RFC1994-4.1-10 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1994_chap_reauth_test.go::TestCHAPResponseOutsideAuthPhaseSilentlyDiscarded), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1994",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1994.md:300: RFC1994-2-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1994_failure_terminates_link_test.go::TestRFC1994CHAPFailureTerminatesTheLink, internal/component/l2tp/ppp/rfc1994_failure_terminates_link_test.go::TestRFC1994CHAPSuccessKeepsTheLink), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1994",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc1994.md:301: RFC1994-4.2-5 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1994_failure_terminates_link_test.go::TestRFC1994CHAPFailureTerminatesTheLink, internal/component/l2tp/ppp/rfc1994_failure_terminates_link_test.go::TestRFC1994CHAPSuccessKeepsTheLink), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1994",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc2516.md:280: RFC2516-x-9 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/pppoeclient/rfc2516_host_session_mtu_test.go::TestRFC2516HostSessionMTUDefaultsToThePPPoECeiling (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc2516 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
         "check": "audits"
       },
       {
@@ -328,11 +582,43 @@
         "check": "audits"
       },
       {
-        "message": "rfc/short/rfc5072.md:281: RFC5072-4.1-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/pppoeclient/rfc5072_ipv6cp_client_test.go::TestRFC5072ClientConfigureRequestOneIdentifier), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc5072",
+        "message": "rfc/short/rfc5072.md:275: RFC5072-3-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNoResponseBeforeNetworkPhase, internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPOpenedEmitsAssigned), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc5072",
         "check": "audits"
       },
       {
-        "message": "rfc/short/rfc5072.md:287: RFC5072-4.1-7 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/pppoeclient/rfc5072_ipv6cp_client_test.go::TestRFC5072ClientAdoptsNakSuggestion), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc5072",
+        "message": "rfc/short/rfc5072.md:276: RFC5072-2-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/ncp_test.go::TestIPv6ServiceStartsOnlyAfterIPv6CPOpened), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc5072",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc5072.md:281: RFC5072-4.1-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPDuplicateIdentifierOptionIsNotAcked, internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPRequestWithoutIdentifierIsNotAcked, internal/component/l2tp/pppoeclient/rfc5072_ipv6cp_client_test.go::TestRFC5072ClientConfigureRequestOneIdentifier), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc5072",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc5072.md:283: RFC5072-4.1-3 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPAcksDifferentNonZeroInterfaceID, internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNaksZeroInterfaceID), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc5072",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc5072.md:284: RFC5072-4.1-4 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNakOnEqualNonZeroIdentifiers), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc5072",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc5072.md:285: RFC5072-4.1-5 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPSuggestionDiffersFromLocalIdentifier), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc5072",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc5072.md:286: RFC5072-4.1-6 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPBothZeroIsRejected), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc5072",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc5072.md:287: RFC5072-4.1-7 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNakInvalidSuggestionNotAdopted, internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPResendsCRWithNakSuggestedID, internal/component/l2tp/pppoeclient/rfc5072_ipv6cp_client_test.go::TestRFC5072ClientAdoptsNakSuggestion), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc5072",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc5072.md:292: RFC5072-4.1-12 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPInterfaceIDRejectIsFatal, internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPUnknownOptionRejectNotFatal), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc5072",
+        "check": "audits"
+      },
+      {
+        "message": "rfc/short/rfc5072.md:305: RFC5072-4.1-19 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPMissingOptionIsNakedOnce), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc5072",
         "check": "audits"
       },
       {
@@ -764,7 +1050,7 @@
   "satisfaction": [
     {
       "key": "both_polarities",
-      "count": 2474
+      "count": 2478
     },
     {
       "key": "single_polarity",
@@ -772,7 +1058,7 @@
     },
     {
       "key": "gap",
-      "count": 1495
+      "count": 1491
     },
     {
       "key": "partial-scope",
@@ -808,7 +1094,7 @@
     }
   ],
   "gaps": {
-    "requirements": 1495,
+    "requirements": 1491,
     "rfcs": 132,
     "top-rfcs": [
       {
@@ -863,9 +1149,9 @@
   },
   "audit": {
     "verdicts": 2287,
-    "fresh": 2261,
-    "shifted": 11,
-    "stale": 15,
+    "fresh": 2199,
+    "shifted": 55,
+    "stale": 33,
     "missing": 2515
   },
   "verify": {

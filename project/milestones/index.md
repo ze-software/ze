@@ -1,235 +1,170 @@
 # Milestones
 
-The landmarks that mark Ze's path from a bare BGP speaker to a full network operating system. Each entry is the first time a whole capability arrived; the week-by-week detail lives in the Changes log and the blog. Newest first, colour-coded by category.
+Landmark capabilities in Ze's development, newest to oldest.
 
-## Q3 2026
+## October 2026
 
-### Path MTU diagnostics (Sep 2026)
+### Key points
 
-*observe*
+- LAN caching DNS resolver (services)
+- Shared route policy (routing)
+- Ze appliance kernel (setup)
 
-`show mtu` probes every IPsec peer and a reference address, reports the ceiling, the value to set and the TCP MSS that follows, and classifies each tunnel with the `set interface` command that corrects it. A tunnel with a live IKE security association is confirmed a second time by an authenticated padded probe.
+### Update reports
 
-[Read the week](../changes/2026-09-14/)
+- [25 Oct](../changes/2026-10-25/)
+- [12 Oct](../changes/2026-10-12/)
+- [5 Oct](../changes/2026-10-05/)
 
-### IPv6 Router Advertisement sender (Sep 2026)
+## September 2026
 
-*services*
+### Key points
 
-Ze advertises itself as an IPv6 router on an interface unit (RFC 4861), with prefixes, flags, a router lifetime and RDNSS resolvers, so a host autoconfigures without radvd beside Ze. Sending is per unit and off by default.
+- Configuration backup and restore (operate)
+- BGP-LS and Egress Peer Engineering (routing)
+- Path MTU diagnostics (observe)
+- IPv6 Router Advertisement sender (services)
 
-[Read the week](../changes/2026-09-07/)
+### Update reports
 
-### RFC 7999 remote-triggered blackholing (Aug 2026)
+- [28 Sep](../changes/2026-09-28/)
+- [21 Sep](../changes/2026-09-21/)
+- [14 Sep](../changes/2026-09-14/)
+- [7 Sep](../changes/2026-09-07/)
 
-*secure*
+## August 2026
 
-Per-peer RFC 7999 policy turns an authorized BLACKHOLE community inside an authorized covering prefix into a discard route. The feature is off by default.
+### Key points
 
-[Read the week](../changes/2026-08-10/)
+- RFC 7999 remote-triggered blackholing (secure)
 
-### Feature-gated builds (Jul 2026)
+### Update reports
 
-*setup*
+- [31 Aug](../changes/2026-08-31/)
+- [24 Aug](../changes/2026-08-24/)
+- [17 Aug](../changes/2026-08-17/)
+- [10 Aug](../changes/2026-08-10/)
+- [3 Aug](../changes/2026-08-03/)
 
-Thirty-six subsystems compile out behind build tags, so a deployment ships only the code it runs. All are on by default, and the config loader fails closed on a config carrying blocks the running build has no code for.
+## July 2026
 
-[Read the week](../changes/2026-07-20/)
+### Key points
 
-### VRRP first-hop redundancy (Jul 2026)
+- Feature-gated builds (setup)
+- VRRP first-hop redundancy (routing)
+- RFC compliance gate (setup)
 
-*routing*
+### Update reports
 
-First-hop gateway redundancy with RFC 9568 VRRPv3 (IPv4 and IPv6) and RFC 3768 VRRPv2, a per-group virtual-MAC macvlan for transparent L2 failover, and keepalived interop under QEMU.
+- [27 Jul](../changes/2026-07-27/)
+- [20 Jul](../changes/2026-07-20/)
+- [13 Jul](../changes/2026-07-13/)
+- [6 Jul](../changes/2026-07-06/)
+- [1 Jul](../changes/2026-07-01/)
 
-[Read the week](../changes/2026-07-13/)
+## June 2026
 
-### RFC compliance gate (Jul 2026)
+### Key points
 
-*setup*
+- DDoS auto-mitigation (secure)
+- OSPFv2 / OSPFv3 (routing)
+- Native IS-IS (routing)
 
-Every RFC Ze implements is enrolled requirement by requirement, and a requirement counts as met only when a test names it and fails when the behaviour is taken out. Gaps are published on the RFC status page instead of being inferred from test coverage.
+### Update reports
 
-[Read the week](../changes/2026-07-13/)
+- [25 Jun](../changes/2026-06-25/)
+- [22 Jun](../changes/2026-06-22/)
+- [15 Jun](../changes/2026-06-15/)
+- [8 Jun](../changes/2026-06-08/)
+- [1 Jun](../changes/2026-06-01/)
 
-## Q2 2026
+## May 2026
 
-### DDoS auto-mitigation (Jun 2026)
+### Key points
 
-*secure*
+- MPLS label switching (routing)
+- IPsec / IKEv2 VPN (secure)
+- Appliance fleet management (setup)
 
-Control-plane survival under attack: GTSM/TTL-security (RFC 5082), CoPP policing on TCP/179, and automatic DDoS detection with attack-characterized auto-mitigation.
+### Update reports
 
-[Read the week](../changes/2026-06-25/)
+- [25 May](../changes/2026-05-25/)
+- [18 May](../changes/2026-05-18/)
+- [11 May](../changes/2026-05-11/)
+- [4 May](../changes/2026-05-04/)
 
-### OSPFv2 / OSPFv3 (Jun 2026)
+## April 2026
 
-*routing*
+### Key points
 
-A unified OSPFv2/OSPFv3 engine with IPv6 interop coverage and live SSE state views in the web UI.
+- L2TP/PPP broadband access (services)
+- VPP dataplane (setup)
+- Firewall and traffic control (secure)
+- BFD liveness detection (routing)
+- gokrazy appliance build (setup)
 
-[Read the week](../changes/2026-06-22/)
+### Update reports
 
-### Native IS-IS (Jun 2026)
+- [27 Apr](../changes/2026-04-27/)
+- [20 Apr](../changes/2026-04-20/)
+- [13 Apr](../changes/2026-04-13/)
+- [6 Apr](../changes/2026-04-06/)
 
-*routing*
+## March 2026
 
-A native IS-IS link-state IGP (ISO/IEC 10589, RFC 1195): full PDU/TLV codec, adjacency FSM, LSDB flooding, DIS election, and SPF with ECMP, interop-tested against FRR's isisd.
+### Key points
 
-[Read the week](../changes/2026-06-15/)
+- Interfaces and kernel FIB (setup)
+- Web interface (operate)
+- MCP server for AI operations (automate)
+- RPKI origin validation (secure)
+- SSH CLI, TCP-MD5, and RBAC (secure)
+- Best-path selection (routing)
 
-### MPLS label switching (May 2026)
+### Update reports
 
-*routing*
+- [30 Mar](../changes/2026-03-30/)
+- [23 Mar](../changes/2026-03-23/)
+- [16 Mar](../changes/2026-03-16/)
+- [9 Mar](../changes/2026-03-09/)
+- [2 Mar](../changes/2026-03-02/)
 
-Label switching across three layers, verified in QEMU against FRR: a kernel MPLS dataplane, LDP (RFC 5036), and RSVP-TE.
+## February 2026
 
-[Read the week](../changes/2026-05-25/)
+### Key points
 
-### IPsec / IKEv2 VPN (May 2026)
+- BGP route server (routing)
 
-*secure*
+### Update reports
 
-A native IKEv2 VPN stack built from the wire format up and interop-tested against strongSwan: child SA negotiation, EAP, NAT-T, and route-based VPN via XFRM.
+- [23 Feb](../changes/2026-02-23/)
+- [16 Feb](../changes/2026-02-16/)
+- [9 Feb](../changes/2026-02-09/)
+- [2 Feb](../changes/2026-02-02/)
 
-[Read the week](../changes/2026-05-18/)
+## January 2026
 
-### Appliance fleet management (May 2026)
+### Key points
 
-*setup*
+- Hub architecture and Plugin SDK (setup)
+- ExaBGP migration path (automate)
 
-`ze appliance` manages images end to end: encrypted secrets, TLS and SSH provisioning, day-2 operations, remote push, and export/import for disaster recovery.
+### Update reports
 
-[Read the week](../changes/2026-05-04/)
+- [26 Jan](../changes/2026-01-26/)
+- [19 Jan](../changes/2026-01-19/)
+- [12 Jan](../changes/2026-01-12/)
+- [5 Jan](../changes/2026-01-05/)
 
-### L2TP/PPP broadband access (Apr 2026)
+## December 2025
 
-*services*
+### Key points
 
-A full L2TPv2 stack for broadband access: tunnel and session FSMs, a reliable delivery engine, and PPP authentication (PAP, CHAP-MD5, MS-CHAPv2).
+- BGP engine (routing)
+- Config model and CLI editor (operate)
 
-[Read the week](../changes/2026-04-13/)
+### Update reports
 
-### VPP dataplane (Apr 2026)
-
-*setup*
-
-A VPP dataplane backend for high-performance forwarding: connection management, DPDK binding, and FIB programming via GoVPP.
-
-[Read the week](../changes/2026-04-13/)
-
-### Firewall and traffic control (Apr 2026)
-
-*secure*
-
-nftables and tc-netlink backends sharing one YANG data model, with `show firewall` and `show traffic-control` commands.
-
-[Read the week](../changes/2026-04-13/)
-
-### BFD liveness detection (Apr 2026)
-
-*routing*
-
-A complete BFD implementation (RFC 5880/5881/5883): single- and multi-hop, authentication, echo mode, BGP session opt-in, and operator visibility.
-
-[Read the week](../changes/2026-04-06/)
-
-### gokrazy appliance build (Apr 2026)
-
-*setup*
-
-The first gokrazy VM appliance build for x86_64 starts the appliance path: a self-contained image as well as daemon mode.
-
-[Read the week](../changes/2026-04-06/)
-
-## Q1 2026
-
-### Interfaces and kernel FIB (Mar 2026)
-
-*setup*
-
-A JunOS-style interface management subsystem (netlink monitoring, DHCP, SLAAC) and a FIB pipeline that installs best-path routes into the kernel via netlink.
-
-[Read the week](../changes/2026-03-30/)
-
-### Web interface (Mar 2026)
-
-*operate*
-
-A browser-based config editor with YANG-driven rendering, per-user drafts, inline diffs, live SSE updates, and a light/dark theme, started with `ze start --web`.
-
-[Read the week](../changes/2026-03-23/)
-
-### MCP server for AI operations (Mar 2026)
-
-*automate*
-
-An MCP server exposing tools for AI-assisted BGP operations: announce, withdraw, peer status, peer control, and command execution.
-
-[Read the week](../changes/2026-03-23/)
-
-### RPKI origin validation (Mar 2026)
-
-*secure*
-
-A full RPKI pipeline: an RTR-speaking plugin maintains a ROA cache and validates route origins as routes enter the adjacency RIB-in path.
-
-[Read the week](../changes/2026-03-16/)
-
-### SSH CLI, TCP-MD5, and RBAC (Mar 2026)
-
-*secure*
-
-An SSH server becomes the primary way to reach the CLI, alongside TCP-MD5 session authentication (RFC 2385) and end-to-end RBAC authorisation.
-
-[Read the week](../changes/2026-03-09/)
-
-### Best-path selection (Mar 2026)
-
-*routing*
-
-On-demand best-path selection in the RIB, covering LOCAL_PREF, AS_PATH length, ORIGIN, MED, eBGP/iBGP preference, and the full tiebreak chain (RFC 4271 section 9.1.2).
-
-[Read the week](../changes/2026-03-02/)
-
-### BGP route server (Feb 2026)
-
-*routing*
-
-A forward-all route server (RFC 7947) for IXPs: targeted per-peer replay on reconnect, backpressure-safe forwarding, and plugin dependency resolution.
-
-[Read the week](../changes/2026-02-23/)
-
-### Hub architecture and Plugin SDK (Jan 2026)
-
-*setup*
-
-Ze splits into a hub orchestrator that forks BGP as a child process, gains live config reload over SIGHUP, and ships a documented SDK for writing plugins outside the core tree.
-
-[Read the week](../changes/2026-01-19/)
-
-### ExaBGP migration path (Jan 2026)
-
-*automate*
-
-`exabgp migrate` converts ExaBGP configs to Ze's format, and a bridge runs existing ExaBGP process plugins under Ze, translating JSON and commands both ways.
-
-[Read the week](../changes/2026-01-12/)
-
-## Q4 2025
-
-### BGP engine (Dec 2025)
-
-*routing*
-
-The foundational BGP speaker lands: wire-format codec, every message type, capability negotiation, path attributes, a RIB, and the finite state machine, tested against ExaBGP from day one.
-
-[Read the week](../changes/2025-12-15/)
-
-### Config model and CLI editor (Dec 2025)
-
-*operate*
-
-A schema-driven configuration parser with ExaBGP-compatible syntax, wired straight to the reactor, plus an interactive CLI editor with autocomplete.
-
-[Read the week](../changes/2025-12-15/)
+- [29 Dec](../changes/2025-12-29/)
+- [22 Dec](../changes/2025-12-22/)
+- [15 Dec](../changes/2025-12-15/)

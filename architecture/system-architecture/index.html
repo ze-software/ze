@@ -53,6 +53,7 @@
 </div>
 <div class="doc-layout">
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
+<li><a href="#system-rib-process-boundary">System RIB process boundary</a></li>
 <li><a href="#build-personalities">Build personalities</a></li>
 <li><a href="#overview">Overview</a>
 <ol>
@@ -120,6 +121,7 @@
 <li><a href="#security-model">Security Model</a>
 <ol>
 <li><a href="#privilege-dropping-exabgp-pattern">Privilege Dropping (ExaBGP Pattern)</a></li>
+<li><a href="#capabilities-without-root">Capabilities without root</a></li>
 <li><a href="#plugin-tls-transport">Plugin TLS Transport</a></li>
 <li><a href="#plugin-process-isolation">Plugin Process Isolation</a></li>
 </ol></li>
@@ -139,9 +141,9 @@ the surviving form.</li>
 removed; local AS is now <code>session { asn { local ... } }</code> and peer groups are
 <code>group</code> blocks (see <a href="../../reference/deprecations/">configuration syntax changes</a>
 and <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/config/syntax.md" target="_blank" rel="noopener">config syntax</a>).</li>
-<li>Shipped plugins (bgp, rib, gr) run in-process today rather than being forked
-as separate <code>external ... { run "ze bgp" }</code> processes; the <code>external</code> block
-is for third-party out-of-process plugins.</li>
+<li>Shipped plugins can also run through <code>external</code> blocks. For the system RIB,
+use <code>run "ze plugin rib"</code>. Its selected view and forwarding publication
+use the authenticated process protocol described below.</li>
 <li>The source tree is organised under <code>internal/core</code>, <code>internal/component</code>, and
 <code>internal/plugins</code>; there is no <code>internal/bgp/...</code> layout as sketched below.</li>
 </ul>
@@ -149,6 +151,25 @@ is for third-party out-of-process plugins.</li>
 <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/hub-architecture.md" target="_blank" rel="noopener">Hub Architecture</a>.</p>
 </blockquote>
 <hr>
+<h2 id="system-rib-process-boundary">System RIB process boundary</h2>
+<p>The daemon's Loc-RIB applies import policy and selects across protocols once.
+The system RIB consumes that selection inside the daemon or in a subprocess.
+An internal instance reads the authority directly. An external instance holds
+a read-only selected projection and runs the same recursive resolver and
+forwarding worker. Candidate commands query the daemon's full candidate state.</p>
+<!-- source: internal/component/sysrib/route_view_client.go -- openRouteViewMonitoredClient -->
+<!-- source: internal/component/sysrib/route_view_worker.go -- consume -->
+<!-- source: internal/component/sysrib/route_view_worker_operations.go -- candidates -->
+<p>The daemon acknowledges distance changes after authoritative reselection. It
+also fences forwarding output by process generation and consumed cursor.
+Reset or process loss withdraws only that session's outstanding output. A
+replacement waits for cleanup, then reconstructs its view before publishing.
+The <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/rib/unified-locrib.md#authoritative-selected-views" target="_blank" rel="noopener">unified Loc-RIB</a>
+and <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/api/process-protocol.md#system-routing-views" target="_blank" rel="noopener">process protocol</a> specify
+the ordering and retention bounds.</p>
+<!-- source: internal/component/sysrib/route_view_distances.go -- applyDistances -->
+<!-- source: internal/component/sysrib/route_view.go -- open, cleanupLocked -->
+<!-- source: internal/component/sysrib/route_view_output.go -- publish, withdraw -->
 <h2 id="build-personalities">Build personalities</h2>
 <p>The repository builds <code>ze</code> and <code>le</code> from the one <code>cmd/ze</code> codebase. The root
 <code>./ze</code> launcher executes the cached <code>bin/ze</code> personality and builds it only
@@ -942,6 +963,28 @@ declare done
 <p>When <code>ze.user</code> is not set, no privilege dropping occurs.</p>
 <p>Implementation: <code>internal/core/privilege/</code> -- calls <code>setgid</code> then <code>setuid</code> after <code>reactor.Start()</code> binds port 179.</p>
 <!-- source: internal/core/privilege/ -- privilege dropping -->
+<h3 id="capabilities-without-root">Capabilities without root</h3>
+<p><code>privilege.DaemonCapabilities</code> is the one declaration of the capabilities a
+non-root daemon runs with: <code>CAP_NET_ADMIN</code>, <code>CAP_NET_RAW</code>, <code>CAP_NET_BIND_SERVICE</code>
+and <code>CAP_BPF</code>, each with its kernel bit and what Ze needs it for. The systemd unit
+grants exactly that set, ambient and bounding alike; when <code>CheckPrivileges</code>
+reports one a non-root daemon lacks, the hub logs one warning at start under
+<code>doctor-daemon-capability-missing</code>, and the <code>daemon-capabilities</code> runtime check
+reports the same in <code>show doctor</code>; the per-test netns mode of
+<code>./le test qemu all</code> runs ze with the same set (<code>netnsDaemonCapBits</code>); and a unit
+capability test (<code>unit_capabilities_integration_linux_test.go</code> in the package
+that owns the program, for traffic-usage, the IPsec ESP form fast path and the
+IPsec application override guard) loads each eBPF program from a non-root
+process holding exactly it, which is how the verifier's unprivileged rules are
+proven. Each kernel bit is written out, because
+<code>golang.org/x/sys/unix</code> declares the <code>CAP_</code> constants on Linux alone, and
+<code>TestDaemonCapabilityBitsAreTheKernels</code> compares it with that constant.</p>
+<!-- source: internal/core/privilege/capabilities.go -- DaemonCapabilities -->
+<!-- source: internal/core/privilege/check_linux.go -- CheckPrivileges, effectiveCapabilities -->
+<!-- source: cmd/ze/hub/main.go -- warnDaemonPrivileges -->
+<!-- source: internal/component/doctor/checks_daemon_capabilities.go -- daemonCapabilitiesCheck, checkDaemonCapabilities -->
+<!-- source: internal/plugins/systemd/unit.go -- writeCapabilities -->
+<!-- source: internal/test/runner/caps.go -- netnsDaemonCapBits, daemonCapBits -->
 <h3 id="plugin-tls-transport">Plugin TLS Transport</h3>
 <p>External plugins connect back to the engine via TLS. The engine binds TLS listeners (configured via <code>plugin { hub { server &lt;name&gt; { ip ...; port ...; secret ...; } } }</code>), forks child processes with <code>ZE_PLUGIN_HUB_HOST</code>/<code>ZE_PLUGIN_HUB_PORT</code>/<code>ZE_PLUGIN_HUB_TOKEN</code>/<code>ZE_PLUGIN_CA_PEM</code> env vars, and waits for authenticated connect-back. <code>ZE_PLUGIN_CA_PEM</code> carries the certificate authority root that issued the listener's certificate, and the SDK validates the chain against it and nothing else; the full contract is in <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/api/process-protocol.md" target="_blank" rel="noopener">Process Protocol</a>. Each plugin uses a single bidirectional TLS connection with MuxConn for concurrent RPCs.</p>
 <!-- source: internal/component/plugin/acceptor.go -- hub TLS listener -->
@@ -1013,7 +1056,7 @@ $ kill -TERM $(pgrep -f "ze start config.conf")
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 02:04 UTC</span>
                 </div>
             </div>
         </footer>

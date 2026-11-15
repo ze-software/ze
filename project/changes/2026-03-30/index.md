@@ -4,7 +4,7 @@ A full interface management subsystem, offline DNS/RIR resolution tooling, confi
 
 ## 🔌 Interfaces
 
-A new interface management subsystem landed with a JunOS-style unit model.
+A new interface management subsystem uses a JunOS-style unit model.
 
 - Netlink-backed interface monitoring, with `ze show interface` and `ze interface migrate` over SSH
 - DHCP client, SLAAC, and migration between backends

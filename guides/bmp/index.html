@@ -149,10 +149,11 @@ Configured under <code>environment</code> to follow ze's service listener patter
 <tr>
 <td><code>route-action</code></td>
 <td>monitor</td>
-<td><code>monitor</code> (BMP RIB for visibility) or <code>redistribute</code> (future: also enter best-path)</td>
+<td><code>monitor</code> is the only value: routes go to the BMP RIB for visibility, never to best-path or the FIB</td>
 </tr>
 </tbody>
 </table>
+<!-- source: internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang -- environment container, route-action -->
 <p>Multiple listeners are supported (same pattern as SSH/web):</p>
 <pre><code>environment {
     bmp {
@@ -276,6 +277,14 @@ established peer requires that BGP peer to reconnect before it can be monitored.
 </table>
 <p>The sender reconnects automatically with exponential backoff (30s to 720s)
 per RFC 7854 recommendations.</p>
+<p>Use the internal BMP plugin for <code>loc-rib true</code>. Runtime startup and reload
+require the live BGP RIB event bus and refuse this mode when that feed is
+unavailable, before starting BMP sessions. The current external process has
+no transport for this feed. Replace that external instance with
+<code>plugin { internal bmp { use bgp-bmp; } }</code>. Offline configuration parsing
+checks syntax independently of this runtime capability.</p>
+<!-- source: internal/component/bgp/plugins/bmp/locrib_runtime.go -- validateLocRIBRuntimeConfig -->
+<!-- source: internal/component/bgp/plugins/bmp/bmp.go -- BMPPlugin.registerCallbacks -->
 <h2 id="cli-commands">CLI Commands</h2>
 <table>
 <thead>
@@ -371,6 +380,14 @@ and writes a crash record that <code>ze show crashes</code> lists</li>
 </ul>
 <!-- source: internal/component/bgp/plugins/bmp/bmp.go -- BMPPlugin.handleSession; internal/component/bgp/plugins/bmp/panic_guard.go -- bmpPanics -->
 <h3 id="sender-behavior">Sender Behavior</h3>
+<p>If a Loc-RIB update cannot be queued for a collector, Ze logs a warning with
+the collector and the original error, and continues sending to the other
+collectors. It also retains the failure as an error event under
+<code>doctor-recent-events</code>. <code>show errors</code> and the daemon's <code>show doctor</code> expose
+that event even if the collector later reconnects. Run <code>ze show bmp collectors</code>
+to inspect the collector sessions.</p>
+<!-- source: internal/component/bgp/plugins/bmp/bmp_locrib.go -- BMPPlugin.handleBestChange -->
+<!-- source: internal/component/doctor/checks_recent_events.go -- checkRecentEvents, recentEventsDiagnostic -->
 <ul>
 <li>Sends Initiation with the system identity on each connection</li>
 <li>Sends Peer Up with the cached sent and received OPEN messages for every established BGP peer, followed by its current route snapshot and per-family End-of-RIB</li>
@@ -636,11 +653,15 @@ and withdrawing one path must leave only the other in the reconnect snapshot.</p
 <p>When the BMP receiver is enabled, monitored routes are stored in the BMP RIB
 (a separate protocol namespace). These routes are visible through <code>show bmp rib</code>
 and looking glass endpoints but never enter BGP best-path selection or the FIB.</p>
-<p>The <code>route-action</code> leaf controls future behavior:</p>
-<ul>
-<li><code>monitor</code> (default): store in BMP RIB for visibility only</li>
-<li><code>redistribute</code>: store in BMP RIB AND redistribute into BGP best-path (not yet implemented)</li>
-</ul>
+<p>The <code>route-action</code> leaf has one value, <code>monitor</code>, which is also the default. A
+BMP receiver is a monitoring station: RFC 7854 defines no use of the routes it
+is told about, and a Route Monitoring message carries another router's
+unprocessed Adj-RIB-In over a session with no authentication. Ze therefore
+never feeds those routes to best-path selection. Any other value, such as
+<code>redistribute</code>, is refused when the config loads or reloads, naming the leaf
+and the accepted value; delete the line or write <code>route-action monitor;</code>.</p>
+<!-- source: internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang -- route-action -->
+<!-- source: internal/component/bgp/plugins/bmp/bmp.go -- processRouteMonitoring -->
 <h3 id="cli">CLI</h3>
 <table>
 <thead>
@@ -656,7 +677,7 @@ and looking glass endpoints but never enter BGP best-path selection or the FIB.<
 </tr>
 </tbody>
 </table>
-<p>BMP routes are separate from BGP routes: <code>ze bgp rib show</code> excludes
+<p>BMP routes are separate from BGP routes: <code>ze show bgp rib</code> excludes
 BMP-monitored routes, and <code>ze show bmp rib</code> excludes real BGP routes.</p>
 <h3 id="api-endpoints">API Endpoints</h3>
 <table>
@@ -714,12 +735,16 @@ automatically excluded with zero filter code.</li>
 <ul>
 <li><strong>Loc-RIB Route Monitoring</strong> (RFC 9069) carries the best path's own stored
 attributes (ORIGIN, LOCAL_PREF, MED, communities and the rest), which
-bgp-rib publishes on each best change, with the AS_PATH in four-octet form
-and the resolved next hop. A best change that arrives without its attribute
-set is not sent: a Warn log names the prefix, rather than a route with an
-invented ORIGIN. A change of attributes alone, with the same winning path,
-next hop and metrics, publishes no best change and so sends no update.</li>
+bgp-rib publishes on each best change. AS_PATH retains its stored segment
+types and four-octet ASNs, including an explicitly present empty path for
+a locally sourced route. The flattened display path never replaces it.
+The next hop is the resolved one. An announce without that next hop, its
+attribute set, ORIGIN or AS_PATH is refused and logged with the prefix and
+cause. A stored attribute change publishes a best change even when the
+selected peer, next hop and metrics remain the same.</li>
 </ul>
+<!-- source: internal/component/bgp/plugins/bmp/bmp_locrib.go -- buildLocRIBUpdateBody, handleBestChange -->
+<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- RIBManager.checkRouteBestChange -->
 </div>
 </div>
             </section>
@@ -735,6 +760,10 @@ next hop and metrics, publishes no best change and so sends no update.</li>
                     <a class="page-sidebar-link" href="../../guides/quickstart/">
                         <span class="page-sidebar-link-label">Quickstart</span>
                         <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ai-agent/">
+                        <span class="page-sidebar-link-label">Use Ze with an AI agent</span>
+                        <small>Let Claude Code or Codex drive Ze for you.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
@@ -765,7 +794,7 @@ next hop and metrics, publishes no best change and so sends no update.</li>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 02:34 UTC</span>
                 </div>
             </div>
         </footer>

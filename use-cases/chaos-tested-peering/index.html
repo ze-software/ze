@@ -56,15 +56,15 @@
 <li><a href="#state-the-properties">State the properties</a></li>
 <li><a href="#inject-meaningful-faults">Inject meaningful faults</a></li>
 <li><a href="#replay-and-shrink">Replay and shrink</a></li>
-<li><a href="#deployment-gate">Deployment gate</a></li>
+<li><a href="#checks-before-deployment">Checks before deployment</a></li>
 </ol></details></nav><div class="doc-body">
 <p><strong>RFC completion:</strong> the <a href="../../quality/rfc-compliance/profiles/bgp-session-ops/">BGP session operations coverage page</a> shows how much of the RFC work behind this use case is proven by tests.</p>
 <h2 id="start-from-a-validated-peer">Start from a validated peer</h2>
-<p>Build the intended peer or group with the <a href="../../guides/bgp-peering/">BGP peering guide</a>. Validate the configuration and run ordinary interop or lab checks first. Chaos testing is useful after the normal path works, not as a substitute for basic configuration validation.</p>
+<p>Build the intended peer or group with the <a href="../../guides/bgp-peering/">BGP peering guide</a>. Validate the configuration and run ordinary interop or lab checks first. Once those pass, chaos testing can check how the deployment recovers from faults.</p>
 <h2 id="run-one-complete-reproducible-scenario">Run one complete reproducible scenario</h2>
 <p>Use a fixed seed and keep the generated configuration beside the event log.
 This sequence first makes the configuration inspectable, validates it, then
-runs the same four-peer shape:</p>
+runs the same four-peer topology:</p>
 <pre><code class="language-console">mkdir -p evidence/seed-42
 ./le chaos run --config-only --seed 42 --peers 4 --config-out evidence/seed-42/ze.conf
 ze config validate evidence/seed-42/ze.conf
@@ -106,14 +106,14 @@ and dashboard modes.</p>
 <li>malformed messages on an untrusted peer;</li>
 <li>plugin delay or failure where policy depends on a plugin.</li>
 </ul>
-<p>Run one fault class at a time before combining them. This keeps failures attributable and makes shrinking more effective.</p>
+<p>Run one type of fault at a time before combining them. This makes failures easier to trace and helps the tool reduce a failing run to the events that caused it.</p>
 <h2 id="replay-and-shrink">Replay and shrink</h2>
 <p>When a scenario fails:</p>
 <pre><code class="language-console">./le chaos run --replay run.ndjson
 ./le chaos run --shrink run.ndjson
 </code></pre>
 <p>Replay proves the failure is deterministic. Shrink removes unrelated events until the smallest useful reproduction remains. Keep the seed, event log, configuration, binary version, and final report together.</p>
-<h2 id="deployment-gate">Deployment gate</h2>
+<h2 id="checks-before-deployment">Checks before deployment</h2>
 <p>Before accepting the peer configuration:</p>
 <ol>
 <li>The ordinary session and route checks pass.</li>
@@ -123,7 +123,7 @@ and dashboard modes.</p>
 <li>The final route and peer state is clean after recovery.</li>
 <li>The test records the Ze version and scenario inputs.</li>
 </ol>
-<p>A scenario that remains green when the protected behaviour is broken is observation, not proof.</p>
+<p>A scenario must fail when the behavior it is meant to protect is deliberately broken. Otherwise, a passing result cannot establish that the behavior works.</p>
 </div>
 </div>
             </section>
@@ -134,7 +134,7 @@ and dashboard modes.</p>
                     <h2>Related usage</h2>
                     <a class="page-sidebar-link" href="../../use-cases/">
                         <span class="page-sidebar-link-label">All usage examples</span>
-                        <small>Return to the deployment shapes.</small>
+                        <small>Return to the deployment examples.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../docs/">
                         <span class="page-sidebar-link-label">Documentation hub</span>
@@ -161,7 +161,7 @@ and dashboard modes.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 00:45 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 02:04 UTC</span>
                 </div>
             </div>
         </footer>

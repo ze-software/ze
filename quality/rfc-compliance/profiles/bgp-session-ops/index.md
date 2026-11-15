@@ -1,6 +1,6 @@
 # BGP session operations
 
-Technology aggregate. BGP session operations: graceful restart, shutdown, route reflection, route servers, and AS migration. The RFCs whose summary names the bgp-session-ops aggregate, with the MUST bar and the overview bar of the set and of each RFC.
+Technology profile. BGP session operations: graceful restart, shutdown, route reflection, route servers, and AS migration. The RFCs grouped under bgp-session-ops, showing mandatory requirement coverage and overall coverage for the group and each RFC.
 
 [All profiles](../) · [All RFCs](../../)
 
@@ -10,20 +10,23 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-session-ops.json]
 
 ## Figures
 
-- **MUST bar**: Ze proven 39, Ze correctness gap 38
-- **Overview bar**: Ze MUST proven 39, SHOULD proven 6, SHOULD not decided 116, Ze correctness gap 38
+- **MUST bar**: Ze proven 39, Proof pending 21, Not built 17
+- **Overview bar**: Ze MUST proven 39, SHOULD proven 6, Proof pending 25, Not assessed 112, Not built 17
 
 | Figure | Rows |
 |---|---|
 | RFCs | 13 |
-| Not walked | 3 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 3 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 77 |
 | MUST rows kept (the MUST bar) | 77 |
 | Ze proven | 39 |
 | OS verified | 0 |
+| Proof pending | 21 |
 | OS testing gap | 0 |
-| Ze correctness gap | 38 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 17 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -36,55 +39,56 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-session-ops.json]
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 116 |
+| SHOULD proof pending | 4 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 112 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 ## Tree
 
-Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each RFC carries the same two bars as the set above, from its own data file; an RFC that is not walked shows "not walked" and no bar.
+The RFCs are listed with the standards they build on first. An RFC appears one level after the highest level of its dependencies; RFCs that refer back to each other share a level. Each RFC has the same two coverage bars as the group above. An RFC whose requirement list has not been reviewed shows "requirements not reviewed" instead of a bar.
 
 ### Level 4
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 4456](../../rfc4456/) | BGP Route Reflection: An Alternative to Full Mesh Internal BGP (IBGP) | Ze proven 1, Ze correctness gap 3 | Ze MUST proven 1, SHOULD not decided 5, Ze correctness gap 3 |
-| [RFC 5065](../../rfc5065/) | Autonomous System Confederations for BGP | not walked | not walked |
+| [RFC 4456](../../rfc4456/) | BGP Route Reflection: An Alternative to Full Mesh Internal BGP (IBGP) | Ze proven 1, Proof pending 3 | Ze MUST proven 1, Proof pending 6, Not assessed 2 |
+| [RFC 5065](../../rfc5065/) | Autonomous System Confederations for BGP | requirements not reviewed | requirements not reviewed |
 
 ### Level 5
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 7705](../../rfc7705/) | Autonomous System Migration Mechanisms and Their Effects on the BGP AS_PATH Attribute | Ze proven 9 | Ze MUST proven 9, SHOULD not decided 8 |
-| [RFC 8326](../../rfc8326/) | Graceful BGP Session Shutdown | not walked | not walked |
+| [RFC 7705](../../rfc7705/) | Autonomous System Migration Mechanisms and Their Effects on the BGP AS_PATH Attribute | Ze proven 9 | Ze MUST proven 9, Not assessed 8 |
+| [RFC 8326](../../rfc8326/) | Graceful BGP Session Shutdown | requirements not reviewed | requirements not reviewed |
 
 ### Level 6
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 4724](../../rfc4724/) | Graceful Restart Mechanism for BGP | Ze proven 14, Ze correctness gap 12 | Ze MUST proven 14, SHOULD proven 1, SHOULD not decided 4, Ze correctness gap 12 |
-| [RFC 7947](../../rfc7947/) | Internet Exchange BGP Route Server | Ze proven 2, Ze correctness gap 1 | Ze MUST proven 2, SHOULD proven 4, SHOULD not decided 1, Ze correctness gap 1 |
+| [RFC 4724](../../rfc4724/) | Graceful Restart Mechanism for BGP | Ze proven 14, Proof pending 3, Not built 9 | Ze MUST proven 14, SHOULD proven 1, Proof pending 3, Not assessed 4, Not built 9 |
+| [RFC 7947](../../rfc7947/) | Internet Exchange BGP Route Server | Ze proven 2, Not built 1 | Ze MUST proven 2, SHOULD proven 4, Proof pending 1, Not built 1 |
 
 ### Level 7
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 6996](../../rfc6996/) | Autonomous System (AS) Reservation for Private Use | Ze proven 1 | Ze MUST proven 1, SHOULD not decided 2 |
-| [RFC 7948](../../rfc7948/) | Internet Exchange BGP Route Server Operations | no rows | SHOULD not decided 11 |
-| [RFC 8203](../../rfc8203/) | BGP Administrative Shutdown Communication | Ze proven 3, Ze correctness gap 2 | Ze MUST proven 3, SHOULD not decided 4, Ze correctness gap 2 |
-| [RFC 9003](../../rfc9003/) | Extended BGP Administrative Shutdown Communication | Ze proven 1, Ze correctness gap 3 | Ze MUST proven 1, SHOULD not decided 7, Ze correctness gap 3 |
+| [RFC 6996](../../rfc6996/) | Autonomous System (AS) Reservation for Private Use | Ze proven 1 | Ze MUST proven 1, Not assessed 2 |
+| [RFC 7948](../../rfc7948/) | Internet Exchange BGP Route Server Operations | no rows | Not assessed 11 |
+| [RFC 8203](../../rfc8203/) | BGP Administrative Shutdown Communication | Ze proven 3, Proof pending 2 | Ze MUST proven 3, Proof pending 2, Not assessed 4 |
+| [RFC 9003](../../rfc9003/) | Extended BGP Administrative Shutdown Communication | Ze proven 1, Proof pending 3 | Ze MUST proven 1, Proof pending 3, Not assessed 7 |
 
 ### Level 8
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 7454](../../rfc7454/) | BGP Operations and Security | no rows | SHOULD not decided 64 |
-| [RFC 8538](../../rfc8538/) | Notification Message Support for BGP Graceful Restart | not walked | not walked |
+| [RFC 7454](../../rfc7454/) | BGP Operations and Security | no rows | Not assessed 64 |
+| [RFC 8538](../../rfc8538/) | Notification Message Support for BGP Graceful Restart | requirements not reviewed | requirements not reviewed |
 
 ### Level 9
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 9494](../../rfc9494/) | Long-Lived Graceful Restart for BGP | Ze proven 8, Ze correctness gap 17 | Ze MUST proven 8, SHOULD proven 1, SHOULD not decided 10, Ze correctness gap 17 |
+| [RFC 9494](../../rfc9494/) | Long-Lived Graceful Restart for BGP | Ze proven 8, Proof pending 10, Not built 7 | Ze MUST proven 8, SHOULD proven 1, Proof pending 10, Not assessed 10, Not built 7 |

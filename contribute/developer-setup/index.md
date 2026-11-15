@@ -153,6 +153,19 @@ folder (`~/Library/Caches` on macOS). It sets four variables, creates their
 directories, and then replaces itself with the program, so the program's exit
 status is the caller's and every argument after the path reaches it untouched.
 
+A heavy tool that needs a job slot is the exception: `go test`, `golangci-lint
+run`, `staticcheck` and the formatters, judged as the Bash hook judges a raw
+command. In a checkout, `le exec` waits for a slot, then runs the tool as its
+child on the same terminal, forwards every SIGINT, SIGTERM, SIGHUP and SIGQUIT
+to it until it exits, releases the slot and exits with the tool's code. Inside
+a live parent's slot (`./le go lint run`
+starting the linter) or outside a checkout it holds nothing and replaces
+itself, as for any other program. The main thread's post-edit lint goes past
+the shim on purpose and takes no slot
+(`docs/contributing/running-commands.md`, "Waiting for another session's job").
+<!-- source: internal/le/job/tool.go -- HoldTool -->
+<!-- source: internal/le/exec/exec.go -- holdHeavy, Program -->
+
 | Variable | Directory under the per-user cache |
 |----------|------------------------------------|
 | `GOCACHE` | `go-cache` |
@@ -645,8 +658,13 @@ section governs each of them.
 Check that the checkout builds and its tests run with one scoped package test:
 
 ```bash
-./le job run label unit-pkg command go test ./internal/core/textbuf/
+./le test unit pkg path ./internal/core/textbuf/
 ```
+
+It runs the package's tests under the feature tags with the race detector,
+admitted as a job, and a green run answers one line counting the packages
+that passed and naming the log it wrote (`../contributing/running-commands.md`, "Testing
+one package while you develop it").
 
 `./le verify changed` is the day-to-day evidence once you have a change: it
 judges only the change set against the upstream, so on a fresh clone it judges

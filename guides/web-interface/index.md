@@ -147,14 +147,16 @@ editor words `edit`, `add`, `form`, `add-form`, `changes`, `rename`, `discard`
 and `compare` are this router's own and the verb registry holds none of them.
 
 <!-- source: internal/component/web/handler.go -- ParseURL, knownPrefixes, configVerbs -->
+<!-- source: cmd/ze/hub/service_web.go -- buildWebService, canonical show routing -->
+<!-- source: internal/component/web/handler_workbench.go -- HandleWorkbench, per-user editable fields -->
 <!-- source: internal/component/command/verbs.go -- VerbShow, VerbMonitor, VerbSet, VerbDelete, VerbCommit -->
 <!-- source: internal/component/web/handler_config_form.go -- HandleConfigDeleteWithAuthorizer -->
 
 | Tier | URL Pattern | Method | Description |
 |------|-------------|--------|-------------|
-| View | `/show/<yang-path>` | GET | Read-only config tree view |
+| View | `/show/<yang-path>` | GET | Config tree view |
 | View | `/monitor/<yang-path>` | GET | View with auto-polling |
-| Config | `/config/edit/<path>` | GET | Editable config tree view |
+| Config | `/show/<path>` | GET | Editable config tree view using the authenticated user's pending changes |
 | Config | `/config/set/<path>` | POST | Set a leaf value |
 | Config | `/config/add/<path>` | POST | Create a list entry (with optional field values) |
 | Config | `/config/add-form/<path>` | GET | Fetch add-entry overlay form |
@@ -234,6 +236,50 @@ Each authenticated user gets an independent editor session with its own working 
 Field values are validated server-side against YANG types before being accepted:
 <!-- source: internal/component/config/schema.go -- ValidateValue -->
 
+Every value set from the web (a form field, the add form, the CLI bar and the
+terminal `set`) is then judged with the checks a config file gets: the
+enumeration, range, length and pattern the YANG declares, a union's members,
+and each member of a leaf-list. A value outside them is refused when it is set,
+not at commit. The refusal names the setting path and the value, lists the
+accepted values (each with its one-line help) or the accepted bounds or format,
+and ends with the command that fixes it:
+
+```text
+bgp peer peer1 session capability route-refresh: "requre" is not an accepted value (did you mean require?)
+route-refresh accepts only these values:
+  enable   Advertise the capability; no enforcement
+  disable  Do not advertise the capability; no enforcement
+  require  Advertise the capability; refuse the session when the peer does not offer it
+  refuse   Do not advertise the capability; refuse the session when the peer offers it
+fix: set bgp peer peer1 session capability route-refresh require
+```
+
+The same refusal reads the same on every surface; the range, length, pattern
+and union forms are in
+[Value refusals](https://github.com/ze-software/ze/blob/main/docs/architecture/config/yang-config-design.md#value-refusals).
+
+A form or the commit modal holds no editor position, so its fix is the `set`
+from the root. The terminal and the CLI bar frame the fix for the position the
+line was typed at: the `set` as typed, corrected, for a refused `set`, and
+`top set <full path> ...` for a commit refusal inside a context. A new list key
+is judged where its entry is created, and the add form judges every field
+before it creates the entry, so a refused field never leaves a partial entry.
+A key refused by the terminal's `rename`, `copy`, `insert`, `activate` or
+`deactivate` gets that same command as its fix, with the key corrected and
+framed for the position, and the Rename button's refusal ends with
+`fix: rename <full path> to <corrected key>`.
+<!-- source: internal/component/web/editor.go -- EditorManager.SetValue, judgeValue -->
+<!-- source: internal/component/web/cli_terminal.go -- execListEntryOp -->
+<!-- source: internal/component/web/handler_config_entry.go -- HandleConfigRenameWithAuthorizer -->
+<!-- source: internal/component/web/cli.go -- applyWebSet, framedWebSetRefusal -->
+<!-- source: internal/component/web/handler_config_entry.go -- addFieldSetPath -->
+
+Fix commands quote list keys and values that contain spaces or quotes. Type
+the whole printed command, including its quotes. A refused key can precede a
+secret assignment: its correction keeps the assignment and masks the secret.
+<!-- source: internal/component/web/cli.go -- framedWebSetRefusal -->
+<!-- source: internal/component/cli/fix_frame.go -- FrameFix -->
+
 | Type | Validation |
 |------|-----------|
 | IP address | Must be a valid IPv4 or IPv6 address |
@@ -299,9 +345,10 @@ In integrated mode, CLI commands update the page content directly:
 |---------|--------|
 | `edit <path>` | Navigate to a config path |
 | `set [path] <leaf> <value>` | Set a value under the current context path. The last token is the value and the one before it the leaf, as in the SSH CLI; quote a value that holds spaces |
-| `delete <leaf>` | Delete a value at the current context path |
+| `delete <path> [member]` | Delete the schema node at the path relative to the current view, or only the named leaf-list member. The rest of the leaf-list and its containing section stay in place |
 | `show [path]` | Display config text at the current or specified path |
 | `top` | Navigate to root |
+| `top <command>` | Run one command as if at the root context, whatever the command is (`top set ospf router-id 192.0.2.9`, `top show`). The position stays where it was unless the command moves it (`top edit ospf`). The terminal reads `top` before it splits a pipe, so `top show \| format config` shows the root |
 | `up` | Navigate one level up |
 | `commit now` | Commit pending changes. `commit now force` commits over another user's conflicting change and discards it from theirs (see the config editor guide). `commit` without a subcommand is refused with the list of subcommands. `commit confirmed <seconds>`, `commit accept`, `commit abort` and `commit verify` follow the config editor guide. A commit that validation refuses answers with the SSH editor's text, listing each error and warning; when only warnings block it, the answer names the forced form, and the CLI bar shows it as an error |
 | `discard` | Discard pending changes. `discard` alone or `discard all` drops every change; `discard <path>` drops only the changes at or under that path, the command a commit conflict's `fix:` line prints, and a path holding none of your pending changes is refused, as is a pipe (`discard | match x`), since discard prints nothing to filter. The message line repeats the answer (the refusal, the path dropped, or `changes discarded`), and each discard writes a `config-discard` audit record whose detail lists only the changes it dropped (empty for a whole discard with nothing pending; see the audit guide) |
@@ -366,7 +413,7 @@ Admin command results are displayed as titled cards showing the command name, ou
 
 ## Resilience
 
-**Corrupt change files:** If a per-user change file in the live store does not parse, every edit and every commit for that user fails with an error naming the file, and the file is left as it was. Its pending changes are never dropped in silence: the operator inspects the file, then discards the changes (`discard`) to start again.
+**Corrupt change files:** If a per-user change file in the live store has an unknown path, malformed command or invalid structural syntax, every edit and every commit for that user fails with an error naming the file, and the file is left as it was. Its pending changes are never dropped in silence: the operator inspects the file, then discards the changes (`discard`) to start again. An invalid leaf value or leaf-list member in an API candidate remains editable: commit refuses the value, and the operator can apply its proposed correction without discarding other changes.
 <!-- source: internal/component/cli/editor_draft.go -- readChangeFile -->
 
 **Asset caching:** Static assets (`/assets/`) are served with `Cache-Control: no-cache, must-revalidate` so browsers always pick up changes after binary updates without requiring a hard refresh.

@@ -1,6 +1,6 @@
 # 2026-05-25 – 2026-05-31 (1 week)
 
-MPLS grew a full label-switching stack, flow export and gNMI landed, and config commits became transactional.
+MPLS gained a full label-switching stack, flow export and gNMI were added, and configuration commits became transactional.
 
 ## 🛰️ MPLS
 

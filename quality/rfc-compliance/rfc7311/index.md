@@ -1,6 +1,6 @@
 # RFC 7311 - The Accumulated IGP Metric Attribute for BGP
 
-AIGP attribute. Every requirement this repository extracted from RFC 7311, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+AIGP attribute. Every requirement listed for RFC 7311, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,12 +10,12 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 22 | of 22 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0 | of 22 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 22 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 22 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| No test at all | 0 | of 22 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 53 | 53 of 81 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 22 | of 22 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0 | of 22 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 22 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 22 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Declared gap or no test | 0 | of 22 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Tests shown to detect a fault | 53 | 53 of 81 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Neutral
 
@@ -23,59 +23,66 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 22 | of 26 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 22 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 22 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 22 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 22 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 22 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Out of scope | 0 | of 22 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 22 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 22 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 22 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 22 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
 
-The 9 counts marked as a part above are the whole of the 22 gated MUSTs: they add up to 22. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Totals
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 22 | of 26 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 22 mandatory requirements: they add up to 22. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | ok | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | AIGP attribute |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 26 |
-| Gated MUST-level | 22 |
+| Mandatory requirements (MUST level) | 22 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 81 |
-| Tagged units | 81 |
+| Tests linked to requirements | 81 |
 | Recorded audit verdicts | 12 |
-| Discrimination records | 53 |
+| Fault test records | 53 |
 | Summary | `rfc/short/rfc7311.md` |
-| Requirement shard | `rfc/requirements/rfc7311.md` |
+| Requirement table | `rfc/requirements/rfc7311.md` |
 | RFC text | `rfc/full/rfc7311.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: Ze implements AIGP validation, per-session policy, configured origination, forwarding accumulation and best-path selection. Recursive metric changes reach retained advertisements and the selecting RIB, including its subprocess transport. Requirement identities follow the mappings in `rfc/extraction/rfc7311.json`; the legacy RFC7311-3.2-1 identity maps to the origination prohibition in Section 3.4.1, not a separate propagation rule in Section 3.2.
+Included in automatic checks: Ze implements AIGP validation, per-session policy, configured origination, forwarding accumulation and best-path selection. Recursive metric changes reach retained advertisements and the selecting RIB, including its subprocess transport. Requirement identities follow the mappings in `rfc/extraction/rfc7311.json`; the legacy RFC7311-3.2-1 identity maps to the origination prohibition in Section 3.4.1, not a separate propagation rule in Section 3.2.
 
-## What the public ledger says
+## Published support status
 
 **Area:** AIGP attribute
 
@@ -90,33 +97,36 @@ Enrolled: Ze implements AIGP validation, per-session policy, configured originat
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 22 | one part of the gated population |
-| Annotated (including scoped evidence) | 0 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **22** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 22 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 0 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **22** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (22):** [`RFC7311-3-1`](#rfc7311-3-1), [`RFC7311-3-2`](#rfc7311-3-2), [`RFC7311-3-3`](#rfc7311-3-3), [`RFC7311-3.2-4`](#rfc7311-3.2-4), [`RFC7311-3.2-1`](#rfc7311-3.2-1), [`RFC7311-3.2-5`](#rfc7311-3.2-5), [`RFC7311-3.2-6`](#rfc7311-3.2-6), [`RFC7311-3.3-1`](#rfc7311-3.3-1), [`RFC7311-3.3-2`](#rfc7311-3.3-2), [`RFC7311-3.3-3`](#rfc7311-3.3-3), [`RFC7311-3.3-4`](#rfc7311-3.3-4), [`RFC7311-3.4.1-1`](#rfc7311-3.4.1-1), [`RFC7311-3.4.1-2`](#rfc7311-3.4.1-2), [`RFC7311-3.4.1-3`](#rfc7311-3.4.1-3), [`RFC7311-3.4.3-1`](#rfc7311-3.4.3-1), [`RFC7311-3.4.3-2`](#rfc7311-3.4.3-2), [`RFC7311-3.4.3-3`](#rfc7311-3.4.3-3), [`RFC7311-3.4.3-4`](#rfc7311-3.4.3-4), [`RFC7311-3.4.3-5`](#rfc7311-3.4.3-5), [`RFC7311-3.4.3-6`](#rfc7311-3.4.3-6), [`RFC7311-3.4.3-7`](#rfc7311-3.4.3-7), [`RFC7311-4.1-1`](#rfc7311-4.1-1)
 
 ## Figures
 
-- **MUST bar**: Ze proven 13, Ze correctness gap 9
-- **Overview bar**: Ze MUST proven 13, SHOULD not decided 4, Ze correctness gap 9
+- **MUST bar**: Ze proven 13, Proof pending 9
+- **Overview bar**: Ze MUST proven 13, Proof pending 9, Not assessed 4
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 22 |
 | MUST rows kept (the MUST bar) | 22 |
 | Ze proven | 13 |
 | OS verified | 0 |
+| Proof pending | 9 |
 | OS testing gap | 0 |
-| Ze correctness gap | 9 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 0 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -129,11 +139,12 @@ Enrolled: Ze implements AIGP validation, per-session policy, configured originat
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 4 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 4 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc7311.json](../../../data/rfc/rfc7311.json).
 
@@ -145,7 +156,7 @@ Source: [data/rfc/rfc7311.json](../../../data/rfc/rfc7311.json).
 | `RFC7311-3-2` | The value field of the AIGP attribute is defined here to be a set of elements encoded as "Type/Length/Value" (i.e., a set of TLVs). (§3) | MUST | 3 | **positive:** `unit/verify` [`TestParseAIGPMultipleTLVs`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_aigp_test.go#L52). **positive:** `unit/verify` [`TestRFC7311AIGPValueIsWholeTLVSet`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_tlv_test.go#L57). **negative:** `unit/verify` [`TestParseAIGPMalformedTruncatedValue`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_aigp_test.go#L89). **negative:** `unit/verify` [`TestRFC7311AIGPValueIsWholeTLVSet`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_tlv_test.go#L58) |
 | `RFC7311-3-3` | Any other AIGP TLVs in the AIGP attribute MUST be passed along unchanged if the AIGP attribute is passed along. (§3) | MUST | 3 | **positive:** `unit/verify` [`TestParseAIGPMultipleTLVs`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_aigp_test.go#L57). **positive:** `unit/verify` [`TestRFC7311OtherAIGPTLVsPassedAlongUnchanged`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_aigp_other_tlvs_test.go#L58). **positive:** `unit/verify` [`TestRFC7311OtherAIGPTLVsSurviveTheCodec`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_tlv_test.go#L85). **negative:** `unit/verify` [`TestAIGPWriteToMultipleTLVs`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_aigp_test.go#L142). **negative:** `unit/verify` [`TestRFC7311OtherAIGPTLVsPassedAlongUnchanged`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_aigp_other_tlvs_test.go#L59) |
 | `RFC7311-3.2-4` | If a BGP path attribute is received that has the AIGP attribute codepoint but also has the transitive bit set, the attribute MUST be considered to be a malformed AIGP attribute and MUST be discarded as specified in this section. (§3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestRFC7311AIGPNonTransitiveKeptOnReceive`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_aigp_receive_test.go#L103). **positive:** `unit/verify` [`TestRFC7606AIGPNonTransitiveIsKept`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7311_aigp_test.go#L104). **negative:** `unit/verify` [`TestRFC7311AIGPTransitiveDiscardedOnReceive`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_aigp_receive_test.go#L60). **negative:** `unit/verify` [`TestRFC7606AIGPTransitiveIsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7311_aigp_test.go#L68) |
-| `RFC7311-3.2-1` | A BGP speaker MUST NOT add the AIGP attribute to any route whose path leads outside the AIGP administrative domain to which the BGP speaker belongs (§3.4.1) | MUST NOT | 3.4.1 | **positive:** `unit/verify` [`TestAIGPConfiguredOriginationRejectsOutsideDomain`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L239). **negative:** `unit/verify` [`TestAIGPConfiguredOriginationRejectsOutsideDomain`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L240) |
+| `RFC7311-3.2-1` | A BGP speaker MUST NOT add the AIGP attribute to any route whose path leads outside the AIGP administrative domain to which the BGP speaker belongs (§3.4.1) | MUST NOT | 3.4.1 | **positive:** `unit/verify` [`TestAIGPConfiguredOriginationRejectsOutsideDomain`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L240). **negative:** `unit/verify` [`TestAIGPConfiguredOriginationRejectsOutsideDomain`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L241) |
 | `RFC7311-3.2-5` | When receiving a BGP Update message containing a malformed AIGP attribute, the attribute MUST be treated exactly as if it were an unrecognized non-transitive attribute. That is, it "MUST be quietly ignored and not passed along to other BGP peers" (§3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestAIGPReceiveValidatesEveryTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L82). **negative:** `unit/verify` [`TestAIGPReceiveValidatesEveryTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L83) |
 | `RFC7311-3.2-2` | If an AIGP attribute is received and its first AIGP TLV contains the maximum value 0xffffffffffffffff, the attribute SHOULD be considered to be malformed and SHOULD be discarded (§3.2) | SHOULD | 3.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC7311-3.2-6` | Note that an AIGP attribute MUST NOT be considered to be malformed because it contains more than one TLV of a given type or because it contains TLVs of unknown types. (§3.2) | MUST NOT | 3.2 | **positive:** `unit/verify` [`TestRFC7311DuplicateAndUnknownTLVsAreWellFormed`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_aigp_tlv_test.go#L50). **negative:** `unit/verify` [`TestRFC7311MalformedVerdictIsForLengthOnly`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_aigp_tlv_test.go#L80) |
@@ -170,11 +181,11 @@ Source: [data/rfc/rfc7311.json](../../../data/rfc/rfc7311.json).
 
 ## Gaps and untested MUSTs
 
-RFC 7311 declares no gap, and every gated MUST it carries has a test bound to it.
+RFC 7311 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC7311-3-1`](#rfc7311-3-1)
 
@@ -233,12 +244,12 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 A BGP speaker MUST NOT add the AIGP attribute to any route whose path leads outside the AIGP administrative domain to which the BGP speaker belongs (§3.4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestAIGPConfiguredOriginationRejectsOutsideDomain`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L240) | unit/verify | unproven |
-| positive | [`TestAIGPConfiguredOriginationRejectsOutsideDomain`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L239) | unit/verify | unproven |
+| negative | [`TestAIGPConfiguredOriginationRejectsOutsideDomain`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L241) | unit/verify | unproven |
+| positive | [`TestAIGPConfiguredOriginationRejectsOutsideDomain`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L240) | unit/verify | unproven |
 
 ### [`RFC7311-3.2-5`](#rfc7311-3.2-5)
 
@@ -266,7 +277,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 An implementation that supports the AIGP attribute MUST support a per-session configuration item, AIGP_SESSION, that indicates whether the attribute is enabled or disabled for use on that session (§3.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -288,7 +299,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 The AIGP attribute MUST NOT be sent on any BGP session for which AIGP_SESSION is disabled (§3.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -299,7 +310,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If an AIGP attribute is received on a BGP session for which AIGP_SESSION is disabled, the attribute MUST be treated exactly as if it were an unrecognized non-transitive attribute (§3.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -310,7 +321,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 An implementation that supports the AIGP attribute MUST support a configuration item, AIGP_ORIGINATE, that enables or disables its creation and attachment to routes (§3.4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -321,7 +332,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 The default value of AIGP_ORIGINATE MUST be "disabled" (§3.4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -332,7 +343,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 A BGP speaker R MUST NOT add the AIGP attribute to any route for which R does not set itself as the next hop (§3.4.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -343,7 +354,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If R1 does not change the next hop of the route, then R1 MUST NOT change the AIGP attribute value of the route (§3.4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -354,7 +365,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 In all the computations discussed in this section, the AIGP value MUST be capped at its maximum unsigned value 0xffffffffffffffff. (§3.4.3)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-12 (independent auditor). SHIFTED by 4e731b2d96 (owner-approved lint-only reactor test edits). The tagged unit is byte-identical (gate-verified); the file-level changes are comment punctuation, slices.Concat over the same bytes, joined appends, strings.SplitSeq, newDefaultOriginatePeer taking its fixed addresses from constants with the same values, and registerTypeLenRecognizer losing a lo every caller passed as 1, none of which changes what a helper this unit calls produces. Verdict stands. independently re-read RFC7311 §3.4.3, “In all the computations discussed in this section, the AIGP value MUST be capped at its maximum unsigned value 0xffffffffffffffff”; the four-carrier composition covers each accumulation site rather than merely testing Add—TestRFC7311DirectLinkCostNeverWrapsOrDisappears and TestAIGPForwardedMetricsReachFinalWire cover finite/overflowing source additions through applyFactsAIGP and the final writer, TestAIGPRecursiveDistanceUsesReceivedMetrics covers BGP-hop accumulation in igpcost.Resolve with exact finite 330/530 and overflowing maximum, and the corrected recursive-wire carrier covers terminal accumulation at MaxUint64−5 plus 7, source-only overflow at MaxUint64−50 plus 7 plus received 100, and exact 507 recovery after each; execution evidence inspected is Main's after.sh and job-aigp-wire-readiness-after-race20-bfa85e8a.log, showing controlled-overlay root20 plus ordinary changed-root20 and received-recursive-root20 with both depth subcases passing and status 0, while the original full-reactor census remains 2446 roots, 48919 passes and one failure—not a green full run The corrected controlled-schedule carrier passed twenty race iterations, and the ordinary corrected carrier and received-recursive companion each passed twenty race iterations in job-aigp-wire-readiness-after-race20-bfa85e8a.log. Native job-aigp-wire-readiness-native-renewals-391566bc.log successfully renews both polarities of both changed claims: Resolve for RFC7311-3.4.3-2 and readvertiseAIGP for RFC7311-3.4.3-7. These producer-halting bindings are distinct from the controlled-schedule synchronization proof. The original full-reactor run remains red; no whole-corpus freshness or terminal-IGP threshold implementation is claimed. Re-judged 2026-10-21 (spec-bgp-rs-replacement-on-withdrawal Phase 3b, author of the change): the only edit to the tagged units TestAIGPForwardedMetricsReachFinalWire and TestRFC7311DirectLinkCostNeverWrapsOrDisappears is the nil source encoding context added to their buildWithdrawalPayload call; both pass a unicast payload, for which buildWithdrawalPayload never reads the context (a family with no nlrisplit.WithdrawalWriter is copied as before), so every assertion and every byte they check is unchanged. Verdict stands.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent source rejudgment on 2026-11-11 after the withdrawal builder signature migration. Read the complete RFC 7311, its short summary and derived requirement map, the prior verdict and discrimination entries, and all four currently tagged units. RFC 7311 Section 3.4.3: "In all the computations discussed in this section, the AIGP value MUST be capped at its maximum unsigned value 0xffffffffffffffff." Q1: TestRFC7311DirectLinkCostNeverWrapsOrDisappears and TestAIGPForwardedMetricsReachFinalWire assert the actual final writer's finite and overflowing source additions, not merely a helper return. TestAIGPRecursiveDistanceUsesReceivedMetrics uses an actual RIB to assert exact recursive sums 330 and 530 and overflowing maximum. TestRFC7311RecursiveAIGPChangeReachesWire separately observes recursive-plus-terminal saturation and saturation only when the source's received 100 is added; each is followed by exact finite recovery to 507. Q2: wrapping addition, unconditional saturation, omitting the terminal cost or reusing the previous advertisement violates those exact values or the complete transition list. The producer-panic records show dependence on their named producers, not semantic mutation coverage. After this source audit, main renewed all sixteen changed-unit/polarity bindings across the six affected requirements in job-refusal-rfc7311-renew-20feecf3.log. The inspected log contains sixteen distinct recorded tuples; each follows a clean baseline PASS and the expected producer-disabled panic FAIL. Q3: valid TLVs, retained source bytes, unchanged-next-hop controls and finite recovery isolate arithmetic from parse refusal or dropped routes. The final writer requires actual frames, so absence is not success. Q4: the four units compose direct source addition, recursive received-BGP addition, terminal distance and final source addition. Add caps overflowing sums without wrapping; Resolve uses Add for every received BGP and terminal contribution, applyFactsAIGP uses Add for forwarding, and replayAIGP uses Add from the retained received metric. The two changed tests only unpack buildWithdrawalPayload's new error and assert success; their original inputs, nonzero guards, metrics, withdrawal bytes and writer assertions remain. This source auditor ran no tests, builds, proof records, check or stamp. The subsequently inspected main-thread renewals are separate execution evidence and add no live interoperability claim. The verdict is an independent judgment of the reviewed assertions and producers, with freshness and execution still owned by main.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -371,7 +382,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 Increasing the AIGP value MUST NOT cause the value to wrap around (§3.4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -382,7 +393,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 If R1's route to R2 is either (a) an IGP-learned route or (b) a static route that does not require recursive next hop resolution, then R1 MUST increase the value of the AIGP TLV by adding to A the distance from R1 to R2. (§3.4.3)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 7311 Section 3.4.3: 'If R1's route to R2 is either (a) an IGP-learned route or (b) a static route that does not require recursive next hop resolution, then R1 MUST increase the value of the AIGP TLV by adding to A the distance from R1 to R2.' Read in its preceding next-hop-self condition and following policy-distance sentence. All three tagged units were re-read. TestAIGPForwardedMetricsReachFinalWire's interior case asserts final metric 130 from received 100 plus resolved 30 and asserts the announcement NLRI; its unchanged-next-hop case pins 100 despite policy replacement. TestAIGPRecursiveDistanceUsesReceivedMetrics proves actual resolver terminal metric 30 is counted once rather than following its gateway or importing BGP MED; TestAIGPRecursiveStaticDistance separately asserts nonrecursive static distance 25, recursive static distance 30 and unresolved refusal. Producers nhResolver.IGPMetric -> igpcost.Resolve and applyFactsAIGP -> aigpIncrement compose the resolved distance with the received metric; final forwarding writer keeps AIGP on an enabled session. The mocked distance in the socket carrier is not credited as resolver proof: the separately tagged actual-RIB tests supply it. Exact finite values, valid TLVs and transparent control isolate and discriminate both route classes and the conditional whole obligation. Re-judged 2026-10-21 (spec-bgp-rs-replacement-on-withdrawal Phase 3b, author of the change): the only edit to the tagged units TestAIGPForwardedMetricsReachFinalWire and TestRFC7311DirectLinkCostNeverWrapsOrDisappears is the nil source encoding context added to their buildWithdrawalPayload call; both pass a unicast payload, for which buildWithdrawalPayload never reads the context (a family with no nlrisplit.WithdrawalWriter is copied as before), so every assertion and every byte they check is unchanged. Verdict stands.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent source rejudgment on 2026-11-11 after the withdrawal builder signature migration. Read the complete RFC 7311, summary, derived row, prior verdict, current discrimination entries, all three tagged units and their producers. RFC 7311 Section 3.4.3: "If R1's route to R2 is either (a) an IGP-learned route or (b) a static route that does not require recursive next hop resolution, then R1 MUST increase the value of the AIGP TLV by adding to A the distance from R1 to R2." This follows the next-hop-self condition and permits an IGP-computed or policy distance. Q1: TestAIGPForwardedMetricsReachFinalWire asserts final metric 130 from received 100 plus resolved 30, with announcement NLRI, while transparent forwarding retains 100 despite a policy replacement. TestAIGPRecursiveDistanceUsesReceivedMetrics proves the real resolver counts terminal 30 once and excludes BGP MED values 9000 and 8000. TestAIGPRecursiveStaticDistance separately proves recursive static distance 30, unresolved refusal and nonrecursive configured static distance 25. Q2: omitting or duplicating terminal distance, using a recursive route's preference metric, adding MED, or accumulating on an unchanged next hop fails these exact assertions. Existing producer-panic records establish dependence on applyFactsAIGP only; they are not described here as semantic mutation proofs. After this source audit, main renewed all sixteen affected unit/polarity bindings in job-refusal-rfc7311-renew-20feecf3.log, including this changed unit's pair for this requirement. The inspected log shows a clean baseline PASS followed by the expected producer-disabled panic FAIL for each distinct recorded tuple. Q3: valid announcement/TLV construction, exact final-writer route assertions, deliberately different MED/preference values and the transparent control isolate the obligation. The socket carrier's mocked resolved distance is not credited as resolver evidence; the separately tagged actual-RIB tests supply that boundary. Q4: the combined tests cover resolved interior and static distances under the conditional next-hop-self obligation. nhResolver.IGPMetric delegates to Resolve, whose non-BGP, nonrecursive route terminates with its distance counted once; aigpIncrement carries that result and applyFactsAIGP adds it to the received metric after egress edits. General and RS forwarding call this producer. The changed tagged unit only unpacks the builder error and asserts success, retaining every prior case and wire assertion. No tests, builds, proof records, check or stamp ran in this source audit. Main's subsequently inspected renewals are separate execution evidence; no additional interoperability is claimed.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -397,7 +408,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 
 
 A MUST be increased by a non-zero amount (§3.4.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -408,7 +419,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Then, when R1 changes the next hop of a route from R2 to R1, the AIGP TLV value MUST be increased by a non-zero amount. (§3.4.3)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-24 by an independent auditor (authored none of it) after c660756f9d and 690c96d6bf. RFC 7311 Section 3.4.3, rfc/full/rfc7311.txt:470-473: "Then, when R1 changes the next hop of a route from R2 to R1, the AIGP TLV value MUST be increased by a non-zero amount." The moved unit is TestRFC7311UnknownCostWithdrawsUntilMetricRecovers (both tags). c660756f9d (owner-approved RFC-tagged test change) adds a third start, never-advertised, beside initially-withheld and previously-advertised, on both the general and rs-cached rails and for both unknown and zero cost: the destination sees no frame on the withhold (RFC 4271 Section 3.1 forbids withdrawing a route it never held) and, after a distance of 11, exactly one UPDATE whose NLRI is exactly 10.20.0.0/24, with no withdrawn field, carrying AIGP exactly 111 (received 100 plus 11). The other two starts keep the exact pure-withdrawal assertion (withdrawn exactly 24 10 20 0, no NLRI, no attributes). Every announcement the carrier observes must carry the increment, so an unincremented next-hop-self announcement, a dropped AIGP, or adding the wrong cost fails every subcase; the absent-cost withhold is Ze's refusal, not an RFC 7311 mandate, and is not claimed as one. The prior finding (never-advertised recovery lost, unasserted) is closed: 690c96d6bf makes writeUpdateBody record the unfiltered cost-withheld withdrawal for AIGP recovery before the adj-out filter, and the restored subcases would go red without it (c660756f9d body: red on exactly those six over the earlier producers). The three other carriers (TestRFC7311DirectLinkCostNeverWrapsOrDisappears, TestAIGPForwardedMetricsReachFinalWire, TestRFC7311SourceLinkCostReachesRecipient) are byte-identical and their 2026-10-23 judgement stands (configured-link sum 107, 107/119, transparent 100). Ran 2026-10-24: go test -run 'RFC7311|AIGPCostWithheld' ./internal/component/bgp/reactor/ ok.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent source rejudgment on 2026-11-11 after the withdrawal builder signature migration. Read the complete RFC 7311, summary, derived row, prior verdict, discrimination entries, all four tagged units and their real forwarding producers. RFC 7311 Section 3.4.3: "Then, when R1 changes the next hop of a route from R2 to R1, the AIGP TLV value MUST be increased by a non-zero amount." The preceding sentence describes a direct EBGP link on which no IGP is running. Q1: TestRFC7311DirectLinkCostNeverWrapsOrDisappears requires configured cost 7 to turn received 100 into final-wire 107 and verifies an exact route withdrawal for absent cost. TestAIGPForwardedMetricsReachFinalWire separately covers policy-link increment 7 with no IGP resolution and zero-cost refusal. TestRFC7311SourceLinkCostReachesRecipient enters general and RS cached forwarding with source costs 7 and 19, a deliberately different destination cost 43, no resolving IGP route, exact output metrics 107 and 119, unchanged-next-hop 100 controls and maximum boundaries. TestRFC7311UnknownCostWithdrawsUntilMetricRecovers checks both rails, unknown/zero costs and three advertisement histories; known distance 11 restores the original route as exactly 111 without another source UPDATE. Q2: using the destination cost, omitting or doubling the increment, dropping AIGP, or losing recovery fails exact wire values, prefix fields or frame counts. The panic/revert records prove producer dependence, not a semantic wrong-value mutation. After this source audit, main renewed all sixteen changed-unit/polarity bindings in job-refusal-rfc7311-renew-20feecf3.log, including both changed units' pairs for this requirement. The inspected log shows a clean baseline PASS followed by the expected producer-disabled panic FAIL for each distinct recorded tuple. Q3: valid source TLVs, explicit accepting policies/send grants, no interior route, different source/destination costs and immutable source bytes isolate link-cost provenance. Never-advertised routes correctly emit no withdrawal; already-advertised routes must emit an exact pure withdrawal. Withholding is Ze's chosen refusal when it cannot meet the nonzero increment, not an RFC mandate to withdraw. Q4: sourceAIGPLinkMetric reads the received peer's settings, aigpIncrement uses that configured cost only for the direct received next hop when no usable resolved cost exists, and applyFactsAIGP preserves unchanged next hops or adds the known nonzero amount. General and RS callers use the same received source identity. Both migrated tagged tests retain all old inputs, guards, exact metrics and withdrawals while adding a builder success check. This source audit ran no tests, builds, proof records, check or stamp. Main's subsequently inspected renewals are separate execution evidence; no additional live interoperability is claimed.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -455,7 +466,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 | negative | [`TestAIGPSelectsStoredRoutesBeforeASPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7311_selection_test.go#L35) | unit/verify | unproven |
 | positive | [`TestAIGPSelectsStoredRoutesBeforeASPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7311_selection_test.go#L34) | unit/verify | unproven |
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -474,27 +485,27 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
-| `front` | not stated | 0 | walked | not stated |
-| `1` | not stated | 0 | walked | not stated |
-| `2` | not stated | 0 | walked | not stated |
-| `3` | not stated | 1 | walked | not stated |
-| `3.1` | not stated | 0 | walked | not stated |
-| `3.2` | not stated | 4 | walked | not stated |
-| `3.3` | not stated | 5 | walked | not stated |
-| `3.4` | not stated | 0 | walked | not stated |
-| `3.4.1` | not stated | 4 | walked | not stated |
-| `3.4.2` | not stated | 0 | walked | not stated |
-| `3.4.3` | not stated | 7 | walked | not stated |
-| `4` | not stated | 0 | walked | not stated |
-| `4.1` | not stated | 1 | walked | not stated |
-| `4.2` | not stated | 0 | walked | not stated |
-| `5` | not stated | 0 | walked | not stated |
-| `6` | not stated | 0 | walked | not stated |
-| `7` | not stated | 0 | walked | not stated |
-| `8` | not stated | 0 | walked | not stated |
-| `9` | not stated | 0 | walked | not stated |
-| `9.1` | not stated | 0 | walked | not stated |
-| `9.2` | not stated | 0 | walked | not stated |
+| `front` | not stated | 0 | reviewed | not stated |
+| `1` | not stated | 0 | reviewed | not stated |
+| `2` | not stated | 0 | reviewed | not stated |
+| `3` | not stated | 1 | reviewed | not stated |
+| `3.1` | not stated | 0 | reviewed | not stated |
+| `3.2` | not stated | 4 | reviewed | not stated |
+| `3.3` | not stated | 5 | reviewed | not stated |
+| `3.4` | not stated | 0 | reviewed | not stated |
+| `3.4.1` | not stated | 4 | reviewed | not stated |
+| `3.4.2` | not stated | 0 | reviewed | not stated |
+| `3.4.3` | not stated | 7 | reviewed | not stated |
+| `4` | not stated | 0 | reviewed | not stated |
+| `4.1` | not stated | 1 | reviewed | not stated |
+| `4.2` | not stated | 0 | reviewed | not stated |
+| `5` | not stated | 0 | reviewed | not stated |
+| `6` | not stated | 0 | reviewed | not stated |
+| `7` | not stated | 0 | reviewed | not stated |
+| `8` | not stated | 0 | reviewed | not stated |
+| `9` | not stated | 0 | reviewed | not stated |
+| `9.1` | not stated | 0 | reviewed | not stated |
+| `9.2` | not stated | 0 | reviewed | not stated |
 
 ### Excluded sentences
 

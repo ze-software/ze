@@ -18,7 +18,8 @@ These restrictions do not change L2TP negotiation. A PADT matching the
 session ID and both MAC addresses ends the PPPoE transport immediately;
 PPP termination packets are not sent afterwards. Local teardown also
 stops PPP before sending PADT. A subscriber's LCP Terminate-Request is
-answered with a Terminate-Ack, and one Restart time later (3 seconds) the
+answered with a Terminate-Ack, and one configured Restart time later (3 seconds
+by default) the
 AC sends the PADT, with User Request as the accounting cause; a new LCP
 Configure-Request arriving before the PADT completes is still answered.
 
@@ -211,6 +212,11 @@ machine requires it. A timing-only reload keeps the current session and its
 LCP settings, including during renegotiation. The next session uses the new
 settings. A separate convergence deadline, twice the configured timer times
 the request budget, bounds a peer that repeatedly Naks each request.
+The `lcp max-failure` leaf limits consecutive Configure-Naks sent to the peer
+(1 to 255, default 5). Further unacceptable peer options receive a
+Configure-Reject containing the original options, and a successful
+Configure-Ack renews the Nak budget. It follows the same session snapshot and
+reload behavior as the other LCP settings.
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- pppoe-client lcp -->
 <!-- source: internal/component/l2tp/pppoeclient/session.go -- negotiateLCP -->
 <!-- source: internal/component/iface/pppoe_client.go -- setTiming, pppoeClientConfigChanged -->

@@ -29,6 +29,7 @@ test/interop-l2tp/
     dns-resolver-l2tp-subscriber/   IPCP DNS to Ze's LAN resolver, then a lookup
     l2tp-unknown-mandatory-avp-xl2tpd/   unknown AVP, M=0 then M=1, through the relay
     ppp-code-reject-xl2tpd/   unknown LCP and IPCP Codes injected through the relay
+    lcp-restart-timer-pppd/   configured retry interval and request budget after live LCP restart
     l2tp-lns-mru-xl2tpd/   configured MRU, CHAP, live daemon output, and traffic
     l2tp-lns-omitted-mru-xl2tpd/   default peer MRU and Ze-side transmit cap
     l2tp-lns-negotiated-mru-xl2tpd/   unequal configured/negotiated session output
@@ -100,6 +101,36 @@ Environment variables: `FRR_IMAGE` (default
 parallel-run isolation).
 
 ## Scenarios
+
+### lcp-restart-timer-pppd
+
+The real xl2tpd/pppd peer completes IPCP and successfully pings Ze first. With
+`l2tp lcp restart-timer 500` and `max-configure 3`, the checker then arms the
+relay to inject one empty LCP Configure-Request on that live session and drop
+the LAC's subsequent LCP packets. L2TP control packets continue to flow. This
+is packet loss after a working session, so a peer that never opens cannot pass.
+
+The checker requires exactly three Configure-Requests from Ze, with gaps and
+the final timeout following the configured 500 ms interval, and a CDN from Ze
+ending that same session. Relay timestamps use one process's monotonic clock;
+Docker log delivery delay does not decide the measured interval. A 350–900 ms
+window allows scheduling delay while rejecting even a one-second interval.
+At least one actual pppd Configure reply must be observed and dropped. Finally,
+the checker stops xl2tpd and requires both peers' kernel L2TP/PPP resources to
+disappear. It adds no grants or runtime packages to either peer.
+<!-- source: internal/le/interoplab/l2tp/lcp_restart.go -- checkLCPRestart, requireRestartEvidence -->
+<!-- source: internal/le/interoplab/l2tp/avprelay/lcprestart.go -- relayRestartData, encodeWire -->
+
+The LAC image pins pppd 2.5.5. Its `fsm_rconfreq` invokes the down callback and
+starts a new request when it receives a Configure-Request in Opened, then sends
+the Ack, Nak or Reject that its option checker selects. The lab reads that
+reply before discarding it; it does not substitute for pppd's negotiation.
+[Pinned peer source](https://github.com/ppp-project/ppp/blob/v2.5.5/pppd/fsm.c).
+<!-- source: test/interop-l2tp/Dockerfile.lac -- PPP_VERSION -->
+
+Run `ZE_L2TP_INTEROP_SCENARIO=lcp-restart-timer-pppd ./le --name session test deployment docker-l2tp-ppp`.
+A successful run requires both the answering-peer control and the silent-peer
+wire assertions.
 
 ### 01-ppp-ipv4
 
@@ -401,8 +432,10 @@ separate xl2tpd interoperability scenarios.
 
 The shared `StageBinaries` preflight builds a separate static Linux `le`
 personality from the current checkout, with the same feature gates as the
-daemon. The existing Ze image copies it to `/usr/local/bin/le`; its name
-selects the registered fixture commands. The image carries no compiler,
+daemon, and starts it once with `help` before any image build, so an le that
+cannot start stops the run there (`docs/architecture/testing/interop.md`,
+"The start probe"). The existing Ze image copies it to `/usr/local/bin/le`;
+its name selects the registered fixture commands. The image carries no compiler,
 and its daemon remains the normal `ze_core` build. The checker rejects a
 missing helper, nonzero exit, usage output, or absent MTU, ICMP, CHAP,
 IPCP or cleanup evidence.

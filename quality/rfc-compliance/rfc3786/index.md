@@ -1,6 +1,6 @@
 # RFC 3786 - Extending the Number of Intermediate System to Intermediate System (IS-IS) Link State PDU (LSP) Fragments Beyond the 256 Limit
 
-No row in the public ledger. Every requirement this repository extracted from RFC 3786, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+No entry in the public support list. Every requirement listed for RFC 3786, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,12 +10,12 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 2 | of 9 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0 | of 9 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 9 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 9 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| No test at all | 0 | of 9 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 3 | 3 of 5 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 2 | of 9 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0 | of 9 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 9 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 9 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Declared gap or no test | 0 | of 9 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Tests shown to detect a fault | 3 | 3 of 5 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Neutral
 
@@ -23,74 +23,81 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 9 | of 13 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 9 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 7 | of 9 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 9 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 9 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 9 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Out of scope | 0 | of 9 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 7 | of 9 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 9 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 9 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 9 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
 
-The 9 counts marked as a part above are the whole of the 9 gated MUSTs: they add up to 9. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Totals
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 9 | of 13 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 9 mandatory requirements: they add up to 9. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | ok | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
-| Public row | No row in the public ledger |
-| Enrolment | Enrolled |
+| Public row | No entry in the public support list |
+| Automatic checks | Included |
 | Requirements | 13 |
-| Gated MUST-level | 9 |
+| Mandatory requirements (MUST level) | 9 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 5 |
-| Tagged units | 5 |
+| Tests linked to requirements | 5 |
 | Recorded audit verdicts | 4 |
-| Discrimination records | 3 |
+| Fault test records | 3 |
 | Summary | `rfc/short/rfc3786.md` |
-| Requirement shard | `rfc/requirements/rfc3786.md` |
+| Requirement table | `rfc/requirements/rfc3786.md` |
 | RFC text | `rfc/full/rfc3786.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: Extending the Number of IS-IS LSP Fragments Beyond the 256 Limit: seven MUST-level requirements after the 2026-09-21 extraction walk, eight after the 2026-09-28 split of RFC3786-5-1. Four are {not-applicable} to Ze, five after that split; the three the walk added carry no test and no annotation: RFC3786-1.3-1 (all LSPs in one SPF instance use the same Mode, §1.3), RFC3786-3.2-1 (a Mode 1 Extended LSP names the Normal system-id as a neighbor, §3.2) and RFC3786-6-1 (an IS uses the system-id of the LSP that will include a neighbor when forming an adjacency with it, §6). Ze does not implement the RFC 3786 extended-LSP-fragment mechanism -- its IS-IS codec recognizes no IS Alias ID TLV (type 24) and originates no extended LSP sets or virtual system (recognized TLV set 1/2/6/8/9/10/22/129/132/135/137/232/236/240 in internal/plugins/isis/packet/tlv.go), running only standard ISO/IEC 10589 LSPs bounded by the 256-fragment limit. RFC3786-2-1 (IS Alias ID TLV in fragment 0) and RFC3786-3.1-1 (generate extended fragment zero) have no extended-LSP origination path; RFC3786-5-2 (SPF exclusion of an expired extended fragment 0 set) governs extended sets Ze does not have (its SPF operates only on standard LSPs), while RFC3786-5-1 (the Original set is excluded when its fragment 0 is missing or expired) applies to Ze's standard fragment sets and is tested; RFC3786-x-2 (Mode 1 Originating-to-Virtual adjacency zero metric) governs a virtual-system model Ze does not implement. No SHOULD/MAY requirements are gated.
+Included in automatic checks: Extending the Number of IS-IS LSP Fragments Beyond the 256 Limit: seven MUST-level requirements after the 2026-09-21 extraction walk, eight after the 2026-09-28 split of RFC3786-5-1. Four are {not-applicable} to Ze, five after that split; the three the walk added carry no test and no annotation: RFC3786-1.3-1 (all LSPs in one SPF instance use the same Mode, §1.3), RFC3786-3.2-1 (a Mode 1 Extended LSP names the Normal system-id as a neighbor, §3.2) and RFC3786-6-1 (an IS uses the system-id of the LSP that will include a neighbor when forming an adjacency with it, §6). Ze does not implement the RFC 3786 extended-LSP-fragment mechanism -- its IS-IS codec recognizes no IS Alias ID TLV (type 24) and originates no extended LSP sets or virtual system (recognized TLV set 1/2/6/8/9/10/22/129/132/135/137/232/236/240 in internal/plugins/isis/packet/tlv.go), running only standard ISO/IEC 10589 LSPs bounded by the 256-fragment limit. RFC3786-2-1 (IS Alias ID TLV in fragment 0) and RFC3786-3.1-1 (generate extended fragment zero) have no extended-LSP origination path; RFC3786-5-2 (SPF exclusion of an expired extended fragment 0 set) governs extended sets Ze does not have (its SPF operates only on standard LSPs), while RFC3786-5-1 (the Original set is excluded when its fragment 0 is missing or expired) applies to Ze's standard fragment sets and is tested; RFC3786-x-2 (Mode 1 Originating-to-Virtual adjacency zero metric) governs a virtual-system model Ze does not implement. No SHOULD/MAY requirements are gated.
 
-## What the public ledger says
+## Published support status
 
-No row in the public ledger, so its summary declares `| Support | - |` and docs/features/rfc-status.md carries no row for RFC 3786.
+No entry in the public support list, so its summary declares `| Support | - |` and docs/features/rfc-status.md carries no row for RFC 3786.
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 2 | one part of the gated population |
-| Annotated (including scoped evidence) | 7 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **9** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 2 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 7 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **9** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (2):** [`RFC3786-5-1`](#rfc3786-5-1), [`RFC3786-6-1`](#rfc3786-6-1)
 
@@ -98,20 +105,23 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 
 ## Figures
 
-- **MUST bar**: Ze proven 1, Ze correctness gap 8
-- **Overview bar**: Ze MUST proven 1, SHOULD not decided 4, Ze correctness gap 8
+- **MUST bar**: Ze proven 1, Proof pending 1, Exclusion unchecked 7
+- **Overview bar**: Ze MUST proven 1, Proof pending 1, Exclusion unchecked 7, Not assessed 4
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 9 |
 | MUST rows kept (the MUST bar) | 9 |
 | Ze proven | 1 |
 | OS verified | 0 |
+| Proof pending | 1 |
 | OS testing gap | 0 |
-| Ze correctness gap | 8 |
+| Exclusion unchecked | 7 |
+| Not assessed | 0 |
+| Not built | 0 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -124,11 +134,12 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 4 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 4 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc3786.json](../../../data/rfc/rfc3786.json).
 
@@ -164,23 +175,23 @@ Source: [data/rfc/rfc3786.json](../../../data/rfc/rfc3786.json).
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC3786-2-1`](#rfc3786-2-1)
 
 This TLV MUST be included in fragment 0 of every LSP set belonging to an Originating System running in either Mode 1 or Mode 2. (Section 2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3786-2-1, so no unit is bound to it.
+No test carries RFC3786-2-1, so there is no linked test.
 
 ### [`RFC3786-3.1-1`](#rfc3786-3.1-1)
 
 An extended LSP fragment zero MUST be generated for every extended LSP set, to allow a router's SPF calculation to consider those fragments in that set. (Section 3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3786-3.1-1, so no unit is bound to it.
+No test carries RFC3786-3.1-1, so there is no linked test.
 
 ### [`RFC3786-5-1`](#rfc3786-5-1)
 
@@ -200,15 +211,15 @@ If an LSP fragment 0 of an extended LSP set is missing or its RemainingLifetime 
 
 Audit verdict: not-applicable (the requirement has no reachable code path in Ze), fresh. Binds an extended LSP set, which Ze neither originates nor recognizes (owner decision 2026-09-21, standard fragment sets).
 
-No test carries RFC3786-5-2, so no unit is bound to it.
+No test carries RFC3786-5-2, so there is no linked test.
 
 ### [`RFC3786-x-2`](#rfc3786-x-2)
 
 Under Operation Mode 1, adjacencies from the Originating System to its Virtual Systems are advertised using the standard neighbor TLVs. The metric for these connections MUST be zero, since the cost of reaching a Virtual System is the same as the cost of reaching its Originating System. (§3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3786-x-2, so no unit is bound to it.
+No test carries RFC3786-x-2, so there is no linked test.
 
 ### [`RFC3786-3.2.1-1`](#rfc3786-3.2.1-1)
 
@@ -216,23 +227,23 @@ Other neighbors MUST NOT be specified in an Extended LSP, because those other ne
 
 Audit verdict: not-applicable (the requirement has no reachable code path in Ze), fresh. Judged 2026-09-30. {not-applicable} accepted; the child spec constraint records x-2's split as a row-text decision.
 
-No test carries RFC3786-3.2.1-1, so no unit is bound to it.
+No test carries RFC3786-3.2.1-1, so there is no linked test.
 
 ### [`RFC3786-1.3-1`](#rfc3786-1.3-1)
 
 That is, all LSPs considered in the same SPF instance MUST use the same Mode. (Section 1.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3786-1.3-1, so no unit is bound to it.
+No test carries RFC3786-1.3-1, so there is no linked test.
 
 ### [`RFC3786-3.2-1`](#rfc3786-3.2-1)
 
 Furthermore, the Extended LSP MUST specify the Normal system-id as a neighbor. The metric SHOULD be set to MaxLinkMetric - 1 (this is only for uniformity purpose, any metric greater than zero is acceptable). This in order to satisfy the two-way connectivity check on other routers. (§3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC3786-3.2-1, so no unit is bound to it.
+No test carries RFC3786-3.2-1, so there is no linked test.
 
 ### [`RFC3786-6-1`](#rfc3786-6-1)
 
@@ -245,7 +256,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 | negative | [`TestRFC3786NormalHelloIdentityReload`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc3786_hello_identity_test.go#L98) | unit/verify | unproven |
 | positive | [`TestRFC3786NormalHelloMatchesContainingLSP`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc3786_hello_identity_test.go#L91) | unit/verify | unproven |
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -264,34 +275,34 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
-| `front` | not stated | 0 | walked | not stated |
-| `1` | not stated | 0 | walked | not stated |
-| `1.1` | not stated | 0 | walked | not stated |
-| `1.2` | not stated | 0 | walked | not stated |
-| `1.3` | not stated | 1 | walked | not stated |
-| `1.4` | not stated | 0 | walked | not stated |
-| `2` | not stated | 1 | walked | not stated |
-| `3` | not stated | 0 | walked | not stated |
-| `3.1` | not stated | 2 | walked | not stated |
-| `3.1.1` | not stated | 0 | walked | not stated |
-| `3.1.2` | not stated | 0 | walked | not stated |
-| `3.1.3` | not stated | 0 | walked | not stated |
-| `3.1.4` | not stated | 0 | walked | not stated |
-| `3.1.5` | not stated | 0 | walked | not stated |
-| `3.2` | not stated | 3 | walked | not stated |
-| `3.2.1` | not stated | 1 | walked | not stated |
-| `3.2.2` | not stated | 0 | walked | not stated |
-| `4` | not stated | 0 | walked | not stated |
-| `5` | not stated | 2 | walked | not stated |
-| `6` | not stated | 1 | walked | not stated |
-| `7` | not stated | 0 | walked | not stated |
-| `8` | not stated | 0 | walked | not stated |
-| `9` | not stated | 0 | walked | not stated |
-| `10` | not stated | 0 | walked | not stated |
-| `10.1` | not stated | 0 | walked | not stated |
-| `10.2` | not stated | 0 | walked | not stated |
-| `11` | not stated | 0 | walked | not stated |
-| `12` | not stated | 0 | walked | not stated |
+| `front` | not stated | 0 | reviewed | not stated |
+| `1` | not stated | 0 | reviewed | not stated |
+| `1.1` | not stated | 0 | reviewed | not stated |
+| `1.2` | not stated | 0 | reviewed | not stated |
+| `1.3` | not stated | 1 | reviewed | not stated |
+| `1.4` | not stated | 0 | reviewed | not stated |
+| `2` | not stated | 1 | reviewed | not stated |
+| `3` | not stated | 0 | reviewed | not stated |
+| `3.1` | not stated | 2 | reviewed | not stated |
+| `3.1.1` | not stated | 0 | reviewed | not stated |
+| `3.1.2` | not stated | 0 | reviewed | not stated |
+| `3.1.3` | not stated | 0 | reviewed | not stated |
+| `3.1.4` | not stated | 0 | reviewed | not stated |
+| `3.1.5` | not stated | 0 | reviewed | not stated |
+| `3.2` | not stated | 3 | reviewed | not stated |
+| `3.2.1` | not stated | 1 | reviewed | not stated |
+| `3.2.2` | not stated | 0 | reviewed | not stated |
+| `4` | not stated | 0 | reviewed | not stated |
+| `5` | not stated | 2 | reviewed | not stated |
+| `6` | not stated | 1 | reviewed | not stated |
+| `7` | not stated | 0 | reviewed | not stated |
+| `8` | not stated | 0 | reviewed | not stated |
+| `9` | not stated | 0 | reviewed | not stated |
+| `10` | not stated | 0 | reviewed | not stated |
+| `10.1` | not stated | 0 | reviewed | not stated |
+| `10.2` | not stated | 0 | reviewed | not stated |
+| `11` | not stated | 0 | reviewed | not stated |
+| `12` | not stated | 0 | reviewed | not stated |
 
 ### Excluded sentences
 

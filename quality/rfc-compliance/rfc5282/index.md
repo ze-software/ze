@@ -1,6 +1,6 @@
 # RFC 5282 - Using Authenticated Encryption Algorithms with the Encrypted Payload of the Internet Key Exchange version 2 (IKEv2) Protocol
 
-IKEv2 AEAD algorithms. Every requirement this repository extracted from RFC 5282, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+IKEv2 AEAD algorithms. Every requirement listed for RFC 5282, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,12 +10,12 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 19 | of 19 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0 | of 19 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 19 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 19 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| No test at all | 0 | of 19 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 50 | 50 of 50 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 19 | of 19 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0 | of 19 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 19 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 19 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Declared gap or no test | 0 | of 19 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Tests shown to detect a fault | 50 | 50 of 50 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Neutral
 
@@ -23,59 +23,66 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 19 | of 30 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 19 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 19 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 19 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 19 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 19 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Out of scope | 0 | of 19 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 19 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 19 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 19 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 19 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
 
-The 9 counts marked as a part above are the whole of the 19 gated MUSTs: they add up to 19. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Totals
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 19 | of 30 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 19 mandatory requirements: they add up to 19. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | ok | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | IKEv2 AEAD algorithms |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 30 |
-| Gated MUST-level | 19 |
+| Mandatory requirements (MUST level) | 19 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 50 |
-| Tagged units | 50 |
+| Tests linked to requirements | 50 |
 | Recorded audit verdicts | 18 |
-| Discrimination records | 50 |
+| Fault test records | 50 |
 | Summary | `rfc/short/rfc5282.md` |
-| Requirement shard | `rfc/requirements/rfc5282.md` |
+| Requirement table | `rfc/requirements/rfc5282.md` |
 | RFC text | `rfc/full/rfc5282.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: Using AEAD Algorithms with the IKEv2 Encrypted Payload (RFC 5282): ze speaks one AEAD cipher for the IKE SA, ENCR_AES_GCM_16 (Transform ID 20) at 128 and 256 bits. buildSKMessageAEADWithMsgID (engine/auth.go) seals an 8-octet IV, a salt-then-IV 12-octet nonce and the IKE-header-through-SK-generic-header associated data; decryptSKPayload and crypto.DecryptIKEAEAD (crypto/cipher.go) open it. encKeyMaterialLen (crypto/keys.go) gives SK_ei and SK_er the RFC 4106 KEYMAT layout (cipher key then 4-octet salt) and leaves SK_ai and SK_ar at zero octets. AES CCM is implemented too, at all three ICV sizes RFC 5282 Section 7.2 assigns a Transform ID: ENCR_AES_CCM_8 (14), ENCR_AES_CCM_12 (15) and ENCR_AES_CCM_16 (16), at 128 and 256 bits. aeadTransforms (crypto/aead.go) carries the salt, the ICV and the mode of every AEAD transform, SealIKEAEAD and OpenIKEAEAD drive them, and ccm.New (internal/core/ccm) is the CCM mode of RFC 3610, which the Go standard library does not carry. Every one of the 19 gated rows now carries a both-polarity tagged test. AES CCM for ESP is not offered: EncryptionImplementedESP (ipsec/algorithm_support.go) refuses it at config parse, because no dataplane backend installs an AES CCM Security Association.
+Included in automatic checks: Using AEAD Algorithms with the IKEv2 Encrypted Payload (RFC 5282): ze speaks one AEAD cipher for the IKE SA, ENCR_AES_GCM_16 (Transform ID 20) at 128 and 256 bits. buildSKMessageAEADWithMsgID (engine/auth.go) seals an 8-octet IV, a salt-then-IV 12-octet nonce and the IKE-header-through-SK-generic-header associated data; decryptSKPayload and crypto.DecryptIKEAEAD (crypto/cipher.go) open it. encKeyMaterialLen (crypto/keys.go) gives SK_ei and SK_er the RFC 4106 KEYMAT layout (cipher key then 4-octet salt) and leaves SK_ai and SK_ar at zero octets. AES CCM is implemented too, at all three ICV sizes RFC 5282 Section 7.2 assigns a Transform ID: ENCR_AES_CCM_8 (14), ENCR_AES_CCM_12 (15) and ENCR_AES_CCM_16 (16), at 128 and 256 bits. aeadTransforms (crypto/aead.go) carries the salt, the ICV and the mode of every AEAD transform, SealIKEAEAD and OpenIKEAEAD drive them, and ccm.New (internal/core/ccm) is the CCM mode of RFC 3610, which the Go standard library does not carry. Every one of the 19 gated rows now carries a both-polarity tagged test. AES CCM for ESP is not offered: EncryptionImplementedESP (ipsec/algorithm_support.go) refuses it at config parse, because no dataplane backend installs an AES CCM Security Association.
 
-## What the public ledger says
+## Published support status
 
 **Area:** IKEv2 AEAD algorithms
 
@@ -90,33 +97,36 @@ Enrolled: Using AEAD Algorithms with the IKEv2 Encrypted Payload (RFC 5282): ze 
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 19 | one part of the gated population |
-| Annotated (including scoped evidence) | 0 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **19** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 19 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 0 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **19** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (19):** [`RFC5282-3-1`](#rfc5282-3-1), [`RFC5282-3.1-1`](#rfc5282-3.1-1), [`RFC5282-3.1-2`](#rfc5282-3.1-2), [`RFC5282-3.2-1`](#rfc5282-3.2-1), [`RFC5282-3.2-2`](#rfc5282-3.2-2), [`RFC5282-3.2-3`](#rfc5282-3.2-3), [`RFC5282-3.2-4`](#rfc5282-3.2-4), [`RFC5282-4-1`](#rfc5282-4-1), [`RFC5282-4-2`](#rfc5282-4-2), [`RFC5282-4-3`](#rfc5282-4-3), [`RFC5282-4-4`](#rfc5282-4-4), [`RFC5282-5.1-1`](#rfc5282-5.1-1), [`RFC5282-5.1-2`](#rfc5282-5.1-2), [`RFC5282-7.1-1`](#rfc5282-7.1-1), [`RFC5282-7.1-2`](#rfc5282-7.1-2), [`RFC5282-7.3-1`](#rfc5282-7.3-1), [`RFC5282-7.3-2`](#rfc5282-7.3-2), [`RFC5282-8-1`](#rfc5282-8-1), [`RFC5282-8-2`](#rfc5282-8-2)
 
 ## Figures
 
 - **MUST bar**: Ze proven 19
-- **Overview bar**: Ze MUST proven 19, SHOULD not decided 11
+- **Overview bar**: Ze MUST proven 19, Not assessed 11
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | complete |
 | MUST rows | 19 |
 | MUST rows kept (the MUST bar) | 19 |
 | Ze proven | 19 |
 | OS verified | 0 |
+| Proof pending | 0 |
 | OS testing gap | 0 |
-| Ze correctness gap | 0 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 0 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -129,11 +139,12 @@ Enrolled: Using AEAD Algorithms with the IKEv2 Encrypted Payload (RFC 5282): ze 
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 11 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 11 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc5282.json](../../../data/rfc/rfc5282.json).
 
@@ -174,11 +185,11 @@ Source: [data/rfc/rfc5282.json](../../../data/rfc/rfc5282.json).
 
 ## Gaps and untested MUSTs
 
-RFC 5282 declares no gap, and every gated MUST it carries has a test bound to it.
+RFC 5282 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC5282-3-1`](#rfc5282-3-1)
 
@@ -366,7 +377,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. AES 
 
 The Key Length attribute MUST have a value of 128, 192, or 256 (§7.3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -377,7 +388,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 This document updates [RFC4306] to require that when an authenticated encryption algorithm is selected as the encryption algorithm for any SA (IKE or ESP), an integrity algorithm MUST NOT be selected for that SA. (§8)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Independently re-judged 2026-10-28 after the ba03d7c2c7 ESP cipher change, from rfc/full/rfc5282.txt Section 8: "This document updates [RFC4306] to require that when an authenticated encryption algorithm is selected as the encryption algorithm for any SA (IKE or ESP), an integrity algorithm MUST NOT be selected for that SA." Read all six tagged tests, their fixtures and the producing selectors. The IKE positive requires AUTH_NONE and zero integrity key length, then an actually established AEAD handshake with empty SK_ai and SK_ar; its negative adds only HMAC-SHA256 to the otherwise valid AES-GCM offer and requires refusal. The ESP initiator positive pins both AES-GCM and AUTH_NONE despite a configured hash; its negative adds only the non-NONE integrity transform to that same valid offer. The responder positive drives selectResponderESP with a complete hand-built AES-GCM/ESN proposal, pins the accepted peer proposal number and an answer containing exactly one AES-GCM encryption transform and zero integrity transforms; its negative requires ErrNoProposalChosen and no accepted proposal number for the same offer plus HMAC-SHA256. These independent conforming controls prevent reject-all success, and the malformed offers introduce no unrelated missing transform or bad key length. Both SA kinds and both ESP selection paths are represented, rather than only IKE. The changed matchESP now independently refuses AEAD with non-NONE integrity, checks remote/local integrity equality, resolves any non-NONE ESP integrity and returns the peer proposal; the first guard plus equality both protect this negative input. resolveESPTransforms still builds AUTH_NONE for AEAD. The responder's espProposalMatches accepts absent integrity or an offered NONE alternative for AEAD, and the selected answer omits integrity; accepting a NONE alternative is not selecting a non-NONE algorithm. IKE selection compares against localIKEProposals' AUTH_NONE through acceptIntegrity. Tests exercise AES-GCM, while the shared ID/property-based guards cover the admitted AEAD family by source reading, not per-cipher execution proof. Retain enforced. Existing whole-function revert records demonstrate reachability only, not that each individual guard is necessary; any fresh discriminatory observations belong to the native record repair and are not fabricated by this judgment. No tests were run by this auditor.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-10 (independent closure auditor, spec-ipsec-esp-offer-requires-esn) after affa3d8684 and da3ff616f6. engine/responder.go::espProposalMatches now refuses an offer whose usable types miss ENCR or ESN, before the encryption comparison. Both responder tests build their offer with aeadSAi2, which already carries ENCR AES-GCM-256 and ESN 0, so the new mask passes for both: the negative is still refused only because of the HMAC-SHA256 INTEG beside the AEAD cipher, and the positive still pins Proposal Num 3 and an answer with one AES-GCM ENCR and no INTEG. The AEAD integrity branch is unchanged. Records: the responder negative's revert record on espProposalMatches was re-observed after the change (uncommitted re-record carried with this closure). Retain enforced. Prior judgement: Independently re-judged 2026-10-28 after the ba03d7c2c7 ESP cipher change, from rfc/full/rfc5282.txt Section 8: "This document updates [RFC4306] to require that when an authenticated encryption algorithm is selected as the encryption algorithm for any SA (IKE or ESP), an integrity algorithm MUST NOT be selected for that SA." Read all six tagged tests, their fixtures and the producing selectors. The IKE positive requires AUTH_NONE and zero integrity key length, then an actually established AEAD handshake with empty SK_ai and SK_ar; its negative adds only HMAC-SHA256 to the otherwise valid AES-GCM offer and requires refusal. The ESP initiator positive pins both AES-GCM and AUTH_NONE despite a configured hash; its negative adds only the non-NONE integrity transform to that same valid offer. The responder positive drives selectResponderESP with a complete hand-built AES-GCM/ESN proposal, pins the accepted peer proposal number and an answer containing exactly one AES-GCM encryption transform and zero integrity transforms; its negative requires ErrNoProposalChosen and no accepted proposal number for the same offer plus HMAC-SHA256. These independent conforming controls prevent reject-all success, and the malformed offers introduce no unrelated missing transform or bad key length. Both SA kinds and both ESP selection paths are represented, rather than only IKE. The changed matchESP now independently refuses AEAD with non-NONE integrity, checks remote/local integrity equality, resolves any non-NONE ESP integrity and returns the peer proposal; the first guard plus equality both protect this negative input. resolveESPTransforms still builds AUTH_NONE for AEAD. The responder's espProposalMatches accepts absent integrity or an offered NONE alternative for AEAD, and the selected answer omits integrity; accepting a NONE alternative is not selecting a non-NONE algorithm. IKE selection compares against localIKEProposals' AUTH_NONE through acceptIntegrity. Tests exercise AES-GCM, while the shared ID/property-based guards cover the admitted AEAD family by source reading, not per-cipher execution proof. Retain enforced. Existing whole-function revert records demonstrate reachability only, not that each individual guard is necessary; any fresh discriminatory observations belong to the native record repair and are not fabricated by this judgment. No tests were run by this auditor.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -401,7 +412,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 | positive | [`TestRFC5282AEADIKEProposalCarriesNoIntegrityTransform`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_proposal_test.go#L37) | unit/verify | revert, verified |
 | positive | [`TestRFC5282AEADESPProposalCarriesNoIntegrityTransform`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_send_test.go#L185) | unit/verify | mutant, verified |
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -421,38 +432,38 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
 | `front` | Status of This Memo, Abstract and Table of Contents | 0 | skipped (front-matter) | Status of This Memo, Abstract and Table of Contents. |
-| `1` | not stated | 0 | walked | not stated |
-| `1.1` | not stated | 0 | walked | not stated |
-| `2` | not stated | 0 | walked | not stated |
-| `3` | not stated | 1 | walked | not stated |
-| `3.1` | not stated | 2 | walked | not stated |
-| `3.2` | not stated | 3 | walked | not stated |
-| `4` | not stated | 2 | walked | not stated |
-| `5` | not stated | 0 | walked | not stated |
-| `5.1` | not stated | 2 | walked | not stated |
-| `5.2` | not stated | 0 | walked | not stated |
-| `6` | not stated | 0 | walked | not stated |
-| `7` | not stated | 0 | walked | not stated |
-| `7.1` | not stated | 2 | walked | not stated |
-| `7.2` | not stated | 0 | walked | not stated |
-| `7.3` | not stated | 2 | walked | not stated |
-| `8` | not stated | 3 | walked | not stated |
-| `9` | not stated | 0 | walked | not stated |
-| `10` | not stated | 0 | walked | not stated |
-| `10.1` | not stated | 0 | walked | not stated |
-| `10.1.1` | not stated | 0 | walked | not stated |
-| `10.1.2` | not stated | 0 | walked | not stated |
-| `10.1.3` | not stated | 0 | walked | not stated |
-| `10.1.4` | not stated | 0 | walked | not stated |
-| `10.2` | not stated | 0 | walked | not stated |
-| `10.2.1` | not stated | 0 | walked | not stated |
-| `10.2.2` | not stated | 0 | walked | not stated |
-| `10.2.3` | not stated | 0 | walked | not stated |
-| `10.2.4` | not stated | 0 | walked | not stated |
-| `10.2.5` | not stated | 0 | walked | not stated |
-| `10.2.6` | not stated | 0 | walked | not stated |
-| `10.3` | not stated | 0 | walked | not stated |
-| `11` | not stated | 0 | walked | not stated |
+| `1` | not stated | 0 | reviewed | not stated |
+| `1.1` | not stated | 0 | reviewed | not stated |
+| `2` | not stated | 0 | reviewed | not stated |
+| `3` | not stated | 1 | reviewed | not stated |
+| `3.1` | not stated | 2 | reviewed | not stated |
+| `3.2` | not stated | 3 | reviewed | not stated |
+| `4` | not stated | 2 | reviewed | not stated |
+| `5` | not stated | 0 | reviewed | not stated |
+| `5.1` | not stated | 2 | reviewed | not stated |
+| `5.2` | not stated | 0 | reviewed | not stated |
+| `6` | not stated | 0 | reviewed | not stated |
+| `7` | not stated | 0 | reviewed | not stated |
+| `7.1` | not stated | 2 | reviewed | not stated |
+| `7.2` | not stated | 0 | reviewed | not stated |
+| `7.3` | not stated | 2 | reviewed | not stated |
+| `8` | not stated | 3 | reviewed | not stated |
+| `9` | not stated | 0 | reviewed | not stated |
+| `10` | not stated | 0 | reviewed | not stated |
+| `10.1` | not stated | 0 | reviewed | not stated |
+| `10.1.1` | not stated | 0 | reviewed | not stated |
+| `10.1.2` | not stated | 0 | reviewed | not stated |
+| `10.1.3` | not stated | 0 | reviewed | not stated |
+| `10.1.4` | not stated | 0 | reviewed | not stated |
+| `10.2` | not stated | 0 | reviewed | not stated |
+| `10.2.1` | not stated | 0 | reviewed | not stated |
+| `10.2.2` | not stated | 0 | reviewed | not stated |
+| `10.2.3` | not stated | 0 | reviewed | not stated |
+| `10.2.4` | not stated | 0 | reviewed | not stated |
+| `10.2.5` | not stated | 0 | reviewed | not stated |
+| `10.2.6` | not stated | 0 | reviewed | not stated |
+| `10.3` | not stated | 0 | reviewed | not stated |
+| `11` | not stated | 0 | reviewed | not stated |
 | `12` | not stated | 1 | skipped (iana) | IANA Considerations: the transform identifiers were already assigned for ESP, and the AEAD registry rows are a registry action rather than an implementation obligation. |
 | `13` | Acknowledgments | 0 | skipped (acknowledgements) | Acknowledgments. |
 | `14` | References | 0 | skipped (references) | References. |

@@ -1,6 +1,6 @@
 # RFC 4659 - BGP-MPLS IP Virtual Private Network (VPN) Extension for IPv6 VPN
 
-VPNv6. Every requirement this repository extracted from RFC 4659, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+VPNv6. Every requirement listed for RFC 4659, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,24 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 3 | of 18 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 2 | of 18 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 18 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 18 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 21 | 21 of 28 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-
-### Neutral
-
-measures that are neither good news nor bad
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Gated MUSTs | 18 | of 24 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 18 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 18 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 18 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 18 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 18 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Tested both ways | 3 | of 18 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 2 | of 18 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 18 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 18 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Tests shown to detect a fault | 21 | 21 of 28 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -35,55 +22,75 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 13 | of 18 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 6 | of 18 gated MUSTs judged | 1 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id |
+| Declared gap or no test | 13 | of 18 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Audit verdicts | 6 | of 18 mandatory requirements reviewed | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
-The 9 counts marked as a part above are the whole of the 18 gated MUSTs: they add up to 18. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Neutral
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+measures that are neither good news nor bad
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Out of scope | 0 | of 18 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 18 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 18 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 18 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 18 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+
+### Totals
+
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 18 | of 24 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 18 mandatory requirements: they add up to 18. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | VPNv6 |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 24 |
-| Gated MUST-level | 18 |
+| Mandatory requirements (MUST level) | 18 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 13 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 28 |
-| Tagged units | 28 |
+| Tests linked to requirements | 28 |
 | Recorded audit verdicts | 6 |
-| Discrimination records | 21 |
+| Fault test records | 21 |
 | Summary | `rfc/short/rfc4659.md` |
-| Requirement shard | `rfc/requirements/rfc4659.md` |
+| Requirement table | `rfc/requirements/rfc4659.md` |
 | RFC text | `rfc/full/rfc4659.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: BGP-MPLS IPv6 VPN / VPNv6 (RFC 4659): labeled VPNv6 NLRI, AFI2/SAFI128 capability negotiation, and configured zero-RD global-IPv6 next-hop emission. The widened originator-address obligation has independent recipient-wire proof. IPv4-mapped-IPv6 and global-plus-link-local next-hop gaps remain explicit; data-plane PE tunneling and the integrated multi-AS ASBR service remain outside the implemented baseline. Generic VPNv6 origination and cross-peer forwarding do not establish the option-(b) service.
+Included in automatic checks: BGP-MPLS IPv6 VPN / VPNv6 (RFC 4659): labeled VPNv6 NLRI, AFI2/SAFI128 capability negotiation, and configured zero-RD global-IPv6 next-hop emission. The widened originator-address obligation has independent recipient-wire proof. IPv4-mapped-IPv6 and global-plus-link-local next-hop gaps remain explicit; data-plane PE tunneling and the integrated multi-AS ASBR service remain outside the implemented baseline. Generic VPNv6 origination and cross-peer forwarding do not establish the option-(b) service.
 
-## What the public ledger says
+## Published support status
 
 **Area:** VPNv6
 
@@ -98,14 +105,14 @@ Enrolled: BGP-MPLS IPv6 VPN / VPNv6 (RFC 4659): labeled VPNv6 NLRI, AFI2/SAFI128
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 3 | one part of the gated population |
-| Annotated (including scoped evidence) | 15 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **18** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 3 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 15 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **18** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (3):** [`RFC4659-3.2-1`](#rfc4659-3.2-1), [`RFC4659-3.4-1`](#rfc4659-3.4-1), [`RFC4659-3.2.1.1-3`](#rfc4659-3.2.1.1-3)
 
@@ -113,20 +120,23 @@ Enrolled: BGP-MPLS IPv6 VPN / VPNv6 (RFC 4659): labeled VPNv6 NLRI, AFI2/SAFI128
 
 ## Figures
 
-- **MUST bar**: Ze proven 4, Ze correctness gap 14
-- **Overview bar**: Ze MUST proven 4, SHOULD not decided 6, Ze correctness gap 14
+- **MUST bar**: Ze proven 4, Proof pending 1, Not built 13
+- **Overview bar**: Ze MUST proven 4, Proof pending 1, Not assessed 6, Not built 13
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 18 |
 | MUST rows kept (the MUST bar) | 18 |
 | Ze proven | 4 |
 | OS verified | 0 |
+| Proof pending | 1 |
 | OS testing gap | 0 |
-| Ze correctness gap | 14 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 13 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -139,11 +149,12 @@ Enrolled: BGP-MPLS IPv6 VPN / VPNv6 (RFC 4659): labeled VPNv6 NLRI, AFI2/SAFI128
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 6 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 6 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc4659.json](../../../data/rfc/rfc4659.json).
 
@@ -169,7 +180,7 @@ Source: [data/rfc/rfc4659.json](../../../data/rfc/rfc4659.json).
 | `RFC4659-8-4` | When the VPN-IPv6 traffic is to be transported using IPv4 tunneling, the BGP Next Hop Field SHALL contain an IPv4 address encoded as an IPv4-mapped IPv6 address. (Section 8) | SHALL | 8 | **positive:** no positive test. **negative:** no negative test. **{gap}:** as RFC4659-3.2.1.2-1 -- the IPv4-mapped VPN-IPv6 next hop is written for every IPv4 next hop (vpnNextHopOctets, MPReachNLRI.wireNextHop, precomputeVPNNextHop), but no IPv4-tunneling transport decision selects it and no tagged recipient-wire test carries the requirement |
 | `RFC4659-8-5` | When the VPN-IPv6 traffic is to be transported using IPv6 tunneling, the BGP Next Hop Field SHALL contain an IPv6 address. (§8) | SHALL | 8 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the integrated option-(b) inter-ASBR service path remains unimplemented under the existing no-ASBR-feature scope. Generic VPNv6 origination and cross-peer forwarding exist: internal/component/bgp/message/update_build_vpn.go::buildMPReachVPN encodes the supplied next hop and labels, and internal/component/bgp/reactor/filter_delta_handlers.go::mpReachNextHopHandler retains the received NLRI during a next-hop rewrite. These do not supply an ASBR-local label binding or inter-AS forwarding relationship; internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange does not mirror native VPN routes to the Loc-RIB, and internal/component/sysrib/sysrib.go::processEvent does not turn their native-NLRI publications into FIB entries. The SHALL remains applicable when its IPv6-transport condition holds; this gap is not an exemption or permission to develop ASBR capability. |
 | `RFC4659-3.2.1.1-2` | As a consequence, a BGP speaker that advertises a route to an internal peer may modify the Network Address of Next Hop field by removing the link-local IPv6 address of the next hop. (§3.2.1.1) | MAY | 3.2.1.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC4659-3.2.1.1-3` | The link-local address shall be included in the Next Hop field if and only if the advertising BGP speaker shares a common subnet with the peer the route is being advertised to [BGP-IPv6]. (§3.2.1.1) | SHALL | 3.2.1.1 | **positive:** `unit/verify` [`TestRFC4659APIVPNv6LinkLocalCommonSubnet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_api_vpn_link_local_test.go#L78). **positive:** `unit/verify` [`TestRFC4659ForwardVPNv6LinkLocalCommonSubnet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go#L120). **positive:** `unit/verify` [`TestRFC4659ForwardVPNv6NextHopRewriteCarriesRD`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_next_hop_rewrite_test.go#L87). **positive:** `unit/verify` [`TestRFC4659StaticVPNv6LinkLocalCommonSubnet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go#L83). **positive:** `unit/verify` [`TestRFC4659VPNv6LinkLocalLoopbackGlobal`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_link_local_loopback_test.go#L38). **negative:** `unit/verify` [`TestRFC4659APIVPNv6LinkLocalCommonSubnet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_api_vpn_link_local_test.go#L79). **negative:** `unit/verify` [`TestRFC4659ForwardVPNv6LinkLocalCommonSubnet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go#L121). **negative:** `unit/verify` [`TestRFC4659ForwardVPNv6NextHopRewriteCarriesRD`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_next_hop_rewrite_test.go#L88). **negative:** `unit/verify` [`TestRFC4659StaticVPNv6LinkLocalCommonSubnet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go#L84). **positive:** `functional/verify` [`rfc4659-vpnv6-link-local-off-subnet.ci`](https://github.com/ze-software/ze/blob/main/test/encode/rfc4659-vpnv6-link-local-off-subnet.ci#L5). **positive:** `interop/nightly` [`checkVPNFRR`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L605). **negative:** `interop/nightly` [`checkVPNFRR`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L606) |
+| `RFC4659-3.2.1.1-3` | The link-local address shall be included in the Next Hop field if and only if the advertising BGP speaker shares a common subnet with the peer the route is being advertised to [BGP-IPv6]. (§3.2.1.1) | SHALL | 3.2.1.1 | **positive:** `unit/verify` [`TestRFC4659APIVPNv6LinkLocalCommonSubnet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_api_vpn_link_local_test.go#L78). **positive:** `unit/verify` [`TestRFC4659ForwardVPNv6LinkLocalCommonSubnet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go#L120). **positive:** `unit/verify` [`TestRFC4659ForwardVPNv6NextHopRewriteCarriesRD`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_next_hop_rewrite_test.go#L87). **positive:** `unit/verify` [`TestRFC4659StaticVPNv6LinkLocalCommonSubnet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go#L83). **positive:** `unit/verify` [`TestRFC4659VPNv6LinkLocalLoopbackGlobal`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_link_local_loopback_test.go#L38). **negative:** `unit/verify` [`TestRFC4659APIVPNv6LinkLocalCommonSubnet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_api_vpn_link_local_test.go#L79). **negative:** `unit/verify` [`TestRFC4659ForwardVPNv6LinkLocalCommonSubnet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go#L121). **negative:** `unit/verify` [`TestRFC4659ForwardVPNv6NextHopRewriteCarriesRD`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_next_hop_rewrite_test.go#L88). **negative:** `unit/verify` [`TestRFC4659StaticVPNv6LinkLocalCommonSubnet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go#L84). **positive:** `functional/verify` [`rfc4659-vpnv6-link-local-off-subnet.ci`](https://github.com/ze-software/ze/blob/main/test/encode/rfc4659-vpnv6-link-local-off-subnet.ci#L5). **positive:** `interop/nightly` [`checkVPNFRR`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L646). **negative:** `interop/nightly` [`checkVPNFRR`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L647) |
 | `RFC4659-1-1` | Where both IPv4 VPNs and IPv6 VPN services are supported over an IPv4 core, the same single set of MP-BGP peering relationships and the same single PE-PE tunnel mesh MAY be used for both. (§1) | MAY | 1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC4659-2-1` | When a site is IPv4 capable and IPv6 capable, the same RD MAY be used for the advertisement of IPv6 addresses and IPv4 addresses. (§2) | MAY | 2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC4659-2-2` | Alternatively, a different RD MAY be used for the advertisement of the IPv4 addresses and of the IPv6 addresses. (§2) | MAY | 2 | **positive:** no positive test. **negative:** no negative test |
@@ -196,7 +207,7 @@ Source: [data/rfc/rfc4659.json](../../../data/rfc/rfc4659.json).
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC4659-3.2-1`](#rfc4659-3.2-1)
 
@@ -227,7 +238,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 In order for two PEs to exchange labeled IPv6 VPN NLRIs, they MUST use BGP Capabilities Negotiation to ensure that they both are capable of properly processing such NLRIs. This is done as specified in [BGP-MP] and [BGP-CAP], by using capability code 1 (multiprotocol BGP), with AFI and SAFI values as specified above, in Section 3.2. (§3.4)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-14 (independent auditor). Only TestOpenAdvertisesVPNv6Capability changed, mechanically: it now packs ps.Capabilities through capability.PackOptionalParams (the one packer buildOpen uses) instead of the removed buildOptionalParams, then requires Multiprotocol AFI 2/SAFI 128 in the decoded OPEN parameters for a configured ipv6/mpls-vpn family. The send and receive units in rfc4659_vpnv6_negotiated_send_test.go (route sent only when AFI 2/SAFI 128 negotiated, UPDATE refused when not) and the negotiateWith negative are unchanged and still carry the enforcement.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-14 by an independent auditor who authored neither 08fe903803 nor the uncommitted phase 2 of spec-single-owner-lifecycle-2-bgp-session. RFC 4659 Section 3.4 read: "In order for two PEs to exchange labeled IPv6 VPN NLRIs, they MUST use BGP Capabilities Negotiation to ensure that they both are capable of properly processing such NLRIs." Units read: TestRFC4659VPNv6RouteSentWhenNegotiated and TestRFC4659VPNv6RouteWithheldWhenNotNegotiated; only their initial-sync call changed. 08fe903803 moved the initial-sync gate (sendingInitialRoutes) and the End-of-RIB owed mark (initialSyncEOROwed) from Peer onto Session. In the tagged units named stale it replaced peer.sendInitialRoutes() with peer.runInitialSyncNow(), which is Peer.sendInitialRoutes(p.testInitialSync()) (initial_sync_helpers_test.go): the same production sync body, run on the session the fixture installed (or one built with NewSession(p.settings) and published through establishedSession as enterEstablished does); it replaced peer.<flag>.Store(v) with peer.testInitialSync().<flag>.Store(v) or setTestInitialSync, and drainAndCloseQueueGate now takes that session. git diff 08fe903803^ against the working tree shows no assertion, expected byte, driven input or tag prose changed in any of them, each under the RFC-approved line 08fe903803 carries. Questions 1, 3 and 4 answer exactly as the earlier judgement below; question 2 still rests on the same producers, whose discrimination records are retaken by ./le rfc record after this stamp. Verdict unchanged: enforced. Earlier judgement follows. Re-judged 2026-10-14 (independent auditor). Only TestOpenAdvertisesVPNv6Capability changed, mechanically: it now packs ps.Capabilities through capability.PackOptionalParams (the one packer buildOpen uses) instead of the removed buildOptionalParams, then requires Multiprotocol AFI 2/SAFI 128 in the decoded OPEN parameters for a configured ipv6/mpls-vpn family. The send and receive units in rfc4659_vpnv6_negotiated_send_test.go (route sent only when AFI 2/SAFI 128 negotiated, UPDATE refused when not) and the negotiateWith negative are unchanged and still carry the enforcement.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -242,81 +253,81 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 The ingress PE Router MUST tunnel IPv6 VPN data over the backbone towards the Egress PE router (Section 4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4659-4-1, so no unit is bound to it.
+No test carries RFC4659-4-1, so there is no linked test.
 
 ### [`RFC4659-4-2`](#rfc4659-4-2)
 
 When the 16-octet IPv6 address contained in the BGP Next Hop field is encoded as an IPv4-mapped IPv6 address (see Section 3.2.1.2), the ingress PE MUST use IPv4 tunneling unless explicitly configured to do otherwise. (Section 4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4659-4-2, so no unit is bound to it.
+No test carries RFC4659-4-2, so there is no linked test.
 
 ### [`RFC4659-4-3`](#rfc4659-4-3)
 
 When the 16-octet IPv6 address contained in the BGP Next Hop field is not encoded as an IPv4-mapped address (see Section 3.2.1.1), the ingress PE MUST use IPv6 tunneling. (Section 4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4659-4-3, so no unit is bound to it.
+No test carries RFC4659-4-3, so there is no linked test.
 
 ### [`RFC4659-4-4`](#rfc4659-4-4)
 
 When tunneling is done using IPv4 tunnels (whether IPsec secured or not), the Ingress PE Router MUST use the IPv4 address that is encoded in the IPv4-mapped IPv6 address field of the BGP next hop field as the destination address of the prepended IPv4 tunneling header. (§4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4659-4-4, so no unit is bound to it.
+No test carries RFC4659-4-4, so there is no linked test.
 
 ### [`RFC4659-4-5`](#rfc4659-4-5)
 
 When tunneling is done using IPv6 tunnels (whether IPsec secured or not), the Ingress PE Router MUST use the IPv6 address that is contained in the IPv6 address field of the BGP next hop field as the destination address of the prepended IPv6 tunneling header. (§4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4659-4-5, so no unit is bound to it.
+No test carries RFC4659-4-5, so there is no linked test.
 
 ### [`RFC4659-4-6`](#rfc4659-4-6)
 
 When tunneling is done using MPLS LSPs, the ingress PE Router MUST directly push the LSP tunnel label on the label stack of the labeled IPv6 VPN packet (i.e., without prepending any IPv4 or IPv6 header). (Section 4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4659-4-6, so no unit is bound to it.
+No test carries RFC4659-4-6, so there is no linked test.
 
 ### [`RFC4659-4-7`](#rfc4659-4-7)
 
 To ensure interoperability among systems that implement this VPN architecture, all such systems MUST support tunneling using MPLS LSPs established by LDP [LDP]. (Section 4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4659-4-7, so no unit is bound to it.
+No test carries RFC4659-4-7, so there is no linked test.
 
 ### [`RFC4659-8-1`](#rfc4659-8-1)
 
 The exchange of IPv6 routes MUST be carried out as per [BGP-IPv6]. (§8)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4659-8-1, so no unit is bound to it.
+No test carries RFC4659-8-1, so there is no linked test.
 
 ### [`RFC4659-8-2`](#rfc4659-8-2)
 
 The exchange of labeled VPN-IPv6 routes MUST be carried out as per [BGP-IPv6] and [MPLS-BGP]. (§8)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4659-8-2, so no unit is bound to it.
+No test carries RFC4659-8-2, so there is no linked test.
 
 ### [`RFC4659-8-3`](#rfc4659-8-3)
 
 An example scenario where both the global IPv6 address and the link- local IPv6 address shall be included in the BGP Next Hop address field is that where the IPv6 VPN service is supported over a multi- Autonomous System (AS) backbone with redistribution of labeled VPN- IPv6 routes between Autonomous System Border Routers (ASBR) of different ASes sharing a common IPv6 subnet: in that case, both the global IPv6 address and the link-local IPv6 address shall be advertised by the ASBRs. (§3.2.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4659-8-3, so no unit is bound to it.
+No test carries RFC4659-8-3, so there is no linked test.
 
 ### [`RFC4659-3.2.1.1-1`](#rfc4659-3.2.1.1-1)
 
@@ -334,31 +345,31 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 When the IPv6 VPN traffic is to be transported to the BGP speaker using IPv4 tunneling (e.g., IPv4 MPLS LSPs, IPsec-protected IPv4 tunnels), the BGP speaker SHALL advertise to its peer a Next Hop Network Address field containing a VPN-IPv6 address: - whose 8-octet RD is set to zero, and - whose 16-octet IPv6 address is encoded as an IPv4-mapped IPv6 address [V6ADDR] containing the IPv4 address of the advertising BGP speaker. (§3.2.1.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4659-3.2.1.2-1, so no unit is bound to it.
+No test carries RFC4659-3.2.1.2-1, so there is no linked test.
 
 ### [`RFC4659-8-4`](#rfc4659-8-4)
 
 When the VPN-IPv6 traffic is to be transported using IPv4 tunneling, the BGP Next Hop Field SHALL contain an IPv4 address encoded as an IPv4-mapped IPv6 address. (Section 8)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4659-8-4, so no unit is bound to it.
+No test carries RFC4659-8-4, so there is no linked test.
 
 ### [`RFC4659-8-5`](#rfc4659-8-5)
 
 When the VPN-IPv6 traffic is to be transported using IPv6 tunneling, the BGP Next Hop Field SHALL contain an IPv6 address. (§8)
 
-Audit verdict: unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-24 (independent auditor, authored none of the change). RFC 4659 Section 8: "When the VPN-IPv6 traffic is to be transported using IPv6 tunneling, the BGP Next Hop Field SHALL contain an IPv6 address." 238bdb62e9 changed the cited producer rib_bestchange.go::checkRouteBestChange: a best change is now also published when only the winner's attribute set changes (sameAttributeSet over the storage fingerprint), and the entry carries the winner's attribute bytes (storedAttributes, setEntryPath). Its only consumer of those bytes is BMP Loc-RIB (bmp/bmp_locrib.go). Native VPN routes are still non-CIDR and not mirrored by prefix, and nothing builds an ASBR-local label binding or selects IPv6 tunnel transport, so the gap stands. Verdict unchanged: unimplemented. Earlier judgement follows. RFC 4659 Section 8, approach (b), rfc/full/rfc4659.txt:644-664: "When the VPN-IPv6 traffic is to be transported using IPv6 tunneling, the BGP Next Hop Field SHALL contain an IPv6 address." No tagged carriers exist for this row. Independently read all four retained guard producers. buildMPReachVPN writes a supplied IPv6 next hop behind a zero RD and carries supplied labels; mpReachNextHopHandler preserves native NLRI while enforcing admitted next-hop lengths. Those generic control-plane facilities are implemented but unverified for this integrated transport-conditioned requirement, not absent generic VPNv6 support. checkRouteBestChange still excludes native VPN routes from its prefix-keyed Loc-RIB mirror, extracting labeled-unicast labels or separate attribute-40 SRv6 metadata rather than creating an ASBR-local VPN label binding; sysrib.processEvent skips native-NLRI changes without a valid prefix. The integrated option-(b) inter-ASBR label/forwarding relationship and IPv6-transport selection remain absent. Retain the explicit unimplemented boundary and every guard; the SHALL remains applicable when its transport condition holds. This is neither not-applicable nor permission to add ASBR scope. No checks run.
+Audit verdict: unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-11-14 by an independent auditor who authored neither 08fe903803 nor the uncommitted phase 2 of spec-single-owner-lifecycle-2-bgp-session. RFC 4659 Section 8 read: "When the VPN-IPv6 traffic is to be transported using IPv6 tunneling, the BGP Next Hop Field SHALL contain an IPv6 address." The cited sysrib.go::processEvent no longer exists: 13590fe5b2 and d73a860caf replaced the publication path with the routing-view projection, whose entry guard is sysrib/projection_path.go selectedProjection.prepare (refuses an entry of an unregistered family or with an invalid, host-bit, IPv4-mapped or zoned prefix). That guard replaces processEvent in the code map. RIB checkRouteBestChange still excludes native VPN routes from its prefix-keyed mirror, buildMPReachVPN and mpReachNextHopHandler still only carry the supplied next hop and labels, and nothing builds an ASBR-local label binding or selects IPv6 tunnel transport. The integrated option-(b) path stays absent. Verdict unchanged: unimplemented. Earlier judgement follows. Re-judged 2026-10-24 (independent auditor, authored none of the change). RFC 4659 Section 8: "When the VPN-IPv6 traffic is to be transported using IPv6 tunneling, the BGP Next Hop Field SHALL contain an IPv6 address." 238bdb62e9 changed the cited producer rib_bestchange.go::checkRouteBestChange: a best change is now also published when only the winner's attribute set changes (sameAttributeSet over the storage fingerprint), and the entry carries the winner's attribute bytes (storedAttributes, setEntryPath). Its only consumer of those bytes is BMP Loc-RIB (bmp/bmp_locrib.go). Native VPN routes are still non-CIDR and not mirrored by prefix, and nothing builds an ASBR-local label binding or selects IPv6 tunnel transport, so the gap stands. Verdict unchanged: unimplemented. Earlier judgement follows. RFC 4659 Section 8, approach (b), rfc/full/rfc4659.txt:644-664: "When the VPN-IPv6 traffic is to be transported using IPv6 tunneling, the BGP Next Hop Field SHALL contain an IPv6 address." No tagged carriers exist for this row. Independently read all four retained guard producers. buildMPReachVPN writes a supplied IPv6 next hop behind a zero RD and carries supplied labels; mpReachNextHopHandler preserves native NLRI while enforcing admitted next-hop lengths. Those generic control-plane facilities are implemented but unverified for this integrated transport-conditioned requirement, not absent generic VPNv6 support. checkRouteBestChange still excludes native VPN routes from its prefix-keyed Loc-RIB mirror, extracting labeled-unicast labels or separate attribute-40 SRv6 metadata rather than creating an ASBR-local VPN label binding; sysrib.processEvent skips native-NLRI changes without a valid prefix. The integrated option-(b) inter-ASBR label/forwarding relationship and IPv6-transport selection remain absent. Retain the explicit unimplemented boundary and every guard; the SHALL remains applicable when its transport condition holds. This is neither not-applicable nor permission to add ASBR scope. No checks run.
 
-No test carries RFC4659-8-5, so no unit is bound to it.
+No test carries RFC4659-8-5, so there is no linked test.
 
 ### [`RFC4659-3.2.1.1-3`](#rfc4659-3.2.1.1-3)
 
 The link-local address shall be included in the Next Hop field if and only if the advertising BGP speaker shares a common subnet with the peer the route is being advertised to [BGP-IPv6]. (§3.2.1.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/le/interoplab/bgp/check_rfc.go::checkVPNFRR, internal/le/interoplab/bgp/check_rfc.go::checkVPNFRR#2 moved. Independent source rejudgment against RFC 4659 Section 3.2.1.1: "The link-local address shall be included in the Next Hop field if and only if the advertising BGP speaker shares a common subnet with the peer the route is being advertised to"; the same section defines the global as the advertising speaker's. Read all tagged tests, helpers, cited producers and current native configs/checker. Static, API, forwarding and next-hop-rewrite tests assert exact zero-RD 48-octet pairs on-link versus 24-octet fields off-link. The loopback-global cases distinguish this peer-only condition from RFC 2545's joint condition; configured, relay and next-hop-self rails retain the pair despite a speaker-owned global outside the connected prefix. linkLocalConditionFor selects the VPN peer-only condition and the builders preserve the two zero RDs. The functional positive asserts the 48-octet field. The moved checkVPNFRR positive now requires BIRD's exact ordered global plus topology-owned link-local; FRR's output cannot independently prove the pair. Its negative remains only a third-party-global omission control on the SAME on-link sessions, not evidence of no common subnet; the true no-common-subnet negative is provided by the Go units and is not credited to that interop tag. Source limitations for non-speaker-owned globals remain outside this section's defined global-address form; no new whole-RFC support claim follows. Verdict enforced on the stated requirement. No native run, proof replay or freshness verification performed.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent source rejudgment against RFC 4659 Section 3.2.1.1: "The link-local address shall be included in the Next Hop field if and only if the advertising BGP speaker shares a common subnet with the peer the route is being advertised to"; the same section defines the global as the advertising speaker's. Read all tagged tests, helpers, cited producers and current native configs/checker. Static, API, forwarding and next-hop-rewrite tests assert exact zero-RD 48-octet pairs on-link versus 24-octet fields off-link. The loopback-global cases distinguish this peer-only condition from RFC 2545's joint condition; configured, relay and next-hop-self rails retain the pair despite a speaker-owned global outside the connected prefix. linkLocalConditionFor selects the VPN peer-only condition and the builders preserve the two zero RDs. The functional positive asserts the 48-octet field. The moved checkVPNFRR positive now requires BIRD's exact ordered global plus topology-owned link-local; FRR's output cannot independently prove the pair. Its negative remains only a third-party-global omission control on the SAME on-link sessions, not evidence of no common subnet; the true no-common-subnet negative is provided by the Go units and is not credited to that interop tag. Source limitations for non-speaker-owned globals remain outside this section's defined global-address form; no new whole-RFC support claim follows. Verdict enforced on the stated requirement. No native run, proof replay or freshness verification performed.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -366,16 +377,16 @@ Audit verdict: enforced (the tests do what the requirement demands), shifted: in
 | negative | [`TestRFC4659ForwardVPNv6LinkLocalCommonSubnet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go#L121) | unit/verify | revert, verified |
 | negative | [`TestRFC4659StaticVPNv6LinkLocalCommonSubnet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go#L84) | unit/verify | revert, verified |
 | negative | [`TestRFC4659ForwardVPNv6NextHopRewriteCarriesRD`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_next_hop_rewrite_test.go#L88) | unit/verify | revert, verified |
-| negative | [`checkVPNFRR`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L606) | interop/nightly | unproven |
+| negative | [`checkVPNFRR`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L647) | interop/nightly | unproven |
 | positive | [`TestRFC4659APIVPNv6LinkLocalCommonSubnet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_api_vpn_link_local_test.go#L78) | unit/verify | revert, verified |
 | positive | [`TestRFC4659VPNv6LinkLocalLoopbackGlobal`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_link_local_loopback_test.go#L38) | unit/verify | revert, verified |
 | positive | [`TestRFC4659ForwardVPNv6LinkLocalCommonSubnet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go#L120) | unit/verify | revert, verified |
 | positive | [`TestRFC4659StaticVPNv6LinkLocalCommonSubnet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go#L83) | unit/verify | revert, verified |
 | positive | [`TestRFC4659ForwardVPNv6NextHopRewriteCarriesRD`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_next_hop_rewrite_test.go#L87) | unit/verify | revert, verified |
-| positive | [`checkVPNFRR`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L605) | interop/nightly | unproven |
+| positive | [`checkVPNFRR`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L646) | interop/nightly | unproven |
 | positive | [`rfc4659-vpnv6-link-local-off-subnet.ci`](https://github.com/ze-software/ze/blob/main/test/encode/rfc4659-vpnv6-link-local-off-subnet.ci#L5) | functional/verify | revert, verified |
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -394,36 +405,36 @@ Audit verdict: enforced (the tests do what the requirement demands), shifted: in
 
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
-| `front` | not stated | 0 | walked | not stated |
-| `1` | not stated | 0 | walked | not stated |
-| `2` | not stated | 0 | walked | not stated |
-| `3` | not stated | 0 | walked | not stated |
-| `3.1` | not stated | 0 | walked | not stated |
-| `3.2` | not stated | 2 | walked | not stated |
-| `3.2.1` | not stated | 0 | walked | not stated |
-| `3.2.1.1` | not stated | 1 | walked | not stated |
-| `3.2.1.2` | not stated | 1 | walked | not stated |
-| `3.3` | not stated | 0 | walked | not stated |
-| `3.4` | not stated | 1 | walked | not stated |
-| `4` | not stated | 7 | walked | not stated |
-| `5` | not stated | 0 | walked | not stated |
-| `6` | not stated | 0 | walked | not stated |
-| `7` | not stated | 0 | walked | not stated |
-| `8` | not stated | 4 | walked | not stated |
-| `9` | not stated | 0 | walked | not stated |
-| `10` | not stated | 0 | walked | not stated |
-| `11` | not stated | 0 | walked | not stated |
-| `12` | not stated | 0 | walked | not stated |
-| `13` | not stated | 0 | walked | not stated |
-| `14` | not stated | 0 | walked | not stated |
-| `15` | not stated | 0 | walked | not stated |
-| `16` | not stated | 0 | walked | not stated |
-| `16.1` | not stated | 0 | walked | not stated |
-| `16.2` | not stated | 0 | walked | not stated |
+| `front` | not stated | 0 | reviewed | not stated |
+| `1` | not stated | 0 | reviewed | not stated |
+| `2` | not stated | 0 | reviewed | not stated |
+| `3` | not stated | 0 | reviewed | not stated |
+| `3.1` | not stated | 0 | reviewed | not stated |
+| `3.2` | not stated | 2 | reviewed | not stated |
+| `3.2.1` | not stated | 0 | reviewed | not stated |
+| `3.2.1.1` | not stated | 1 | reviewed | not stated |
+| `3.2.1.2` | not stated | 1 | reviewed | not stated |
+| `3.3` | not stated | 0 | reviewed | not stated |
+| `3.4` | not stated | 1 | reviewed | not stated |
+| `4` | not stated | 7 | reviewed | not stated |
+| `5` | not stated | 0 | reviewed | not stated |
+| `6` | not stated | 0 | reviewed | not stated |
+| `7` | not stated | 0 | reviewed | not stated |
+| `8` | not stated | 4 | reviewed | not stated |
+| `9` | not stated | 0 | reviewed | not stated |
+| `10` | not stated | 0 | reviewed | not stated |
+| `11` | not stated | 0 | reviewed | not stated |
+| `12` | not stated | 0 | reviewed | not stated |
+| `13` | not stated | 0 | reviewed | not stated |
+| `14` | not stated | 0 | reviewed | not stated |
+| `15` | not stated | 0 | reviewed | not stated |
+| `16` | not stated | 0 | reviewed | not stated |
+| `16.1` | not stated | 0 | reviewed | not stated |
+| `16.2` | not stated | 0 | reviewed | not stated |
 
 ### Excluded sentences
 
-The walk over RFC 4659 declined no sentence: every site it found is mapped to a requirement.
+The review of RFC 4659 excluded no sentences: every sentence identified as an obligation is linked to a requirement.
 
 ## Superseded
 

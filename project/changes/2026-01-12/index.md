@@ -16,7 +16,7 @@ For anyone running ExaBGP today, Ze picked up a migration path:
 
 ## 📊 Logging
 
-Per-subsystem logging landed, with `SLOG_LEVEL` to control verbosity and debug logging available where needed.
+Each subsystem now has its own logging, with `SLOG_LEVEL` to control verbosity and debug logging available where needed.
 
 ## 🧩 Config & API
 

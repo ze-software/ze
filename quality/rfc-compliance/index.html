@@ -162,44 +162,44 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-overview" id="rfc-enrolled-sections">
 <h3>Status of the RFC requirements included in automatic checks</h3>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="enrolled:must">Ze proven 2,168, Proof pending 831, OS testing gap 235, Exclusion unchecked 28, Not built 1,522</div>
+<div data-ze-rfc-bar="enrolled:must">Ze proven 2,155, Proof pending 848, OS testing gap 235, Exclusion unchecked 28, Not built 1,518</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="enrolled:overview">Ze MUST proven 2,168, SHOULD proven 118, Not owed 18, Proof pending 845, OS testing gap 236, Exclusion unchecked 30, Not assessed 1,827, Not built 1,556</div>
+<div data-ze-rfc-bar="enrolled:overview">Ze MUST proven 2,155, SHOULD proven 118, Not owed 18, Proof pending 862, OS testing gap 236, Exclusion unchecked 30, Not assessed 1,827, Not built 1,552</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Total</th><th>Ze proven</th><th>OS verified</th><th>Proof pending</th><th>OS testing gap</th><th>Exclusion unchecked</th><th>Not assessed</th><th>Not built</th><th>Not owed</th><th>MUST rows</th></tr></thead>
 <tbody>
 <tr><td>Total</td>
-<td><span data-ze-rfc="enrolled:must.ze-proven">2,168</span></td>
+<td><span data-ze-rfc="enrolled:must.ze-proven">2,155</span></td>
 <td><span data-ze-rfc="enrolled:must.os-verified">0</span></td>
-<td><span data-ze-rfc="enrolled:must.proof-pending">831</span></td>
+<td><span data-ze-rfc="enrolled:must.proof-pending">848</span></td>
 <td><span data-ze-rfc="enrolled:must.os-gap">235</span></td>
 <td><span data-ze-rfc="enrolled:must.exclusion-unchecked">28</span></td>
 <td><span data-ze-rfc="enrolled:must.not-assessed">0</span></td>
-<td><span data-ze-rfc="enrolled:must.not-built">1,522</span></td>
+<td><span data-ze-rfc="enrolled:must.not-built">1,518</span></td>
 <td><span data-ze-rfc="enrolled:must.not-owed">18</span></td>
 <td><span data-ze-rfc="enrolled:must.total">4,802</span></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p id="rfc-enrolled-check">Check: <span data-ze-rfc="enrolled:must.ze-proven">2,168</span> + <span data-ze-rfc="enrolled:must.os-verified">0</span> + <span data-ze-rfc="enrolled:must.proof-pending">831</span> + <span data-ze-rfc="enrolled:must.os-gap">235</span> + <span data-ze-rfc="enrolled:must.exclusion-unchecked">28</span> + <span data-ze-rfc="enrolled:must.not-assessed">0</span> + <span data-ze-rfc="enrolled:must.not-built">1,522</span> + <span data-ze-rfc="enrolled:must.not-owed">18</span> = <span data-ze-rfc="enrolled:must.total">4,802</span> mandatory requirements: the MUST bar&#39;s sections and the requirements that do not apply add up to all mandatory requirements in the RFCs whose requirement lists have been reviewed.</p>
+<p id="rfc-enrolled-check">Check: <span data-ze-rfc="enrolled:must.ze-proven">2,155</span> + <span data-ze-rfc="enrolled:must.os-verified">0</span> + <span data-ze-rfc="enrolled:must.proof-pending">848</span> + <span data-ze-rfc="enrolled:must.os-gap">235</span> + <span data-ze-rfc="enrolled:must.exclusion-unchecked">28</span> + <span data-ze-rfc="enrolled:must.not-assessed">0</span> + <span data-ze-rfc="enrolled:must.not-built">1,518</span> + <span data-ze-rfc="enrolled:must.not-owed">18</span> = <span data-ze-rfc="enrolled:must.total">4,802</span> mandatory requirements: the MUST bar&#39;s sections and the requirements that do not apply add up to all mandatory requirements in the RFCs whose requirement lists have been reviewed.</p>
 <p id="rfc-enrolled-scope">Of the <span data-ze-rfc="enrolled:rfcs">204</span> RFCs included in automatic checks, <span data-ze-rfc="enrolled:not-walked">0</span> have not had their requirement lists reviewed, so their requirements are excluded from the figures above. Ze implements <span data-ze-rfc="enrolled:implemented">196</span> of these RFCs, each with a public support entry. The rfc/short/ directory holds <span data-ze-rfc="all:rfcs">242</span> summary files, including RFCs excluded from automatic checks and summaries that list no requirements. They list <span data-ze-rfc="all:requirements">7,834</span> requirements across all levels. These totals describe the requirement inventory. Until 2026-10-31 this page led with a count of mandatory requirements, including requirements with explanatory annotations, and showed the percentage of that total proven by tests. The sections above replace those figures by classifying each mandatory requirement of a reviewed RFC included in automatic checks in exactly one section.</p>
 </div>
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>6,570</strong><b>6,570 of 9,498 tests linked to requirements in RFCs included in automatic checks, 20 without a fault test and 116 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>6,536</strong><b>6,536 of 9,500 tests linked to requirements in RFCs included in automatic checks, 20 without a fault test and 150 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Compliance check result</span><strong>Failed</strong><b>144 unresolved check findings</b><p>whether ./le rfc check passes over this tree</p></article>
+<article class="rfc-card rfc-bad"><span>Compliance check result</span><strong>Failed</strong><b>206 unresolved check findings</b><p>whether ./le rfc check passes over this tree</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Current test reviews</span><strong>2,261</strong><b>11 shifted, 15 stale, 2,515 missing</b><p>requirements a reader has judged and whose judgement is still current. A missing verdict is not claimed, and the shifted and stale ones are named on their own RFC&#39;s page</p></article>
+<article class="rfc-card rfc-neutral"><span>Current test reviews</span><strong>2,199</strong><b>55 shifted, 33 stale, 2,515 missing</b><p>requirements a reader has judged and whose judgement is still current. A missing verdict is not claimed, and the shifted and stale ones are named on their own RFC&#39;s page</p></article>
 </div>
 <p>No card above is a part of a population, so there is nothing to add up.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -226,8 +226,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </details>
 <div class="rfc-verdict rfc-bad">
 <p><span>Compliance check result</span><strong>Failed</strong></p>
-<p>144 unresolved check findings. Check results below lists them, up to the 25 shown on this page.</p>
-<p>Contributors reproduce it with <code>./le rfc check</code>. The check's original output reads <code>rfc-requirements: 144 violation(s)</code>.</p>
+<p>206 unresolved check findings. Check results below lists them, up to the 25 shown on this page.</p>
+<p>Contributors reproduce it with <code>./le rfc check</code>. The check's original output reads <code>rfc-requirements: 206 violation(s)</code>.</p>
 </div>
 <section><h2>Coverage by profile</h2>
 <p class="rfc-lead">A profile groups the RFCs one kind of deployment needs. If you are evaluating Ze for one role, its profile page gives the figures for that role alone.</p>
@@ -273,7 +273,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Declared gaps</th><th>Count</th></tr></thead>
 <tbody>
 <tr><td>Requirements declared as gaps</td>
-<td><strong>1,495</strong></td>
+<td><strong>1,491</strong></td>
 </tr>
 <tr><td>RFCs declaring a gap</td>
 <td><strong>132</strong></td>
@@ -429,7 +429,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Test tags</td>
 <td><code>internal/</code>, <code>pkg/</code>, <code>test/</code></td>
-<td>9,817 resolved tags</td>
+<td>9,819 resolved tags</td>
 </tr>
 <tr><td>Public ledger</td>
 <td><code>rfc/short/*.md</code>, the <code>| Support |</code> Meta row</td>
@@ -437,7 +437,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Semantic audits</td>
 <td><code>rfc/audit/*/*.json</code></td>
-<td>2,261 fresh, 11 shifted, 15 stale, 2,515 missing</td>
+<td>2,199 fresh, 55 shifted, 33 stale, 2,515 missing</td>
 </tr>
 <tr><td>Pre-commit verification</td>
 <td><code>internal/le/verify/engine/stages.go</code></td>
@@ -455,10 +455,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p class="rfc-lead">Compliance is checked in several groups. Each line below says what one group verifies and whether it passed, and for a group that failed, what that means for the figures. The raw findings, written for Ze&#39;s contributors, are in the collapsed block after the list.</p>
 <ul class="rfc-check-groups">
 <li class="rfc-ok"><strong>Requirement lists:</strong> Passed. Each RFC&#39;s requirement list is readable and consistent: requirement identifiers are not reused or lost, each requirement quotes the RFC text it cites, and the links it declares between RFCs and profiles agree with the RFC texts.</li>
-<li class="rfc-bad"><strong>Test evidence:</strong> Failed, 8 problems. Every gated MUST-level requirement has its tests, or an annotation that says why not, test evidence already recorded is not lost, and every test that claims a requirement compiles and is named for what it covers. What this means: The test evidence for a requirement is missing, lost, or not where it is claimed to be.</li>
+<li class="rfc-bad"><strong>Test evidence:</strong> Failed, 5 problems. Every gated MUST-level requirement has its tests, or an annotation that says why not, test evidence already recorded is not lost, and every test that claims a requirement compiles and is named for what it covers. What this means: The test evidence for a requirement is missing, lost, or not where it is claimed to be.</li>
 <li class="rfc-ok"><strong>Requirement annotations:</strong> Passed. Every annotation that excuses a requirement from Ze&#39;s own tests still names code that exists, quotes the RFC sentence it relies on, or names a verified blocking kernel entry in the Linux limitations register with evidence for that exact requirement at the shipped kernel version.</li>
 <li class="rfc-ok"><strong>Published ledger rows:</strong> Passed. Every enrolled RFC with an unmet requirement renders a public row that discloses it, a public row never disappears while its summary remains, and each summary&#39;s enrolment disposition gives a reason a reviewer can check.</li>
-<li class="rfc-bad"><strong>Reviewer verdicts:</strong> Failed, 39 problems. Each reviewer verdict recorded on a requirement is well formed and still describes the code and tests it judged. What this means: A reviewer verdict is malformed or out of date, and that requirement must be reviewed again before the verdict counts.</li>
+<li class="rfc-bad"><strong>Reviewer verdicts:</strong> Failed, 104 problems. Each reviewer verdict recorded on a requirement is well formed and still describes the code and tests it judged. What this means: A reviewer verdict is malformed or out of date, and that requirement must be reviewed again before the verdict counts.</li>
 <li class="rfc-bad"><strong>Recorded breaks:</strong> Failed, 97 problems. Each recorded break still matches the test, the claim and the code it was recorded against, and no recorded proof is lost. What this means: A test&#39;s proof is missing or no longer matches what it rests on, so it is not counted as proven by a recorded break.</li>
 <li class="rfc-ok"><strong>Reviews of RFC text:</strong> Passed. Each sign-off of a sentence-by-sentence review of an RFC&#39;s text is valid and current.</li>
 </ul>
@@ -467,30 +467,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>RFC</th><th>Requirement</th><th>Level</th><th>What is wrong</th><th>The requirement</th></tr></thead>
 <tbody>
-<tr><td>RFC 1661</td>
-<td><a href="rfc1661/#rfc1661-4.6-1"><code>RFC1661-4.6-1</code></a></td>
-<td>MUST</td>
-<td>is annotated {gap} and IS tested, so the annotation is stale</td>
-<td>The Restart timer MUST be configurable (§4.6)</td>
-</tr>
-<tr><td>RFC 1661</td>
-<td><a href="rfc1661/#rfc1661-4.6-2"><code>RFC1661-4.6-2</code></a></td>
-<td>MUST</td>
-<td>is annotated {gap} and IS tested, so the annotation is stale</td>
-<td>Max-Terminate MUST be configurable (§4.6)</td>
-</tr>
-<tr><td>RFC 1661</td>
-<td><a href="rfc1661/#rfc1661-4.6-3"><code>RFC1661-4.6-3</code></a></td>
-<td>MUST</td>
-<td>is annotated {gap} and IS tested, so the annotation is stale</td>
-<td>Max-Configure MUST be configurable (§4.6)</td>
-</tr>
-<tr><td>RFC 1661</td>
-<td><a href="rfc1661/#rfc1661-4.6-4"><code>RFC1661-4.6-4</code></a></td>
-<td>MUST</td>
-<td>is annotated {gap} and IS tested, so the annotation is stale</td>
-<td>Max-Failure MUST be configurable (§4.6)</td>
-</tr>
 <tr><td>RFC 9234</td>
 <td><a href="rfc9234/#rfc9234-5-9"><code>RFC9234-5-9</code></a></td>
 <td>MUST NOT</td>
@@ -513,6 +489,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><code>-</code></td>
 <td>-</td>
 <td>internal/component/ike/engine/mh_selector_boundary_integration_linux_test.go: test file name: it carries a naming marker but is not named for any RFC: delete the marker</td>
+<td>-</td>
+</tr>
+<tr><td>-</td>
+<td><code>-</code></td>
+<td>-</td>
+<td>internal/le/scratch: `go vet` cannot type-check this package, and a package holding RFC requirement tags depends on it, so those tests cannot run either. go vet said: internal/le/scratch/livetrim.go:176:28: undefined: session.TreeIdle / internal/le/scratch/livetrim.go:298:18: undefined: session.TreeIdle / internal/le/scratch/livetrim.go:391:28: undefined: session.TreeIdle / internal/le/scratch/livetrim.go:546:20: undefined: treeIdle. Fix the package so `./le verify deps unit-cached` compiles it, then re-run `./le rfc check`</td>
 <td>-</td>
 </tr>
 <tr><td>-</td>
@@ -578,49 +560,67 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
-<td>rfc/short/rfc1661.md:715: RFC1661-4.4-2 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/ppp/rfc1661_configured_restart_test.go::TestConfiguredLCPZeroRestartPeriod (func-scoped), internal/component/l2tp/ppp/rfc1661_configured_restart_test.go::TestConfiguredLCPZeroRestartPeriod#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1661 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
+<td>rfc/short/rfc1332.md:348: RFC1332-2.1-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/ncp_test.go::TestIPCPNoAddressBeforeOpened, internal/component/l2tp/ppp/ncp_test.go::TestIPResponseConfiguresInterface), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1332</td>
 <td>-</td>
 </tr>
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
-<td>rfc/short/rfc2661.md:586: RFC2661-5.8-8 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/config.go::ExtractParameters (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc2661 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
+<td>rfc/short/rfc1332.md:349: RFC1332-2.1-3 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/ppp/rfc1332_mtu_test.go::TestIPMTUInstalledFromNegotiatedMRU (func-scoped), internal/component/l2tp/ppp/rfc1332_mtu_test.go::TestIPMTUInstalledFromNegotiatedMRU#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1332 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
 <td>-</td>
 </tr>
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
-<td>rfc/short/rfc3948.md:216: RFC3948-3.1.2-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/le/interoplab/ipsec/checkers.go::checkNATTTransportInnerChecksum, internal/le/interoplab/ipsec/checkers.go::checkNATTTunnelInnerChecksum), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc3948</td>
+<td>rfc/short/rfc1332.md:350: RFC1332-2.1-4 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/ppp/rfc1332_mtu_test.go::TestIPMTUInstalledFromNegotiatedMRU (func-scoped), internal/component/l2tp/ppp/rfc1332_mtu_test.go::TestIPMTUInstalledFromNegotiatedMRU#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1332 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
 <td>-</td>
 </tr>
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
-<td>rfc/short/rfc4301.md:472: RFC4301-4.2-1 has a STALE audit verdict -- what it judged changed: internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc4301 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
+<td>rfc/short/rfc1334.md:235: RFC1334-1-1 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/ppp/auth_dispatch_test.go::TestAuthProtoRejectClearsMethod (func-scoped), internal/component/l2tp/ppp/auth_dispatch_test.go::TestLocalCONFREQAdvertisesAuthMethod (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1334 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
 <td>-</td>
 </tr>
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
-<td>rfc/short/rfc4301.md:476: RFC4301-4.4.2-1 has a STALE audit verdict -- what it judged changed: internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy (func-scoped), internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc4301 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
+<td>rfc/short/rfc1334.md:236: RFC1334-x-1 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestConfiguredPAPStillOffersCHAPFirst (func-scoped), internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestConfiguredPAPStillOffersCHAPFirst#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1334 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
 <td>-</td>
 </tr>
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
-<td>rfc/short/rfc4301.md:479: RFC4301-5.2-1 has a STALE audit verdict -- what it judged changed: internal/component/ike/engine/apply.go::applyConfig (func-scoped), internal/component/ike/engine/apply.go::releaseSPD (func-scoped), internal/component/ike/engine/unmatched.go::installUnmatched (func-scoped), internal/component/ike/engine/unmatched_xfrm_interface.go::installXFRMInterfaceEntries (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc4301 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
+<td>rfc/short/rfc1661.md:653: RFC1661-2-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661CompliantProtocolRecognized, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NonCompliantProtocolTreatedUnrecognized), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661</td>
 <td>-</td>
 </tr>
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
-<td>rfc/short/rfc4301.md:480: RFC4301-5.2-2 has a STALE audit verdict -- the REQUIREMENT TEXT or declared partial scope changed since it was judged, so every judgement under it is void. Re-read rfc4301 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
+<td>rfc/short/rfc1661.md:657: RFC1661-6-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientInvalidOptionLengthDrawsNak, internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientInvalidOptionLengthDrawsNak#2), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661</td>
+<td>-</td>
+</tr>
+<tr><td>-</td>
+<td><code>-</code></td>
+<td>-</td>
+<td>rfc/short/rfc1661.md:658: RFC1661-6-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRequestPastEndSilentlyDiscarded, internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRequestPastEndSilentlyDiscarded#2), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661</td>
+<td>-</td>
+</tr>
+<tr><td>-</td>
+<td><code>-</code></td>
+<td>-</td>
+<td>rfc/short/rfc1661.md:660: RFC1661-3.1-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NCPConfiguresEachFamilySeparately, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoNCPPacketsWhenNoNetworkProtocol), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661</td>
+<td>-</td>
+</tr>
+<tr><td>-</td>
+<td><code>-</code></td>
+<td>-</td>
+<td>rfc/short/rfc1661.md:662: RFC1661-3.5-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661AuthProtocolRequestedDuringEstablishment, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoAuthProtocolWhenNotDesired), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc1661</td>
 <td>-</td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>119 further findings not shown here. The whole list is in data/rfc-compliance.json, and each one is on its own RFC&#39;s page under the requirement it names.</p>
+<p>181 further findings not shown here. The whole list is in data/rfc-compliance.json, and each one is on its own RFC&#39;s page under the requirement it names.</p>
 </details>
 </section>
 <section id="rfc-list"><h2>RFCs included in automatic checks</h2>
@@ -628,28 +628,28 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-overview" id="rfc-overview">
 <h3 id="rfc-overview-title">Every RFC listed</h3>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="all:must">Ze proven 2,222, Proof pending 845, OS testing gap 235, Exclusion unchecked 28, Not assessed 191, Not built 1,632</div>
+<div data-ze-rfc-bar="all:must">Ze proven 2,209, Proof pending 862, OS testing gap 235, Exclusion unchecked 28, Not assessed 191, Not built 1,628</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="all:overview">Ze MUST proven 2,222, SHOULD proven 123, Not owed 18, Proof pending 859, OS testing gap 236, Exclusion unchecked 30, Not assessed 2,369, Not built 1,666</div>
+<div data-ze-rfc-bar="all:overview">Ze MUST proven 2,209, SHOULD proven 123, Not owed 18, Proof pending 876, OS testing gap 236, Exclusion unchecked 30, Not assessed 2,369, Not built 1,662</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Total</th><th>Ze proven</th><th>OS verified</th><th>Proof pending</th><th>OS testing gap</th><th>Exclusion unchecked</th><th>Not assessed</th><th>Not built</th><th>Not owed</th><th>MUST rows</th></tr></thead>
 <tbody>
 <tr><td>Total</td>
-<td><span data-ze-rfc="all:must.ze-proven">2,222</span></td>
+<td><span data-ze-rfc="all:must.ze-proven">2,209</span></td>
 <td><span data-ze-rfc="all:must.os-verified">0</span></td>
-<td><span data-ze-rfc="all:must.proof-pending">845</span></td>
+<td><span data-ze-rfc="all:must.proof-pending">862</span></td>
 <td><span data-ze-rfc="all:must.os-gap">235</span></td>
 <td><span data-ze-rfc="all:must.exclusion-unchecked">28</span></td>
 <td><span data-ze-rfc="all:must.not-assessed">191</span></td>
-<td><span data-ze-rfc="all:must.not-built">1,632</span></td>
+<td><span data-ze-rfc="all:must.not-built">1,628</span></td>
 <td><span data-ze-rfc="all:must.not-owed">18</span></td>
 <td><span data-ze-rfc="all:must.total">5,171</span></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p id="rfc-overview-check">Check: <span data-ze-rfc="all:must.ze-proven">2,222</span> + <span data-ze-rfc="all:must.os-verified">0</span> + <span data-ze-rfc="all:must.proof-pending">845</span> + <span data-ze-rfc="all:must.os-gap">235</span> + <span data-ze-rfc="all:must.exclusion-unchecked">28</span> + <span data-ze-rfc="all:must.not-assessed">191</span> + <span data-ze-rfc="all:must.not-built">1,632</span> + <span data-ze-rfc="all:must.not-owed">18</span> = <span data-ze-rfc="all:must.total">5,171</span> mandatory requirements: the MUST bar&#39;s sections and the requirements that do not apply add up to all mandatory requirements in the RFCs whose requirement lists have been reviewed.</p>
+<p id="rfc-overview-check">Check: <span data-ze-rfc="all:must.ze-proven">2,209</span> + <span data-ze-rfc="all:must.os-verified">0</span> + <span data-ze-rfc="all:must.proof-pending">862</span> + <span data-ze-rfc="all:must.os-gap">235</span> + <span data-ze-rfc="all:must.exclusion-unchecked">28</span> + <span data-ze-rfc="all:must.not-assessed">191</span> + <span data-ze-rfc="all:must.not-built">1,628</span> + <span data-ze-rfc="all:must.not-owed">18</span> = <span data-ze-rfc="all:must.total">5,171</span> mandatory requirements: the MUST bar&#39;s sections and the requirements that do not apply add up to all mandatory requirements in the RFCs whose requirement lists have been reviewed.</p>
 <p id="rfc-overview-scope"><span data-ze-rfc="all:rfcs">242</span> RFCs, of which <span data-ze-rfc="all:not-walked">13</span> have not had their requirement lists reviewed and are excluded from the figures.</p>
 </div>
 <div class="rfc-filter" id="rfc-filter" hidden>
@@ -753,8 +753,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr data-rfc="rfc1332"><td><a href="rfc1332/"><code>RFC 1332</code></a> The PPP Internet Protocol Control Protocol (IPCP)</td>
 <td>IPCP</td>
-<td><div data-ze-rfc-bar="rfc1332:must">Ze proven 8</div></td>
-<td><div data-ze-rfc-bar="rfc1332:overview">Ze MUST proven 8, Not assessed 6</div></td>
+<td><div data-ze-rfc-bar="rfc1332:must">Ze proven 6, Proof pending 2</div></td>
+<td><div data-ze-rfc-bar="rfc1332:overview">Ze MUST proven 6, Proof pending 2, Not assessed 6</div></td>
 <td>8</td>
 <td>0</td>
 <td>0</td>
@@ -762,8 +762,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr data-rfc="rfc1334"><td><a href="rfc1334/"><code>RFC 1334</code></a> PPP Authentication Protocols</td>
 <td>PAP</td>
-<td><div data-ze-rfc-bar="rfc1334:must">Ze proven 13</div></td>
-<td><div data-ze-rfc-bar="rfc1334:overview">Ze MUST proven 13, Not assessed 3</div></td>
+<td><div data-ze-rfc-bar="rfc1334:must">Ze proven 12, Proof pending 1</div></td>
+<td><div data-ze-rfc-bar="rfc1334:overview">Ze MUST proven 12, Proof pending 1, Not assessed 3</div></td>
 <td>13</td>
 <td>0</td>
 <td>0</td>
@@ -780,10 +780,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr data-rfc="rfc1661"><td><a href="rfc1661/"><code>RFC 1661</code></a> The Point-to-Point Protocol (PPP)</td>
 <td>PPP LCP</td>
-<td><div data-ze-rfc-bar="rfc1661:must">Ze proven 42, Proof pending 15, OS testing gap 2, Not built 17</div></td>
-<td><div data-ze-rfc-bar="rfc1661:overview">Ze MUST proven 42, SHOULD proven 2, Proof pending 16, OS testing gap 2, Not assessed 22, Not built 17</div></td>
+<td><div data-ze-rfc-bar="rfc1661:must">Ze proven 35, Proof pending 26, OS testing gap 2, Not built 13</div></td>
+<td><div data-ze-rfc-bar="rfc1661:overview">Ze MUST proven 35, SHOULD proven 2, Proof pending 27, OS testing gap 2, Not assessed 22, Not built 13</div></td>
 <td>76</td>
-<td>17</td>
+<td>13</td>
 <td>0</td>
 <td>0</td>
 </tr>
@@ -798,8 +798,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr data-rfc="rfc1994"><td><a href="rfc1994/"><code>RFC 1994</code></a> PPP Challenge Handshake Authentication Protocol (CHAP)</td>
 <td>PPP CHAP (MD5)</td>
-<td><div data-ze-rfc-bar="rfc1994:must">Ze proven 8, Proof pending 6, Not built 2</div></td>
-<td><div data-ze-rfc-bar="rfc1994:overview">Ze MUST proven 8, SHOULD proven 2, Proof pending 6, Not assessed 9, Not built 2</div></td>
+<td><div data-ze-rfc-bar="rfc1994:must">Ze proven 6, Proof pending 8, Not built 2</div></td>
+<td><div data-ze-rfc-bar="rfc1994:overview">Ze MUST proven 6, SHOULD proven 2, Proof pending 8, Not assessed 9, Not built 2</div></td>
 <td>16</td>
 <td>2</td>
 <td>0</td>
@@ -1419,8 +1419,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr data-rfc="rfc5072"><td><a href="rfc5072/"><code>RFC 5072</code></a> IP Version 6 over PPP</td>
 <td>IPv6CP</td>
-<td><div data-ze-rfc-bar="rfc5072:must">Ze proven 10, Proof pending 2, Not built 4</div></td>
-<td><div data-ze-rfc-bar="rfc5072:overview">Ze MUST proven 10, Proof pending 2, Not assessed 12, Not built 4</div></td>
+<td><div data-ze-rfc-bar="rfc5072:must">Ze proven 9, Proof pending 3, Not built 4</div></td>
+<td><div data-ze-rfc-bar="rfc5072:overview">Ze MUST proven 9, Proof pending 3, Not assessed 12, Not built 4</div></td>
 <td>16</td>
 <td>4</td>
 <td>0</td>
@@ -2869,7 +2869,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 15 November 2026 00:14 UTC</span>
+                    <span class="footer-published">Published 15 November 2026 01:35 UTC</span>
                 </div>
             </div>
         </footer>

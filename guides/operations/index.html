@@ -79,6 +79,10 @@
 <li><a href="#key-variables">Key Variables</a></li>
 </ol></li>
 <li><a href="#cli-flags">CLI Flags</a></li>
+<li><a href="#install-and-remove-a-standalone-linux-daemon">Install and remove a standalone Linux daemon</a>
+<ol>
+<li><a href="#upgrade-and-recover-a-standalone-installation">Upgrade and recover a standalone installation</a></li>
+</ol></li>
 <li><a href="#systemd">systemd</a></li>
 <li><a href="#troubleshooting">Troubleshooting</a>
 <ol>
@@ -206,8 +210,13 @@ Initialization uses a private random staging directory and a no-replace rename.<
 <h3 id="offline-data-access">Offline data access</h3>
 <p><code>ze data --path &lt;folder&gt;/database</code> addresses a tree, while an explicit <code>.zefs</code>
 file addresses a blob artifact. Run mutating commands only after stopping the
-owning daemon and as the store owner. These commands expose decoded values,
-never the tree's framing bytes.</p>
+owning daemon and as the store owner, except <code>ze data rm</code>, <code>ze data write</code> and
+<code>ze data import</code>: while the daemon runs, <code>rm</code> sends each removal to that daemon
+as <code>delete data key &lt;key&gt;</code>, <code>write</code> sends the file as
+<code>update data key &lt;key&gt; content &lt;base64&gt;</code>, <code>import</code> sends each file as
+<code>update data config name &lt;name&gt; content &lt;base64&gt;</code>, and each prints the same
+lines. These
+commands expose decoded values, never the tree's framing bytes.</p>
 <table>
 <thead>
 <tr>
@@ -226,15 +235,15 @@ never the tree's framing bytes.</p>
 </tr>
 <tr>
 <td><code>ze data write &lt;key&gt; &lt;file&gt;</code></td>
-<td>Write a file's bytes into a raw key (<code>-</code> reads stdin)</td>
+<td>Write a file's bytes into a raw key (<code>-</code> reads stdin); while ze runs, through the daemon, which writes runtime-state keys only, up to 195,840 bytes (see <code>update data key</code>)</td>
 </tr>
 <tr>
 <td><code>ze data import &lt;file&gt;...</code></td>
-<td>Import files as active configs</td>
+<td>Import each file as the config named by its file name; a config that exists gets a new active version, the previous one kept as rollback; while ze runs, through the daemon, up to 195,840 bytes per file (see <code>update data config</code>)</td>
 </tr>
 <tr>
-<td><code>ze data rm &lt;key&gt;</code></td>
-<td>Remove a key</td>
+<td><code>ze data rm &lt;key&gt;...</code></td>
+<td>Remove keys; while ze runs, through the daemon, which removes runtime-state keys only (see <code>delete data key</code>)</td>
 </tr>
 <tr>
 <td><code>ze data registered</code></td>
@@ -242,11 +251,11 @@ never the tree's framing bytes.</p>
 </tr>
 <tr>
 <td><code>ze data check</code></td>
-<td>Check integrity; exits 0 clean, 1 corrupt, 2 unreadable</td>
+<td>Check integrity; exits 0 clean, 1 corrupt, 2 unreadable; runs while ze runs</td>
 </tr>
 <tr>
 <td><code>ze data repair --output &lt;path&gt;</code></td>
-<td>Copy recoverable keys into a new destination</td>
+<td>Copy recoverable keys into a new destination; runs while ze runs, and installing the copy needs ze stopped</td>
 </tr>
 <tr>
 <td><code>ze data backup &lt;file&gt; [spare &lt;n&gt;]</code></td>
@@ -273,12 +282,35 @@ never the tree's framing bytes.</p>
 <td>On a hub: restore the config it serves to managed client <code>&lt;name&gt;</code>; the hub pushes <code>config-changed</code> and does not reload</td>
 </tr>
 <tr>
+<td><code>delete data key &lt;key&gt;</code></td>
+<td>Live removal of one runtime-state key (under <code>meta/</code> outside) through the daemon's own store; a configuration key, a key whose granted plugin runs, and an absent key are refused. <span class="ev-src"><span class="ev-ref"><code>meta/config/</code></span></span></td>
+</tr>
+<tr>
+<td><code>update data key &lt;key&gt; content &lt;base64&gt;</code></td>
+<td>Live write of one runtime-state key, created or replaced with the decoded bytes; <code>content</code> is at most 261,120 base64 characters (195,840 bytes, one SSH packet with the command); refused as <code>delete data key</code> refuses, and recorded with <code>&lt;redacted&gt;</code> for the content</td>
+</tr>
+<tr>
+<td><code>update data config name &lt;name&gt; content &lt;base64&gt;</code></td>
+<td>Live import of one config as a new version: for the daemon's own config, staged and active only when the reload accepts it, refused while a <code>commit confirmed</code> window is open or a change is staged; for another name, committed with no reload; <code>content</code> has the bound of <code>update data key</code>, and a larger config is restored with <code>request data restore path &lt;file&gt; config</code></td>
+</tr>
+<tr>
+<td><code>request data repair path &lt;absolute-output&gt;</code></td>
+<td>Live salvage: the daemon writes a new store holding every entry that reads, on its own host, with its writes held for the walk; answers the recovered and skipped counts</td>
+</tr>
+<tr>
+<td><code>show data check</code></td>
+<td>The store's integrity verdict through the daemon: the entry counts and one row per corrupt entry and per history finding</td>
+</tr>
+<tr>
 <td><code>ze data encode [--crc|--header] [--cap N] &lt;string|-&gt;</code></td>
 <td>Encode a netcapstring for inspection</td>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/config/storage/cli/main.go -- subcommandHandlers -->
+<!-- source: internal/component/config/storage/cli/main.go -- subcommandHandlers, removeKeysThroughDaemon, writeKeyThroughDaemon -->
+<!-- source: internal/component/config/storage/cli/data_rpc.go -- handleDataKeyDelete -->
+<!-- source: internal/component/config/storage/cli/data_rpc_repair.go -- handleDataRepair -->
+<!-- source: internal/component/config/storage/cli/storage_data.go -- dataCheck -->
 <h3 id="connection">Connection</h3>
 <pre><code class="language-bash">ze cli                         # interactive CLI
 ze cli -c "show bgp peer list"  # single command
@@ -286,15 +318,44 @@ ze show bgp peer list                # read-only shorthand
 ze cli -c "request peer transit teardown 2" # one-shot command
 </code></pre>
 <!-- source: internal/component/cli/client/main.go -- Run -->
-<h3 id="override-hostport">Override Host/Port</h3>
-<pre><code class="language-bash"># Environment variables
-export ZE_SSH_HOST=10.0.0.1
-export ZE_SSH_PORT=2222
-
-# Per-command flags
-ze signal reload --host 10.0.0.1 --port 2222
+<p>An operator can use a standalone or downloaded Ze binary without creating a
+local database. Supply the remote endpoint and username explicitly, with the
+password in <code>ZE_SSH_PASSWORD</code> or the interactive password prompt:</p>
+<pre><code class="language-bash">ZE_SSH_PASSWORD='your-password' ./ze cli --remote 127.0.0.1:2222 --user operator -c "show version"
 </code></pre>
-<!-- source: internal/component/cli/sshclient/client.go -- ze.ssh.host, ze.ssh.port env vars -->
+<p>An available local store is an optional credential source. A nonempty store
+that is corrupt or unsafe still causes an error; explicit credentials do not
+bypass its validation or the remote host-key checks.</p>
+<!-- source: internal/component/cli/sshclient/client.go -- readCredentials, openStoreIfReadable -->
+<h3 id="override-hostport">Override Host/Port</h3>
+<p>An SSH tunnel is an alternative when Ze listens only on the device's loopback
+interface. The example below assumes
+the daemon's SSH listener is <code>127.0.0.1:2222</code> on a Linux host reachable through
+the host's ordinary SSH service:</p>
+<pre><code class="language-bash"># Keep this tunnel running in a separate terminal.
+ssh -N -L 12222:127.0.0.1:2222 operator@router.example
+
+# In the operator terminal:
+export ZE_SSH_HOST=127.0.0.1
+export ZE_SSH_PORT=12222
+export ZE_SSH_USERNAME=operator
+
+# Prompts for the Ze account's password unless ZE_SSH_PASSWORD is set.
+ze signal reload --host 127.0.0.1 --port 12222
+</code></pre>
+<p>For direct remote access, Ze verifies the server against the current user's
+OpenSSH <code>~/.ssh/known_hosts</code>. Use <code>ZE_SSH_KNOWN_HOSTS=/absolute/path/to/known_hosts</code>
+to select another trust file. Provision that file from a trusted source and
+compare the server fingerprint with your trusted device inventory or operator
+before trusting it. Ze refuses unknown, changed, or revoked keys and never
+enrolls a key automatically. OpenSSH hashed hosts and <code>[host]:port</code> entries
+work through the same parser. Loopback keeps its existing local trust policy;
+<code>ze.ssh.insecure</code> remains an explicit verification override.</p>
+<pre><code class="language-bash">ZE_SSH_KNOWN_HOSTS="$HOME/.ssh/known_hosts" ZE_SSH_PASSWORD='your-password' \
+    ./ze cli --remote router.example:2222 --user operator -c "show version"
+</code></pre>
+<!-- source: internal/component/cli/sshclient/host_keys.go -- knownHostsPath, knownHostKeyCallback, knownHostKeyError -->
+<!-- source: internal/component/cli/sshclient/client.go -- hostKeyCallback, resolveHostPort -->
 <h2 id="signals">Signals</h2>
 <h3 id="via-ssh-preferred">Via SSH (preferred)</h3>
 <table>
@@ -580,6 +641,11 @@ ze env get ze.log              # details for one var
 <td>Override SSH port for CLI commands</td>
 </tr>
 <tr>
+<td><code>ze.ssh.known.hosts</code></td>
+<td><span class="ev-src"><span class="ev-ref"><code>~/.ssh/known_hosts</code></span></span></td>
+<td>OpenSSH trust file for remote SSH</td>
+</tr>
+<tr>
 <td><code>ze.config.dir</code></td>
 <td>--</td>
 <td>Override config directory</td>
@@ -588,6 +654,7 @@ ze env get ze.log              # details for one var
 </table>
 <!-- source: internal/core/slogutil/slogutil.go -- ze.log registration -->
 <!-- source: internal/component/cli/sshclient/client.go -- ze.ssh.host/port -->
+<!-- source: internal/component/cli/sshclient/host_keys.go -- ze.ssh.known.hosts -->
 <!-- source: internal/core/paths/paths.go -- ze.config.dir -->
 <h2 id="cli-flags">CLI Flags</h2>
 <table>
@@ -629,6 +696,109 @@ ze env get ze.log              # details for one var
 </tbody>
 </table>
 <!-- source: cmd/ze/main.go -- global flag parsing -->
+<h2 id="install-and-remove-a-standalone-linux-daemon">Install and remove a standalone Linux daemon</h2>
+<p>From the directory containing the selected Ze executable, run:</p>
+<pre><code class="language-bash">sudo ./ze install
+</code></pre>
+<p>The default prefix is <code>/usr/local</code>. The installer prompts for the initial
+username, password, SSH address, SSH port and instance name. Keep the SSH
+address on loopback. The default listener is <code>127.0.0.1:2222</code>. This bootstrap
+does not configure the host's interfaces.</p>
+<!-- source: internal/plugins/local/native.go -- nativeRuntime.install, selectNativeTarget -->
+<!-- source: internal/plugins/init/main.go -- runInstallInit, runInitPublishedProfile -->
+<p>On a running systemd host, installation creates and starts the service.
+Connect with the account and store path the installer prints:</p>
+<pre><code class="language-bash">sudo -u ze env ZE_CONFIG_DIR=/etc/ze XDG_RUNTIME_DIR=/run/ze ze cli
+sudo -u ze env ZE_CONFIG_DIR=/etc/ze XDG_RUNTIME_DIR=/run/ze ze doctor
+</code></pre>
+<p>An existing private store, credentials and compatible administrator unit are
+preserved during repeat installation. Conflicting services, package ownership
+markers and symlink paths refuse installation before executable replacement.</p>
+<!-- source: internal/plugins/systemd/native.go -- nativeService.Preflight, nativeService.Install, nativeService.compatibleUnit -->
+<!-- source: internal/plugins/local/native.go -- nativeTarget.preflight, nativePath -->
+<p>Choose another prefix or foreground operation with:</p>
+<pre><code class="language-bash">./ze install --dry-run --prefix /opt/ze
+sudo ./ze install --prefix /opt/ze
+./ze install --prefix "$HOME/ze" --no-service
+"$HOME/ze/bin/ze" start
+</code></pre>
+<p>Without a running systemd manager, the installer also prints the foreground
+start command. A foreground daemon must be stopped before replacement or
+removal. <code>--no-service</code> does not bypass the store ownership lock.</p>
+<!-- source: internal/plugins/local/native.go -- nativeRuntime.install, nativeRuntime.selectedService, nativeRuntime.uninstall -->
+<!-- source: internal/plugins/systemd/native.go -- nativeService.Available -->
+<p>A service installation needs a root-owned executable path. Existing ancestors
+and the executable must not permit group or other write access. Use a
+protected prefix such as <code>/opt/ze</code>, or select <code>--no-service</code> for a user-owned
+prefix. Installation refuses conflicting runtime units, masks, indirect
+configuration sources and unsupported service execution overrides before
+changing files or service state.</p>
+<!-- source: internal/plugins/systemd/native_trust.go -- nativeService.trustedExecutable -->
+<!-- source: internal/plugins/systemd/native.go -- nativeService.Preflight, nativeService.compatibleUnit -->
+<!-- source: internal/plugins/systemd/native_unit.go -- nativeService.effectiveUnit, validateNativePolicy -->
+<p>To remove the default installation, run:</p>
+<pre><code class="language-bash">sudo ze uninstall
+</code></pre>
+<p>Removal asks for confirmation, stops and removes the selected service, and
+removes the executable. It retains <code>/etc/ze</code> and the service account.
+A stop failure retains the executable and service. Use the installation's
+prefix when removing a custom installation. <code>--yes</code> confirms removal in scripts.</p>
+<!-- source: internal/plugins/local/native.go -- nativeRuntime.uninstall -->
+<!-- source: internal/plugins/systemd/cmd_uninstall.go -- serviceRuntime.cmdUninstall -->
+<p>A foreground process that still owns the selected store also refuses removal.
+The installer takes the store lock before disabling or deleting the unit.
+That refusal preserves the previous service policy and resumes only a service
+that was active before the attempt.</p>
+<!-- source: internal/plugins/local/native.go -- nativeRuntime.uninstall -->
+<!-- source: internal/plugins/systemd/native.go -- nativeService.Stop, nativeStoppedService.Restore -->
+<p>Explicit purge also removes the selected config directory, including its
+backups. Copy required backups elsewhere first. The service account remains.</p>
+<pre><code class="language-bash">sudo ze uninstall --prefix /opt/ze --purge
+</code></pre>
+<!-- source: internal/plugins/local/native.go -- nativeRuntime.uninstall -->
+<h3 id="upgrade-and-recover-a-standalone-installation">Upgrade and recover a standalone installation</h3>
+<p>Keep the previous executable and a live store backup before upgrading:</p>
+<pre><code class="language-bash">sudo install -m 0755 /usr/local/bin/ze /var/tmp/ze-before-upgrade
+sudo -u ze env ZE_CONFIG_DIR=/etc/ze XDG_RUNTIME_DIR=/run/ze \
+  ze cli -c "request data backup path /etc/ze/pre-upgrade.zefs"
+</code></pre>
+<p>Choose a new backup filename when that file already exists. The backup
+command runs on the daemon and preserves the complete store in a private blob.</p>
+<!-- source: internal/component/config/storage/cli/data_rpc.go -- handleDataBackup -->
+<p>Run the new executable's native installer, then verify the running version
+and diagnostic results:</p>
+<pre><code class="language-bash">sudo ./ze install
+sudo -u ze env ZE_CONFIG_DIR=/etc/ze XDG_RUNTIME_DIR=/run/ze \
+  ze cli -c "show version"
+sudo -u ze env ZE_CONFIG_DIR=/etc/ze XDG_RUNTIME_DIR=/run/ze ze doctor
+</code></pre>
+<p>The installer stops an active managed service before replacement and starts it
+afterward. A previously inactive service remains inactive. It retains the store
+and compatible administrator service settings. A failed replacement restores
+the prior executable and resumes a service that was previously active.
+The existing binary is replaced atomically. Preserve the backup executable
+until the new version and required routes are verified.</p>
+<!-- source: internal/plugins/local/native.go -- nativeRuntime.install -->
+<!-- source: internal/plugins/local/cmd_install.go -- copyFile -->
+<!-- source: internal/plugins/systemd/native.go -- nativeService.Stop, nativeService.Install -->
+<!-- source: internal/plugins/local/native_replace.go -- nativeReplacement.restore, nativeRuntime.recoverInstall -->
+<p>To restore the previous executable with the current configuration, run its
+installer:</p>
+<pre><code class="language-bash">sudo /var/tmp/ze-before-upgrade install
+</code></pre>
+<!-- source: internal/plugins/local/native.go -- nativeRuntime.install -->
+<p>If configuration restoration is also required, stop the service first.
+Restore the saved store as its owner, then install the previous executable:</p>
+<pre><code class="language-bash">sudo systemctl stop ze.service
+sudo -u ze env ZE_CONFIG_DIR=/etc/ze \
+  /var/tmp/ze-before-upgrade data restore /etc/ze/pre-upgrade.zefs full
+sudo /var/tmp/ze-before-upgrade install
+</code></pre>
+<p>Full restoration retains the replaced tree as a recovery directory. Verify
+the restored version, login and routes after startup. Package-managed
+installations use their package manager for upgrade and removal.</p>
+<!-- source: internal/component/config/storage/cli/cmd_restore.go -- cmdRestoreFull -->
+<!-- source: internal/plugins/local/native.go -- nativeTarget.preflight -->
 <h2 id="systemd">systemd</h2>
 <p>Use <code>ze install systemd</code> on standard Linux hosts:</p>
 <pre><code class="language-bash">sudo ze init
@@ -681,8 +851,10 @@ LimitMEMLOCK=infinity
 WorkingDirectory=/etc/ze
 Environment=ZE_CONFIG_DIR=/etc/ze
 Environment=XDG_RUNTIME_DIR=/run/ze
-AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE
-CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE CAP_BPF
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE CAP_BPF
+# Host tuning may need CAP_SYS_NICE. Future VRF/netns support may need CAP_SYS_ADMIN.
+# Add those capabilities only when the configured feature requires them.
 NoNewPrivileges=true
 ProtectSystem=true
 ProtectHome=true
@@ -693,6 +865,10 @@ WantedBy=multi-user.target
 </code></pre>
 <!-- source: internal/plugins/systemd/cmd_install.go -- cmdInstall -->
 <!-- source: internal/plugins/systemd/unit.go -- buildUnitFile -->
+<p><code>CAP_BPF</code> is granted for the eBPF programs of the IPsec ESP form fast path,
+the IPsec application override guard and traffic-usage, which the kernel
+refuses to load without it.</p>
+<!-- source: internal/plugins/systemd/unit.go -- capabilities -->
 <h2 id="troubleshooting">Troubleshooting</h2>
 <h3 id="peer-wont-connect">Peer Won't Connect</h3>
 <pre><code>Symptom: peer stays in Connect/Active state
@@ -902,6 +1078,10 @@ ze signal quit                 # goroutine dump (kills daemon!)
                         <span class="page-sidebar-link-label">Quickstart</span>
                         <small>Start from a minimal working setup.</small>
                     </a>
+                    <a class="page-sidebar-link" href="../../guides/ai-agent/">
+                        <span class="page-sidebar-link-label">Use Ze with an AI agent</span>
+                        <small>Let Claude Code or Codex drive Ze for you.</small>
+                    </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
                         <small>Install Ze, create the store, and start SSH.</small>
@@ -931,7 +1111,7 @@ ze signal quit                 # goroutine dump (kills daemon!)
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 20:44 UTC</span>
                 </div>
             </div>
         </footer>

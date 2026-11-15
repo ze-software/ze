@@ -169,7 +169,7 @@ Headings, protocol and mode chips, card bodies and borders stay neutral. Explici
 
 `--sky-*`
 
-Operator surfaces: SSH CLI, YANG configuration, web workbench, looking glass.
+Management interfaces: SSH CLI, YANG configuration, web workbench, looking glass.
 
 **Routing**
 
@@ -307,9 +307,9 @@ Use `.journey-hero` for the shared navy page opening. Two-choice dispatch pages,
 
 A navy hero introduces the page with a clear title and useful context. Interior-page hero backgrounds reach the viewport edges while their content follows the shared page width. The homepage hero and proof panels stay within that width, with inner padding and rounded edges. Leave a gap before Latest news and distribute the product links equally across their row, using fewer columns on smaller screens.
 
-The homepage hero uses the shared `--hero-panel-surface` navy gradient in both themes. Only the outer hero paints that gradient; the inner panel and showcase chrome stay transparent, without an inner shadow or seams at either edge. Keep capability details in the left column and vertically center the copy and preview in their shared desktop row. The action and release-notice row follows directly below.
+The homepage hero uses the shared `--hero-panel-surface` navy gradient in both themes. Only the outer hero paints that gradient; the inner panel and showcase chrome stay transparent, without an inner shadow or seams at either edge. Vertically center the concise product overview, quickstart and demo actions, and pre-release notice beside the real terminal recording. Keep the actions and player controls visible in the initial laptop viewport. On phones, compact the opening and show the recording before its interface selector so readers can see the preview and Play action immediately. Preserve the detailed capability links below the project metrics, release callout and product map.
 
-The homepage's four starting actions fill the space beside the release callout in equal columns. Center each title and its supporting text within its column. Align the actions and release notice at the top, with the notice text at the mascot's top edge. At widths of 850px or less, use two equal columns and keep the text centered.
+The homepage's four project metrics share equal columns beside the release callout. Use prominent tabular values with compact labels and links to the underlying activity, plugin and command pages. Align the metrics and release callout at the top. At widths of 850px or less, put the metrics across the full row in two equal columns; let the release callout wrap below when space is limited.
 
 Separate standard homepage sections with spacing and no horizontal rules, and omit the final footer separator on the homepage. Use 2rem of top and bottom padding, reduced to 1.5rem at widths of 560px or less, with no added top margin. Section titles, including the proof and Try safely titles, share a 2rem font size, 700 weight, 1.25 line height and 0.5rem bottom margin. Reduce their font size to 1.65rem at widths of 560px or less. Stacked section titles and introductions have a 0.5rem gap. Keep the compact Latest news title and the hero and proof panels' separate spacing.
 
@@ -317,7 +317,7 @@ Keep homepage section containers, including Latest news, shadowless. Cards withi
 
 Proof cards share heading, detail and evidence rows. Align every evidence divider and the first line of its text to the same row boundary, even when another card's evidence wraps. Emphasise the generated figures with 2.2rem, tabular blue numerals; keep their labels neutral. Each description says what the tests do and check. Use plain terms such as state transitions and expected results. Label counts by their population: Go tests, end-to-end scenarios, fuzz targets and interop test images. These describe the test inventory; links explain the methods and scope. Preserve every metric and its destination.
 
-Place Regression prevention directly after Latest news. Explain how the test layers help catch changes that break existing behavior. Counts show the scale of the test suite; the linked evidence explains its coverage. The RFC card leads with the percentage of tracked MUST requirements tested, shows the tested and total counts together, and links to the requirement ledger. It does not present the RFC count as proof of full support. In the management panel's left column, put Why Ze first, followed by Manage Ze directly and the explanation of Ze's own SSH service. Do not add a Self-contained management badge or another standalone Why Ze section. Keep the architectural argument cards below the panel.
+Place Tests that catch bugs directly after Latest news. Explain how the test layers help catch changes that break existing behavior. Counts show the scale of the test suite; the linked evidence explains its coverage. The RFC card leads with the percentage of tracked MUST requirements tested, shows the tested and total counts together, and links to the requirements and test results. It does not present the RFC count as proof of full support. In the management panel's left column, put Why Ze first, followed by Manage Ze directly and the explanation of Ze's own SSH service. Do not add a Self-contained management badge or another standalone Why Ze section. Keep the architectural argument cards below the panel.
 
 The management section uses two equal columns: compact explanation, interface map and documentation links on the left; a real SSH recording on the right. Keep readable step labels beside the player, show its SSH introduction as the preview, start there on demand, and retain full-screen controls, the full session and the transcript. Stack the columns at widths of 960px or less. Leave 1.5rem below the filled lab/daemon/appliance section so it does not touch the following section.
 
@@ -396,6 +396,8 @@ Leave a 0.75rem gap below the trigger so an open panel does not crowd its label.
 ### Right menu
 
 Use `.page-sidebar` for nearby choices, related evidence, and next steps. Add entries to `data/page-links.json`. The `pageSidebar` function in `internal/le/site/nav.go` renders the menu, and the shared stylesheet controls its mobile layout.
+
+Give each link rounded corners using `--radius-md` and 0.65rem of padding on every side.
 
 ### Reader path first
 

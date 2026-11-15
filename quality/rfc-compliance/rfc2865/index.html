@@ -4,18 +4,18 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
-        <title>RFC 2865 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 2865: Remote Authentication Dial In User Service (RADIUS). 31 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
-        <meta property="og:title" content="RFC 2865 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 2865: Remote Authentication Dial In User Service (RADIUS). 31 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <title>RFC 2865 requirements and tests - Ze</title>
+        <meta name="description" content="RFC 2865: Remote Authentication Dial In User Service (RADIUS). 31 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:title" content="RFC 2865 requirements and tests - Ze" />
+        <meta property="og:description" content="RFC 2865: Remote Authentication Dial In User Service (RADIUS). 31 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="RFC 2865 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 2865: Remote Authentication Dial In User Service (RADIUS). 31 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:title" content="RFC 2865 requirements and tests - Ze" />
+        <meta name="twitter:description" content="RFC 2865: Remote Authentication Dial In User Service (RADIUS). 31 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -47,7 +47,7 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">RADIUS authentication</span>
     <h1 id="rfc-detail-title">RFC 2865 - Remote Authentication Dial In User Service (RADIUS)</h1>
-    <p>Every requirement this repository extracted from RFC 2865, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
+    <p>Every requirement listed for RFC 2865, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.</p>
 </div>
 <style>
 .rfc-table-wrap { overflow-x: auto; }
@@ -57,16 +57,25 @@
 .rfc-verdict p:last-child { margin-bottom: 0; }
 .rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
-.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
-.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: block; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
 .rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
-.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
-.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-card b { display: block; margin: 0; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: .5rem 0 0; color: var(--muted); font-size: .92rem; line-height: 1.6; }
+.rfc-card.rfc-total-card { grid-column: 1 / -1; display: grid; grid-template-columns: 15rem minmax(0, 1fr); column-gap: 1.5rem; align-items: start; }
+.rfc-card.rfc-total-card span, .rfc-card.rfc-total-card strong, .rfc-card.rfc-total-card b { grid-column: 1; }
+.rfc-card.rfc-total-card p { grid-column: 2; grid-row: 1 / span 3; margin: 0; }
+@media (max-width: 760px) {
+  .rfc-card-grid { grid-template-columns: minmax(0, 1fr); }
+  .rfc-card.rfc-total-card { display: block; }
+  .rfc-card.rfc-total-card p { margin: .5rem 0 0; }
+}
 .rfc-ok { border-left: 7px solid var(--green); }
 .rfc-neutral { border-left: 7px solid var(--line-strong); }
 .rfc-warn { border-left: 7px solid var(--amber); }
 .rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-card.rfc-total-card { background: var(--bg-soft); border: 1px solid var(--line-strong); box-shadow: none; }
 .rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
 .rfc-tape span { width: var(--w); min-width: 0; display: block; }
 .rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
@@ -87,6 +96,7 @@
 .rfc-swatch.rfc-neutral { background: var(--line-strong); }
 .rfc-swatch.rfc-warn { background: var(--amber); }
 .rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-swatch.rfc-total-card { background: var(--bg-soft); }
 .rfc-total td { border-top: 2px solid var(--line-strong); }
 .rfc-prose { max-width: 46rem; }
 ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
@@ -118,34 +128,34 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>26</strong><b>of 31 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>5</strong><b>of 31 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 31 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 31 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0</strong><b>of 31 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>77</strong><b>77 of 107 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>26</strong><b>of 31 mandatory requirements</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>5</strong><b>of 31 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 31 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 31 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 31 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>77</strong><b>77 of 107 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>31</strong><b>of 32 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 31 gated MUSTs</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 31 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 31 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 31 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 31 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 31 mandatory requirements</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 31 mandatory requirements</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 31 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 31 mandatory requirements</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 31 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit</p></article>
 </div>
-<p>The 9 counts marked as a part above are the whole of the 31 gated MUSTs: they add up to 31. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.</p>
+<h3>Totals</h3>
+<p>what the cards above are counted against</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-total-card"><span>Mandatory requirements (MUST level)</span><strong>31</strong><b>of 32 requirements this summary lists, at all levels</b><p>The RFC&#39;s MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements.</p></article>
+</div>
+<p>The 9 counts marked as a part above are the whole of the 31 mandatory requirements: they add up to 31. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
-<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
 <tbody>
-<tr><td>Gated MUSTs</td>
-<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
-</tr>
 <tr><td>Out of scope</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
 <td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
@@ -166,9 +176,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
-<tr><td>No test at all</td>
+<tr><td>Declared gap or no test</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+<td>green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
@@ -186,13 +196,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
 <td>neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption</td>
 </tr>
-<tr><td>Proven by a recorded break</td>
+<tr><td>Tests shown to detect a fault</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above</td>
+<td>green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
 <td><span class="rfc-swatch rfc-warn"></span> warn</td>
-<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current</td>
+</tr>
+<tr><td>Mandatory requirements (MUST level)</td>
+<td><span class="rfc-swatch rfc-total-card"></span> outlined</td>
+<td>outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad</td>
 </tr>
 </tbody>
 </table>
@@ -207,13 +221,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Public row</td>
 <td>RADIUS authentication</td>
 </tr>
-<tr><td>Enrolment</td>
-<td>Enrolled</td>
+<tr><td>Automatic checks</td>
+<td>Included</td>
 </tr>
 <tr><td>Requirements</td>
 <td>32</td>
 </tr>
-<tr><td>Gated MUST-level</td>
+<tr><td>Mandatory requirements (MUST level)</td>
 <td>31</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
@@ -225,7 +239,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
 </tr>
-<tr><td>Gated with no test</td>
+<tr><td>Mandatory requirements with no test and no annotation</td>
 <td>0</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
@@ -234,19 +248,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Test tags</td>
 <td>116</td>
 </tr>
-<tr><td>Tagged units</td>
+<tr><td>Tests linked to requirements</td>
 <td>107</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>22</td>
 </tr>
-<tr><td>Discrimination records</td>
+<tr><td>Fault test records</td>
 <td>77</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc2865.md</code></td>
 </tr>
-<tr><td>Requirement shard</td>
+<tr><td>Requirement table</td>
 <td><code>rfc/requirements/rfc2865.md</code></td>
 </tr>
 <tr><td>RFC text</td>
@@ -256,10 +270,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 </section>
-<section><h2>Enrolment</h2>
-<p>Enrolled: Remote Authentication Dial In User Service (RADIUS), ze as a RADIUS client/NAS: ten MUST-level requirements, all met in internal/component/radius (and l2tp/authradius). Six carry positive+negative tags: 3-1 (packet length 20..4096), 3-3 (Response Authenticator = MD5 over Code, Identifier, Length, Request Authenticator, attributes, and secret), 3-4 (verify the Response Authenticator before trusting a response), 5.2-1 (User-Password hidden via the MD5-with-shared-secret XOR chain), 5-2 (an attribute Length is bounded to 255 octets), and 3-5 (accept a response only from the server the request was sent to). Four are {single-polarity: positive}: 3-2 (the Request Authenticator is 16 random octets), 2.5-1 (a retransmission reuses the same Identifier and Request Authenticator), 5-1 (an Access-Request includes a User-Name), and 5.2-2 (User-Password padded to a multiple of 16, capped at 128). Seven new tests bind the previously-untested behaviors.</p>
+<section><h2>Automatic checks</h2>
+<p>Included in automatic checks: Remote Authentication Dial In User Service (RADIUS), ze as a RADIUS client/NAS: ten MUST-level requirements, all met in internal/component/radius (and l2tp/authradius). Six carry positive+negative tags: 3-1 (packet length 20..4096), 3-3 (Response Authenticator = MD5 over Code, Identifier, Length, Request Authenticator, attributes, and secret), 3-4 (verify the Response Authenticator before trusting a response), 5.2-1 (User-Password hidden via the MD5-with-shared-secret XOR chain), 5-2 (an attribute Length is bounded to 255 octets), and 3-5 (accept a response only from the server the request was sent to). Four are {single-polarity: positive}: 3-2 (the Request Authenticator is 16 random octets), 2.5-1 (a retransmission reuses the same Identifier and Request Authenticator), 5-1 (an Access-Request includes a User-Name), and 5.2-2 (User-Password padded to a multiple of 16, capped at 128). Seven new tests bind the previously-untested behaviors.</p>
 </section>
-<section><h2>What the public ledger says</h2>
+<section><h2>Published support status</h2>
 <p><strong>Area:</strong> RADIUS authentication</p>
 <p><strong>Proof:</strong> 27 of 31 MUST proven</p>
 <p><strong>Evidence:</strong> unit 27</p>
@@ -273,33 +287,33 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td>Positive and negative tests</td>
 <td><strong>26</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
 <td><strong>5</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
-<tr><td>One polarity only</td>
+<tr><td>Only a positive or negative test</td>
 <td><strong>0</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
 <td><strong>0</strong></td>
-<td>an overlay: each of these is also counted by the part it falls in</td>
+<td>also counted in one of the groups above</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
-<td>an overlay: each of these is also counted by the part it falls in</td>
+<td>also counted in one of the groups above</td>
 </tr>
 <tr><td>Derived from other rows</td>
 <td><strong>0</strong></td>
-<td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
+<td>excluded from the total: each summarizes the status of other requirements, which are already counted above</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>31</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Mandatory requirements (MUST level)</strong></td><td><strong>31</strong></td><td>every mandatory requirement appears in exactly one group above</td></tr>
 </tbody>
 </table>
 </div>
@@ -308,9 +322,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc2865:must">Ze proven 27, Ze correctness gap 4</div>
+<div data-ze-rfc-bar="rfc2865:must">Ze proven 27, Proof pending 4</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc2865:overview">Ze MUST proven 27, SHOULD not decided 1, Ze correctness gap 4</div>
+<div data-ze-rfc-bar="rfc2865:overview">Ze MUST proven 27, Proof pending 4, Not assessed 1</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -318,10 +332,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>RFCs</td>
 <td><span data-ze-rfc="rfc2865:rfcs">1</span></td>
 </tr>
-<tr><td>Not walked</td>
+<tr><td>Requirements not reviewed</td>
 <td><span data-ze-rfc="rfc2865:not-walked">0</span></td>
 </tr>
-<tr><td>Mandatory register</td>
+<tr><td>Mandatory requirements complete</td>
 <td><span data-ze-rfc="rfc2865:register">not complete</span></td>
 </tr>
 <tr><td>MUST rows</td>
@@ -336,11 +350,20 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc2865:must.os-verified">0</span></td>
 </tr>
+<tr><td>Proof pending</td>
+<td><span data-ze-rfc="rfc2865:must.proof-pending">4</span></td>
+</tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc2865:must.os-gap">0</span></td>
 </tr>
-<tr><td>Ze correctness gap</td>
-<td><span data-ze-rfc="rfc2865:must.ze-gap">4</span></td>
+<tr><td>Exclusion unchecked</td>
+<td><span data-ze-rfc="rfc2865:must.exclusion-unchecked">0</span></td>
+</tr>
+<tr><td>Not assessed</td>
+<td><span data-ze-rfc="rfc2865:must.not-assessed">0</span></td>
+</tr>
+<tr><td>Not built</td>
+<td><span data-ze-rfc="rfc2865:must.not-built">0</span></td>
 </tr>
 <tr><td>MUST rows not owed</td>
 <td><span data-ze-rfc="rfc2865:must.not-owed">0</span></td>
@@ -378,19 +401,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD not owed: not-applicable</td>
 <td><span data-ze-rfc="rfc2865:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
-<tr><td>SHOULD not ever</td>
-<td><span data-ze-rfc="rfc2865:should.not-ever">0</span></td>
+<tr><td>SHOULD proof pending</td>
+<td><span data-ze-rfc="rfc2865:should.proof-pending">0</span></td>
 </tr>
-<tr><td>SHOULD not yet</td>
-<td><span data-ze-rfc="rfc2865:should.not-yet">0</span></td>
+<tr><td>SHOULD exclusion unchecked</td>
+<td><span data-ze-rfc="rfc2865:should.exclusion-unchecked">0</span></td>
 </tr>
-<tr><td>SHOULD not decided</td>
-<td><span data-ze-rfc="rfc2865:should.not-decided">1</span></td>
+<tr><td>SHOULD not assessed</td>
+<td><span data-ze-rfc="rfc2865:should.not-assessed">1</span></td>
+</tr>
+<tr><td>SHOULD not built</td>
+<td><span data-ze-rfc="rfc2865:should.not-built">0</span></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.</p>
+<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
 
 </section>
 <section><h2>Requirements</h2>
@@ -741,10 +767,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Gaps and untested MUSTs</h2>
-<p>RFC 2865 declares no gap, and every gated MUST it carries has a test bound to it.</p>
+<p>RFC 2865 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.</p>
 </section>
 <section><h2>Proof state</h2>
-<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<p>A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.</p>
 <h3><a href="#rfc2865-3-1"><code>RFC2865-3-1</code></a></h3>
 <p>The minimum length is 20 and maximum length is 4096. (§3)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Positive: Decode accepts 20- and 4096-octet packets (16 attributes kept) and EncodeTo writes exactly 4096 with Length 4096. Negative: Decode refuses 19 octets, refuses a 4097-octet packet whose Length field says 4097 and whose attributes are all valid (so only the maximum can refuse it), and EncodeTo refuses attributes making 4097 octets. Both bounds now discriminated at both edges.</p>
@@ -992,7 +1018,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc2865-1.1-1"><code>RFC2865-1.1-1</code></a></h3>
 <p>A NAS that does not implement a given service MUST NOT implement the RADIUS attributes for that service (§1.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1087,7 +1113,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc2865-3-6"><code>RFC2865-3-6</code></a></h3>
 <p>Octets outside the range of the Length field MUST be treated as padding and ignored on reception (§3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1117,7 +1143,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc2865-3-8"><code>RFC2865-3-8</code></a></h3>
 <p>The secret MUST NOT be empty (length 0) since this would allow packets to be trivially forged (§3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1147,7 +1173,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc2865-4.1-1"><code>RFC2865-4.1-1</code></a></h3>
 <p>An implementation wishing to authenticate a user MUST transmit a RADIUS packet with the Code field set to 1 (Access-Request) (§4.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1172,7 +1198,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc2865-4.1-6"><code>RFC2865-4.1-6</code></a></h3>
 <p>The Request Authenticator value MUST be changed each time a new Identifier is used (§4.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1312,7 +1338,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc2865-5-4"><code>RFC2865-5-4</code></a></h3>
 <p>A RADIUS server or client MUST NOT have any dependencies on the order of attributes of different types (§5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1417,7 +1443,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc2865-4.1-4"><code>RFC2865-4.1-4</code></a></h3>
 <p>An Access-Request MUST NOT contain both a User-Password and a CHAP-Password (§4.1, §5.44)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1437,7 +1463,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc2865-4.1-5"><code>RFC2865-4.1-5</code></a></h3>
 <p>The Identifier field MUST be changed whenever the content of the Attributes field changes, and whenever a valid reply has been received for a previous request (§4.1, §2.5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1457,7 +1483,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc2865-5-5"><code>RFC2865-5-5</code></a></h3>
 <p>A RADIUS server or client MUST NOT require attributes of the same type to be contiguous (§5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1591,7 +1617,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 </section>
-<section><h2>Extraction sign-off</h2>
+<section><h2>Requirement list review</h2>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
@@ -1643,367 +1669,367 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td><code>1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Introduction: what RADIUS is, its client/server model, its network security model and its extensibility. It states no obligation of its own and derives no site.</td>
 </tr>
 <tr><td><code>1.1</code></td>
 <td>Specification of Requirements</td>
 <td>3</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Specification of Requirements. It carries the RFC 2119 key-words paragraph the site scan correctly refuses to count, the definition of unconditional and conditional compliance, and three NAS obligations about services a NAS does not implement (sites 1.1:1 to 1.1:3).</td>
 </tr>
 <tr><td><code>1.2</code></td>
 <td>Terminology: service, session and &#39;silently discard&#39;</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Terminology: service, session and &#39;silently discard&#39;. The two keywords in the &#39;silently discard&#39; entry are SHOULDs about logging and counting a discarded packet, so the scan derives no site.</td>
 </tr>
 <tr><td><code>2</code></td>
 <td>Operation</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Operation. It narrates one authentication exchange end to end. Its two sites are both server obligations. The client-side sentences here are indicative or MAY-level and are stated normatively in sections 3, 4.1 and 4.4.</td>
 </tr>
 <tr><td><code>2.1</code></td>
 <td>Challenge/Response</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Challenge/Response. Descriptive: what a challenge is, what the user does with it, and a worked example. It states no obligation, and the NAS obligation for a challenge is in section 4.4.</td>
 </tr>
 <tr><td><code>2.2</code></td>
 <td>Interoperation with PAP and CHAP</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Interoperation with PAP and CHAP. It describes how a NAS maps PAP and CHAP credentials onto User-Password and CHAP-Password, in indicative prose, and then states two server obligations (sites 2.2:1 and 2.2:2).</td>
 </tr>
 <tr><td><code>2.3</code></td>
 <td>Proxy</td>
 <td>10</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Proxy. Ten sites, every one binding a forwarding server or a remote server. Ze forwards no RADIUS request and answers none, so the whole section is excluded by role.</td>
 </tr>
 <tr><td><code>2.4</code></td>
 <td>Why UDP? Design rationale for the transport choice</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Why UDP? Design rationale for the transport choice. It uses &#39;must&#39; in lowercase throughout to describe consequences, and states no obligation.</td>
 </tr>
 <tr><td><code>2.5</code></td>
 <td>Retransmission Hints</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Retransmission Hints. Its two sites are the same-server retransmission rule (site 2.5:1) and the changed-attributes rule (site 2.5:2), which Section 4.1 states in full.</td>
 </tr>
 <tr><td><code>2.6</code></td>
 <td>Keep-Alives Considered Harmful</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Keep-Alives Considered Harmful. Advice against probing a server, phrased as &#39;strongly discouraged&#39;. No capitalised keyword and no obligation.</td>
 </tr>
 <tr><td><code>3</code></td>
 <td>Packet Format</td>
 <td>5</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Packet Format. The header layout, the Code, Identifier, Length and Authenticator fields, the Request and Response Authenticator definitions, and the Administrative Note on the shared secret. Five sites: three bind any receiver or both ends and are mapped, two bind a server or a proxy.</td>
 </tr>
 <tr><td><code>4</code></td>
 <td>Packet Types</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Packet Types. One sentence saying the Code field decides the type. The four types are 4.1 to 4.4.</td>
 </tr>
 <tr><td><code>4.1</code></td>
 <td>Access-Request</td>
 <td>8</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Access-Request. Eight sites. Six bind the sender and are mapped or duplicated onto Section 2.5; one binds the server that must reply; one is the retransmission half of the Identifier rule.</td>
 </tr>
 <tr><td><code>4.2</code></td>
 <td>Access-Accept</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Access-Accept. Two sites, both binding the RADIUS server: its obligation to transmit the Access-Accept, and the Response Authenticator it writes, which MUST contain the correct response for the pending Access-Request. The client&#39;s side of the paragraph is the indicative &#39;Invalid packets are silently discarded&#39;, which carries no keyword and so no site; RFC2865-4.2-1 quotes it and is declared unsourced here.</td>
 </tr>
 <tr><td><code>4.3</code></td>
 <td>Access-Reject</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Access-Reject. One site, binding the server that transmits it. The Reply-Message sentence is MAY-level and is the summary&#39;s RFC2865-5-3.</td>
 </tr>
 <tr><td><code>4.4</code></td>
 <td>Access-Challenge</td>
 <td>4</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Access-Challenge. Four sites: two bind the server, and two state what a NAS without challenge/response support owes, which is RFC2865-4.4-1.</td>
 </tr>
 <tr><td><code>5</code></td>
 <td>Attributes</td>
 <td>7</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Attributes. The attribute format, the Type, Length and Value fields, and the five data types. Seven sites: five bind a client and are mapped, one binds a proxy, one repeats the zero-length rule for String.</td>
 </tr>
 <tr><td><code>5.1</code></td>
 <td>User-Name</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>User-Name. One site: the attribute MUST be sent in an Access-Request if available.</td>
 </tr>
 <tr><td><code>5.2</code></td>
 <td>User-Password</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>User-Password. The hiding algorithm, stated entirely in indicative prose and as a set of equations, so the scan derives no site. The two obligations the summary declares from it are listed below.</td>
 </tr>
 <tr><td><code>5.3</code></td>
 <td>CHAP-Password</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>CHAP-Password. Format and the rule that the challenge is in CHAP-Challenge if present and the Request Authenticator otherwise. Indicative prose, no site.</td>
 </tr>
 <tr><td><code>5.4</code></td>
 <td>NAS-IP-Address</td>
 <td>3</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>NAS-IP-Address. Three sites: the Section 4.1 identification rule restated, and the two shared-secret-selection sentences that bind the server.</td>
 </tr>
 <tr><td><code>5.5</code></td>
 <td>NAS-Port</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>NAS-Port. Attribute format and a note on 16-bit port values. No obligation.</td>
 </tr>
 <tr><td><code>5.6</code></td>
 <td>Service-Type</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Service-Type. One site: a NAS MUST treat an unknown or unsupported Service-Type as an Access-Reject. The rest is the value table.</td>
 </tr>
 <tr><td><code>5.7</code></td>
 <td>Framed-Protocol</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Framed-Protocol. Value table for PPP, SLIP, ARAP, Gandalf, Xylogics and X.75. No obligation.</td>
 </tr>
 <tr><td><code>5.8</code></td>
 <td>Framed-IP-Address</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Framed-IP-Address. Format and the two special values 0xFFFFFFFF and 0xFFFFFFFE. No obligation.</td>
 </tr>
 <tr><td><code>5.9</code></td>
 <td>Framed-IP-Netmask</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Framed-IP-Netmask. Format. No obligation.</td>
 </tr>
 <tr><td><code>5.10</code></td>
 <td>Framed-Routing</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Framed-Routing. Value table. No obligation.</td>
 </tr>
 <tr><td><code>5.11</code></td>
 <td>Filter-Id</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Filter-Id. One site: the attribute is human readable and MUST NOT affect operation of the protocol.</td>
 </tr>
 <tr><td><code>5.12</code></td>
 <td>Framed-MTU</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Framed-MTU. Format and range. No obligation.</td>
 </tr>
 <tr><td><code>5.13</code></td>
 <td>Framed-Compression</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Framed-Compression. Value table. No obligation.</td>
 </tr>
 <tr><td><code>5.14</code></td>
 <td>Login-IP-Host</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Login-IP-Host. Format and the two special values. No obligation.</td>
 </tr>
 <tr><td><code>5.15</code></td>
 <td>Login-Service</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Login-Service. Value table. No obligation.</td>
 </tr>
 <tr><td><code>5.16</code></td>
 <td>Login-TCP-Port</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Login-TCP-Port. Format. No obligation.</td>
 </tr>
 <tr><td><code>5.17</code></td>
 <td>Unassigned attribute type 17</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Unassigned attribute type 17. A heading and a note. No obligation.</td>
 </tr>
 <tr><td><code>5.18</code></td>
 <td>Reply-Message</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Reply-Message. Two sites: the display-order rule for several messages, and the human-readable sentence the other carrier attributes repeat.</td>
 </tr>
 <tr><td><code>5.19</code></td>
 <td>Callback-Number</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Callback-Number. Format. No obligation.</td>
 </tr>
 <tr><td><code>5.20</code></td>
 <td>Callback-Id</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Callback-Id. Format and a note that the id is NAS specific. No obligation.</td>
 </tr>
 <tr><td><code>5.21</code></td>
 <td>Unassigned attribute type 21</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Unassigned attribute type 21. A heading and a note. No obligation.</td>
 </tr>
 <tr><td><code>5.22</code></td>
 <td>Framed-Route</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Framed-Route. One site: the human-readable sentence. The route text format is stated in indicative prose.</td>
 </tr>
 <tr><td><code>5.23</code></td>
 <td>Framed-IPX-Network</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Framed-IPX-Network. Format and the special value 0xFFFFFFFE. No obligation.</td>
 </tr>
 <tr><td><code>5.24</code></td>
 <td>State</td>
 <td>3</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>State. Three sites: the challenge-reply carry rule, the Termination-Action carry rule, and the prohibition on interpreting the attribute locally.</td>
 </tr>
 <tr><td><code>5.25</code></td>
 <td>Class</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Class. One site: the client MUST NOT interpret the attribute locally. The accounting-echo sentence beside it is a SHOULD.</td>
 </tr>
 <tr><td><code>5.26</code></td>
 <td>Vendor-Specific</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Vendor-Specific. Two sites: the attribute MUST NOT affect protocol operation, and a server not equipped to interpret vendor information MUST ignore it.</td>
 </tr>
 <tr><td><code>5.27</code></td>
 <td>Session-Timeout</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Session-Timeout. Format and meaning. No obligation.</td>
 </tr>
 <tr><td><code>5.28</code></td>
 <td>Idle-Timeout</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Idle-Timeout. Format and meaning. No obligation.</td>
 </tr>
 <tr><td><code>5.29</code></td>
 <td>Termination-Action</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Termination-Action. Value table. No obligation.</td>
 </tr>
 <tr><td><code>5.30</code></td>
 <td>Called-Station-Id</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Called-Station-Id. Format and a note on dialed-number identification. No obligation.</td>
 </tr>
 <tr><td><code>5.31</code></td>
 <td>Calling-Station-Id</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Calling-Station-Id. Format and a note on automatic number identification. No obligation.</td>
 </tr>
 <tr><td><code>5.32</code></td>
 <td>NAS-Identifier</td>
 <td>3</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>NAS-Identifier. Three sites, the same three sentences Section 5.4 carries for NAS-IP-Address.</td>
 </tr>
 <tr><td><code>5.33</code></td>
 <td>Proxy-State</td>
 <td>4</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Proxy-State. Four sites, every one binding a proxy server or a server that adds a Proxy-State.</td>
 </tr>
 <tr><td><code>5.34</code></td>
 <td>Login-LAT-Service</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Login-LAT-Service. Format and a note on LAT string handling. No obligation, and ze offers no LAT service.</td>
 </tr>
 <tr><td><code>5.35</code></td>
 <td>Login-LAT-Node</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Login-LAT-Node. Format. No obligation, and ze offers no LAT service.</td>
 </tr>
 <tr><td><code>5.36</code></td>
 <td>Login-LAT-Group</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Login-LAT-Group. Format of the 32-octet group code bitmap. No obligation, and ze offers no LAT service.</td>
 </tr>
 <tr><td><code>5.37</code></td>
 <td>Framed-AppleTalk-Link</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Framed-AppleTalk-Link. Format. No obligation, and ze offers no AppleTalk service.</td>
 </tr>
 <tr><td><code>5.38</code></td>
 <td>Framed-AppleTalk-Network</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Framed-AppleTalk-Network. Format. No obligation, and ze offers no AppleTalk service.</td>
 </tr>
 <tr><td><code>5.39</code></td>
 <td>Framed-AppleTalk-Zone</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Framed-AppleTalk-Zone. Format. No obligation, and ze offers no AppleTalk service.</td>
 </tr>
 <tr><td><code>5.40</code></td>
 <td>CHAP-Challenge</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>CHAP-Challenge. Format and the rule that a 16-octet challenge may travel in the Request Authenticator instead. Indicative prose, no site.</td>
 </tr>
 <tr><td><code>5.41</code></td>
 <td>NAS-Port-Type</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>NAS-Port-Type. Value table. No obligation.</td>
 </tr>
 <tr><td><code>5.42</code></td>
 <td>Port-Limit</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Port-Limit. Format and meaning. No obligation.</td>
 </tr>
 <tr><td><code>5.43</code></td>
 <td>Login-LAT-Port</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Login-LAT-Port. Format. No obligation, and ze offers no LAT service.</td>
 </tr>
 <tr><td><code>5.44</code></td>
 <td>Table of Attributes</td>
 <td>4</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Table of Attributes. Three sites in Note 1 and Note 2, restating Section 4.1&#39;s credential and identification rules, and the legend site that defines what the table&#39;s cells mean.</td>
 </tr>
 <tr><td><code>6</code></td>
@@ -2027,37 +2053,37 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td><code>7</code></td>
 <td>Examples</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Examples. Three worked exchanges shown as attribute dumps. Non-normative illustration of sections 4 and 5, and it states no obligation.</td>
 </tr>
 <tr><td><code>7.1</code></td>
 <td>Example: user Telnet to a specified host</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Example: user Telnet to a specified host. An attribute dump of one Access-Request and its Access-Accept.</td>
 </tr>
 <tr><td><code>7.2</code></td>
 <td>Example: framed user authenticating with CHAP</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Example: framed user authenticating with CHAP. An attribute dump of one exchange.</td>
 </tr>
 <tr><td><code>7.3</code></td>
 <td>Example: user with a challenge-response card</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Example: user with a challenge-response card. An attribute dump of an Access-Request, an Access-Challenge and a second Access-Request.</td>
 </tr>
 <tr><td><code>8</code></td>
 <td>Security Considerations</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Security Considerations. It discusses one authentication method per user name, secret storage, secret distribution and the known weakness of the Section 5.2 hiding mechanism. Its two keywords are SHOULDs, so the scan derives no site.</td>
 </tr>
 <tr><td><code>9</code></td>
 <td>Change Log</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Change Log. It lists what changed from RFC 2138. Its one site quotes the Section 5 proxy ordering sentence while describing that change.</td>
 </tr>
 <tr><td><code>10</code></td>
@@ -2363,7 +2389,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     </a>
                     <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
                         <span class="page-sidebar-link-label">Verify debugging</span>
-                        <small>How failed checks route to evidence.</small>
+                        <small>How to investigate failed checks using their logs.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -2382,7 +2408,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 01:56 UTC</span>
                 </div>
             </div>
         </footer>

@@ -1,6 +1,6 @@
 # 2026-06-15 – 2026-06-21 (1 week)
 
-Native IS-IS landed, MPLS gained fast reroute, and firewall rules can now pull straight from the IRR.
+Ze gained native IS-IS, MPLS gained fast reroute, and firewall rules can now use prefixes from the IRR.
 
 ## 🛰️ IS-IS & MPLS
 
@@ -26,7 +26,7 @@ Interfaces can now bind to the underlying kernel device by hardware MAC address 
 
 ## 🖥️ CLI
 
-Running `ze` with no arguments now opens a hierarchical TUI menu of every command, with type-ahead filtering and drill-down into sub-commands. Environment-key values now autocomplete in both the operational CLI and the shell, and help output is consistently colored across every surface.
+Running `ze` with no arguments now opens a hierarchical TUI menu of every command, with type-ahead filtering and drill-down into sub-commands. Environment-key values now autocomplete in both the operational CLI and the shell, and help output uses consistent colors across interfaces.
 
 ## 💿 Appliance & provisioning
 

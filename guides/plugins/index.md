@@ -7,7 +7,8 @@ Ze uses a plugin architecture for all features beyond core BGP session managemen
 
 | Use case | Plugins | Why |
 |----------|---------|-----|
-| Announce routes to upstream | `bgp-rib` | Stores routes and sends them to peers |
+| Announce your own routes to upstream | `bgp-rib` | Stores routes, elects the best one and replays what this router announced. It does not pass a route learned from one peer on to another |
+| Pass routes between peers (transit) | `bgp-rib` + `bgp-rs` + `bgp-adj-rib-in`, each attached to every peer | `bgp-rs` forwards what one peer announced to the others, and `bgp-adj-rib-in` lets it replay to a peer that comes up later. Set `session { next-hop self; }` toward an external peer: a forwarded route otherwise keeps the next hop it arrived with. [Why](https://github.com/ze-software/ze/blob/main/docs/guide/route-reflection.md#without-route-reflection) |
 | Route server (IXP) | `bgp-rib` + `bgp-rs` + `bgp-adj-rib-in` | Forward routes between clients, replay on reconnect |
 | With RPKI validation | Add `bgp-rpki` + `bgp-adj-rib-in` | Validate origin AS against ROA cache |
 | With merged RPKI events | Add `bgp-rpki-decorator` (+ above) | Receive UPDATE events pre-merged with RPKI state |
@@ -72,6 +73,15 @@ plugin {
 
 ### Plugin Block Settings
 
+The system RIB uses the registration name `rib`. To run it externally, use
+`external system-rib { run "ze plugin rib"; }`. The equivalent internal
+block is `internal system-rib { use rib; }`. Keep the same route policy and
+distance configuration with either placement. `bgp-rib` is a different plugin:
+it stores BGP routes. See [Route Policy](https://github.com/ze-software/ze/blob/main/docs/guide/route-policy.md#internal-and-external-system-rib)
+for the forwarding and recovery behavior.
+<!-- source: internal/component/sysrib/register.go -- init, runRouteViewPlugin -->
+<!-- source: internal/component/sysrib/route_view_client.go -- openRouteViewMonitoredClient -->
+
 | List | Setting | Description |
 |------|---------|-------------|
 | `internal` | `use` | Name of a built-in plugin to run in-process |
@@ -86,6 +96,28 @@ runs its plugins from `internal` blocks. `ze doctor` reports the missing shell
 under `doctor-plugin-shell-missing`, and a start that meets it names the shell
 rather than the plugin.
 <!-- source: internal/component/plugin/shell.go -- Shell, ShellAvailable -->
+
+An `external` name is 1 to 64 letters, digits and hyphens, the first a letter
+or a digit: `collector` and `looking-glass` are accepted, `my_plugin` and
+`feed.v2` are not. The forked process authenticates to ze under that name, and
+ze binds the process's token to it, so the commit refuses any other form with
+an error that names the allowed form. A config written before that refusal
+still fails its load, and `ze doctor` reports each such block under
+`doctor-plugin-connect-back-refused`. A process that connects back under a
+name the form refuses, or with a token ze did not issue for that name, is
+refused too: the refusal names the claimed name, never the token, and `show
+doctor` lists it under the same code.
+<!-- source: internal/component/plugin/ipc/plugin_name.go -- PluginNameForm, CheckPluginName -->
+<!-- source: internal/component/config/validators.go -- ExternalPluginNameValidator -->
+<!-- source: internal/component/plugin/doctor/check_external.go -- checkExternalPluginNames -->
+<!-- source: internal/component/plugin/ipc/connect_back_refusal.go -- reportConnectBackRefused -->
+
+A plugin whose registration declares that it works only inside the daemon
+cannot run from an `external` block: the forked process does not hold the
+daemon state it reaches, so it would start and do nothing. `ze doctor` reports
+such a block under `doctor-plugin-external-unsupported`, with the `internal`
+block that runs it instead.
+<!-- source: internal/component/plugin/doctor/check_external.go -- checkExternalInProcess, inProcessOnlyRegistration -->
 
 ## When a Plugin Fails
 
@@ -122,7 +154,14 @@ The leaf is spelled the way ExaBGP spells it, because an ExaBGP process block
 carries the same option and a migrated configuration keeps working.
 
 Past the restart bound the plugin is disabled, `show health` reports
-`plugin-down` for it, and ze carries on.
+`doctor-plugin-stopped` for it, and ze carries on. A plugin left stopped this
+way, or by `respawn false`, comes back with `ze request plugin restart <name>`
+without restarting ze; the order lifts the restart bound
+([command reference](../command-reference/index.md#request-plugin-restart)).
+<!-- source: internal/component/plugin/server/register_plugin_restart.go -- handlePluginRestart -->
+<!-- source: internal/component/plugin/process/stopped.go -- Reenable -->
+
+
 
 ## When a Reload Changes a Plugin's Config
 
@@ -599,7 +638,7 @@ address. A session whose events named it nothing is selected by no name.
 | `iface-netlink` | Netlink backend for iface: manage, monitor, bridge, sysctl, mirror | -- (registered as iface backend) |
 | `iface-dhcp` | DHCP client: DHCPv4/DHCPv6 lease acquisition and renewal | -- (Bus events) |
 | `iface-ra` | IPv6 Router Advertisement sender (RFC 4861): advertises prefixes, flags, and RDNSS resolvers (RFC 8106) on a LAN unit. Hosts autoconfigure addresses, learn a default router, and learn resolvers. Linux and netlink only. [Guide](../configuration-model/index.md#ipv6-router-advertisements) | -- (Config-driven, raw ICMPv6 socket per unit) |
-| `rib` | System RIB: selects best route across protocols by admin distance | -- (Bus events, no peer binding) |
+| `rib` | System RIB: resolves authoritative routes and publishes forwarding changes | Internal or external; no peer binding |
 | `fib-kernel` | FIB kernel: programs OS routes from system RIB via netlink | -- (Bus events, no peer binding) |
 | `fib-p4` | FIB P4: programs P4 switch from system RIB via gRPC/P4Runtime (noop backend) | -- (Bus events, no peer binding) |
 | `fib-vpp` | FIB VPP: programs VPP FIB from system RIB via GoVPP. MPLS label push (IPRouteAddDel with LabelStack), swap/pop (MplsRouteAddDel), interface enable (SwInterfaceSetMplsEnable). | -- (Bus events, no peer binding) |
@@ -670,10 +709,32 @@ Bus topics published:
 
 <!-- source: internal/component/iface/iface.go -- topic constants and payload types -->
 
-The `rib` plugin aggregates best routes from all protocol RIBs and selects
-the system-wide best per prefix by administrative distance (lower wins).
-Subscribes to `bgp-rib/best-change/` Bus topic prefix, publishes `system-rib/best-change`.
-<!-- source: internal/component/sysrib/sysrib.go -- system-rib topic, protocolRoute, admin distance selection -->
+The `rib` plugin consumes the daemon Loc-RIB's selected routes, after import
+policy and administrative-distance selection. It resolves next hops, retains
+equal-cost paths, and publishes forwarding changes through its authenticated
+output lease. `show rib candidates` queries the daemon's full candidate table,
+including hidden and standby paths, in either placement.
+<!-- source: internal/component/sysrib/register.go -- runRouteViewPlugin, routeViewCommandHandler -->
+<!-- source: internal/component/sysrib/route_view_client.go -- openRouteViewClient -->
+<!-- source: internal/component/sysrib/route_view_worker_operations.go -- Candidates -->
+
+An external placement uses the same `rib` implementation:
+
+```
+plugin {
+    external sysrib-owner {
+        run "ze plugin rib";
+        encoder json;
+    }
+}
+```
+
+For internal placement, use `internal sysrib-owner { use rib; }` in the
+`plugin` block. Both placements apply their distance declaration at the daemon;
+an external process never changes a disconnected local copy. Replay requests
+subscribe at startup and wait for the consumer's complete view before output.
+<!-- source: internal/component/sysrib/register.go -- runRouteViewPlugin -->
+<!-- source: internal/component/sysrib/route_view_worker.go -- Start, consume, HandleEvent -->
 
 The `fib-kernel` plugin programs OS routes from the system RIB into the kernel
 via netlink (Linux). Uses a custom rtm_protocol ID (RTPROT_ZE=250) to identify
@@ -685,15 +746,64 @@ withdrawn. Conflicting foreign replacements are retained and reported.
 <!-- source: internal/plugins/fib/kernel/fibkernel.go -- fibKernel, startupSweep, sweepStale -->
 <!-- source: internal/plugins/fib/kernel/monitor_linux.go -- kernel route monitor -->
 
+Repair replays reassert each unchanged, successfully installed IPv4 route after
+a fresh check of its exact kernel identity. The write cannot create a route or
+replace a preferred foreign alias. Missing or modified routes use the full
+ownership check and repair path. IPv6, startup routes, changed forwarding and
+pending failures also retain that full path.
+<!-- source: internal/plugins/fib/kernel/fibkernel_replay.go -- tryReplay, sameReplayRoute -->
+<!-- source: internal/plugins/fib/kernel/backend_replay_linux.go -- reassertRichRoute, reassertOwnedRoute -->
+<!-- source: internal/plugins/fib/kernel/backend_linux.go -- replaceOwnedRoute -->
+<!-- test: internal/plugins/fib/kernel/backend_replay_integration_linux_test.go -- TestKernelReplayPlainRoute, TestKernelReplayUnchangedRoute, TestKernelReplayRepairsMissingRoute, TestKernelReplayRepairsModifiedRoute, TestKernelReplayPreservesForeignReplacement, TestKernelReplayForeignAliasOrder, TestKernelReplayIPv6Fallback, TestKernelReplayFullPathCleansPriorities -->
+
+An IPv4 unicast route whose entire forwarding group names devices without
+gateways uses link scope. It can therefore resolve a recursive gateway outside
+the interface's configured subnet. A gateway in any primary, equal-cost or
+backup path keeps universe scope, including gateways from another address
+family. IPv6 and discard routes retain universe scope.
+<!-- source: internal/plugins/fib/kernel/nexthop_linux.go -- buildRichRoute, forwardingScope -->
+<!-- test: internal/plugins/fib/kernel/backend_scope_integration_linux_test.go -- TestKernelDeviceOnlyCoverResolvesGateway, TestBuildRichRouteScope -->
+
+Every removal of a Ze route (a withdraw, the stale sweep, the stop flush) asks
+the kernel for Ze's route on that prefix and table at any scope. Linux deletes
+an IPv4 route only when the request names its scope or names none, so a delete
+that named universe scope would miss a link-scope route and leave it installed.
+<!-- source: internal/plugins/fib/kernel/backend_linux.go -- ownedRouteKey, delRoute, delOwnedRoute -->
+<!-- source: internal/plugins/fib/kernel/nexthop_linux.go -- delRichRoute -->
+<!-- test: internal/plugins/fib/kernel/flush_scope_integration_linux_test.go -- TestKernelFlushRemovesEveryScope, TestKernelWithdrawRemovesEveryScope -->
+
+Shutdown closes IP forwarding admission before joining the route monitor. An
+already admitted backend operation can finish, but a replay admits no later
+entries. The writer joins that operation before closing the backend, including
+when forwarding is retained. With `flush-on-stop true`, it then runs the owned
+route cleanup. Ordinary repair replays still reassert installed routes.
+<!-- source: internal/plugins/fib/kernel/fibkernel_stop.go -- beginStop -->
+<!-- source: internal/plugins/fib/kernel/fibkernel.go -- processEvent, run, flushRoutes -->
+<!-- test: internal/plugins/fib/kernel/fibkernel_stop_test.go -- TestFIBKernelReplayReassertsInstalledRoutes, TestFIBKernelStopEndsReplayAdmission -->
+
+The cleanup removes every route the writer installed, from the table it was
+installed in, and every route a previous run left that startup retained and
+the sweep has not yet removed, from each table startup listed it in. It then
+lists the kernel's Ze routes in every table. A delete the kernel refused, or a
+flushed prefix the kernel still lists in any table, raises one
+`doctor-fib-flush-incomplete` error (subject `flush`) and one WARN log line under the same code,
+both carrying the counts, the first prefix and its table, and the command that removes what
+is left: `ip route flush proto 250 table all; ip -6 route flush proto 250 table all`.
+When the listing itself fails, the error says the kernel could not be read and
+carries the listing's error. It reports no count of routes left, because none
+was taken.
+<!-- source: internal/plugins/fib/kernel/fibkernel.go -- flushRoutes, flushOneLocked, flushResidueLocked, reportFlushLocked -->
+<!-- test: internal/plugins/fib/kernel/fibkernel_flush_test.go -- TestFIBKernelFlushDeletesInTheInstalledTable, TestFIBKernelFlushReportsRoutesTheKernelKept, TestFIBKernelFlushReportsFailedDeletes, TestFIBKernelFlushRemovesRetainedRoutes -->
+<!-- test: internal/plugins/fib/kernel/fibkernel_flush_list_test.go -- TestFIBKernelFlushReportsUnverifiedKernel, TestFIBKernelFlushCountsNothingItCouldNotList, TestFIBKernelSweepDeletesInTheListedTable -->
+
 Bus topics in the FIB pipeline:
 
 | Topic | Publisher | Subscriber | Payload |
 |-------|-----------|------------|---------|
-| `bgp-rib/best-change/bgp` | `bgp-rib` | `rib` | Batch of per-prefix best-path changes |
-| `system-rib/best-change` | `rib` | `fib-kernel`, `fib-p4` | Batch of system-wide best route changes |
+| `system-rib/best-change` | `rib`, through its daemon output lease | FIB plugins | Batch of system-wide forwarding changes |
 | `fib/external-change` | `fib-kernel` | monitoring | External route change on ze-managed prefix |
-<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- bestChangeEntry, bestChangeBatch -->
-<!-- source: internal/component/sysrib/sysrib.go -- system-rib topic -->
+<!-- source: internal/component/sysrib/route_view_output.go -- publish, withdraw -->
+<!-- source: internal/component/sysrib/events/events.go -- BestChangeBatch -->
 <!-- source: internal/plugins/fib/kernel/monitor.go -- externalChangeEvent, publishExternalChange -->
 <!-- source: internal/plugins/fib/kernel/fibkernel.go -- system-rib/best-change subscription -->
 
@@ -1448,7 +1558,7 @@ command argument, which expands the chain in the client process and answers
 Plugins can declare dependencies on other plugins. The engine starts plugins in dependency order and delivers state/EOR events to dependents first.
 
 ```
-# bgp-gr depends on bgp-rib
+# bgp-gr depends on bgp-rib and policy
 # bgp-rpki depends on bgp-adj-rib-in
 # bgp-rs optionally uses bgp-adj-rib-in
 ```
@@ -1457,15 +1567,17 @@ Dependencies are declared in the plugin's registration, not in config. The engin
 
 | Kind | Field | Behavior if missing |
 |------|-------|----------------------|
-| Hard | `Dependencies` | Ze refuses to start, before any plugin runs, at boot, at a config reload and for an explicit `plugin {}` block. `ze config validate` and a commit refuse the same config with the same message, so a config that validates is one the daemon can start. The message names the plugin, the dependency and the build tags to rebuild with (or says the name is unknown to this build), and ends with the fix on its own line. |
+| Hard | `Dependencies` | Ze refuses to start, before any plugin runs, at boot, at a config reload and for an explicit `plugin {}` block. `ze config validate` and a commit refuse the same config with the same message, so a config that validates is one the daemon can start. The message names the plugin, the dependency and the build tags to rebuild with (or says the name is unknown to every build), and ends with the fix on its own line: rebuild with the tags, or remove the configuration that loads the plugin. A dependency an external program declares that nothing loads is refused at its startup, with the `plugin { internal ... }` or `plugin { external ... }` block to add as the fix. |
 | Optional | `OptionalDependencies` | Silently skipped. Plugin owner handles runtime absence (typically a one-shot WARN + feature disabled). |
 
 A block whose whole plugin was compiled out of the binary, such as `mrt { }`
 or `bgp { }` in a build without `ze_bgp`, fails at parse, because the build has
 no schema for it. The refusal says the keyword belongs to a plugin this build
-lacks and names the build tag to rebuild with, on a `fix:` line. A keyword no
-build knows (a typo) keeps the closest-keyword hint.
-<!-- source: internal/component/config/compiled_out_root.go -- TopLevelKeywordHint -->
+lacks and names the build tag to rebuild with, on a `fix:` line. The same holds
+for a nested block a compiled-out plugin owns, such as `fib { vpp { } }` in a
+build without `ze_vpp`. A keyword no build knows (a typo) keeps the
+closest-keyword hint.
+<!-- source: internal/component/config/compiled_out_root.go -- KeywordHint -->
 
 ### The `policy` dependency
 
@@ -1536,9 +1648,10 @@ So the engine RETRACTS the claim, per event, for the peers it does not cover. Ea
 
 A plugin that decides on the peer-up event whether a peer may receive traffic declares `PeerUpBarrier: true`. The engine then holds that peer's initial-sync End-of-RIB until every barrier-declaring plugin subscribed to state events has taken delivery of the peer-up event, so "End-of-RIB sent" means "every barrier plugin has registered this peer".
 
-`bgp-rs` declares it: it registers the peer as a forward target on that event, and an UPDATE arriving before that is forwarded nowhere. The wait is bounded and never blocks establishment. A plugin that does not acknowledge only delays the End-of-RIB to the timeout, which logs a WARN naming the peer and the shortfall. The expected count is taken over the plugins the event is actually delivered to, so declaring the field without subscribing to state events does not stall anything. It is separate from the session-ready report below: merging them would let a route sender's report satisfy a registrar's obligation.
+`bgp-rs` declares it: it registers the peer as a forward target on that event, and an UPDATE arriving before that is forwarded nowhere. The engine delivers the peer-up event to one plugin at a time and waits for each delivery's result before the peer's initial sync starts. A plugin whose delivery fails or is refused does not delay the End-of-RIB: the engine lowers the count to the acknowledgements it received and logs a WARN naming the peer and the shortfall. A barrier the sync still finds shut is bounded by a 2 second timeout, which logs its own WARN. The expected count is taken over the plugins the event is actually delivered to, so declaring the field without subscribing to state events does not stall anything. It is separate from the session-ready report below: merging them would let a route sender's report satisfy a registrar's obligation.
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.PeerUpBarrier -->
-<!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- waitPeerUpBarrier before End-of-RIB -->
+<!-- source: internal/component/bgp/reactor/peer.go -- waitPeerUpBarrier -->
+<!-- source: internal/component/bgp/server/events.go -- deliverPeerState -->
 
 ## Session-Ready Report
 

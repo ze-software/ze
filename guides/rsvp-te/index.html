@@ -70,8 +70,10 @@ requires <code>CAP_NET_RAW</code>.</p>
 </ol></details></nav><div class="doc-body">
 <blockquote>
 <p><strong>Status: experimental.</strong> The engine emits push/swap/pop entries on the
-<code>mpls-fib</code> event bus. <code>fib-kernel</code> installs IP routes with labels for push and
-AF_MPLS routes for swap/pop. The native Linux carrier exercises these paths
+<code>mpls-fib</code> event bus. Under <code>interface { backend netlink; }</code> <code>fib-kernel</code>
+installs IP routes with labels for push and AF_MPLS routes for swap/pop; under
+<code>backend vpp</code> <code>fib-vpp</code> installs them in VPP, which has no form for a
+facility-backup push. The native Linux carrier exercises these paths
 with three Ze daemons. Independent-peer coverage is freeRouter only, in the
 Docker suite <code>./le test integration interop-rsvpte</code>, where a Ze transit
 expands a loose hop, forwards a strict hop and refuses an outside strict hop
@@ -372,6 +374,10 @@ path handles these messages and programs the kernel label through <code>fib-kern
                         <span class="page-sidebar-link-label">Quickstart</span>
                         <small>Start from a minimal working setup.</small>
                     </a>
+                    <a class="page-sidebar-link" href="../../guides/ai-agent/">
+                        <span class="page-sidebar-link-label">Use Ze with an AI agent</span>
+                        <small>Let Claude Code or Codex drive Ze for you.</small>
+                    </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
                         <small>Install Ze, create the store, and start SSH.</small>
@@ -401,7 +407,7 @@ path handles these messages and programs the kernel label through <code>fib-kern
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 23:03 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 02:34 UTC</span>
                 </div>
             </div>
         </footer>

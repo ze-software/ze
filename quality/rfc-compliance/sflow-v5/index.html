@@ -4,18 +4,18 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
-        <title>SFLOW-V5 requirement ledger - Ze</title>
-        <meta name="description" content="SFLOW-V5: sFlow: A Method for Monitoring Traffic in Switched and Routed Networks. 32 gated MUST-level requirements, 9 declared gaps (0 demonstrated by a test), 0 with no test." />
-        <meta property="og:title" content="SFLOW-V5 requirement ledger - Ze" />
-        <meta property="og:description" content="SFLOW-V5: sFlow: A Method for Monitoring Traffic in Switched and Routed Networks. 32 gated MUST-level requirements, 9 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <title>SFLOW-V5 requirements and tests - Ze</title>
+        <meta name="description" content="SFLOW-V5: sFlow: A Method for Monitoring Traffic in Switched and Routed Networks. 31 mandatory requirements included in automatic checks, 9 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:title" content="SFLOW-V5 requirements and tests - Ze" />
+        <meta property="og:description" content="SFLOW-V5: sFlow: A Method for Monitoring Traffic in Switched and Routed Networks. 31 mandatory requirements included in automatic checks, 9 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="SFLOW-V5 requirement ledger - Ze" />
-        <meta name="twitter:description" content="SFLOW-V5: sFlow: A Method for Monitoring Traffic in Switched and Routed Networks. 32 gated MUST-level requirements, 9 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:title" content="SFLOW-V5 requirements and tests - Ze" />
+        <meta name="twitter:description" content="SFLOW-V5: sFlow: A Method for Monitoring Traffic in Switched and Routed Networks. 31 mandatory requirements included in automatic checks, 9 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -47,7 +47,7 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">sFlow export</span>
     <h1 id="rfc-detail-title">SFLOW-V5 - sFlow: A Method for Monitoring Traffic in Switched and Routed Networks</h1>
-    <p>Every requirement this repository extracted from SFLOW-V5, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
+    <p>Every requirement listed for SFLOW-V5, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.</p>
 </div>
 <style>
 .rfc-table-wrap { overflow-x: auto; }
@@ -57,16 +57,25 @@
 .rfc-verdict p:last-child { margin-bottom: 0; }
 .rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
-.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
-.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: block; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
 .rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
-.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
-.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-card b { display: block; margin: 0; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: .5rem 0 0; color: var(--muted); font-size: .92rem; line-height: 1.6; }
+.rfc-card.rfc-total-card { grid-column: 1 / -1; display: grid; grid-template-columns: 15rem minmax(0, 1fr); column-gap: 1.5rem; align-items: start; }
+.rfc-card.rfc-total-card span, .rfc-card.rfc-total-card strong, .rfc-card.rfc-total-card b { grid-column: 1; }
+.rfc-card.rfc-total-card p { grid-column: 2; grid-row: 1 / span 3; margin: 0; }
+@media (max-width: 760px) {
+  .rfc-card-grid { grid-template-columns: minmax(0, 1fr); }
+  .rfc-card.rfc-total-card { display: block; }
+  .rfc-card.rfc-total-card p { margin: .5rem 0 0; }
+}
 .rfc-ok { border-left: 7px solid var(--green); }
 .rfc-neutral { border-left: 7px solid var(--line-strong); }
 .rfc-warn { border-left: 7px solid var(--amber); }
 .rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-card.rfc-total-card { background: var(--bg-soft); border: 1px solid var(--line-strong); box-shadow: none; }
 .rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
 .rfc-tape span { width: var(--w); min-width: 0; display: block; }
 .rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
@@ -87,6 +96,7 @@
 .rfc-swatch.rfc-neutral { background: var(--line-strong); }
 .rfc-swatch.rfc-warn { background: var(--amber); }
 .rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-swatch.rfc-total-card { background: var(--bg-soft); }
 .rfc-total td { border-top: 2px solid var(--line-strong); }
 .rfc-prose { max-width: 46rem; }
 ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
@@ -118,39 +128,39 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>13</strong><b>of 32 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>9</strong><b>of 32 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 32 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 32 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>60</strong><b>60 of 60 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
-</div>
-<h3>Neutral</h3>
-<p>measures that are neither good news nor bad</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>32</strong><b>of 43 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 32 gated MUSTs</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 32 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>1</strong><b>of 32 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 32 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 32 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>13</strong><b>of 31 mandatory requirements</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>8</strong><b>of 31 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 31 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 31 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>63</strong><b>63 of 63 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>9</strong><b>of 32 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>26</strong><b>of 32 gated MUSTs judged</b><p>3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Declared gap or no test</span><strong>9</strong><b>of 31 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>25</strong><b>of 31 mandatory requirements reviewed</b><p>2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
-<p>The 9 counts marked as a part above are the whole of the 32 gated MUSTs: they add up to 32. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.</p>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 31 mandatory requirements</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 31 mandatory requirements</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>1</strong><b>of 31 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 31 mandatory requirements</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 31 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit</p></article>
+</div>
+<h3>Totals</h3>
+<p>what the cards above are counted against</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-total-card"><span>Mandatory requirements (MUST level)</span><strong>31</strong><b>of 42 requirements this summary lists, at all levels</b><p>The RFC&#39;s MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements.</p></article>
+</div>
+<p>The 9 counts marked as a part above are the whole of the 31 mandatory requirements: they add up to 31. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
-<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
 <tbody>
-<tr><td>Gated MUSTs</td>
-<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
-</tr>
 <tr><td>Out of scope</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
 <td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
@@ -171,9 +181,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
-<tr><td>No test at all</td>
+<tr><td>Declared gap or no test</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
-<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+<td>green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
@@ -191,13 +201,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
 <td>neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption</td>
 </tr>
-<tr><td>Proven by a recorded break</td>
+<tr><td>Tests shown to detect a fault</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above</td>
+<td>green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
-<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current</td>
+</tr>
+<tr><td>Mandatory requirements (MUST level)</td>
+<td><span class="rfc-swatch rfc-total-card"></span> outlined</td>
+<td>outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad</td>
 </tr>
 </tbody>
 </table>
@@ -212,14 +226,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Public row</td>
 <td>sFlow export</td>
 </tr>
-<tr><td>Enrolment</td>
-<td>Enrolled</td>
+<tr><td>Automatic checks</td>
+<td>Included</td>
 </tr>
 <tr><td>Requirements</td>
-<td>43</td>
+<td>42</td>
 </tr>
-<tr><td>Gated MUST-level</td>
-<td>32</td>
+<tr><td>Mandatory requirements (MUST level)</td>
+<td>31</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>0</td>
@@ -230,28 +244,28 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
 </tr>
-<tr><td>Gated with no test</td>
+<tr><td>Mandatory requirements with no test and no annotation</td>
 <td>0</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>60</td>
+<td>63</td>
 </tr>
-<tr><td>Tagged units</td>
-<td>60</td>
+<tr><td>Tests linked to requirements</td>
+<td>63</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>26</td>
+<td>25</td>
 </tr>
-<tr><td>Discrimination records</td>
-<td>60</td>
+<tr><td>Fault test records</td>
+<td>63</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/sflow-v5.md</code></td>
 </tr>
-<tr><td>Requirement shard</td>
+<tr><td>Requirement table</td>
 <td><code>rfc/requirements/sflow-v5.md</code></td>
 </tr>
 <tr><td>RFC text</td>
@@ -261,13 +275,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 </section>
-<section><h2>Enrolment</h2>
-<p>Enrolled: sFlow Version 5 exporter/agent. The checklist includes transport, sample encoding, counter availability and sampling obligations from the 2026-09-21 extraction walk. Tests cover parts of these obligations; the checklist retains the remaining gaps and uncovered requirements.</p>
+<section><h2>Automatic checks</h2>
+<p>Included in automatic checks: sFlow Version 5 exporter/agent. The checklist includes transport, sample encoding, counter availability and sampling obligations from the 2026-09-21 extraction walk. Tests cover parts of these obligations; the checklist retains the remaining gaps and uncovered requirements.</p>
 </section>
-<section><h2>What the public ledger says</h2>
+<section><h2>Published support status</h2>
 <p><strong>Area:</strong> sFlow export</p>
-<p><strong>Proof:</strong> 22 of 32 MUST proven</p>
-<p><strong>Evidence:</strong> unit 22</p>
+<p><strong>Proof:</strong> 21 of 31 MUST proven</p>
+<p><strong>Evidence:</strong> unit 21</p>
 <p><strong>Unmet:</strong> SFLOW-V5-4.3-1, SFLOW-V5-x-13, SFLOW-V5-x-36, SFLOW-V5-x-37, SFLOW-V5-x-38, SFLOW-V5-x-39, SFLOW-V5-x-40, SFLOW-V5-x-41, SFLOW-V5-x-42</p>
 
 </section>
@@ -278,44 +292,44 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td>Positive and negative tests</td>
 <td><strong>13</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
-<td><strong>19</strong></td>
-<td>one part of the gated population</td>
+<td><strong>18</strong></td>
+<td>one part of the mandatory requirements</td>
 </tr>
-<tr><td>One polarity only</td>
+<tr><td>Only a positive or negative test</td>
 <td><strong>0</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
 <td><strong>0</strong></td>
-<td>an overlay: each of these is also counted by the part it falls in</td>
+<td>also counted in one of the groups above</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
-<td>an overlay: each of these is also counted by the part it falls in</td>
+<td>also counted in one of the groups above</td>
 </tr>
 <tr><td>Derived from other rows</td>
 <td><strong>0</strong></td>
-<td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
+<td>excluded from the total: each summarizes the status of other requirements, which are already counted above</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>32</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Mandatory requirements (MUST level)</strong></td><td><strong>31</strong></td><td>every mandatory requirement appears in exactly one group above</td></tr>
 </tbody>
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (13):</strong> <a href="#sflow-v5-x-9"><code>SFLOW-V5-x-9</code></a>, <a href="#sflow-v5-x-12"><code>SFLOW-V5-x-12</code></a>, <a href="#sflow-v5-x-14"><code>SFLOW-V5-x-14</code></a>, <a href="#sflow-v5-x-25"><code>SFLOW-V5-x-25</code></a>, <a href="#sflow-v5-x-26"><code>SFLOW-V5-x-26</code></a>, <a href="#sflow-v5-x-27"><code>SFLOW-V5-x-27</code></a>, <a href="#sflow-v5-x-28"><code>SFLOW-V5-x-28</code></a>, <a href="#sflow-v5-x-29"><code>SFLOW-V5-x-29</code></a>, <a href="#sflow-v5-x-30"><code>SFLOW-V5-x-30</code></a>, <a href="#sflow-v5-x-31"><code>SFLOW-V5-x-31</code></a>, <a href="#sflow-v5-x-32"><code>SFLOW-V5-x-32</code></a>, <a href="#sflow-v5-x-33"><code>SFLOW-V5-x-33</code></a>, <a href="#sflow-v5-x-34"><code>SFLOW-V5-x-34</code></a></p>
-<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (19):</strong> <a href="#sflow-v5-x-1"><code>SFLOW-V5-x-1</code></a>, <a href="#sflow-v5-x-3"><code>SFLOW-V5-x-3</code></a>, <a href="#sflow-v5-x-4"><code>SFLOW-V5-x-4</code></a>, <a href="#sflow-v5-x-5"><code>SFLOW-V5-x-5</code></a>, <a href="#sflow-v5-x-6"><code>SFLOW-V5-x-6</code></a>, <a href="#sflow-v5-x-7"><code>SFLOW-V5-x-7</code></a>, <a href="#sflow-v5-x-10"><code>SFLOW-V5-x-10</code></a>, <a href="#sflow-v5-x-11"><code>SFLOW-V5-x-11</code></a>, <a href="#sflow-v5-x-13"><code>SFLOW-V5-x-13</code></a>, <a href="#sflow-v5-x-15"><code>SFLOW-V5-x-15</code></a>, <a href="#sflow-v5-x-35"><code>SFLOW-V5-x-35</code></a>, <a href="#sflow-v5-x-36"><code>SFLOW-V5-x-36</code></a>, <a href="#sflow-v5-x-37"><code>SFLOW-V5-x-37</code></a>, <a href="#sflow-v5-x-38"><code>SFLOW-V5-x-38</code></a>, <a href="#sflow-v5-x-39"><code>SFLOW-V5-x-39</code></a>, <a href="#sflow-v5-x-40"><code>SFLOW-V5-x-40</code></a>, <a href="#sflow-v5-x-41"><code>SFLOW-V5-x-41</code></a>, <a href="#sflow-v5-x-42"><code>SFLOW-V5-x-42</code></a>, <a href="#sflow-v5-4.3-1"><code>SFLOW-V5-4.3-1</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (18):</strong> <a href="#sflow-v5-x-1"><code>SFLOW-V5-x-1</code></a>, <a href="#sflow-v5-x-3"><code>SFLOW-V5-x-3</code></a>, <a href="#sflow-v5-x-4"><code>SFLOW-V5-x-4</code></a>, <a href="#sflow-v5-x-5"><code>SFLOW-V5-x-5</code></a>, <a href="#sflow-v5-x-6"><code>SFLOW-V5-x-6</code></a>, <a href="#sflow-v5-x-7"><code>SFLOW-V5-x-7</code></a>, <a href="#sflow-v5-x-10"><code>SFLOW-V5-x-10</code></a>, <a href="#sflow-v5-x-11"><code>SFLOW-V5-x-11</code></a>, <a href="#sflow-v5-x-13"><code>SFLOW-V5-x-13</code></a>, <a href="#sflow-v5-x-35"><code>SFLOW-V5-x-35</code></a>, <a href="#sflow-v5-x-36"><code>SFLOW-V5-x-36</code></a>, <a href="#sflow-v5-x-37"><code>SFLOW-V5-x-37</code></a>, <a href="#sflow-v5-x-38"><code>SFLOW-V5-x-38</code></a>, <a href="#sflow-v5-x-39"><code>SFLOW-V5-x-39</code></a>, <a href="#sflow-v5-x-40"><code>SFLOW-V5-x-40</code></a>, <a href="#sflow-v5-x-41"><code>SFLOW-V5-x-41</code></a>, <a href="#sflow-v5-x-42"><code>SFLOW-V5-x-42</code></a>, <a href="#sflow-v5-4.3-1"><code>SFLOW-V5-4.3-1</code></a></p>
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="sflow-v5:must">Ze proven 22, OS testing gap 1, Ze correctness gap 9</div>
+<div data-ze-rfc-bar="sflow-v5:must">Ze proven 21, OS testing gap 1, Not built 9</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="sflow-v5:overview">Ze MUST proven 22, SHOULD proven 3, SHOULD not decided 8, OS testing gap 1, Ze correctness gap 9</div>
+<div data-ze-rfc-bar="sflow-v5:overview">Ze MUST proven 21, SHOULD proven 3, OS testing gap 1, Not assessed 8, Not built 9</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -323,29 +337,38 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>RFCs</td>
 <td><span data-ze-rfc="sflow-v5:rfcs">1</span></td>
 </tr>
-<tr><td>Not walked</td>
+<tr><td>Requirements not reviewed</td>
 <td><span data-ze-rfc="sflow-v5:not-walked">0</span></td>
 </tr>
-<tr><td>Mandatory register</td>
+<tr><td>Mandatory requirements complete</td>
 <td><span data-ze-rfc="sflow-v5:register">not complete</span></td>
 </tr>
 <tr><td>MUST rows</td>
-<td><span data-ze-rfc="sflow-v5:must.total">32</span></td>
+<td><span data-ze-rfc="sflow-v5:must.total">31</span></td>
 </tr>
 <tr><td>MUST rows kept (the MUST bar)</td>
-<td><span data-ze-rfc="sflow-v5:must.kept">32</span></td>
+<td><span data-ze-rfc="sflow-v5:must.kept">31</span></td>
 </tr>
 <tr><td>Ze proven</td>
-<td><span data-ze-rfc="sflow-v5:must.ze-proven">22</span></td>
+<td><span data-ze-rfc="sflow-v5:must.ze-proven">21</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="sflow-v5:must.os-verified">0</span></td>
 </tr>
+<tr><td>Proof pending</td>
+<td><span data-ze-rfc="sflow-v5:must.proof-pending">0</span></td>
+</tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="sflow-v5:must.os-gap">1</span></td>
 </tr>
-<tr><td>Ze correctness gap</td>
-<td><span data-ze-rfc="sflow-v5:must.ze-gap">9</span></td>
+<tr><td>Exclusion unchecked</td>
+<td><span data-ze-rfc="sflow-v5:must.exclusion-unchecked">0</span></td>
+</tr>
+<tr><td>Not assessed</td>
+<td><span data-ze-rfc="sflow-v5:must.not-assessed">0</span></td>
+</tr>
+<tr><td>Not built</td>
+<td><span data-ze-rfc="sflow-v5:must.not-built">9</span></td>
 </tr>
 <tr><td>MUST rows not owed</td>
 <td><span data-ze-rfc="sflow-v5:must.not-owed">0</span></td>
@@ -383,19 +406,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD not owed: not-applicable</td>
 <td><span data-ze-rfc="sflow-v5:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
-<tr><td>SHOULD not ever</td>
-<td><span data-ze-rfc="sflow-v5:should.not-ever">0</span></td>
+<tr><td>SHOULD proof pending</td>
+<td><span data-ze-rfc="sflow-v5:should.proof-pending">0</span></td>
 </tr>
-<tr><td>SHOULD not yet</td>
-<td><span data-ze-rfc="sflow-v5:should.not-yet">0</span></td>
+<tr><td>SHOULD exclusion unchecked</td>
+<td><span data-ze-rfc="sflow-v5:should.exclusion-unchecked">0</span></td>
 </tr>
-<tr><td>SHOULD not decided</td>
-<td><span data-ze-rfc="sflow-v5:should.not-decided">8</span></td>
+<tr><td>SHOULD not assessed</td>
+<td><span data-ze-rfc="sflow-v5:should.not-assessed">8</span></td>
+</tr>
+<tr><td>SHOULD not built</td>
+<td><span data-ze-rfc="sflow-v5:should.not-built">0</span></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.</p>
+<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
 
 </section>
 <section><h2>Requirements</h2>
@@ -428,7 +454,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>SHOULD</td>
 <td>4.3 - Definitions</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to SFLOW-V5-4.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow_v5_agent_advice_test.go#L249" title="internal/plugins/flowexport/sflow_v5_agent_advice_test.go" target="_blank" rel="noopener"><code>TestSFlowV5AgentAddressMultiHomedEngineWarns</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_agent_loopback_test.go#L42" title="internal/plugins/flowexport/sflow/sflow_v5_agent_loopback_test.go" target="_blank" rel="noopener"><code>TestSFlowV5AgentAddressOnLoopbackWhenMultiHomed</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow_v5_agent_advice_test.go#L283" title="internal/plugins/flowexport/sflow_v5_agent_advice_test.go" target="_blank" rel="noopener"><code>TestSFlowV5AgentAddressOnLoopbackEngineSilent</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_agent_loopback_test.go#L43" title="internal/plugins/flowexport/sflow/sflow_v5_agent_loopback_test.go" target="_blank" rel="noopener"><code>TestSFlowV5AgentAddressOnLoopbackWhenMultiHomed</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_agent_loopback_test.go#L90" title="internal/plugins/flowexport/sflow/sflow_v5_agent_loopback_test.go" target="_blank" rel="noopener"><code>TestSFlowV5AgentAddressSingleHomedNoAdvice</code></a></span></div>
 </div></td>
@@ -540,22 +568,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow_v5_polling_test.go#L86" title="internal/plugins/flowexport/sflow_v5_polling_test.go" target="_blank" rel="noopener"><code>TestSFlowV5CounterGapNeverExceedsInterval</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="sflow-v5-x-15">SFLOW-V5-x-15</code></td><td colspan="3"><span class="rfc-subject">If counter samples are lost then new values will be sent during the next polling interval. The chance of an undetected counter wrap is negligible. (§5)</span></td></tr>
-<tr><td></td>
-<td>MUST</td>
-<td>5 - sFlow Datagram Format</td>
-<td><div class="rfc-tests" role="table" aria-label="tests bound to SFLOW-V5-x-15">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow_v5_register_test.go#L128" title="internal/plugins/flowexport/sflow_v5_register_test.go" target="_blank" rel="noopener"><code>TestInterfaceCountersFromCumulative</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> interfaceCountersFrom copies the raw cumulative kernel counters straight through with no differencing, so exported if_counters are cumulative by construction (internal/plugins/flowexport/register.go:343-358, snapshot.go:10-13)</p></td>
-</tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="sflow-v5-x-16">SFLOW-V5-x-16</code></td><td colspan="3"><span class="rfc-subject">The following values should be used for fields that are unknown (unless otherwise indicated in the structure definitions). - Unknown integer value. Use a value of 0 to indicate that a value is unknown. - Unknown counter. Use the maximum counter value to indicate that the counter is not available. (§5)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5 - sFlow Datagram Format</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to SFLOW-V5-x-16">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow_v5_register_test.go#L83" title="internal/plugins/flowexport/sflow_v5_register_test.go" target="_blank" rel="noopener"><code>TestInterfaceCountersFromUnknownSpeed</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow_v5_counters_test.go#L49" title="internal/plugins/flowexport/sflow_v5_counters_test.go" target="_blank" rel="noopener"><code>TestSFlowV5UnavailableCountersCarrySentinelEveryPoll</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_flow_sampling_test.go#L56" title="internal/plugins/flowexport/sflow/sflow_v5_flow_sampling_test.go" target="_blank" rel="noopener"><code>TestSFlowV5UnknownEgressInterfaceIsZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow_v5_register_test.go#L35" title="internal/plugins/flowexport/sflow_v5_register_test.go" target="_blank" rel="noopener"><code>TestInterfaceCountersFromExtended</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow_v5_counters_test.go#L66" title="internal/plugins/flowexport/sflow_v5_counters_test.go" target="_blank" rel="noopener"><code>TestSFlowV5AvailableCountersNeverTurnUnavailable</code></a></span></div>
 </div></td>
 </tr>
@@ -863,7 +884,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Proof state</h2>
-<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<p>A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.</p>
 <h3><a href="#sflow-v5-x-1"><code>SFLOW-V5-x-1</code></a></h3>
 <p>enum datagram_version { VERSION5 = 5 } union sample_datagram_type (datagram_version version) { case VERSION5: sample_datagram_v5 datagram; } (§5)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. single-polarity: the header&#39;s first field decodes big-endian to 5, the only datagram_version the XDR union defines; WriteDatagramHeader writes a constant, so any other value fails the assertion</p>
@@ -911,7 +932,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#sflow-v5-4.3-2"><code>SFLOW-V5-4.3-2</code></a></h3>
 <p>In the case of a multi-homed agent, this should be the loopback address of the agent. (§4.3)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Re-judged 2026-10-18 (independent auditor, after 24c32c00b8). sFlow v5 Section 4.3, sFlowAgentAddress: &#34;In the case of a multi-homed agent, this should be the loopback address of the agent.&#34; adviseSFlowCollectors classifies the agent address against the interface list and returns a warning naming the interface and the dummy-interface fix; flowexport runEngine logs each advice at Warn and refuses nothing. The tagged unit tests discriminate the classifier and the advice text (lo, dummy, routed, single-homed, IPv6 spelling) and claim no more than they assert, but no tagged test reaches the operator: deleting RegisterCollectorsAdvisor(&#34;sflow&#34;, ...) or the Warn loop in runEngine leaves every tag green, and test/flow-export/sflow-agent-address-warning.ci is untagged and covers only the absent-address case. The discrimination records replace classifyAgentAddress with a panic, proving reach, not logic.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-11-14 (independent auditor). sFlow v5 Section 4.3, sFlowAgentAddress: &#34;In the case of a multi-homed agent, this should be the loopback address of the agent.&#34; The operator must configure agent-address (validateSFlowCollectors refuses a missing one). adviseSFlowCollectors, registered by RegisterCollectorsAdvisor(&#34;sflow&#34;, ...) and run by adviseProtocolCollectors, classifies it against iface.ListInterfaces, and runEngine&#39;s configure logs each advice at WARN and refuses nothing. That is a faithful SHOULD: the deviation stays allowed and is reported with its fix. TestSFlowV5AgentAddressMultiHomedEngineWarns drives runEngine over the SDK configure callback with a registered iface backend (lo, dummy agent0, routed eth0 and eth1). It requires the config applied and exactly one WARN carrying the address, routed interface eth0, &#39;more than one routed interface&#39; and the dummy-interface fix. It goes red when the advisor is unregistered, its answers are dropped (recorded mutant on the Warn loop), it ignores the interface list, or the classifier reports single-homed. TestSFlowV5AgentAddressOnLoopbackEngineSilent requires no record at WARN or above for addresses on lo and on agent0 (recorded mutant: the advisor classifying against ifs[:0] gives a false WARN). The sflow/ units pin the classifier and advice text, including the single-homed and IPv6 spellings.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -926,10 +947,20 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow_v5_agent_advice_test.go#L283" title="internal/plugins/flowexport/sflow_v5_agent_advice_test.go" target="_blank" rel="noopener"><code>TestSFlowV5AgentAddressOnLoopbackEngineSilent</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_agent_loopback_test.go#L42" title="internal/plugins/flowexport/sflow/sflow_v5_agent_loopback_test.go" target="_blank" rel="noopener"><code>TestSFlowV5AgentAddressOnLoopbackWhenMultiHomed</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow_v5_agent_advice_test.go#L249" title="internal/plugins/flowexport/sflow_v5_agent_advice_test.go" target="_blank" rel="noopener"><code>TestSFlowV5AgentAddressMultiHomedEngineWarns</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1116,8 +1147,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#sflow-v5-x-13"><code>SFLOW-V5-x-13</code></a></h3>
 <p>Applications receiving sFlow data must always use the opaque length information when decoding opaque&lt;&gt; structures so that encountering extended structures will not cause decoding errors. (§5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries SFLOW-V5-x-13, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries SFLOW-V5-x-13, so there is no linked test.</p>
 <h3><a href="#sflow-v5-x-14"><code>SFLOW-V5-x-14</code></a></h3>
 <p>The maximum number of seconds between successive samples of the counters associated with this data source. (§4.3)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. notifySnapshot now polls at elapsed &gt;= interval - one snapshot tick and waits for the mutex instead of TryLock-dropping. TestSFlowV5CounterGapNeverExceedsInterval drives 30 late 1.01 s snapshots at a 5 s interval through a real Sender and requires no gap over 5 s and at least 6 polls; the old elapsed &gt;= interval gate leaves a 5.05 s gap and goes red (author observed red at HEAD). Its two tags sit on one assertion: the maximum is one upper bound, so this is effectively single-polarity, not a pair. TestSFlowCounterPollAtInterval covers the 1 s interval. The busy-exporter drop is covered under x-26.</p>
@@ -1143,24 +1174,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<h3><a href="#sflow-v5-x-15"><code>SFLOW-V5-x-15</code></a></h3>
-<p>If counter samples are lost then new values will be sent during the next polling interval. The chance of an undetected counter wrap is negligible. (§5)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. single-polarity (marker: interfaceCountersFrom has no differencing path): a second conversion of the same kernel stats must equal the first, so a delta implementation (which loses the traffic of a lost sample) fails &#39;second conversion differs&#39;; the negligible-wrap clause rests on 64-bit octet counters, and RxBytes 5e9 &gt; 2^32 must come through untruncated</p>
-<div class="rfc-table-wrap">
-<table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
-<tbody>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow_v5_register_test.go#L128" title="internal/plugins/flowexport/sflow_v5_register_test.go" target="_blank" rel="noopener"><code>TestInterfaceCountersFromCumulative</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
-</tbody>
-</table>
-</div>
 <h3><a href="#sflow-v5-x-16"><code>SFLOW-V5-x-16</code></a></h3>
 <p>The following values should be used for fields that are unknown (unless otherwise indicated in the structure definitions). - Unknown integer value. Use a value of 0 to indicate that a value is unknown. - Unknown counter. Use the maximum counter value to indicate that the counter is not available. (§5)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Integer clause: TestSFlowV5UnknownEgressInterfaceIsZero requires output format 0 and value 0 for an unknown egress. Counter clause: TestSFlowV5UnavailableCountersCarrySentinelEveryPoll requires exactly 0xFFFFFFFF for the four counters the kernel does not expose, and TestSFlowV5AvailableCountersNeverTurnUnavailable requires real values (including zero) for the rest. All three units now carry observed-red records.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Integer clause, both polarities: TestSFlowV5UnknownEgressInterfaceIsZero requires output format 0 and value 0 for an unknown egress, and TestInterfaceCountersFromUnknownSpeed requires ifSpeed 0 and ifDirection 0 for unknown speed 0 and empty duplex (ifSpeed is a gauge, not a counter, so the integer clause governs it; ifDirection 0 also matches the if_counters 0 = unkown comment); TestInterfaceCountersFromExtended requires the exact 10 Gbit/s ifSpeed and the full-duplex code for a known link, so a known integer is never sent as the unknown 0. Counter clause: TestSFlowV5UnavailableCountersCarrySentinelEveryPoll requires exactly 0xFFFFFFFF for the four counters the kernel does not expose, and TestSFlowV5AvailableCountersNeverTurnUnavailable requires the real values, zero included, for the rest. All five units carry observed-red records; the ifSpeed half of the unknown-speed unit is proven by its exact assertion, not by its recorded break, and the unknown-to-0 mapping of a sysfs speed lives upstream in parseLinkSpeedDuplex, which no x-16 unit reaches.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1169,6 +1185,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow_v5_counters_test.go#L66" title="internal/plugins/flowexport/sflow_v5_counters_test.go" target="_blank" rel="noopener"><code>TestSFlowV5AvailableCountersNeverTurnUnavailable</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow_v5_register_test.go#L35" title="internal/plugins/flowexport/sflow_v5_register_test.go" target="_blank" rel="noopener"><code>TestInterfaceCountersFromExtended</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_flow_sampling_test.go#L56" title="internal/plugins/flowexport/sflow/sflow_v5_flow_sampling_test.go" target="_blank" rel="noopener"><code>TestSFlowV5UnknownEgressInterfaceIsZero</code></a></td>
@@ -1179,6 +1200,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow_v5_counters_test.go#L49" title="internal/plugins/flowexport/sflow_v5_counters_test.go" target="_blank" rel="noopener"><code>TestSFlowV5UnavailableCountersCarrySentinelEveryPoll</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow_v5_register_test.go#L83" title="internal/plugins/flowexport/sflow_v5_register_test.go" target="_blank" rel="noopener"><code>TestInterfaceCountersFromUnknownSpeed</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1420,42 +1446,42 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#sflow-v5-x-35"><code>SFLOW-V5-x-35</code></a></h3>
 <p>Trailing encapsulation data corresponding to any leading encapsulations that were stripped must also be stripped. Trailing encapsulation data for the outermost protocol layer included in the sampled header must be stripped. In the case of a non-encapsulated 802.3 packet stripped &gt;= 4 since VLAN tag information might have been stripped off in addition to the FCS. Outer encapsulations that are ambiguous, or not one of the standard header_protocol must be stripped. (§5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries SFLOW-V5-x-35, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries SFLOW-V5-x-35, so there is no linked test.</p>
 <h3><a href="#sflow-v5-x-36"><code>SFLOW-V5-x-36</code></a></h3>
 <p>extended_switch data must always be reported to describe the ingress/egress VLAN information for the packet. (§5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries SFLOW-V5-x-36, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries SFLOW-V5-x-36, so there is no linked test.</p>
 <h3><a href="#sflow-v5-x-37"><code>SFLOW-V5-x-37</code></a></h3>
 <p>The random number generator must ensure that all numbers in the range between its maximum and minimum values of the distribution are possible; a random number generator only capable of generating even numbers, or numbers with any common divisor is unsuitable. (§B)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries SFLOW-V5-x-37, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries SFLOW-V5-x-37, so there is no linked test.</p>
 <h3><a href="#sflow-v5-x-38"><code>SFLOW-V5-x-38</code></a></h3>
 <p>The Packet Flow Sampling mechanism carried out by each sFlow Instance must ensure that any packet observed at a Data Source has an equal chance of being sampled, irrespective of the Packet Flow(s) to which it belongs. (§3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries SFLOW-V5-x-38, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries SFLOW-V5-x-38, so there is no linked test.</p>
 <h3><a href="#sflow-v5-x-39"><code>SFLOW-V5-x-39</code></a></h3>
 <p>Each packet must only be considered once for sampling, irrespective of the number of ports it will be forwarded to. (§4.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries SFLOW-V5-x-39, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries SFLOW-V5-x-39, so there is no linked test.</p>
 <h3><a href="#sflow-v5-x-40"><code>SFLOW-V5-x-40</code></a></h3>
 <p>Note: Each sFlow sampler instance must operate independently of all other instances. Setting an attribute of one sampler must not alter the the behavior and settings of other sampler instances. (§4.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries SFLOW-V5-x-40, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries SFLOW-V5-x-40, so there is no linked test.</p>
 <h3><a href="#sflow-v5-x-41"><code>SFLOW-V5-x-41</code></a></h3>
 <p>The sampling algorithm must converge so that over time the number of packets sampled approaches 1/Nth of the total number of packets in the monitored flows. (§4.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries SFLOW-V5-x-41, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries SFLOW-V5-x-41, so there is no linked test.</p>
 <h3><a href="#sflow-v5-x-42"><code>SFLOW-V5-x-42</code></a></h3>
 <p>The Agent may implement an automated one-way backoff of the Sampling Rate that triggers whenever an excessive number of samples per second is generated. When the triggered the Agent can double the Sampling Rate. If the threshold is exceeded again, the Sampling Rate is doubled again. The Sampling Rate will quickly reach a value that is sustainable. The sampling rate must stay at its new value and never automatically return to the originally configured value. (§4.2.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries SFLOW-V5-x-42, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries SFLOW-V5-x-42, so there is no linked test.</p>
 <h3><a href="#sflow-v5-4.3-1"><code>SFLOW-V5-4.3-1</code></a></h3>
 <p>The sFlowAgent address must provide SNMP connectivity to the agent. (§4.3)</p>
 <p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. Unconditional MUST of the sFlowAgentAddress DESCRIPTION (4.3), binding the sFlow agent Ze is. parseAgentAddress checks only that the configured agent-address parses and is specified; no Go code in the tree implements an SNMP agent (grep: snmp appears only in ifIndex/ifTable comments), so nothing answers SNMP at the address. {gap} annotation and Meta Support coverage disclose it.</p>
-<p>No test carries SFLOW-V5-4.3-1, so no unit is bound to it.</p>
+<p>No test carries SFLOW-V5-4.3-1, so there is no linked test.</p>
 </section>
-<section><h2>Extraction sign-off</h2>
+<section><h2>Requirement list review</h2>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
@@ -1501,145 +1527,145 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td><code>front</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>2</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>3</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>4</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>5</code></td>
 <td>sFlow Datagram Format</td>
 <td>30</td>
-<td>walked</td>
-<td>sFlow Datagram Format. The specification&#39;s main normative section: 30 sites, 15 mapped to SFLOW-V5-x-6, x-12, x-13 and x-25 through x-36, and 15 excluded, of which 9 repeat a sentence already mapped, 4 bind another role (three an sFlow Collector, one the author of a new sFlow structure definition) and 2 state no obligation. Nine ids are declared unsourced here. sFlow v5 writes this section as XDR type definitions and explanatory prose, so the capitalised MUST-level scan raises no site for any of them. x-1 rests on &#39;enum datagram_version { VERSION5 = 5 }&#39; with &#39;union sample_datagram_type (datagram_version version) { case VERSION5: sample_datagram_v5 datagram; }&#39;, which admit one version value and name no obligation. x-3 rests on the sub_agent_id comment, &#39;Used to distinguishing between datagram streams from separate agent sub entities within an device&#39;, read with the agent_address comment &#39;IP address of sampling agent, sFlowAgentAddress&#39;. x-4 rests on the sample_datagram_v5 sequence_number comment, &#39;Incremented with each sample datagram generated by a sub-agent within an agent&#39;. x-7 rests on &#39;The format of the sFlow datagram is specified using the XDR standard [32]&#39;, which imports 4-byte alignment and big-endian order from XDR instead of restating them. x-9 rests on the &#39;unsigned int sequence_number&#39; declarations, one per-agent in sample_datagram_v5 and one per-source in flow_sample and counters_sample, each an XDR unsigned 32-bit value that wraps. x-10 rests on &#39;unsigned int sampling_rate; /* sFlowPacketSamplingRate */&#39; inside flow_sample. x-11 rests on &#39;unsigned int sample_pool; /* Total number of packets that could have been sampled (i.e. packets skipped by sampling process + total number of samples) */&#39;. x-15 rests on &#39;If counter samples are lost then new values will be sent during the next polling interval. The chance of an undetected counter wrap is negligible.&#39;, which holds for counters that accumulate and not for per-interval deltas, read with &#39;/* Generic Interface Counters - see RFC 2233 */&#39; and with &#39;An available counter may temporarily have the max value just before it rolls to zero.&#39;. x-16 rests on &#39;Unknown counter. Use the maximum counter value to indicate that the counter is not available.&#39;</td>
+<td>reviewed</td>
+<td>sFlow Datagram Format. The specification&#39;s main normative section: 30 sites, 15 mapped to SFLOW-V5-x-6, x-12, x-13 and x-25 through x-36, and 15 excluded, of which 9 repeat a sentence already mapped, 4 bind another role (three an sFlow Collector, one the author of a new sFlow structure definition) and 2 state no obligation. Eight ids are declared unsourced here. sFlow v5 writes this section as XDR type definitions and explanatory prose, so the capitalised MUST-level scan raises no site for any of them. x-1 rests on &#39;enum datagram_version { VERSION5 = 5 }&#39; with &#39;union sample_datagram_type (datagram_version version) { case VERSION5: sample_datagram_v5 datagram; }&#39;, which admit one version value and name no obligation. x-3 rests on the sub_agent_id comment, &#39;Used to distinguishing between datagram streams from separate agent sub entities within an device&#39;, read with the agent_address comment &#39;IP address of sampling agent, sFlowAgentAddress&#39;. x-4 rests on the sample_datagram_v5 sequence_number comment, &#39;Incremented with each sample datagram generated by a sub-agent within an agent&#39;. x-7 rests on &#39;The format of the sFlow datagram is specified using the XDR standard [32]&#39;, which imports 4-byte alignment and big-endian order from XDR instead of restating them. x-9 rests on the &#39;unsigned int sequence_number&#39; declarations, one per-agent in sample_datagram_v5 and one per-source in flow_sample and counters_sample, each an XDR unsigned 32-bit value that wraps. x-10 rests on &#39;unsigned int sampling_rate; /* sFlowPacketSamplingRate */&#39; inside flow_sample. x-11 rests on &#39;unsigned int sample_pool; /* Total number of packets that could have been sampled (i.e. packets skipped by sampling process + total number of samples) */&#39;. x-15 was declared here on &#39;If counter samples are lost then new values will be sent during the next polling interval. The chance of an undetected counter wrap is negligible.&#39;, which explains UDP loss and directs no agent; it was retired on 2026-11-14 (rfc/corrections/sflow-v5.md), since the cumulative meaning of the interface counters is RFC 2233&#39;s (&#39;/* Generic Interface Counters - see RFC 2233 */&#39;). x-16 rests on &#39;Unknown counter. Use the maximum counter value to indicate that the counter is not available.&#39;</td>
 </tr>
 <tr><td><code>6</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>8</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>2.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>2.2</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>3.1</code></td>
 <td>not stated</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>3.2</code></td>
 <td>Counter Sampling</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Counter Sampling. One site, excluded as not a requirement: &#39;Counters are only added to the datagram if the sources are within a short period, 5 seconds say, of failing to meet the required Sampling Interval&#39;, which describes one strategy and prescribes none. One id is declared unsourced here. x-14 rests on &#39;A maximum Sampling Interval is assigned to each sFlow Instance associated with an interface Data Source, but the sFlow Agent is free to schedule polling in order maximize internal efficiency&#39;, read with &#39;Periodically, say every second, the sFlow Agent examines the list of counter sources and sends any counters that need to be sent to meet the sampling interval requirement&#39;. Both sentences are indicative, so the MUST-level scan raises no site for them.</td>
 </tr>
 <tr><td><code>4.1</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>4.2</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>4.2.1</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>4.2.2</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>4.2.3</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>4.3</code></td>
 <td>Definitions</td>
 <td>18</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Definitions. The SFLOW-MIB module itself: 18 sites, 4 mapped to SFLOW-V5-x-39, x-40, x-41 and SFLOW-V5-4.3-1, and 14 excluded, of which 2 repeat a sentence already mapped and 12 bind an SNMP agent or an SNMP management station. Ze configures sFlow through YANG and ships no SFLOW-MIB, so those 12 bind a configuration interface Ze does not implement. SFLOW-V5-4.3-1 is the sFlowAgentAddress sentence &#39;The sFlowAgent address must provide SNMP connectivity to the agent.&#39;, which binds the sFlow agent Ze is, so it is a gap row rather than an exclusion. Three ids are declared unsourced here, all stated at SHOULD level in an OBJECT-TYPE DESCRIPTION that the MUST-level scan does not raise. SFLOW-V5-4.3-2 rests on the sFlowAgentAddress DESCRIPTION sentence &#39;In the case of a multi-homed agent, this should be the loopback address of the agent.&#39;. x-2 rests on the same DESCRIPTION: &#39;The address should be an invariant that does not change as interfaces are reconfigured, enabled, disabled, added or removed.&#39; and &#39;A manager should be able to use the sFlowAgentAddress as a unique key that will identify this agent over extended periods of time so that a history can be maintained.&#39;. x-5 rests on the sFlowRcvrMaximumDatagramSize DESCRIPTION, &#39;The maximum number of data bytes that can be sent in a single sample datagram. The manager should set this value to avoid fragmentation of the sFlow datagrams.&#39;, with DEFVAL { 1400 }.</td>
 </tr>
 <tr><td><code>6.1</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>6.2</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>6.3</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>A</code></td>
 <td>Appendix A</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Appendix A. Until 2026-09-27 the heading reader did not read this appendix&#39;s heading, so its text was read as part of the section before it. It carries no site, so no decision moved.</td>
 </tr>
 <tr><td><code>B</code></td>
 <td>Appendix B</td>
 <td>3</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>Appendix B. Until 2026-09-27 the heading reader did not read this appendix&#39;s heading, so its text was read as part of section 8, where its 3 site(s) were walked; every decision is carried forward by its verbatim quote.</td>
 </tr>
 </tbody>
@@ -1850,7 +1876,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     </a>
                     <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
                         <span class="page-sidebar-link-label">Verify debugging</span>
-                        <small>How failed checks route to evidence.</small>
+                        <small>How to investigate failed checks using their logs.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -1869,7 +1895,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 20:44 UTC</span>
                 </div>
             </div>
         </footer>

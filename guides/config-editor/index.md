@@ -90,12 +90,39 @@ result. Separate sessions keep independent whole snapshots, not merged history.
 | `commit accept` | Make a pending confirmed commit permanent |
 | `commit abort` | Roll back a pending confirmed commit immediately |
 | `commit verify` | Validate the candidate and apply nothing |
+| `discard all` | Drop every pending change (in an editing session, every change of this session) |
+| `discard <path>` | Drop the pending changes at or under the path, and keep every other change |
 | `rollback <N>` | Restore revision N |
 | `top` | Navigate to config root |
+| `top <command>` | Run one command as if at the root, and stay where you are unless the command moves you |
 | `up` | Navigate up one level |
 | `edit <path>` | Navigate into a section |
 | `exit` | Exit editor |
 <!-- source: internal/component/cli/editor_commands.go -- editor commands (set, delete, show, diff, commit, rollback) -->
+<!-- source: internal/component/cli/editor_help.go -- editorCommands, EditorHelpEntries -->
+
+`top <command>` takes any command the editor accepts and runs it once with
+the position at the root, then leaves you where you were. Inside
+`edit bgp peer peer1`, `top set bgp router-id 192.0.2.9` sets the root path,
+`top show` displays the whole configuration, and `top show | errors` lists
+every issue. Only a command that moves you keeps its move: `top edit bgp`
+goes to `bgp`, as `edit bgp` typed at the root would. `top run <cmd>`,
+`top exit`, `top clear`, `top stop` and `top restart` do exactly what they do
+without `top`. `top load terminal relative merge` pastes at the root. History
+keeps the line as you typed it, and completion after `top ` offers what the
+root offers. This form runs in the SSH editor and `ze config edit`.
+<!-- source: internal/component/cli/model_commands.go -- cmdTop, lineBehindTop -->
+<!-- source: internal/component/cli/model_keys.go -- handleEnter, finishPasteMode -->
+
+In an editing session a bare `discard` is refused and names both forms above.
+Without an editing session, a bare
+`discard` drops every change, and `discard <path>` puts back the committed
+content at the path, or removes what the path holds when the committed
+config has nothing there.
+<!-- source: internal/component/cli/editor_discard_path.go -- DiscardPath, restoreElement -->
+<!-- source: internal/component/config/tree_restore.go -- RestoreValue -->
+The help overlay (`help`), Tab completion and `ze config edit --help` all read
+one command table, so their wording for a command is the same.
 
 `commit` always takes a subcommand: a bare `commit`, a bare `force`, or an
 unknown word is refused with the list of subcommands, so a typo never applies a
@@ -111,15 +138,56 @@ over no change would revert nothing.
 <!-- source: internal/component/cli/contract/commit.go -- NothingToCommit -->
 <!-- source: internal/component/cli/contract/commit.go -- ParseCommit, commitSubcommands -->
 
-A commit that validation refuses says so on the status line: how many errors
-and warnings block it, then each one. When only warnings block it, the line
-names the forced form of what you typed (`commit now force`, or
+A commit that validation refuses says on the status line how many errors and
+warnings block it. When only warnings block it, that line names the forced
+form of what you typed (`commit now force`, or
 `commit confirmed <seconds> force`), and a forced commit reports how many
-warnings it skipped. `force` never commits over an error. `commit verify`
-gives the same list and applies nothing. The configuration stays on screen with
-each issue marked. The web terminal and the web CLI bar run the same validation
-and answer with the same text, the CLI bar as an error notification, and a
+warnings it skipped. `force` never commits over an error. The viewport shows
+the same header, then each issue on its own lines, indented: the problem, why,
+and a `fix:` line you can type where you are. At the root the fix is
+`set <full path> <value>`; inside an `edit` context it is
+`top set <full path> <value>`, which works from any position. A refused member
+of a leaf-list gets `delete <path> <member>` instead. A missing mandatory leaf
+names its `set` in brackets the same way, with `top` in front inside a
+context. `commit verify` and `show | errors` give the same list and apply
+nothing. The web terminal and the web CLI bar run the same validation and
+answer with the same text, the CLI bar as an error notification, and a
 refused commit leaves your changes pending there too.
+
+A `set` or `insert` the schema refuses (a value outside an enumeration, a
+range, a length or a format), and a `rename` or `copy` whose new key the list
+refuses, names the setting path, lists what the leaf
+accepts, and ends with the command you typed, corrected, in the form you typed
+it: relative inside an `edit` context, and behind `top` when you typed it
+behind `top`. A refusal of several lines is shown whole in the viewport, and
+the line above the prompt keeps its first line. Inside `edit bgp peer peer1`,
+a mistyped `set session capability route-refresh requre` ends with
+`fix: set session capability route-refresh require`.
+The refusal's full shape, for every kind of value and every surface, is
+[Value refusals](https://github.com/ze-software/ze/blob/main/docs/architecture/config/yang-config-design.md#value-refusals).
+
+Command input in the SSH editor, web terminal and web CLI bar uses the config
+token codec. Double-quoted words decode `\"`, `\\`, `\n`, `\r` and `\t`. Single-quoted
+words keep their contents raw, so `'C:\Users\test'` preserves each backslash;
+the double-quoted form is `"C:\\Users\\test"`. A quoted `"|"` is a literal key or
+value; a bare `|` starts a pipe. For example, `show | match "|"` shows only
+lines with a literal pipe, and `show | match "|" | head 1` shows the first one.
+Printed fixes preserve these boundaries, including behind `top`, so a group
+named `"edge routers"` keeps its name when
+you type the proposed correction.
+<!-- source: internal/component/cli/command_words.go -- ParseCommandWords, Tail, SplitPipe -->
+<!-- source: internal/component/cli/model_load.go -- ParsePipeFilters -->
+<!-- source: internal/component/config/list_key.go -- splitQuotedTokensMarked, readQuotedToken -->
+
+A commit refused because of an API-supplied value keeps that value and your
+other pending changes. Apply the proposed correction and commit again. A
+session's stored candidate remains readable and editable even when one of its
+leaf values or leaf-list members is invalid; you do not need to discard your
+changes to repair it.
+<!-- source: internal/component/cli/editor_draft.go -- readChangeFile, writeThroughSet -->
+<!-- source: internal/component/cli/fix_frame.go -- FrameFix, FramedSetRefusal -->
+<!-- source: internal/component/cli/model_render.go -- setError, feedbackLine -->
+<!-- source: internal/component/cli/validator.go -- ConfigValidationError.Text, refusalIssue, missingFieldIssue -->
 <!-- source: internal/component/cli/model_commands_commit.go -- CommitRefusal, commitValidationRefusal, WithSkippedWarnings, cmdCommitVerify -->
 <!-- source: internal/component/cli/contract/commit.go -- ForcedCommand -->
 <!-- source: internal/component/web/editor_commit_window.go -- runCommit, validateTransition -->
@@ -344,9 +412,19 @@ inputs. An offline `set` writes the supplied file and records its previous
 content only when that folder already holds a store. Without one it prints
 `no version recorded`; it does not create a store. `history`, numbered `diff`,
 and `rollback` require the folder's history and name `ze init` when it is absent.
-An offline writer refuses while the daemon owns that store.
+An offline writer refuses while the daemon owns that store, except
+`ze config import`, which then sends its inputs to that daemon (below).
 <!-- source: internal/component/config/cli/editor_stdin.go -- openEditableConfig, noticeUnrecordedVersion -->
 <!-- source: internal/component/config/cli/cmd_diff.go -- resolveDiff -->
+
+An offline `ze config set` refuses an invalid value or a new list key before
+it writes the file. It exits with code 2 and prints the
+[value refusal](https://github.com/ze-software/ze/blob/main/docs/architecture/config/yang-config-design.md#value-refusals)
+on stderr. The last line gives the corrected `set` command from the root,
+including the words after a refused key. For example,
+`ze config set router.conf ospf redistribute bogus nssa-propagate true`
+ends with `fix: set ospf redistribute <connected|static|kernel|bgp|isis> nssa-propagate true`.
+<!-- source: internal/component/config/cli/cmd_set.go -- cmdSetImpl -->
 
 `ze config import --dir <folder> <file>...` selects a destination independently
 of its input files. Without `--dir`, the destination follows `ze.config.dir`
@@ -358,8 +436,35 @@ and `y` or `yes` replaces them while any other answer writes nothing and exits
 non-zero. Without a terminal, including when the input is stdin, it asks nothing
 and refuses, naming `--yes`; `--yes` confirms in advance. A replaced config is
 committed as a new active version and the previous one becomes its rollback, so
-`ze config rollback` restores it.
-<!-- source: internal/component/config/cli/cmd_import.go -- cmdImportWithStorage, cmdImportConfirm -->
+`ze config rollback` restores it. A config the store holds through its active
+version alone, with no file key, counts as held. A name is a plain config name:
+not `.`, `..`, a path or `-`.
+
+While a running daemon owns the destination store, the import goes through that
+daemon. The name checks and the confirmation run first, exactly as above, over
+a reader of the store. Every input is then read and encoded before anything is
+sent, so an unreadable input, or one over 195,840 bytes (the most one command
+carries), stops the import with nothing sent; a larger config is restored from
+a backup on the daemon's host with `request data restore path <file> config`.
+Each input then goes to the daemon as
+`update data config name <name> content <base64>`, which stages the daemon's
+own config and reloads, or commits another name as a new version, and the
+command prints the same `imported` or `replaced` lines and file count. The
+first refusal ends the import with the daemon's reason and fix, leaving the
+inputs before it imported. When no daemon answers, the command keeps the
+store's refusal, says why the daemon did not answer and names the fix. It
+reaches the daemon as `ze data import` does: the address and login of that
+store, with no password prompt. `--dir` naming a store no daemon owns stays
+offline.
+
+Offline, an import into a config whose confirmed commit was left open by a
+daemon that then stopped is refused, as `ze config rollback` is: that daemon's
+next start reverts the commit, which would undo the import. The refusal names
+`ze start <config>`.
+<!-- source: internal/component/config/cli/cmd_import.go -- cmdImportWithStorage, cmdImportThroughDaemon, cmdImportNames, cmdImportExists, cmdImportConfirm -->
+<!-- source: internal/component/config/storage/daemonroute/daemonroute.go -- ConfigLine, Send, OverSSH, UnansweredRefusal -->
+<!-- source: internal/component/config/confirm/store.go -- WriteOutsideRecorded -->
+<!-- source: internal/component/config/storage/config_name.go -- PlainConfigName -->
 <!-- source: internal/component/config/storage/restore.go -- RestoreConfig -->
 
 ## Editing Modes
@@ -429,10 +534,13 @@ edit must be reconciled before a competing daemon commit can succeed. Bare
 In a session editor, `commit confirmed <seconds>` runs through the daemon's
 confirmed-commit window (see [Commit Confirmed](#commit-confirmed)). A session
 editor of a configuration the daemon does not run has no such window, and
-refuses it with "commit confirmed needs a daemon that runs this configuration
+validates its candidate first, showing any blocking issues with the same
+status header and viewport corrections as `commit now`. A valid candidate is
+refused with "commit confirmed needs a daemon that runs this configuration
 from its store"; `commit now` still works there. The web editor of
 `ze start --web-only` has no daemon and answers the same way.
 <!-- source: internal/component/cli/commit_window.go -- errCommitConfirmedNeedsDaemon, WindowCommit.Run -->
+<!-- source: internal/component/cli/model_commands_commit.go -- cmdCommitRequest, commitValidationRefusal -->
 
 `insert` is supported in session mode: `InsertLeafListValue` routes through
 `writeThroughMemberOp`, and so do `deactivate` and `activate` when they name a

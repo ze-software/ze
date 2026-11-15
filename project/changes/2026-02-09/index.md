@@ -4,7 +4,7 @@ A new chaos-testing tool, matured config reload, RFC 7606 enforcement, and a hot
 
 ## 🌪️ Chaos testing tool
 
-A new dedicated tool, `ze-bgp-chaos`, landed this week: a seed-based fault-injection harness for exercising Ze's BGP route propagation. It grew from a single-peer session driver into a multi-peer validation framework with scripted chaos events (drops, resets, malformed messages) and coverage for seven address families (IPv4/IPv6 unicast, IPv4/IPv6 VPN, EVPN, IPv4/IPv6 FlowSpec).
+A new tool, `ze-bgp-chaos`, tests Ze's BGP route propagation by introducing faults from a repeatable random sequence. It grew from driving one peer session to testing several peers with scripted packet drops, session resets and malformed messages. It covers seven address families: IPv4/IPv6 unicast, IPv4/IPv6 VPN, EVPN and IPv4/IPv6 FlowSpec.
 
 ## 🔁 Config reload
 

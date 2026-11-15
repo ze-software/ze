@@ -213,8 +213,9 @@ ring, detection forces the refresh: <code>ddos-detect</code> emits <code>AttackD
 classifier then polls the ring for up to <code>characterize-timeout</code> until it reflects
 the attack. So a just-started flood is characterized promptly regardless of
 <code>active-timeout</code>; if the ring still never yields discriminating flows within the
-budget, characterization falls back to the coarse destination drop (still
-protective, just not narrowed). Lowering <code>active-timeout</code> is no longer required
+budget, ddos local keeps the coarse destination drop it installed on the fast
+signal (still protective, just not narrowed). ddos-flowspec has no such
+fallback: see "When characterization does not happen" below. Lowering <code>active-timeout</code> is no longer required
 for responsive characterization (it still governs NetFlow/IPFIX export cadence).</p>
 <!-- source: internal/plugins/flowexport/register.go -- AttackDetected subscription forces conntrackWorker.Refresh -->
 <!-- source: internal/plugins/ddos/detect/characterize.go -- awaitClassifiableFlows polls the ring within characterize-timeout -->
@@ -225,8 +226,14 @@ show flow recent dst 203.0.113.42    # flows to a destination prefix or address
 <!-- source: internal/plugins/flowexport/cmd_show.go -- handleShowFlowRecent -->
 <p>Each signal carries a graded <strong>severity</strong> from the peak-to-threshold ratio:
 <code>medium</code> (&gt;=1x), <code>high</code> (&gt;=2x), <code>critical</code> (&gt;=5x). The FlowSpec responder can use
-<code>critical</code> to engage an immediate blackhole (below).</p>
+<code>critical</code> to engage an immediate blackhole (below). The severity is graded once,
+when the detector triggers, from the highest rate seen above the threshold up to
+that moment. It is not revised while the attack continues: the <code>AttackOngoing</code>
+events that follow carry the current rates and no severity.</p>
 <!-- source: internal/core/ddosevent/event.go -- GradeSeverity -->
+<!-- source: internal/plugins/ddos/detect/detector.go -- applyTick (peakRxPps), onAttackStart (one grade at trigger) -->
+<!-- source: internal/plugins/ddos/detect/characterize.go -- characterizeAndEmit calls GradeSeverity -->
+<!-- source: internal/core/ddosevent/event.go -- AttackOngoing has no severity -->
 <h3 id="upstream-flowspec-mitigation">Upstream FlowSpec mitigation</h3>
 <pre><code>ddos {
     detect {
@@ -261,8 +268,35 @@ of <code>0</code> is valid and is equivalent to <code>discard</code>; <code>acti
 <p><strong>Blackhole fallback.</strong> With <code>blackhole-fallback true</code>, a <code>critical</code>-severity
 attack (peak &gt;= 5x threshold) engages an immediate upstream <code>discard</code> on the fast
 signal without waiting for characterization -- the escape hatch when local
-filtering cannot hold the flood.</p>
-<!-- source: internal/plugins/ddos/flowspec/responder.go -- onCharacterized announces; onDetected blackholes only on critical + policy -->
+filtering cannot hold the flood. Because the grade is fixed when the detector
+triggers, an attack that triggers below five times the threshold and then grows
+is not treated as <code>critical</code>, and blackhole-fallback does not fire for it. With
+characterization enabled, the characterized announcement still follows.</p>
+<!-- source: internal/plugins/ddos/flowspec/responder.go -- onCharacterized announces; onDetected blackholes only on critical + policy; onOngoing feeds only probeTick -->
+<!-- source: internal/plugins/ddos/detect/detector.go -- onAttackStart -->
+<p><strong>When characterization does not happen.</strong> ddos-flowspec announces on the fast
+signal only when <code>blackhole-fallback</code> is <code>true</code> and the attack is <code>critical</code>.
+Every other detection waits for the characterized event. With
+<code>characterize-enable false</code>, or when characterization finds no classifiable
+flows within <code>characterize-timeout</code>, the detector emits no characterized event,
+so a <code>medium</code> or <code>high</code> attack is never announced upstream. The only trace is
+the INFO line <code>ddos-flowspec: awaiting characterization before announcing</code>; a
+run with no flows also counts in
+<code>ze_ddos_detect_characterize_fallback_total</code>. If you rely on FlowSpec for
+attacks below <code>critical</code>, keep <code>characterize-enable true</code> with a flow source
+configured. ddos local does not wait: it installs its coarse drop on the fast
+signal, so it still protects a victim it covers when characterization does not
+happen.</p>
+<!-- source: internal/plugins/ddos/flowspec/responder.go -- onDetected, onCharacterized -->
+<!-- source: internal/plugins/ddos/detect/characterize.go -- characterizeFromFlows returns on !CharacterizeEnable and on no flows (incFallback) -->
+<!-- source: internal/plugins/ddos/local/responder.go -- onDetected applies the coarse drop -->
+<p><strong>A detection while the plugin starts.</strong> ddos-flowspec acts on detections only
+after its start has withdrawn any rule a previous run left recorded. A
+detection that fires before that, during the plugin's startup handshake, is not
+seen. The detector reports each attack once, so that attack is announced only
+if its characterized event arrives after the start, or once the attack clears
+and triggers again.</p>
+<!-- source: internal/plugins/ddos/flowspec/register.go -- runEngine: OnStarted withdraws the recorded rule, then subscribes -->
 <p><strong>Clearing under FlowSpec mitigation:</strong> once the upstream drops the attack
 traffic, Ze's local sensors go blind (the traffic never arrives). The responder
 uses a <em>leak-probe</em>: after the hold-down period, it periodically narrows the
@@ -439,8 +473,8 @@ server-driven mitigation commands.</p>
 </tr>
 </tbody>
 </table>
-<p><strong>How <code>check-interval</code> works:</strong> both rate feeds publish once a second, and the
-detector folds <code>check-interval</code> of those samples into one evaluation. The
+<p><strong>How <code>check-interval</code> works:</strong> the trafficstat rate feed publishes once a
+second, and the detector folds <code>check-interval</code> of those samples into one evaluation. The
 evaluation reads the PEAK of the interval, on the interface that carried it, so a
 one-second flood inside a 10-second interval still reaches the threshold.
 <code>confirm-duration</code>, <code>clear-consecutive-checks</code> and <code>baseline-window</code> all count
@@ -771,14 +805,16 @@ the new config, and what happens to the rule depends on what the commit says.</p
 </tr>
 <tr>
 <td>The parent <code>ddos</code> block deleted</td>
-<td>REMOVED, on the plugin's way out. This commit tells the plugin nothing: the reload records one removed key for the whole subtree, and the walk that picks the plugins to notify does not match an ancestor, so no config reaches <code>ddos local</code> at all. The plugin is stopped all the same, and it removes its own rule as it exits. The log line is <code>the plugin is stopping, removing the drop rule</code></td>
+<td>REMOVED at once, as for the <code>ddos local</code> block. The reload records one removed key, <code>ddos</code>, and matches it as an ancestor of <code>ddos/local</code>, so the plugin is told that its section is gone. The log line is <code>the ddos local section was removed, removing the drop rule</code></td>
 </tr>
 </tbody>
 </table>
 <!-- source: internal/plugins/ddos/local/responder.go -- enforceMaxDuration, adoptMitigation, withdrawMitigation; internal/plugins/ddos/local/register.go -- startMaxDurationWorker, replaceResponder, stopResponder -->
+<!-- source: internal/component/plugin/server/reload.go -- rootHasChanges -->
 <p><strong>A daemon stop makes no promise about the drop.</strong> ddos local does try to
-withdraw the rule as it exits. That withdrawal is what the parent-block row above
-depends on: there the daemon and the firewall engine both live on.</p>
+withdraw the rule as it exits. That withdrawal covers a stop that delivers no
+config, such as a plugin crash, while the daemon and the firewall engine both
+live on.</p>
 <p>At a DAEMON stop nothing orders it. <code>ProcessManager.Stop</code> cancels every plugin at
 once and waits on them together. So the firewall engine CAN close its backend
 while ddos local is still joining its cap worker. A withdrawal that lands after
@@ -883,9 +919,198 @@ one no operator can lift.</p>
 <td><code>action</code> or <code>rate-limit-bytes</code> changed</td>
 <td>The rule already on the wire keeps the action it was announced with. Nothing re-announces, so the new values govern the NEXT announcement</td>
 </tr>
+<tr>
+<td>The parent <code>ddos</code> block deleted</td>
+<td>WITHDRAWN at once, as for the <code>ddos flowspec</code> block. The reload records one removed key, <code>ddos</code>, and matches it as an ancestor of <code>ddos/flowspec</code>, so the plugin is told that its section is gone. The log line is <code>the ddos flowspec section was removed, withdrawing the announcement</code></td>
+</tr>
 </tbody>
 </table>
 <!-- source: internal/plugins/ddos/flowspec/register.go -- replaceResponder; internal/plugins/ddos/flowspec/responder.go -- adoptAnnouncement, withdrawForConfig, enforceMaxDuration -->
+<!-- source: internal/component/plugin/server/reload.go -- rootHasChanges -->
+<p><strong>What each end of the plugin does to a live FlowSpec announcement.</strong> A commit
+is not the only way the plugin ends. Where the plugin can still reach the BGP
+engine, it withdraws the rule on its way out. Where it cannot, the rule stays
+recorded and the next start of the plugin withdraws it. The plugin runs only in
+the daemon: run as its own process (a <code>plugin { external ddos-flowspec { ... } }</code>
+block), it refuses its configuration stage with <code>ddos-flowspec: event bus not configured</code>, because a forked plugin is handed no event bus, so its startup
+fails and it never runs. In the daemon it cannot reach the engine on its way out
+on any end other than the <code>bye</code>: the plugin's calls are refused once its run
+ends.</p>
+<!-- source: internal/plugins/ddos/flowspec/register.go -- loadBus, OnConfigure -->
+<!-- source: internal/component/plugin/server/startup.go -- RecordStopped(StopHandshakeFailed) after rollbackStartupProcess -->
+<table>
+<thead>
+<tr>
+<th>The end</th>
+<th>The live announcement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The plugin removed while the daemon runs (the engine's <code>bye</code>)</td>
+<td>WITHDRAWN before the plugin answers the <code>bye</code>. The engine waits 500 ms for that answer, and the withdrawal has 400 ms of its own. A withdrawal that does not reach the engine in that time, or that the engine refuses, leaves the record. The plugin then logs one WARN line with the code <code>doctor-ddos-flowspec-orphan-announcement</code> and, under <code>fix</code>, the exact withdrawal to send by hand, because no start follows a removal; with the section gone, <code>ze doctor</code> reports the recorded rule. When its record write failed and no stored record names the rule, the line says instead that the plugin could not confirm a record of the rule, with the same <code>fix</code></td>
+</tr>
+<tr>
+<td>A daemon stop</td>
+<td>NOT withdrawn. The engine sends no <code>bye</code>. The plugin still tries the withdrawal on its way out, but the daemon's stop refuses the plugin's calls before the plugin's run ends, so the withdrawal cannot leave. When the rule is recorded, the record stays, the next start withdraws the recorded rule, and the plugin logs one INFO line that says <code>because the plugin's connection to the engine is closed; the rule stays recorded</code>, with the plugin restart under <code>fix</code>. When its record write failed and no stored record names the rule, a start may not withdraw it, and the plugin logs one WARN line that says <code>and the plugin could not confirm a record of it</code>, with the exact withdrawal to send by hand under <code>fix</code>. The BGP sessions end with the daemon: a peer drops the rule with the session, or keeps it as stale under graceful restart until its restart timer runs out</td>
+</tr>
+<tr>
+<td>The plugin stops on its own (a panic, a failed run) while the daemon runs</td>
+<td>NOT withdrawn, because the plugin's calls are refused once its run ends. The rule stays at the peers. When it is recorded, the plugin logs the same line as at a daemon stop, at WARN with the code <code>doctor-ddos-flowspec-orphan-announcement</code>, and what follows in this row applies. When its record write failed and no stored record names the rule, the plugin logs the WARN line that says <code>and the plugin could not confirm a record of it</code>, with the exact withdrawal to send by hand under <code>fix</code>: a start may not withdraw it. The plugin declares no failure policy, so the daemon does not start it again: <code>ze show doctor</code> reports it as stopped (<code>doctor-plugin-stopped</code>), and reports the recorded rule with its victim under <code>doctor-ddos-flowspec-orphan-announcement</code>. The fix of both, <code>ze request plugin restart ddos-flowspec</code>, starts it, and that start withdraws the recorded rule</td>
+</tr>
+<tr>
+<td>The plugin is killed</td>
+<td>NOT withdrawn: a killed process runs nothing on its way out. The rule stays recorded, and the next start withdraws it</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/plugins/ddos/flowspec/register.go -- stopResponder, closedTransportMessage, unrecordedExitMessage, removedExitMessage, exitKind, exitWithdrawBudget, runEngine (the deferred exit calls stopResponder with its exitKind; OnBye passes exitRemoved), transportClosed -->
+<!-- source: internal/plugins/ddos/flowspec/responder.go -- announce and adoptAnnouncement set recorded, endAnnouncement clears it; withdrawalCommand -->
+<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- eventLoop returns the send error of a callback answer, so Run fails -->
+<!-- source: pkg/plugin/rpc/mux.go -- MuxConn.closedErr wraps the reader's terminal error (io.EOF when the engine closed its end) -->
+<!-- source: pkg/plugin/sdk/sdk.go -- Plugin.Run: its deferred bridge.CloseCallbacks closes dispatch before the plugin's deferred exit runs -->
+<!-- source: internal/component/plugin/server/failure_policy.go -- applyFailurePolicy: no declared policy records the plugin stopped -->
+<!-- source: internal/component/plugin/process/stopped.go -- RecordStopped raises doctor-plugin-stopped with RestartCommand -->
+<!-- source: internal/component/plugin/process/manager.go -- ProcessManager.Stop closes each plugin's connection -->
+<!-- source: internal/component/plugin/process/process.go -- Process.Stop: StopDispatch, then CloseCallbacks, then closeConns -->
+<!-- source: pkg/plugin/rpc/bridge.go -- DirectBridge.DispatchRPC refuses through beginDispatch with ErrBridgeClosed -->
+<!-- source: pkg/plugin/sdk/signal.go -- SignalContext under HostOwnsSignals -->
+<p><strong>The live-announcement record.</strong> Each announcement is recorded in the runtime
+state key <code>meta/ddos-flowspec/announcement</code> before the plugin goes on, and every
+withdrawal the BGP engine accepts removes the record. A withdrawal the engine
+refuses (for example, when no peer gives the plugin permission to send) leaves
+the record. When the record removal after an accepted withdrawal fails, the
+plugin logs a WARN line with the code <code>doctor-ddos-flowspec-orphan-announcement</code>
+and the record stays until the next start, which withdraws the rule again (a
+second withdrawal changes nothing at the peers) and removes it. When the record cannot
+be written and no stored record names the rule, the plugin logs a WARN line with the code
+<code>doctor-ddos-flowspec-orphan-announcement</code> and, under <code>fix</code>, the withdrawal to
+send by hand if the plugin ends before it withdraws the rule, and the
+announcement still goes out:
+refusing to mitigate because of a failed record would be worse. The plugin
+cannot then confirm a record of the live rule (a write that timed out may still
+have been stored), so a start may not withdraw it and <code>ze doctor</code> may not report
+it; if the plugin then ends without withdrawing it, its exit line says so at
+WARN and carries the withdrawal by hand under <code>fix</code>. A record of the same rule
+that an earlier failed withdrawal left still counts: it names the live rule, so
+the next start withdraws it, and the failed write is logged at INFO with its
+error, because nothing is lost. When the plugin
+starts and finds a record, it withdraws that rule, logs <code>a previous run left a FlowSpec rule announced, withdrawing it</code> at WARN with the victim, and removes the
+record. It adopts nothing: protection after a restart comes from fresh detection,
+as for ddos local. This withdrawal runs when the plugin starts, which can be
+before any BGP session is established. It then reaches no peer, and that is
+correct, because a session that comes up later never held the rule. When the
+withdrawal fails, the rule stays recorded, and the WARN line names the error
+and, under <code>fix</code>, the plugin restart that tries again.</p>
+<!-- source: internal/plugins/ddos/flowspec/responder.go -- announce, withdrawThrough, withdrawRecordedAnnouncement, readRecordedAnnouncement, withdrawRecordedRule, encodeAnnouncementRecord -->
+<p>One record holds one rule. So when a rule is still recorded because its
+withdrawal failed, a new announcement first withdraws that rule, and only then
+announces and records its own. When that withdrawal fails again, nothing new is
+announced: the plugin logs <code>not announcing, because an earlier FlowSpec rule is still recorded</code> at WARN, and the next attack event tries both again. A record of
+the same rule that is about to be announced is not withdrawn first, because the
+announcement replaces it at the peers.</p>
+<!-- source: internal/plugins/ddos/flowspec/responder.go -- announce, withdrawEarlierRecord -->
+<p><code>ze doctor</code> reports a recorded rule that no running responder holds, under
+<code>doctor-ddos-flowspec-orphan-announcement</code>. It names the victim and says why the
+rule may still be at the peers. A record beside the live announcement of a
+running plugin is the normal state of a mitigation and is not reported. Who
+answers, and what it prints as the fix, depends on whether the plugin runs.
+While <code>ddos flowspec</code> is configured, only the daemon can tell, so only
+<code>ze show doctor</code> (or a <code>ze doctor</code> that a running daemon answers) judges the
+record then. Doctor decides "configured" from the saved configuration it reads,
+never from the configuration the daemon runs. When that saved file does not name
+<code>ddos flowspec</code>, the record gets the not-configured row below and no other,
+whatever the daemon runs:</p>
+<table>
+<thead>
+<tr>
+<th><code>ddos flowspec</code></th>
+<th>Who answers</th>
+<th>Fix</th>
+<th>What clears the report</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Configured, the plugin runs</td>
+<td>The plugin, from its own runtime check</td>
+<td><code>ze request plugin restart ddos-flowspec</code></td>
+<td>The restarted plugin withdraws the recorded rule when it starts, and removes the record. When the cause of the failed withdrawal is still there (for example, no peer gives the plugin permission to send), the restart fails the same way, the WARN line names the cause, and the report stays until you fix that cause and restart again</td>
+</tr>
+<tr>
+<td>Configured, the plugin is not running (its startup failed, or it stopped on its own, and the daemon recorded it stopped)</td>
+<td>The daemon, from its plugin state and its store</td>
+<td><code>ze request plugin restart ddos-flowspec</code></td>
+<td>The report says that no running plugin holds the rule and why the plugin is not running. Doctor also reports the stopped plugin under <code>doctor-plugin-stopped</code>, with the same fix. The restart starts the plugin, and its start withdraws the recorded rule and removes the record. If that withdrawal fails, the running plugin's own check reports the record, as in the row above. While a stopped process of the plugin has not finished its cleanup, ze refuses the restart, and the report says so: run it once the <code>doctor-plugin-stopped</code> row no longer reports the cleanup</td>
+</tr>
+<tr>
+<td>Configured, and the daemon has not started its plugins yet</td>
+<td>The daemon, from its store</td>
+<td><code>ze show doctor</code></td>
+<td>The report says that the daemon cannot tell yet whether the plugin runs. Ask again once the plugins started</td>
+</tr>
+<tr>
+<td>Configured, and <code>ze doctor</code> runs without the daemon</td>
+<td class="cell-no">✕</td>
+<td>The fix of the <code>doctor-runtime-not-checked</code> row</td>
+<td>The local run does not judge the record: its <code>doctor-runtime-not-checked</code> row says that the daemon's checks did not run and why no daemon answered, and its fix is the command for that reason: <code>ze start</code> only when no daemon listens, and for every other reason the command that reason needs. Once a daemon answers, <code>ze show doctor</code> runs its checks. While ze is stopped, the next start of the plugin withdraws the recorded rule and removes the record</td>
+</tr>
+<tr>
+<td>Not configured in the configuration doctor read</td>
+<td>Doctor, from the store, with or without the daemon. On the daemon route, the daemon's own check says nothing about this record for any plugin state (stopped, not started yet, or no process of that name), so this is the only row</td>
+<td>The exact withdrawal, <code>ze cli -c "send bgp * update text mp ipv4/flow del ..."</code></td>
+<td>Doctor reads the saved file, so a daemon that runs the plugin from another configuration gets this row too, with the plugin stopped or running. If the plugin runs and holds the rule as a live mitigation, the withdrawal ends that mitigation: check <code>ze show config running</code> before you send it. The withdrawal removes the rule from the peers, not the record, so the report stays. The plugin removes the record the next time it starts, when you configure <code>ddos flowspec</code> again. To remove it now, first send the withdrawal, then run <code>ze data rm meta/ddos-flowspec/announcement</code>, which works while ze runs. Keep that order: a record removed before its rule is withdrawn leaves the rule at the peers with no trace in the store and no report to find it. ze refuses the removal while a <code>ddos-flowspec</code> plugin runs, because that plugin manages the record: then run <code>ze request plugin restart ddos-flowspec</code>, whose start withdraws the recorded rule and removes the record</td>
+</tr>
+<tr>
+<td>Configured in the configuration doctor read, and the daemon holds no plugin process named <code>ddos-flowspec</code></td>
+<td>The daemon, from its plugin state, its store and the configuration doctor read</td>
+<td><code>ze show config running</code></td>
+<td>The report says that doctor cannot tell which of two cases holds, so it offers no withdrawal: the daemon runs a configuration without the <code>ddos flowspec</code> section, or a plugin block runs the plugin under another name. The running configuration tells them apart. With a <code>use ddos-flowspec</code> block under another name, that process may announce the same rule as a live mitigation, so do not withdraw the rule while it mitigates. With no <code>ddos flowspec</code> section, no process runs the plugin: send the withdrawal the report names. The record stays until the plugin next starts under its own name, or until you remove it with <code>ze data rm meta/ddos-flowspec/announcement</code> after that withdrawal, as in the not-configured row: it works while ze runs, and ze refuses it while a <code>ddos-flowspec</code> plugin runs</td>
+</tr>
+<tr>
+<td>The daemon holds no plugin process named <code>ddos-flowspec</code>, and doctor loaded no configuration</td>
+<td>The daemon, from its plugin state and its store</td>
+<td><code>ze show config running</code></td>
+<td>The report says that the configuration did not load (a <code>doctor-config-missing</code> or <code>doctor-config-parse</code> row says why), so doctor cannot tell whether <code>ddos flowspec</code> is configured. The running configuration decides, as in the row above</td>
+</tr>
+</tbody>
+</table>
+<p>A block of another name (<code>plugin { internal &lt;name&gt; { use ddos-flowspec } }</code>)
+is refused the record's store key, which is granted to the name
+<code>ddos-flowspec</code>, so the plugin it runs neither reads nor writes the record, and
+its own check does not judge it. The configuration doctor reads on the daemon
+route is the saved file, never the running one, which is why the daemon's
+report points at <code>ze show config running</code>.</p>
+<!-- source: internal/plugins/ddos/flowspec/doctor.go -- orphanRuntimeCheckDecl, orphanRecordCheck, checkOrphanRecord, stoppedRecordCheck, judgeStoppedRecord, stoppedRunReport, judgedTree, unrunReport, unavailableStoreFindings, unrunUndecidedDiagnostic, noConfigurationUnrunDiagnostic, unrunCases, runningConfigCommand, pluginRunFromSnapshot, stoppedOrphanReport, unknownRunOrphanReport, ruleFindings, unownedOrphanDiagnostic, unconfiguredOrphanDiagnostic, recordRemoval, recordRemovalCommand -->
+<!-- source: internal/component/doctor/local_route.go -- runtimeNotChecked -->
+<!-- source: internal/component/plugin/server/dispatch_state.go -- PluginKeyAllowed on the process name -->
+<!-- source: internal/component/plugin/server/doctor_snapshot.go -- PluginDoctorSnapshot -->
+<!-- source: internal/component/plugin/process/stopped.go -- RestartCommand -->
+<p>A record that does not decode is reported as corrupt and is never sent to the
+peers, and no start of the plugin withdraws anything from it, so a restart does
+not clear it. Its fix is <code>ze data cat meta/ddos-flowspec/announcement</code>, which
+prints the stored record: it can still show the victim prefix, so you can
+withdraw that rule at the peers by hand. Once it is withdrawn, remove the record
+with <code>ze data rm meta/ddos-flowspec/announcement</code>, which works while ze runs
+when no <code>ddos-flowspec</code> plugin runs. While one runs, ze refuses the removal, and
+the plugin's next announcement replaces the record. That announcement still goes
+out, over a corrupt record or one the
+plugin cannot read, and its WARN line says that the earlier rule, if it is still
+at the peers, can no longer be withdrawn from its record: it carries the stored
+bytes of a corrupt record under <code>record</code>, and the withdrawal by hand under <code>fix</code>.
+A doctor run that opened no store, or holds no parsed configuration,
+cannot judge the record: it says so, and its fix is the same <code>ze data cat</code>
+command, which prints the record if one is stored. On the daemon route, a
+daemon that publishes no store says so under <code>doctor-storage-unavailable</code>,
+with the same fix, while it holds the plugin configured or cannot tell yet
+whether it does. While it holds no process named <code>ddos-flowspec</code>, the daemon's
+check says nothing about the store: the plugin writes the record only through
+the store the daemon publishes, so no process of that daemon can have written
+one, and the doctor run reports a store it could not open on its own
+<code>doctor-storage-unavailable</code> row.</p>
+<!-- source: internal/plugins/ddos/flowspec/doctor.go -- corruptRecordDiagnostic, recordReadCommand, recordRemovalCommand, manualWithdrawalCommand, checkOrphanRecord, storedRecordReading, unavailableStoreFindings -->
+<!-- source: internal/component/doctor/doctor.go -- resolveStorageWithDiag -->
+<!-- source: internal/plugins/ddos/flowspec/responder.go -- withdrawEarlierRecord, classifyRecord, recordReading -->
 <h3 id="vpp-dataplane">VPP dataplane</h3>
 <p>Detection works on both the Linux netlink dataplane and the VPP DPDK dataplane.
 The VPP iface backend populates <code>InterfaceInfo.Stats</code> from VPP's stats segment,
@@ -923,9 +1148,49 @@ while mitigation is being applied.</p>
 <p>Characterization needs an on-box flow source: <code>traffic usage</code> (<code>track-ip</code>) for the
 fast IPv4 target and/or <code>flow-export</code> (<code>conntrack</code>) for the classifier (proto,
 ports, TCP flags, IPv6, top sources). If characterization is enabled with neither
-configured, <code>ze doctor</code> reports <code>doctor-ddos-detect-no-flow-source</code> and mitigation
-degrades to a coarse generic-flood drop.</p>
+configured, <code>ze doctor</code> reports <code>doctor-ddos-detect-no-flow-source</code>. ddos local
+then degrades to a coarse generic-flood drop, and ddos-flowspec announces only a
+<code>critical</code> attack under <code>blackhole-fallback</code> (see "When characterization does
+not happen").</p>
 <!-- source: internal/plugins/ddos/detect/doctor.go -- checkFlowSource -->
+<p>Detection itself does not read the flow sources. Its input is the per-interface
+receive rate from the trafficstat rate feed. A rate feed that delivers nothing, or reports zero
+traffic, fills the baseline with zeros. The baseline then reads as ready, the
+threshold sits at <code>absolute-floor</code>, and the detector cannot trigger. When this
+lasts for one baseline window (<code>baseline-window</code> times <code>check-interval</code>
+seconds, 300 seconds by default), <code>ze doctor</code> reports <code>doctor-ddos-detect-blind</code>
+as a warning, and the log carries one WARN line at the onset and one INFO line
+when traffic returns. The warning names which case it saw:</p>
+<table>
+<thead>
+<tr>
+<th>Case</th>
+<th>What to check</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ddos-detect runs as an external plugin process</td>
+<td>Remove the <code>plugin { external ddos-detect { ... } }</code> block. The feed is a same-process subscription, so an external ddos-detect never receives it. Today an external ddos-detect never arms: it fails startup with <code>ddos-detect: event bus not configured</code> in the log, because a forked plugin is handed no event bus. Once that is fixed, this case is reported as soon as the detector is armed, with no window</td>
+</tr>
+<tr>
+<td class="cell-no">✕</td>
+<td><code>ze show interface rate</code></td>
+</tr>
+<tr>
+<td>The feed reports no interface</td>
+<td><code>ze show interface</code></td>
+</tr>
+<tr>
+<td>Zero received packets and bytes on every interface</td>
+<td><code>ze show interface rate</code>. An idle lab or standby router shows this legitimately</td>
+</tr>
+</tbody>
+</table>
+<p>The warning clears on the first sample with traffic. <code>ddos detect enabled false</code>
+silences it, because a disabled detector subscribes to no feed.</p>
+<!-- source: internal/plugins/ddos/detect/blind.go -- observeFeed, rateFeedFinding, blindMessage -->
+<!-- source: internal/plugins/ddos/detect/doctor.go -- checkRateFeed -->
 <p>Prometheus metrics:</p>
 <ul>
 <li><code>ze_ddos_detect_characterize_total{family}</code> -- characterization outcomes per family.</li>
@@ -948,6 +1213,10 @@ degrades to a coarse generic-flood drop.</p>
                     <a class="page-sidebar-link" href="../../guides/quickstart/">
                         <span class="page-sidebar-link-label">Quickstart</span>
                         <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ai-agent/">
+                        <span class="page-sidebar-link-label">Use Ze with an AI agent</span>
+                        <small>Let Claude Code or Codex drive Ze for you.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
@@ -978,7 +1247,7 @@ degrades to a coarse generic-flood drop.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 02:50 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 20:44 UTC</span>
                 </div>
             </div>
         </footer>

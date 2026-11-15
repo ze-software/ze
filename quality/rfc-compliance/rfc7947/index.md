@@ -1,6 +1,6 @@
 # RFC 7947 - Internet Exchange BGP Route Server
 
-BGP Route Server. Every requirement this repository extracted from RFC 7947, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+BGP Route Server. Every requirement listed for RFC 7947, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,24 +10,12 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 1 | of 3 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 1 | of 3 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 3 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 3 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 17 | 17 of 26 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-
-### Neutral
-
-measures that are neither good news nor bad
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Gated MUSTs | 3 | of 8 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 3 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 0 | of 3 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 3 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 3 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 3 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Tested both ways | 1 | of 3 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 1 | of 3 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 3 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 3 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Tests shown to detect a fault | 17 | 17 of 26 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Audit verdicts | 7 | of 3 mandatory requirements reviewed | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Negative
 
@@ -35,54 +23,74 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 1 | of 3 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Declared gap or no test | 1 | of 3 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 
-The 9 counts marked as a part above are the whole of the 3 gated MUSTs: they add up to 3. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Neutral
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+measures that are neither good news nor bad
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Out of scope | 0 | of 3 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 3 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 3 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 3 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 3 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+
+### Totals
+
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 3 | of 8 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 3 mandatory requirements: they add up to 3. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | ok | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | BGP Route Server |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 8 |
-| Gated MUST-level | 3 |
+| Mandatory requirements (MUST level) | 3 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 1 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 26 |
-| Tagged units | 26 |
+| Tests linked to requirements | 26 |
 | Recorded audit verdicts | 7 |
-| Discrimination records | 17 |
+| Fault test records | 17 |
 | Summary | `rfc/short/rfc7947.md` |
-| Requirement shard | `rfc/requirements/rfc7947.md` |
+| Requirement table | `rfc/requirements/rfc7947.md` |
 | RFC text | `rfc/full/rfc7947.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: BGP Route Server: two MUST-level transparency requirements over the reactor-native RS forwarding path (internal/component/bgp/reactor/forward_rs.go), plus the advisory-level RFC7947-x-1, which the gate does not require but which is proven anyway. RFC7947-x-1 (SHOULD NOT prepend own AS for RS clients -- Section 2.2.2.1 calls it "a recommendation rather than a requirement", so it is not MUST-level and the gate does not require it) has both polarities: TestReactorForwardRSTransparent proves an RS client's forwarded body is byte-identical (no prepend), TestReactorForwardRSEBGPPrepend proves a non-RS eBGP peer DOES get the local AS prepended, so the no-prepend is confined to RS clients. Ze deviates from RFC7947-x-1 under one gate only: an RS client is sent its route server's AS prepended when, and only when, the route itself carries the route server's large-community prepend request naming that client or every client (`<rs-asn>:101..103:<asn>`, wireu.CommunityPolicy.RSPrepend, called from both forward rails). Section 2.2.2.1 states the recommendation exists "solely to provide backwards compatibility with legacy route server client implementations", and a route whose sender asks for the prepend has asked for the modification (owner decision, spec-bcp194-1-communities). Without the request the AS_PATH is untouched, which is what TestReactorForwardRSTransparent proves; TestRSPrependReachesWire proves the gated prepend on both rails. RFC7947-x-2 (MUST NOT rewrite NEXT_HOP) is {single-polarity: positive}: the byte-identical transparency test proves it, and it has no natural negative, NEXT_HOP transparency not being RS-specific. RFC7947-x-3 is NOT MUST-level and the gate does not require it: Section 2.2.3 reads "this attribute SHOULD be propagated to other route server clients, and the route server SHOULD NOT modify its value", so the row is [SHOULD] and the earlier MUST here misquoted it. The same transparency test proves Ze meets it anyway: medPropagationAllowedTo (internal/component/bgp/reactor/forward_med.go) never applies the automatic RFC 4271 Section 5.1.4 strip to a route server client. An operator's own `del { med; }` policy still removes the metric upstream of that predicate (test/plugin/med-removal-configured.ci, against an rs-client receiver), which is Section 5.1.4's required removal mechanism rather than an exception to this recommendation. RFC7947-x-4 (per-client import/export policy applied on each redistribution) has both polarities: TestReactorForwardRSFallback proves an export-filtered client is routed to the per-client policy path, TestReactorForwardRSBasic proves an unfiltered client is forwarded directly. RFC7947-x-5 (SHOULD perform one or more BGP Decision Processes) is not MUST-level and the gate does not require it, but it is carried in both polarities: TestRFC7947RouteServerWorseReannouncementYieldsOtherSourceRoute tags the positive (a client without ADD-PATH ends on another source's better route when the source of its route re-announces a worse one) and TestRFC7947RouteServerWorseLaterRouteDoesNotDisplace the negative (a worse route from a second source sends that client nothing). Two more positive carriers cover the configuration the decision takes into account: TestRSAnnouncementAddPathClientGetsEveryPath (a client with ADD-PATH send receives both sources' paths, each under its own Path Identifier, and owes no election, the multiple-path case of Section 2.3.2.2) and TestRSOwnerWithdrawalPolicyDeniedSkipsToNextSurvivor (a survivor the client's export policy denies is stepped past to the next permitted one, the per-client policy of Section 2.3.2.1).
+Included in automatic checks: BGP Route Server: two MUST-level transparency requirements over the reactor-native RS forwarding path (internal/component/bgp/reactor/forward_rs.go), plus the advisory-level RFC7947-x-1, which the gate does not require but which is proven anyway. RFC7947-x-1 (SHOULD NOT prepend own AS for RS clients -- Section 2.2.2.1 calls it "a recommendation rather than a requirement", so it is not MUST-level and the gate does not require it) has both polarities: TestReactorForwardRSTransparent proves an RS client's forwarded body is byte-identical (no prepend), TestReactorForwardRSEBGPPrepend proves a non-RS eBGP peer DOES get the local AS prepended, so the no-prepend is confined to RS clients. Ze deviates from RFC7947-x-1 under one gate only: an RS client is sent its route server's AS prepended when, and only when, the route itself carries the route server's large-community prepend request naming that client or every client (`<rs-asn>:101..103:<asn>`, wireu.CommunityPolicy.RSPrepend, called from both forward rails). Section 2.2.2.1 states the recommendation exists "solely to provide backwards compatibility with legacy route server client implementations", and a route whose sender asks for the prepend has asked for the modification (owner decision, spec-bcp194-1-communities). Without the request the AS_PATH is untouched, which is what TestReactorForwardRSTransparent proves; TestRSPrependReachesWire proves the gated prepend on both rails. RFC7947-x-2 (MUST NOT rewrite NEXT_HOP) is {single-polarity: positive}: the byte-identical transparency test proves it, and it has no natural negative, NEXT_HOP transparency not being RS-specific. RFC7947-x-3 is NOT MUST-level and the gate does not require it: Section 2.2.3 reads "this attribute SHOULD be propagated to other route server clients, and the route server SHOULD NOT modify its value", so the row is [SHOULD] and the earlier MUST here misquoted it. The same transparency test proves Ze meets it anyway: medPropagationAllowedTo (internal/component/bgp/reactor/forward_med.go) never applies the automatic RFC 4271 Section 5.1.4 strip to a route server client. An operator's own `del { med; }` policy still removes the metric upstream of that predicate (test/plugin/med-removal-configured.ci, against an rs-client receiver), which is Section 5.1.4's required removal mechanism rather than an exception to this recommendation. RFC7947-x-4 (per-client import/export policy applied on each redistribution) has both polarities: TestReactorForwardRSFallback proves an export-filtered client is routed to the per-client policy path, TestReactorForwardRSBasic proves an unfiltered client is forwarded directly. RFC7947-x-5 (SHOULD perform one or more BGP Decision Processes) is not MUST-level and the gate does not require it, but it is carried in both polarities: TestRFC7947RouteServerWorseReannouncementYieldsOtherSourceRoute tags the positive (a client without ADD-PATH ends on another source's better route when the source of its route re-announces a worse one) and TestRFC7947RouteServerWorseLaterRouteDoesNotDisplace the negative (a worse route from a second source sends that client nothing). Two more positive carriers cover the configuration the decision takes into account: TestRSAnnouncementAddPathClientGetsEveryPath (a client with ADD-PATH send receives both sources' paths, each under its own Path Identifier, and owes no election, the multiple-path case of Section 2.3.2.2) and TestRSOwnerWithdrawalPolicyDeniedSkipsToNextSurvivor (a survivor the client's export policy denies is stepped past to the next permitted one, the per-client policy of Section 2.3.2.1).
 
-## What the public ledger says
+## Published support status
 
 **Area:** BGP Route Server
 
@@ -97,14 +105,14 @@ Enrolled: BGP Route Server: two MUST-level transparency requirements over the re
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 1 | one part of the gated population |
-| Annotated (including scoped evidence) | 2 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **3** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 1 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 2 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **3** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (1):** [`RFC7947-2.2.2.2-1`](#rfc7947-2.2.2.2-1)
 
@@ -112,20 +120,23 @@ Enrolled: BGP Route Server: two MUST-level transparency requirements over the re
 
 ## Figures
 
-- **MUST bar**: Ze proven 2, Ze correctness gap 1
-- **Overview bar**: Ze MUST proven 2, SHOULD proven 4, SHOULD not decided 1, Ze correctness gap 1
+- **MUST bar**: Ze proven 2, Not built 1
+- **Overview bar**: Ze MUST proven 2, SHOULD proven 4, Proof pending 1, Not built 1
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 3 |
 | MUST rows kept (the MUST bar) | 3 |
 | Ze proven | 2 |
 | OS verified | 0 |
+| Proof pending | 0 |
 | OS testing gap | 0 |
-| Ze correctness gap | 1 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 1 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -138,11 +149,12 @@ Enrolled: BGP Route Server: two MUST-level transparency requirements over the re
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 1 |
+| SHOULD proof pending | 1 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 0 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc7947.json](../../../data/rfc/rfc7947.json).
 
@@ -150,7 +162,7 @@ Source: [data/rfc/rfc7947.json](../../../data/rfc/rfc7947.json).
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC7947-x-1` | the route server SHOULD NOT prepend its own AS number to the AS_PATH segment nor modify the AS_PATH segment in any other way. (§2.2.2.1) | SHOULD NOT | 2.2.2.1 - Route Server AS_PATH Management | **positive:** `unit/verify` [`TestReactorForwardRSTransparent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_forward_rs_test.go#L452). **positive:** `unit/verify` [`TestRelayStoredRouteRSClientPreservesASPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_reactor_api_relay_test.go#L223). **negative:** `unit/verify` [`TestReactorForwardRSEBGPPrepend`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_forward_rs_test.go#L330). **negative:** `unit/verify` [`TestRelayStoredRoutePlainEBGPPrependsLocalAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_reactor_api_relay_test.go#L259). **positive:** `functional/verify` [`bgp-rs-relay-aspath-transparency.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/bgp-rs-relay-aspath-transparency.ci#L4). **negative:** `functional/verify` [`bgp-rs-relay-aspath-transparency.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/bgp-rs-relay-aspath-transparency.ci#L8). **positive:** `interop/nightly` [`checkRouteServerASPath`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L939) |
+| `RFC7947-x-1` | the route server SHOULD NOT prepend its own AS number to the AS_PATH segment nor modify the AS_PATH segment in any other way. (§2.2.2.1) | SHOULD NOT | 2.2.2.1 - Route Server AS_PATH Management | **positive:** `unit/verify` [`TestReactorForwardRSTransparent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_forward_rs_test.go#L452). **positive:** `unit/verify` [`TestRelayStoredRouteRSClientPreservesASPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_reactor_api_relay_test.go#L223). **negative:** `unit/verify` [`TestReactorForwardRSEBGPPrepend`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_forward_rs_test.go#L330). **negative:** `unit/verify` [`TestRelayStoredRoutePlainEBGPPrependsLocalAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_reactor_api_relay_test.go#L259). **positive:** `functional/verify` [`bgp-rs-relay-aspath-transparency.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/bgp-rs-relay-aspath-transparency.ci#L4). **negative:** `functional/verify` [`bgp-rs-relay-aspath-transparency.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/bgp-rs-relay-aspath-transparency.ci#L8). **positive:** `interop/nightly` [`checkRouteServerASPath`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L980) |
 | `RFC7947-x-2` | As the route server does not participate in the actual routing of traffic, the NEXT_HOP attribute MUST be passed unmodified to the route server clients, similar to the "third-party" next-hop feature described in Section 5.1.3. of [RFC4271]. (§2.2.1) | MUST | 2.2.1 - NEXT_HOP Attribute | **positive:** `unit/verify` [`TestReactorForwardRSTransparent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_forward_rs_test.go#L457). **negative:** no negative test. **{single-polarity}:** NEXT_HOP transparency is not RS-specific -- every forwarded route preserves it by default (nhModeNone, internal/component/bgp/reactor/peer_forward_facts.go:147), so unlike x-1's AS-path prepend there is no "confined" negative where a comparable non-RS peer rewrites NEXT_HOP; the only rewrite is an explicit per-peer next-hop-self/explicit override, which exercises the override feature rather than the RS-transparency MUST-NOT. The positive is proven byte-identical in TestReactorForwardRSTransparent |
 | `RFC7947-x-3` | Contrary to Section 5.1.4 of [RFC4271], if applied to an NLRI UPDATE sent to a route server, this attribute SHOULD be propagated to other route server clients, and the route server SHOULD NOT modify its value. (§2.2.3) | SHOULD | 2.2.3 - MULTI_EXIT_DISC Attribute | **positive:** `unit/verify` [`TestForwardKeepsMEDForRouteServerClient`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L349). **positive:** `unit/verify` [`TestReactorForwardRSTransparent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_forward_rs_test.go#L459). **positive:** `functional/verify` [`med-not-propagated-across-as.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-not-propagated-across-as.ci#L11). **negative:** `functional/verify` [`med-not-propagated-across-as.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-not-propagated-across-as.ci#L15) |
 | `RFC7947-x-4` | The route server SHOULD forward UPDATE messages from its Loc-RIB or Loc-RIBs to its clients as determined by local policy. (§2.1) | SHOULD | 2.1 - Client UPDATE Messages | **positive:** `unit/verify` [`TestRFC7947ClientPolicyControlsWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_consumer_test.go#L94). **negative:** `unit/verify` [`TestRFC7947ClientPolicyControlsWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_consumer_test.go#L95) |
@@ -167,13 +179,13 @@ Source: [data/rfc/rfc7947.json](../../../data/rfc/rfc7947.json).
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC7947-x-1`](#rfc7947-x-1)
 
 the route server SHOULD NOT prepend its own AS number to the AS_PATH segment nor modify the AS_PATH segment in any other way. (§2.2.2.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/le/interoplab/bgp/check_rfc.go::checkRouteServerASPath moved. Re-judged 2026-11-03 by an independent auditor who authored none of ee1025b381. RFC 7947 Section 2.2.2.1 read: "As a route server does not participate in the process of forwarding data between client routers, and because modification of the AS_PATH attribute could affect the route server client BGP Decision Process, the route server SHOULD NOT prepend its own AS number to the AS_PATH segment nor modify the AS_PATH segment in any other way." The only unit change is one claim line on TestReactorForwardRSTransparent: the deleted ExtractASPathPrependOps is replaced by its live successor prependASPathOps (aspath_edit.go, called from filter_library.go), a parenthetical naming the operator-policy path the test does not exercise; the body, its RS-client destination and its byte-identical assertion are unchanged, so the claim states no more than the test checks. Its positive discrimination record is new: a hand-written PAIRED break in reactorForwardRSSection, line 582 '!facts.rsClient' -> true with line 594 'facts.rsClient && communityPolicy != nil' -> false. Read against the producer, the pair is a faithful break: the first guard alone lets the automatic local-AS prepend be set for an RS client but the RS branch overwrites intent.Prepend with RSPrepend (empty without a community request), the second alone leaves no prepend set; together the route server prepends AS 65000 toward the RS client, exactly the behaviour the sentence advises against, and nothing else changes for this input (non-RS peers already took the first branch; the unit carries no prepend community). Solo greens are recorded beside the paired red. Negative TestReactorForwardRSEBGPPrepend (record at line 582 -> false), the RelayStoredRoute pair, bgp-rs-relay-aspath-transparency.ci (exact bytes for rs-client and non-RS receivers) and the BIRD-side checkRouteServerASPath are unchanged. The EBGPPrepend unit's growth-only assertion remains weaker than an exact path oracle, covered exactly by the .ci and the relay pair. Verdict unchanged: enforced.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-03 by an independent auditor who authored none of ee1025b381. RFC 7947 Section 2.2.2.1 read: "As a route server does not participate in the process of forwarding data between client routers, and because modification of the AS_PATH attribute could affect the route server client BGP Decision Process, the route server SHOULD NOT prepend its own AS number to the AS_PATH segment nor modify the AS_PATH segment in any other way." The only unit change is one claim line on TestReactorForwardRSTransparent: the deleted ExtractASPathPrependOps is replaced by its live successor prependASPathOps (aspath_edit.go, called from filter_library.go), a parenthetical naming the operator-policy path the test does not exercise; the body, its RS-client destination and its byte-identical assertion are unchanged, so the claim states no more than the test checks. Its positive discrimination record is new: a hand-written PAIRED break in reactorForwardRSSection, line 582 '!facts.rsClient' -> true with line 594 'facts.rsClient && communityPolicy != nil' -> false. Read against the producer, the pair is a faithful break: the first guard alone lets the automatic local-AS prepend be set for an RS client but the RS branch overwrites intent.Prepend with RSPrepend (empty without a community request), the second alone leaves no prepend set; together the route server prepends AS 65000 toward the RS client, exactly the behaviour the sentence advises against, and nothing else changes for this input (non-RS peers already took the first branch; the unit carries no prepend community). Solo greens are recorded beside the paired red. Negative TestReactorForwardRSEBGPPrepend (record at line 582 -> false), the RelayStoredRoute pair, bgp-rs-relay-aspath-transparency.ci (exact bytes for rs-client and non-RS receivers) and the BIRD-side checkRouteServerASPath are unchanged. The EBGPPrepend unit's growth-only assertion remains weaker than an exact path oracle, covered exactly by the .ci and the relay pair. Verdict unchanged: enforced.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -182,7 +194,7 @@ Audit verdict: enforced (the tests do what the requirement demands), shifted: in
 | negative | [`bgp-rs-relay-aspath-transparency.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/bgp-rs-relay-aspath-transparency.ci#L8) | functional/verify | unproven |
 | positive | [`TestReactorForwardRSTransparent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_forward_rs_test.go#L452) | unit/verify | mutant, verified |
 | positive | [`TestRelayStoredRouteRSClientPreservesASPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_reactor_api_relay_test.go#L223) | unit/verify | unproven |
-| positive | [`checkRouteServerASPath`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L939) | interop/nightly | unproven |
+| positive | [`checkRouteServerASPath`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L980) | interop/nightly | unproven |
 | positive | [`bgp-rs-relay-aspath-transparency.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/bgp-rs-relay-aspath-transparency.ci#L4) | functional/verify | unproven |
 
 ### [`RFC7947-x-2`](#rfc7947-x-2)
@@ -262,11 +274,11 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 A route server MUST accept all UPDATE messages received from each of its clients for inclusion in its Adj-RIB-In. (§2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7947-2.1-1, so no unit is bound to it.
+No test carries RFC7947-2.1-1, so there is no linked test.
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -286,33 +298,33 @@ No test carries RFC7947-2.1-1, so no unit is bound to it.
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
 | `front` | not stated | 0 | skipped (front-matter) | Title block, Status of This Memo, Copyright Notice, Abstract and Table of Contents. The Abstract restates section 1 and directs no speaker. |
-| `1` | Introduction to Multilateral Interconnection | 0 | walked | Introduction to Multilateral Interconnection. Indicative prose: why dense bilateral peering scales badly at an IXP, what a route server is, that it forwards no traffic and is therefore not a router, that it is similar in function to a route reflector but runs eBGP, and that route server functionality is not mandatory in BGP implementations. The last paragraph fixes the term 'route server' against 'route collector'. No sentence directs a speaker. |
-| `1.1` | Notational Conventions | 0 | walked | Notational Conventions. The RFC 2119 key-words paragraph. It tells a reader how to read the other sections and binds no speaker, which is why the derivation excludes it from the site inventory. |
-| `2` | Technical Considerations for Route Server Implementations | 0 | walked | Technical Considerations for Route Server Implementations. One paragraph saying a route server brokers reachability with BGP, that its behavior differs from a speaker strictly compliant with RFC 4271, and that the differences follow. No directive. |
-| `2.1` | Client UPDATE Messages | 1 | walked | Client UPDATE Messages. Carries the document's only MUST that binds the route server itself, site 2.1:1 below. Ze does not meet it: notifyMessageReceiver (internal/component/bgp/reactor/reactor_notify.go) returns false at the ordered ingress step loop's non-accept branch, ahead of the recentUpdates cache add, ahead of reactorForwardRS and ahead of the plugin dispatch that feeds handleReceivedStructured (internal/component/bgp/plugins/adj_rib_in/rib.go), so a denied UPDATE from a route server client never reaches the Adj-RIB-In. RFC7947-2.1-1 carries it with {gap}, and the site below maps to that row; the fix is homed by owner ruling of 2026-08-30 in plan/release/fixes/spec-rfc7947-adj-rib-in-accepts-filtered-updates.md. Section 2.1's remaining directives carry no MUST-level keyword, so the site scan cannot see them: the MAY that lets a configured policy filter omit an UPDATE from the Loc-RIB, the SHOULD to perform one or more BGP Decision Processes, and the SHOULD to forward UPDATE messages from the Loc-RIB to the clients as determined by local policy. RFC7947-x-4 is read from that last SHOULD and from the MAY beside it, which is why it is declared unsourced here rather than mapped from a site; note that the summary states it at [MUST] while this section states it at SHOULD. |
-| `2.2` | Attribute Transparency | 0 | walked | Attribute Transparency. Three advisory sentences and no MUST-level keyword, so the site scan sees nothing here: contrary to RFC 4271 Section 5, route servers SHOULD NOT by default update well-known BGP attributes received from clients before redistributing them; optional recognized and unrecognized attributes SHOULD NOT be updated unless enforced by local IXP operator configuration; and those attributes SHOULD be passed on to the other clients. rfc/short/rfc7947.md carries the AS_PATH and MULTI_EXIT_DISC instances of this rule as RFC7947-x-1 and RFC7947-x-3. The general well-known and optional attribute recommendation has no id of its own; Ze meets it by relaying an RS client's received bytes unchanged (TestReactorForwardRSTransparent, internal/component/bgp/reactor/rfc7947_forward_rs_test.go). |
-| `2.2.1` | NEXT_HOP Attribute | 1 | walked | NEXT_HOP Attribute. Defines the attribute, then states the transparency MUST mapped below to RFC7947-x-2. |
-| `2.2.2` | AS_PATH Attribute | 0 | walked | AS_PATH Attribute. One sentence saying what AS_PATH identifies. No directive: the two AS_PATH rules are stated in 2.2.2.1 and 2.2.2.2. |
-| `2.2.2.1` | Route Server AS_PATH Management | 0 | walked | Route Server AS_PATH Management. The route server SHOULD NOT prepend its own AS number nor modify the AS_PATH segment in any other way, which rfc/short/rfc7947.md carries as RFC7947-x-1 at [SHOULD NOT]. The section says outright that this 'is a recommendation rather than a requirement', existing solely for backwards compatibility with legacy clients that do not yet support Section 2.2.2.2, so no MUST-level keyword appears and the site scan sees nothing here. |
-| `2.2.2.2` | Route Server client AS_PATH Management | 1 | walked | Route Server client AS_PATH Management. States that route server clients need to accept UPDATEs whose leftmost AS is not the sending route server's AS, then puts a conditional MUST and a conditional SHOULD on the client's own BGP implementation. That MUST is site 2.2.2.2:1 below, excluded as binding a role Ze does not implement. |
-| `2.2.3` | MULTI_EXIT_DISC Attribute | 0 | walked | MULTI_EXIT_DISC Attribute. Defines the attribute, then states, contrary to RFC 4271 Section 5.1.4, that a metric applied to an NLRI UPDATE sent to a route server SHOULD be propagated to the other clients and that the route server SHOULD NOT modify its value. rfc/short/rfc7947.md carries both halves as RFC7947-x-3 at [SHOULD]. No MUST-level keyword, so no site. |
-| `2.2.4` | Communities Attributes | 0 | walked | Communities Attributes. Transitive and non-transitive Communities and Extended Communities applied to an UPDATE sent to a route server SHOULD NOT be modified, processed, or removed except as defined by local policy, and a Communities attribute intended for processing by the route server itself MAY be modified or removed. Both are advisory, so the site scan sees nothing here, and neither has an id in rfc/short/rfc7947.md. Ze meets the recommendation the same way it meets section 2.2, by relaying the client's received bytes unchanged to the other RS clients. |
-| `2.3` | Per-Client Policy Control in Multilateral Interconnection | 0 | walked | Per-Client Policy Control in Multilateral Interconnection. Introduces per-client path distribution control and names its consequence, 'path hiding'. Its last paragraph states that neither this section nor its subsections form part of the normative specification, so nothing under 2.3 can bind a speaker. |
-| `2.3.1` | Path Hiding on a Route Server | 0 | walked | Path Hiding on a Route Server. Figure 1 and a worked example of how a single best path plus a per-client outbound filter hides an alternative path. Descriptive, and inside the non-normative scope its parent declares. |
-| `2.3.2` | Mitigation of Path Hiding | 0 | walked | Mitigation of Path Hiding. One sentence saying several approaches exist. Non-normative by its parent's declaration. |
-| `2.3.2.1` | Multiple Route Server RIBs | 0 | walked | Multiple Route Server RIBs. Describes per-client Loc-RIBs with filtering between the Adj-RIB-In and each per-client Loc-RIB, and the delta optimization. RFC7947-x-5 reads its 'multi-RIB per client' mitigation from here. Non-normative by its parent's declaration. |
-| `2.3.2.2` | Advertising Multiple Paths | 0 | walked | Advertising Multiple Paths. Describes how sending more than one path per prefix would remove path hiding, and announces the two methods below. Non-normative by its parent's declaration. |
-| `2.3.2.2.1` | Diverse BGP Path Approach | 0 | walked | Diverse BGP Path Approach. Describes RFC 6774: one BGP session per distributed path, bounded by the number of sessions, and not guaranteed to remove path hiding. Non-normative by its parent's declaration. |
-| `2.3.2.2.2` | BGP ADD-PATH Approach | 0 | walked | BGP ADD-PATH Approach. Describes RFC 7911 and the send-only mode a route server 'should enforce' toward its clients. Section 2.3 explicitly states: "Neither Section 2.3 nor its subsections form part of the normative specification of this document; they are included for information purposes only." No normative permission or replacement requirement is extracted from this subsection. |
-| `2.3.3` | Implementation Suggestions | 0 | walked | Implementation Suggestions. Authors 'may wish to consider' one of the methods in 2.3.2, and operational recommendations are deferred to RFC 7948. Non-normative by its parent's declaration. |
-| `3` | Security Considerations | 0 | walked | Security Considerations. Three statements, none a MUST-level keyword: route server operators should be aware that path hiding can be used to block third-party announcements, the AS_PATH check of Section 2.2.2 SHOULD NOT be disabled by IXP participants unless it is needed to bring up a route server session, and operators should consider the practices in RFC 7454. The second binds the IXP participant configuring its own router, which is the same role site 2.2.2.2:1 is excluded against. |
+| `1` | Introduction to Multilateral Interconnection | 0 | reviewed | Introduction to Multilateral Interconnection. Indicative prose: why dense bilateral peering scales badly at an IXP, what a route server is, that it forwards no traffic and is therefore not a router, that it is similar in function to a route reflector but runs eBGP, and that route server functionality is not mandatory in BGP implementations. The last paragraph fixes the term 'route server' against 'route collector'. No sentence directs a speaker. |
+| `1.1` | Notational Conventions | 0 | reviewed | Notational Conventions. The RFC 2119 key-words paragraph. It tells a reader how to read the other sections and binds no speaker, which is why the derivation excludes it from the site inventory. |
+| `2` | Technical Considerations for Route Server Implementations | 0 | reviewed | Technical Considerations for Route Server Implementations. One paragraph saying a route server brokers reachability with BGP, that its behavior differs from a speaker strictly compliant with RFC 4271, and that the differences follow. No directive. |
+| `2.1` | Client UPDATE Messages | 1 | reviewed | Client UPDATE Messages. Carries the document's only MUST that binds the route server itself, site 2.1:1 below. Ze does not meet it: notifyMessageReceiver (internal/component/bgp/reactor/reactor_notify.go) returns false at the ordered ingress step loop's non-accept branch, ahead of the recentUpdates cache add, ahead of reactorForwardRS and ahead of the plugin dispatch that feeds handleReceivedStructured (internal/component/bgp/plugins/adj_rib_in/rib.go), so a denied UPDATE from a route server client never reaches the Adj-RIB-In. RFC7947-2.1-1 carries it with {gap}, and the site below maps to that row; the fix is homed by owner ruling of 2026-08-30 in plan/release/fixes/spec-rfc7947-adj-rib-in-accepts-filtered-updates.md. Section 2.1's remaining directives carry no MUST-level keyword, so the site scan cannot see them: the MAY that lets a configured policy filter omit an UPDATE from the Loc-RIB, the SHOULD to perform one or more BGP Decision Processes, and the SHOULD to forward UPDATE messages from the Loc-RIB to the clients as determined by local policy. RFC7947-x-4 is read from that last SHOULD and from the MAY beside it, which is why it is declared unsourced here rather than mapped from a site; note that the summary states it at [MUST] while this section states it at SHOULD. |
+| `2.2` | Attribute Transparency | 0 | reviewed | Attribute Transparency. Three advisory sentences and no MUST-level keyword, so the site scan sees nothing here: contrary to RFC 4271 Section 5, route servers SHOULD NOT by default update well-known BGP attributes received from clients before redistributing them; optional recognized and unrecognized attributes SHOULD NOT be updated unless enforced by local IXP operator configuration; and those attributes SHOULD be passed on to the other clients. rfc/short/rfc7947.md carries the AS_PATH and MULTI_EXIT_DISC instances of this rule as RFC7947-x-1 and RFC7947-x-3. The general well-known and optional attribute recommendation has no id of its own; Ze meets it by relaying an RS client's received bytes unchanged (TestReactorForwardRSTransparent, internal/component/bgp/reactor/rfc7947_forward_rs_test.go). |
+| `2.2.1` | NEXT_HOP Attribute | 1 | reviewed | NEXT_HOP Attribute. Defines the attribute, then states the transparency MUST mapped below to RFC7947-x-2. |
+| `2.2.2` | AS_PATH Attribute | 0 | reviewed | AS_PATH Attribute. One sentence saying what AS_PATH identifies. No directive: the two AS_PATH rules are stated in 2.2.2.1 and 2.2.2.2. |
+| `2.2.2.1` | Route Server AS_PATH Management | 0 | reviewed | Route Server AS_PATH Management. The route server SHOULD NOT prepend its own AS number nor modify the AS_PATH segment in any other way, which rfc/short/rfc7947.md carries as RFC7947-x-1 at [SHOULD NOT]. The section says outright that this 'is a recommendation rather than a requirement', existing solely for backwards compatibility with legacy clients that do not yet support Section 2.2.2.2, so no MUST-level keyword appears and the site scan sees nothing here. |
+| `2.2.2.2` | Route Server client AS_PATH Management | 1 | reviewed | Route Server client AS_PATH Management. States that route server clients need to accept UPDATEs whose leftmost AS is not the sending route server's AS, then puts a conditional MUST and a conditional SHOULD on the client's own BGP implementation. That MUST is site 2.2.2.2:1 below, excluded as binding a role Ze does not implement. |
+| `2.2.3` | MULTI_EXIT_DISC Attribute | 0 | reviewed | MULTI_EXIT_DISC Attribute. Defines the attribute, then states, contrary to RFC 4271 Section 5.1.4, that a metric applied to an NLRI UPDATE sent to a route server SHOULD be propagated to the other clients and that the route server SHOULD NOT modify its value. rfc/short/rfc7947.md carries both halves as RFC7947-x-3 at [SHOULD]. No MUST-level keyword, so no site. |
+| `2.2.4` | Communities Attributes | 0 | reviewed | Communities Attributes. Transitive and non-transitive Communities and Extended Communities applied to an UPDATE sent to a route server SHOULD NOT be modified, processed, or removed except as defined by local policy, and a Communities attribute intended for processing by the route server itself MAY be modified or removed. Both are advisory, so the site scan sees nothing here, and neither has an id in rfc/short/rfc7947.md. Ze meets the recommendation the same way it meets section 2.2, by relaying the client's received bytes unchanged to the other RS clients. |
+| `2.3` | Per-Client Policy Control in Multilateral Interconnection | 0 | reviewed | Per-Client Policy Control in Multilateral Interconnection. Introduces per-client path distribution control and names its consequence, 'path hiding'. Its last paragraph states that neither this section nor its subsections form part of the normative specification, so nothing under 2.3 can bind a speaker. |
+| `2.3.1` | Path Hiding on a Route Server | 0 | reviewed | Path Hiding on a Route Server. Figure 1 and a worked example of how a single best path plus a per-client outbound filter hides an alternative path. Descriptive, and inside the non-normative scope its parent declares. |
+| `2.3.2` | Mitigation of Path Hiding | 0 | reviewed | Mitigation of Path Hiding. One sentence saying several approaches exist. Non-normative by its parent's declaration. |
+| `2.3.2.1` | Multiple Route Server RIBs | 0 | reviewed | Multiple Route Server RIBs. Describes per-client Loc-RIBs with filtering between the Adj-RIB-In and each per-client Loc-RIB, and the delta optimization. RFC7947-x-5 reads its 'multi-RIB per client' mitigation from here. Non-normative by its parent's declaration. |
+| `2.3.2.2` | Advertising Multiple Paths | 0 | reviewed | Advertising Multiple Paths. Describes how sending more than one path per prefix would remove path hiding, and announces the two methods below. Non-normative by its parent's declaration. |
+| `2.3.2.2.1` | Diverse BGP Path Approach | 0 | reviewed | Diverse BGP Path Approach. Describes RFC 6774: one BGP session per distributed path, bounded by the number of sessions, and not guaranteed to remove path hiding. Non-normative by its parent's declaration. |
+| `2.3.2.2.2` | BGP ADD-PATH Approach | 0 | reviewed | BGP ADD-PATH Approach. Describes RFC 7911 and the send-only mode a route server 'should enforce' toward its clients. Section 2.3 explicitly states: "Neither Section 2.3 nor its subsections form part of the normative specification of this document; they are included for information purposes only." No normative permission or replacement requirement is extracted from this subsection. |
+| `2.3.3` | Implementation Suggestions | 0 | reviewed | Implementation Suggestions. Authors 'may wish to consider' one of the methods in 2.3.2, and operational recommendations are deferred to RFC 7948. Non-normative by its parent's declaration. |
+| `3` | Security Considerations | 0 | reviewed | Security Considerations. Three statements, none a MUST-level keyword: route server operators should be aware that path hiding can be used to block third-party announcements, the AS_PATH check of Section 2.2.2 SHOULD NOT be disabled by IXP participants unless it is needed to bring up a route server session, and operators should consider the practices in RFC 7454. The second binds the IXP participant configuring its own router, which is the same role site 2.2.2.2:1 is excluded against. |
 | `4` | References | 0 | skipped (references) | References. A heading over 4.1 and 4.2. |
 | `4.1` | Normative References: RFC 1997, RFC 2119, RFC 4271, RFC 4360 | 0 | skipped (references) | Normative References: RFC 1997, RFC 2119, RFC 4271, RFC 4360. |
 | `4.2` | not stated | 0 | skipped (references) | Informative References: RFC 1863, RFC 4223, RFC 4456, RFC 6774, RFC 7454, RFC 7911, RFC 7948. The derived section list ends here, so the Acknowledgments and Authors' Addresses that follow in the source are read under this heading; neither states an obligation. |
 
 ### Excluded sentences
 
-The walk over RFC 7947 declined no sentence: every site it found is mapped to a requirement.
+The review of RFC 7947 excluded no sentences: every sentence identified as an obligation is linked to a requirement.
 
 ## Superseded
 

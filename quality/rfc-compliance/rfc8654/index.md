@@ -1,6 +1,6 @@
 # RFC 8654 - Extended Message Support for BGP
 
-BGP Extended Message. Every requirement this repository extracted from RFC 8654, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+BGP Extended Message. Every requirement listed for RFC 8654, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,24 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 9 | of 12 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 1 | of 12 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0 | of 12 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 12 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 40 | 40 of 62 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-
-### Neutral
-
-measures that are neither good news nor bad
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Gated MUSTs | 12 | of 16 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
-| Out of scope | 0 | of 12 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
-| Not applicable | 1 | of 12 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Met below Ze | 0 | of 12 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 12 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
-| Linux cannot do this | 0 | of 12 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
+| Tested both ways | 9 | of 12 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 1 | of 12 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 12 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 12 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Tests shown to detect a fault | 40 | 40 of 62 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -35,54 +22,74 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 1 | of 12 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Declared gap or no test | 1 | of 12 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 
-The 9 counts marked as a part above are the whole of the 12 gated MUSTs: they add up to 12. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
+### Neutral
 
-A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
+measures that are neither good news nor bad
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Out of scope | 0 | of 12 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 1 | of 12 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 12 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 12 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 12 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+
+### Totals
+
+what the cards above are counted against
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Mandatory requirements (MUST level) | 12 | of 16 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+
+The 9 counts marked as a part above are the whole of the 12 mandatory requirements: they add up to 12. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+
+A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
 | Public row | BGP Extended Message |
-| Enrolment | Enrolled |
+| Automatic checks | Included |
 | Requirements | 16 |
-| Gated MUST-level | 12 |
+| Mandatory requirements (MUST level) | 12 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 1 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 0 |
+| Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 62 |
-| Tagged units | 62 |
+| Tests linked to requirements | 62 |
 | Recorded audit verdicts | 8 |
-| Discrimination records | 40 |
+| Fault test records | 40 |
 | Summary | `rfc/short/rfc8654.md` |
-| Requirement shard | `rfc/requirements/rfc8654.md` |
+| Requirement table | `rfc/requirements/rfc8654.md` |
 | RFC text | `rfc/full/rfc8654.txt` |
 
-## Enrolment
+## Automatic checks
 
-Enrolled: Extended Message capability and framing are implemented in internal/component/bgp. Receive permission follows local advertisement; send permission follows peer advertisement. Tests exercise accumulation, RFC7606 discard and route removal, fatal-error cleanup and replacement-best delivery. These proofs do not establish every incorporated RFC obligation or the exact final route-owner release/admission ordering.
+Included in automatic checks: Extended Message capability and framing are implemented in internal/component/bgp. Receive permission follows local advertisement; send permission follows peer advertisement. Tests exercise accumulation, RFC7606 discard and route removal, fatal-error cleanup and replacement-best delivery. These proofs do not establish every incorporated RFC obligation or the exact final route-owner release/admission ordering.
 
-## What the public ledger says
+## Published support status
 
 **Area:** BGP Extended Message
 
@@ -97,14 +104,14 @@ Enrolled: Extended Message capability and framing are implemented in internal/co
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 9 | one part of the gated population |
-| Annotated (including scoped evidence) | 3 | one part of the gated population |
-| One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
-| Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **12** | every gated MUST falls in exactly one bucket above |
+| Positive and negative tests | 9 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 3 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
+| No test and no annotation | 0 | one part of the mandatory requirements |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Evidence that runs nightly only | 0 | also counted in one of the groups above |
+| Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
+| **Mandatory requirements (MUST level)** | **12** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (9):** [`RFC8654-3-1`](#rfc8654-3-1), [`RFC8654-3-3`](#rfc8654-3-3), [`RFC8654-4-1`](#rfc8654-4-1), [`RFC8654-4-2`](#rfc8654-4-2), [`RFC8654-4-3`](#rfc8654-4-3), [`RFC8654-6-1`](#rfc8654-6-1), [`RFC8654-5-1`](#rfc8654-5-1), [`RFC8654-5-2`](#rfc8654-5-2), [`RFC8654-5-4`](#rfc8654-5-4)
 
@@ -112,20 +119,23 @@ Enrolled: Extended Message capability and framing are implemented in internal/co
 
 ## Figures
 
-- **MUST bar**: Ze proven 9, Ze correctness gap 2
-- **Overview bar**: Ze MUST proven 9, SHOULD proven 1, Not owed 1, SHOULD not decided 3, Ze correctness gap 2
+- **MUST bar**: Ze proven 9, Proof pending 1, Not built 1
+- **Overview bar**: Ze MUST proven 9, SHOULD proven 1, Not owed 1, Proof pending 1, Not assessed 3, Not built 1
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
-| Not walked | 0 |
-| Mandatory register | not complete |
+| Requirements not reviewed | 0 |
+| Mandatory requirements complete | not complete |
 | MUST rows | 12 |
 | MUST rows kept (the MUST bar) | 11 |
 | Ze proven | 9 |
 | OS verified | 0 |
+| Proof pending | 1 |
 | OS testing gap | 0 |
-| Ze correctness gap | 2 |
+| Exclusion unchecked | 0 |
+| Not assessed | 0 |
+| Not built | 1 |
 | MUST rows not owed | 1 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -138,11 +148,12 @@ Enrolled: Extended Message capability and framing are implemented in internal/co
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD not ever | 0 |
-| SHOULD not yet | 0 |
-| SHOULD not decided | 3 |
+| SHOULD proof pending | 0 |
+| SHOULD exclusion unchecked | 0 |
+| SHOULD not assessed | 3 |
+| SHOULD not built | 0 |
 
-The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc8654.json](../../../data/rfc/rfc8654.json).
 
@@ -176,7 +187,7 @@ Source: [data/rfc/rfc8654.json](../../../data/rfc/rfc8654.json).
 
 ## Proof state
 
-A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
 
 ### [`RFC8654-3-1`](#rfc8654-3-1)
 
@@ -226,7 +237,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Posi
 
 An implementation that advertises the BGP Extended Message Capability MUST be capable of receiving a message with a length up to and including 65,535 octets (§4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -288,7 +299,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Read
 
 A BGP speaker that has the ability to use BGP Extended Messages but has not advertised the BGP Extended Message Capability, presumably due to configuration, MUST NOT accept a BGP Extended Message. (§5)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 8654 Section 5 forbids accepting Extended Messages when the receiver has not advertised capability 6; the peer's advertisement is not permission to receive. Re-read every tagged unit: TestValidateLengthWithMax checks exact 4097 rejection without extension and 65535 acceptance with extension, identifying failures as NOTIFICATION 1/2; TestRFC8654ReceiveLimitFollowsLocalOPEN drives actual OPENs for all four advertisement combinations and both readers at 4096, 4097 and 65535, requiring exact intact consumer payload and Established/no response for accepted input, or exact 1/2 with erroneous Length and no consumer dispatch for rejection. Its positive tag covers forbidden receive admission being refused and its negative tag covers the permitted local-only case; header tags use the complementary polarity convention but exercise distinct inputs and exact outcomes. The completion-only sender receive is correctly not an assertion about rejection: read-ahead can finish the write, while the independently asserted wire notification and zero dispatch prove rejection. checkExtendedRemoteOnlyRejectFRR and checkExtendedNeitherRejectFRR delegate to checkExtendedMessages/checkExtendedReceiveRejection, which verify original local OPEN advertisement separately from relay-delivered copies, observe an actual FRR over-4096 UPDATE, demand exact rejection with offending Length, and wait for the original FRR session to close. Producers capability.Negotiate and Session.negotiateWith set receive permission from local advertisement; both readers pass it to Header.ValidateLengthWithMax before payload admission. No semantic assertion was lost to the join comment. Source audit only; no interop or native execution claimed.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-14 at 5d862bbab9 by an independent auditor who authored none of the changes named. RFC 8654 Section 5: "A BGP speaker that has the ability to use BGP Extended Messages but has not advertised the BGP Extended Message Capability, presumably due to configuration, MUST NOT accept a BGP Extended Message." One cited producer moved: Session.negotiateWith gained one statement, s.negotiatedPeerAS.Store(negotiated.PeerASN), placed under writeMu beside the store of s.negotiated, so a sent-event callback (Reactor.notifyOneMessage through negotiatedPeerASNoWait) can name a dynamic peer's AS without the session lock. It reads a field capability.Negotiate already returned and writes an atomic no receive path reads. The lines this row cites negotiateWith for are untouched: the call to capability.Negotiate, where ExtendedMessageRecv is set from the local advertisement alone, and s.extendedMessage = s.negotiated.ExtendedMessageRecv, the receive permission both readers hand to Header.ValidateLengthWithMax; writeBuf.Resize still follows ExtendedMessageSend, the peer's advertisement, which is the send side and Section 4. The check names no other moved unit. Of the tagged units I re-read TestRFC8654ReceiveLimitFollowsLocalOPEN, byte-identical to the recorded one: it runs the real OPEN exchange for the four advertisement combinations, both readers, at 4096, 4097 and 65535 octets, and requires for local=false above 4096 an error, zero dispatch and a NOTIFICATION 1/2 whose data is the offending Length, and for accepted input one intact dispatch, Established and no bytes answered. It goes through negotiateWith, so it fails if the receive permission followed the peer's capability. The judgement of TestValidateLengthWithMax and of the two FRR interop checkers stands as recorded and was not re-read. Source audit only; no test, record or interop run was made for this rejudgment. Verdict unchanged: enforced.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -303,7 +314,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 
 
 A speaker MUST NOT implement a more liberal policy accepting BGP Extended Messages (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -314,9 +325,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 However, if a NOTIFICATION is to be sent to a BGP speaker that has not advertised the BGP Extended Message Capability, the size of the message MUST NOT exceed 4,096 octets. (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC8654-5-3, so no unit is bound to it.
+No test carries RFC8654-5-3, so there is no linked test.
 
 ### [`RFC8654-5-4`](#rfc8654-5-4)
 
@@ -338,15 +349,15 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 Future protocol specifications MUST describe how to handle peers that can only accommodate 4,096 octet messages. (§5)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC8654-5-5, so no unit is bound to it.
+No test carries RFC8654-5-5, so there is no linked test.
 
 ### [`RFC8654-4-6`](#rfc8654-4-6)
 
 A BGP speaker MAY send BGP Extended Messages to a peer only if the BGP Extended Message Capability was received from that peer (§4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -355,7 +366,7 @@ Audit verdict: not audited: no reader has judged these tests
 | positive | [`TestRFC8654SendLimitFollowsPeerOPEN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_directional_session_test.go#L196) | unit/verify | revert, verified |
 | positive | [`checkExtendedAsymmetricFRR`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_extended_message_scenarios.go#L17) | interop/nightly | revert, verified |
 
-## Extraction sign-off
+## Requirement list review
 
 | Field | Value |
 |---|---|
@@ -375,15 +386,15 @@ Audit verdict: not audited: no reader has judged these tests
 | Section | Name | Sites | Disposition | Reason |
 |---|---|---|---|---|
 | `front` | not stated | 1 | skipped (front-matter) | Title block, Abstract, Status of This Memo, Copyright Notice and Table of Contents. The Abstract restates section 1. Its one site is the IETF Trust Legal Provisions sentence, excluded below. |
-| `1` | Introduction | 0 | walked | Introduction. Indicative prose: RFC 4271 mandates 4,096 octets, new AFIs, SAFIs and capabilities need more, and this document raises the limit to 65,535 octets for every message except OPEN and KEEPALIVE. No sentence directs a speaker. |
-| `1.1` | Requirements Language | 0 | walked | Requirements Language. The BCP 14 key-words paragraph, which states that the key words bind when, and only when, they appear in all capitals. It tells a reader how to read the other sections and binds no speaker, which is why the derivation excludes it from the site inventory. It is also what makes the lowercase modals in sections 4 and 8 non-normative in this document. |
-| `2` | BGP Extended Message | 0 | walked | BGP Extended Message. Definitions only: a message over 4,096 octets is a BGP Extended Message, extended messages have a maximum size of 65,535 octets, and the smallest message is a 19-octet KEEPALIVE. Stated indicatively, so under section 1.1 it carries no RFC 2119 level. The 65,535 and 19 octet bounds are carried normatively by site 6:1, which maps RFC8654-6-1, and by the Wire Formats and Constants tables of rfc/short/rfc8654.md. |
-| `3` | BGP Extended Message Capability | 1 | walked | BGP Extended Message Capability. Its one capitalised site is the RFC 7606 error-handling prerequisite, mapped below to RFC8654-3-1. The rest is value assignment and description: Capability Code 6, Capability Length 0, how a speaker advertises it with RFC 5492, and what advertising conveys. Those are indicative, so the two wire-value obligations the summary declares from them are the unsourced ids below. |
-| `4` | Operation | 5 | walked | Operation. Two capitalised MUST-level sites, mapped below to RFC8654-4-1 and RFC8654-4-2. Its three remaining sites carry lowercase modals that section 1.1 gives no normative level, and each is excluded below. The section's other directives are the SHOULD to advertise the capability, the SHOULD to try attribute discard when propagating to a peer that did not advertise it, the MAY that permits sending an extended message only to a peer the capability was received from, and the scoping sentence that the capability applies to all messages except OPEN and KEEPALIVE; the summary declares those as the unsourced ids below. The sentence stating that a listener which has not advertised the capability will generate a NOTIFICATION with Bad Message Length is written in the indicative future and cites RFC 4271 Section 6.1 for the subcode, so the site scan cannot see it; rfc/short/rfc8654.md carries it in its Errors list and in the Error Handling table. |
-| `5` | Error Handling | 5 | walked | Error Handling. The document's densest normative section: five capitalised MUST-level sites, all mapped below to RFC8654-5-1 through RFC8654-5-5. Its one advisory, the RECOMMENDED that developers and implementers are conservative in their use of extended messages, is the unsourced id below. The sentence stating that UPDATE error handling per RFC 4271 Section 6.3 is unchanged is indicative and adds no obligation. |
-| `6` | Changes to RFC 4271 | 1 | walked | Changes to RFC 4271. Its one site quotes the RFC 4271 Length-field MUST and states the change to 65,535, mapped below to RFC8654-6-1. Its second paragraph restates the same change against RFC 4271 Section 6.1 in the indicative and adds no separate obligation. |
+| `1` | Introduction | 0 | reviewed | Introduction. Indicative prose: RFC 4271 mandates 4,096 octets, new AFIs, SAFIs and capabilities need more, and this document raises the limit to 65,535 octets for every message except OPEN and KEEPALIVE. No sentence directs a speaker. |
+| `1.1` | Requirements Language | 0 | reviewed | Requirements Language. The BCP 14 key-words paragraph, which states that the key words bind when, and only when, they appear in all capitals. It tells a reader how to read the other sections and binds no speaker, which is why the derivation excludes it from the site inventory. It is also what makes the lowercase modals in sections 4 and 8 non-normative in this document. |
+| `2` | BGP Extended Message | 0 | reviewed | BGP Extended Message. Definitions only: a message over 4,096 octets is a BGP Extended Message, extended messages have a maximum size of 65,535 octets, and the smallest message is a 19-octet KEEPALIVE. Stated indicatively, so under section 1.1 it carries no RFC 2119 level. The 65,535 and 19 octet bounds are carried normatively by site 6:1, which maps RFC8654-6-1, and by the Wire Formats and Constants tables of rfc/short/rfc8654.md. |
+| `3` | BGP Extended Message Capability | 1 | reviewed | BGP Extended Message Capability. Its one capitalised site is the RFC 7606 error-handling prerequisite, mapped below to RFC8654-3-1. The rest is value assignment and description: Capability Code 6, Capability Length 0, how a speaker advertises it with RFC 5492, and what advertising conveys. Those are indicative, so the two wire-value obligations the summary declares from them are the unsourced ids below. |
+| `4` | Operation | 5 | reviewed | Operation. Two capitalised MUST-level sites, mapped below to RFC8654-4-1 and RFC8654-4-2. Its three remaining sites carry lowercase modals that section 1.1 gives no normative level, and each is excluded below. The section's other directives are the SHOULD to advertise the capability, the SHOULD to try attribute discard when propagating to a peer that did not advertise it, the MAY that permits sending an extended message only to a peer the capability was received from, and the scoping sentence that the capability applies to all messages except OPEN and KEEPALIVE; the summary declares those as the unsourced ids below. The sentence stating that a listener which has not advertised the capability will generate a NOTIFICATION with Bad Message Length is written in the indicative future and cites RFC 4271 Section 6.1 for the subcode, so the site scan cannot see it; rfc/short/rfc8654.md carries it in its Errors list and in the Error Handling table. |
+| `5` | Error Handling | 5 | reviewed | Error Handling. The document's densest normative section: five capitalised MUST-level sites, all mapped below to RFC8654-5-1 through RFC8654-5-5. Its one advisory, the RECOMMENDED that developers and implementers are conservative in their use of extended messages, is the unsourced id below. The sentence stating that UPDATE error handling per RFC 4271 Section 6.3 is unchanged is indicative and adds no obligation. |
+| `6` | Changes to RFC 4271 | 1 | reviewed | Changes to RFC 4271. Its one site quotes the RFC 4271 Length-field MUST and states the change to 65,535, mapped below to RFC8654-6-1. Its second paragraph restates the same change against RFC 4271 Section 6.1 in the indicative and adds no separate obligation. |
 | `7` | IANA Considerations | 0 | skipped (iana) | IANA Considerations. Records the allocation of value 6, "BGP Extended Message", in the "Capability Codes" registry. Binds IANA, not a speaker; the wire value itself is RFC8654-3-2. |
-| `8` | Security Considerations | 1 | walked | Security Considerations. States that the extension does not change BGP's underlying security issues, that buffering 65,535-octet messages increases exposure to resource exhaustion, and lists three consequences of reducing an outgoing message for a peer that does not support extended messages. Its one site is the RFC 7606 eligibility criterion for attribute discard, excluded below. No countermeasure is directed at a speaker. |
+| `8` | Security Considerations | 1 | reviewed | Security Considerations. States that the extension does not change BGP's underlying security issues, that buffering 65,535-octet messages increases exposure to resource exhaustion, and lists three consequences of reducing an outgoing message for a peer that does not support extended messages. Its one site is the RFC 7606 eligibility criterion for attribute discard, excluded below. No countermeasure is directed at a speaker. |
 | `9` | References heading | 0 | skipped (references) | References heading. |
 | `9.1` | not stated | 0 | skipped (references) | Normative References: RFC 2119, RFC 4271, RFC 5492, RFC 7606, RFC 8174. |
 | `9.2` | Informative References: RFC 4272, RFC 7752, RFC 8205 | 0 | skipped (references) | Informative References: RFC 4272, RFC 7752, RFC 8205. |

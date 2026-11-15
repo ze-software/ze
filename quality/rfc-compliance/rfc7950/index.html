@@ -4,18 +4,18 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
-        <title>RFC 7950 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 7950: The YANG 1.1 Data Modeling Language. 91 gated MUST-level requirements, 51 declared gaps (0 demonstrated by a test), 0 with no test." />
-        <meta property="og:title" content="RFC 7950 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 7950: The YANG 1.1 Data Modeling Language. 91 gated MUST-level requirements, 51 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <title>RFC 7950 requirements and tests - Ze</title>
+        <meta name="description" content="RFC 7950: The YANG 1.1 Data Modeling Language. 91 mandatory requirements included in automatic checks, 51 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:title" content="RFC 7950 requirements and tests - Ze" />
+        <meta property="og:description" content="RFC 7950: The YANG 1.1 Data Modeling Language. 91 mandatory requirements included in automatic checks, 51 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="RFC 7950 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 7950: The YANG 1.1 Data Modeling Language. 91 gated MUST-level requirements, 51 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:title" content="RFC 7950 requirements and tests - Ze" />
+        <meta name="twitter:description" content="RFC 7950: The YANG 1.1 Data Modeling Language. 91 mandatory requirements included in automatic checks, 51 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -47,7 +47,7 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">YANG 1.1 data modeling</span>
     <h1 id="rfc-detail-title">RFC 7950 - The YANG 1.1 Data Modeling Language</h1>
-    <p>Every requirement this repository extracted from RFC 7950, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
+    <p>Every requirement listed for RFC 7950, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.</p>
 </div>
 <style>
 .rfc-table-wrap { overflow-x: auto; }
@@ -57,16 +57,25 @@
 .rfc-verdict p:last-child { margin-bottom: 0; }
 .rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
-.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
-.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: block; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
 .rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
-.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
-.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-card b { display: block; margin: 0; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: .5rem 0 0; color: var(--muted); font-size: .92rem; line-height: 1.6; }
+.rfc-card.rfc-total-card { grid-column: 1 / -1; display: grid; grid-template-columns: 15rem minmax(0, 1fr); column-gap: 1.5rem; align-items: start; }
+.rfc-card.rfc-total-card span, .rfc-card.rfc-total-card strong, .rfc-card.rfc-total-card b { grid-column: 1; }
+.rfc-card.rfc-total-card p { grid-column: 2; grid-row: 1 / span 3; margin: 0; }
+@media (max-width: 760px) {
+  .rfc-card-grid { grid-template-columns: minmax(0, 1fr); }
+  .rfc-card.rfc-total-card { display: block; }
+  .rfc-card.rfc-total-card p { margin: .5rem 0 0; }
+}
 .rfc-ok { border-left: 7px solid var(--green); }
 .rfc-neutral { border-left: 7px solid var(--line-strong); }
 .rfc-warn { border-left: 7px solid var(--amber); }
 .rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-card.rfc-total-card { background: var(--bg-soft); border: 1px solid var(--line-strong); box-shadow: none; }
 .rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
 .rfc-tape span { width: var(--w); min-width: 0; display: block; }
 .rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
@@ -87,6 +96,7 @@
 .rfc-swatch.rfc-neutral { background: var(--line-strong); }
 .rfc-swatch.rfc-warn { background: var(--amber); }
 .rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-swatch.rfc-total-card { background: var(--bg-soft); }
 .rfc-total td { border-top: 2px solid var(--line-strong); }
 .rfc-prose { max-width: 46rem; }
 ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
@@ -118,39 +128,39 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>36</strong><b>of 91 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>1</strong><b>of 91 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 91 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>144</strong><b>144 of 156 tagged units, 0 escaped and 6 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
-</div>
-<h3>Neutral</h3>
-<p>measures that are neither good news nor bad</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>91</strong><b>of 91 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 91 gated MUSTs</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 91 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 91 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 91 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 91 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>36</strong><b>of 91 mandatory requirements</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>1</strong><b>of 91 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 91 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>150</strong><b>150 of 156 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Partial proof; remaining gap</span><strong>3</strong><b>of 91 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>51</strong><b>of 91 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>39</strong><b>of 91 gated MUSTs judged</b><p>10 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Partial proof; remaining gap</span><strong>3</strong><b>of 91 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-bad"><span>Declared gap or no test</span><strong>51</strong><b>of 91 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>39</strong><b>of 91 mandatory requirements reviewed</b><p>11 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
-<p>The 9 counts marked as a part above are the whole of the 91 gated MUSTs: they add up to 91. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.</p>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 91 mandatory requirements</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 91 mandatory requirements</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 91 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 91 mandatory requirements</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 91 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit</p></article>
+</div>
+<h3>Totals</h3>
+<p>what the cards above are counted against</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-total-card"><span>Mandatory requirements (MUST level)</span><strong>91</strong><b>of 91 requirements this summary lists, at all levels</b><p>The RFC&#39;s MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements.</p></article>
+</div>
+<p>The 9 counts marked as a part above are the whole of the 91 mandatory requirements: they add up to 91. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
-<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
 <tbody>
-<tr><td>Gated MUSTs</td>
-<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
-</tr>
 <tr><td>Out of scope</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
 <td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
@@ -171,9 +181,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
-<tr><td>No test at all</td>
+<tr><td>Declared gap or no test</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
-<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+<td>green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
@@ -191,13 +201,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
 <td>neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption</td>
 </tr>
-<tr><td>Proven by a recorded break</td>
+<tr><td>Tests shown to detect a fault</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above</td>
+<td>green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
-<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current</td>
+</tr>
+<tr><td>Mandatory requirements (MUST level)</td>
+<td><span class="rfc-swatch rfc-total-card"></span> outlined</td>
+<td>outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad</td>
 </tr>
 </tbody>
 </table>
@@ -212,13 +226,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Public row</td>
 <td>YANG 1.1 data modeling</td>
 </tr>
-<tr><td>Enrolment</td>
-<td>Enrolled</td>
+<tr><td>Automatic checks</td>
+<td>Included</td>
 </tr>
 <tr><td>Requirements</td>
 <td>91</td>
 </tr>
-<tr><td>Gated MUST-level</td>
+<tr><td>Mandatory requirements (MUST level)</td>
 <td>91</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
@@ -230,7 +244,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
 </tr>
-<tr><td>Gated with no test</td>
+<tr><td>Mandatory requirements with no test and no annotation</td>
 <td>0</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
@@ -239,19 +253,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Test tags</td>
 <td>156</td>
 </tr>
-<tr><td>Tagged units</td>
+<tr><td>Tests linked to requirements</td>
 <td>156</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>39</td>
 </tr>
-<tr><td>Discrimination records</td>
+<tr><td>Fault test records</td>
 <td>150</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc7950.md</code></td>
 </tr>
-<tr><td>Requirement shard</td>
+<tr><td>Requirement table</td>
 <td><code>rfc/requirements/rfc7950.md</code></td>
 </tr>
 <tr><td>RFC text</td>
@@ -261,10 +275,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 </section>
-<section><h2>Enrolment</h2>
-<p>Enrolled: The YANG 1.1 Data Modeling Language (ze config validator). The extraction walk of 2026-09-21 read all 227 MUST sites and rewrote this ledger: it added 67 MUST rows the checklist did not carry, covering module and submodule structure, identifier and prefix scoping, typedef and leaf definition rules, list keys and unique constraints, choice, grouping, augment, identity, feature, deviation, status and when rules, the Section 8.1 validity conditions and the Section 8.3 enforcement windows, the built-in type restrictions of Section 9, the module update rules of Section 11 and the YANG 1/1.1 coexistence rules of Section 12. On 2026-09-21 twelve of the added rows gained positive and negative tags (seven at the loader boundary in internal/component/config/yang/rfc7950_loader_test.go, decimal64 and default validation in the validator and the schema builder), one is single-polarity, and the forty-eight left carry {gap} rows naming their specs. Of the nine rows that stood before the walk, four are met with positive+negative tags in internal/component/config: 8.3.1-1 (a value violating a range, length, or pattern restriction is an error), 9.6-1 (an enum value must be one of the defined enums), 9.12-1 (a union value must match at least one member type), and 7.6.5-1 (a missing mandatory node is an error). Five more are gaps: 7.5.3-1 (no must statement is evaluated, and a plugin&#39;s own module may carry one), 9.2.4-1 (no check that a derived range is equally or more limiting), 9.4.5-1 (every pattern is checked in turn, but no module carries two and no test proves the AND), x-1 (ze&#39;s models declare no yang-version and nothing refuses a 1.1 construct without it), and x-2 (no repository check compares enumerations across revisions). The walk excluded 32 sites as the NETCONF protocol binding, the XML encoding and the YIN syntax, none of which ze uses: ze serves its YANG-modeled config over gNMI and its own CLI, and no Go file in internal/ references NETCONF except a port-name table. Three further sites delegate module-name and namespace assignment to the IANA procedure of the earlier YANG specification they cite.</p>
+<section><h2>Automatic checks</h2>
+<p>Included in automatic checks: The YANG 1.1 Data Modeling Language (ze config validator). The extraction walk of 2026-09-21 read all 227 MUST sites and rewrote this ledger: it added 67 MUST rows the checklist did not carry, covering module and submodule structure, identifier and prefix scoping, typedef and leaf definition rules, list keys and unique constraints, choice, grouping, augment, identity, feature, deviation, status and when rules, the Section 8.1 validity conditions and the Section 8.3 enforcement windows, the built-in type restrictions of Section 9, the module update rules of Section 11 and the YANG 1/1.1 coexistence rules of Section 12. On 2026-09-21 twelve of the added rows gained positive and negative tags (seven at the loader boundary in internal/component/config/yang/rfc7950_loader_test.go, decimal64 and default validation in the validator and the schema builder), one is single-polarity, and the forty-eight left carry {gap} rows naming their specs. Of the nine rows that stood before the walk, four are met with positive+negative tags in internal/component/config: 8.3.1-1 (a value violating a range, length, or pattern restriction is an error), 9.6-1 (an enum value must be one of the defined enums), 9.12-1 (a union value must match at least one member type), and 7.6.5-1 (a missing mandatory node is an error). Five more are gaps: 7.5.3-1 (no must statement is evaluated, and a plugin&#39;s own module may carry one), 9.2.4-1 (no check that a derived range is equally or more limiting), 9.4.5-1 (every pattern is checked in turn, but no module carries two and no test proves the AND), x-1 (ze&#39;s models declare no yang-version and nothing refuses a 1.1 construct without it), and x-2 (no repository check compares enumerations across revisions). The walk excluded 32 sites as the NETCONF protocol binding, the XML encoding and the YIN syntax, none of which ze uses: ze serves its YANG-modeled config over gNMI and its own CLI, and no Go file in internal/ references NETCONF except a port-name table. Three further sites delegate module-name and namespace assignment to the IANA procedure of the earlier YANG specification they cite.</p>
 </section>
-<section><h2>What the public ledger says</h2>
+<section><h2>Published support status</h2>
 <p><strong>Area:</strong> YANG 1.1 data modeling</p>
 <p><strong>Proof:</strong> 37 of 91 MUST proven</p>
 <p><strong>Evidence:</strong> functional 1, unit 36</p>
@@ -278,33 +292,33 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td>Positive and negative tests</td>
 <td><strong>36</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
 <td><strong>55</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
-<tr><td>One polarity only</td>
+<tr><td>Only a positive or negative test</td>
 <td><strong>0</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
-<td>one part of the gated population</td>
+<td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
 <td><strong>3</strong></td>
-<td>an overlay: each of these is also counted by the part it falls in</td>
+<td>also counted in one of the groups above</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
-<td>an overlay: each of these is also counted by the part it falls in</td>
+<td>also counted in one of the groups above</td>
 </tr>
 <tr><td>Derived from other rows</td>
 <td><strong>0</strong></td>
-<td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
+<td>excluded from the total: each summarizes the status of other requirements, which are already counted above</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>91</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Mandatory requirements (MUST level)</strong></td><td><strong>91</strong></td><td>every mandatory requirement appears in exactly one group above</td></tr>
 </tbody>
 </table>
 </div>
@@ -314,9 +328,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc7950:must">Ze proven 37, Ze correctness gap 54</div>
+<div data-ze-rfc-bar="rfc7950:must">Ze proven 37, Not built 54</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc7950:overview">Ze MUST proven 37, Ze correctness gap 54</div>
+<div data-ze-rfc-bar="rfc7950:overview">Ze MUST proven 37, Not built 54</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -324,10 +338,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>RFCs</td>
 <td><span data-ze-rfc="rfc7950:rfcs">1</span></td>
 </tr>
-<tr><td>Not walked</td>
+<tr><td>Requirements not reviewed</td>
 <td><span data-ze-rfc="rfc7950:not-walked">0</span></td>
 </tr>
-<tr><td>Mandatory register</td>
+<tr><td>Mandatory requirements complete</td>
 <td><span data-ze-rfc="rfc7950:register">not complete</span></td>
 </tr>
 <tr><td>MUST rows</td>
@@ -342,11 +356,20 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc7950:must.os-verified">0</span></td>
 </tr>
+<tr><td>Proof pending</td>
+<td><span data-ze-rfc="rfc7950:must.proof-pending">0</span></td>
+</tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc7950:must.os-gap">0</span></td>
 </tr>
-<tr><td>Ze correctness gap</td>
-<td><span data-ze-rfc="rfc7950:must.ze-gap">54</span></td>
+<tr><td>Exclusion unchecked</td>
+<td><span data-ze-rfc="rfc7950:must.exclusion-unchecked">0</span></td>
+</tr>
+<tr><td>Not assessed</td>
+<td><span data-ze-rfc="rfc7950:must.not-assessed">0</span></td>
+</tr>
+<tr><td>Not built</td>
+<td><span data-ze-rfc="rfc7950:must.not-built">54</span></td>
 </tr>
 <tr><td>MUST rows not owed</td>
 <td><span data-ze-rfc="rfc7950:must.not-owed">0</span></td>
@@ -384,19 +407,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD not owed: not-applicable</td>
 <td><span data-ze-rfc="rfc7950:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
-<tr><td>SHOULD not ever</td>
-<td><span data-ze-rfc="rfc7950:should.not-ever">0</span></td>
+<tr><td>SHOULD proof pending</td>
+<td><span data-ze-rfc="rfc7950:should.proof-pending">0</span></td>
 </tr>
-<tr><td>SHOULD not yet</td>
-<td><span data-ze-rfc="rfc7950:should.not-yet">0</span></td>
+<tr><td>SHOULD exclusion unchecked</td>
+<td><span data-ze-rfc="rfc7950:should.exclusion-unchecked">0</span></td>
 </tr>
-<tr><td>SHOULD not decided</td>
-<td><span data-ze-rfc="rfc7950:should.not-decided">0</span></td>
+<tr><td>SHOULD not assessed</td>
+<td><span data-ze-rfc="rfc7950:should.not-assessed">0</span></td>
+</tr>
+<tr><td>SHOULD not built</td>
+<td><span data-ze-rfc="rfc7950:should.not-built">0</span></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.</p>
+<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
 
 </section>
 <section><h2>Requirements</h2>
@@ -441,7 +467,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_mandatory_test.go#L69" title="internal/component/config/yang/rfc7950_mandatory_test.go" target="_blank" rel="noopener"><code>TestRFC7950MandatoryWithNoQualifyingAncestor</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L339" title="internal/component/config/rfc7950_validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidateTree_MandatoryMissing</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L944" title="internal/component/config/rfc7950_validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidator_MandatoryField</code></a></span></div>
-</div><p class="rfc-mark"><strong>{partial}:</strong> tested &#34;the leaf MUST exist&#34;; gap &#34;If no such ancestor exists in the schema tree&#34;; internal/component/config/validate_sections.go::ValidateCustomSections is the boundary: Tested covers a mandatory leaf whose ancestors are all non-presence containers, required whenever its top-level section is present in the config (bgp/router-id, bgp/session/asn/local, once the bgp section holds a peer or a group); Gap is the same leaf when the whole top-level section is absent, which Ze does not require, because its top-level sections are non-presence containers that stand for an enabled feature and requiring their leaves would refuse every config that omits bgp; owner-approved deviation, OWNER RULING 6 of 2026-10-12 (Thomas, &#34;Like FRR/libyang (Recommended)&#34;): mandatory leaves are checked only in sections present in the config, as libyang&#39;s LYD_VALIDATE_PRESENT (&#34;Validate only modules whose data actually exist&#34;) does when FRR sets it in nb_candidate_validate_yang (lib/northbound.c) and yang_parse_data (lib/yang.c); Gap also holds bgp/router-id and bgp/session/asn/local absent at the bgp level while every BGP session carries the value itself or from its group, which bgpMandatoryFailures counts as present through EverySessionCarries: a second owner-approved deviation, ruling of 2026-10-12 (Thomas, &#34;yes enforce&#34;, spec AC-2); that ruling binds only once a session exists: a bgp section with no peer and no group is accepted and does nothing, so EverySessionCarries counts both leaves as present there (Thomas, 2026-10-16, spec AC-2 RULING 7); a deviation is never counted conformant; plan/release/fixes/spec-config-yang-when-unique-choice.md</p><p class="rfc-mark"><strong>Scoped evidence:</strong> Tests and tag-claim records apply only to Tested; zero whole-requirement credit. partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. Re-judged 2026-10-25 after the row went stale. The only change to the row since the 2026-10-23 verdict is the spec path in its Reason, plan/pre-release/ moved to plan/release/fixes/ (commit 666f1bc521); Tested, Gap, Producer, the owner-approved deviations and the requirement text are byte-identical, and reseal reported the tagged units unchanged. RFC 7950 Section 7.6.5: &#34;If &#34;mandatory&#34; is &#34;true&#34;, the behavior of the constraint depends on the type of the leaf&#39;s closest ancestor node in the schema tree that is not a non-presence container (see Section 7.5.1): o If no such ancestor exists in the schema tree, the leaf MUST exist.&#34; Tested &#34;the leaf MUST exist&#34;; Gap &#34;If no such ancestor exists in the schema tree&#34;; Producer internal/component/config/validate_sections.go::ValidateCustomSections. The earlier judgement stands: the direct validator requires the exact missing path under an absent non-presence ancestor and accepts the supplied leaf; the config carriers require LoadConfig to refuse a missing local ASN or router-id and to accept the complete config. The whole absent top-level section stays unwalked and EverySessionCarries implements the declared deviations, none of which counts as conformance. Zero whole-requirement credit.</p></td>
+</div><p class="rfc-mark"><strong>{partial}:</strong> tested &#34;the leaf MUST exist&#34;; gap &#34;If no such ancestor exists in the schema tree&#34;; internal/component/config/validate_sections.go::ValidateCustomSections is the boundary: Tested covers a mandatory leaf whose ancestors are all non-presence containers, required whenever its top-level section is present in the config (bgp/router-id, bgp/session/asn/local, once the bgp section holds a peer or a group); Gap is the same leaf when the whole top-level section is absent, which Ze does not require, because its top-level sections are non-presence containers that stand for an enabled feature and requiring their leaves would refuse every config that omits bgp; owner-approved deviation, OWNER RULING 6 of 2026-10-12 (Thomas, &#34;Like FRR/libyang (Recommended)&#34;): mandatory leaves are checked only in sections present in the config, as libyang&#39;s LYD_VALIDATE_PRESENT (&#34;Validate only modules whose data actually exist&#34;) does when FRR sets it in nb_candidate_validate_yang (lib/northbound.c) and yang_parse_data (lib/yang.c); Gap also holds bgp/router-id and bgp/session/asn/local absent at the bgp level while every BGP session carries the value itself or from its group, which bgpMandatoryFailures counts as present through EverySessionCarries: a second owner-approved deviation, ruling of 2026-10-12 (Thomas, &#34;yes enforce&#34;, spec AC-2); that ruling binds only once a session exists: a bgp section with no peer and no group is accepted and does nothing, so EverySessionCarries counts both leaves as present there (Thomas, 2026-10-16, spec AC-2 RULING 7); a deviation is never counted conformant; plan/release/fixes/spec-config-yang-when-unique-choice.md</p><p class="rfc-mark"><strong>Partial test coverage:</strong> Tests and fault test records cover only the part marked Tested; they do not prove the whole requirement. partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. Re-judged 2026-10-25 after the row went stale. The only change to the row since the 2026-10-23 verdict is the spec path in its Reason, plan/pre-release/ moved to plan/release/fixes/ (commit 666f1bc521); Tested, Gap, Producer, the owner-approved deviations and the requirement text are byte-identical, and reseal reported the tagged units unchanged. RFC 7950 Section 7.6.5: &#34;If &#34;mandatory&#34; is &#34;true&#34;, the behavior of the constraint depends on the type of the leaf&#39;s closest ancestor node in the schema tree that is not a non-presence container (see Section 7.5.1): o If no such ancestor exists in the schema tree, the leaf MUST exist.&#34; Tested &#34;the leaf MUST exist&#34;; Gap &#34;If no such ancestor exists in the schema tree&#34;; Producer internal/component/config/validate_sections.go::ValidateCustomSections. The earlier judgement stands: the direct validator requires the exact missing path under an absent non-presence ancestor and accepts the supplied leaf; the config carriers require LoadConfig to refuse a missing local ASN or router-id and to accept the complete config. The whole absent top-level section stays unwalked and EverySessionCarries implements the declared deviations, none of which counts as conformance. Zero whole-requirement credit.</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7950-7.6.5-2">RFC7950-7.6.5-2</code></td><td colspan="3"><span class="rfc-subject">Otherwise, if this ancestor is a case node, the leaf MUST exist if any node from the case exists in the data tree. (§7.6.5)</span></td></tr>
 <tr><td></td>
@@ -777,7 +803,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7950-7.9.4-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_mandatory_test.go#L151" title="internal/component/config/yang/rfc7950_mandatory_test.go" target="_blank" rel="noopener"><code>TestMandatoryChoiceSatisfiedByACaseNode</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_mandatory_test.go#L150" title="internal/component/config/yang/rfc7950_mandatory_test.go" target="_blank" rel="noopener"><code>TestMandatoryChoiceSatisfiedByACaseNode</code></a></span></div>
-</div><p class="rfc-mark"><strong>{partial}:</strong> tested &#34;at least one node from&#34;; gap &#34;exactly one of the choice&#39;s case branches&#34;; internal/component/config/yang/validator_mandatory.go::mandatoryPresent is the boundary: Tested covers a mandatory choice reported missing when no data node of any of its cases exists, and satisfied by a node of one case, nested choices included; Gap is data holding nodes from two cases of one choice, which mandatoryPresent accepts at the first case node it finds, and no other check compares the cases; plan/release/fixes/spec-config-yang-when-unique-choice.md</p><p class="rfc-mark"><strong>Scoped evidence:</strong> Tests and tag-claim records apply only to Tested; zero whole-requirement credit. partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. Re-judged 2026-10-25 after the row went stale. The only change to the row since the verdict is the spec path in its Reason, plan/pre-release/ moved to plan/release/fixes/ (commit 666f1bc521); Tested, Gap, Producer and the requirement text are byte-identical, and reseal reported the tagged units unchanged. Section 7.9.4: &#34;If &#34;mandatory&#34; is &#34;true&#34;, at least one node from exactly one of the choice&#39;s case branches MUST exist.&#34; Tested &#34;at least one node from&#34;; Gap &#34;exactly one of the choice&#39;s case branches&#34;; Producer internal/component/config/yang/validator_mandatory.go::mandatoryPresent. Tested holds: TestMandatoryChoiceSatisfiedByACaseNode reports the missing choice for a container with no node of any case and accepts a node of one case and of a nested choice&#39;s case. Gap holds, re-read at the producer: mandatoryPresent returns true at the first case node it finds and no other check compares the cases, so data from two cases is accepted. Whole requirement earns no credit; spec-config-yang-when-unique-choice.</p></td>
+</div><p class="rfc-mark"><strong>{partial}:</strong> tested &#34;at least one node from&#34;; gap &#34;exactly one of the choice&#39;s case branches&#34;; internal/component/config/yang/validator_mandatory.go::mandatoryPresent is the boundary: Tested covers a mandatory choice reported missing when no data node of any of its cases exists, and satisfied by a node of one case, nested choices included; Gap is data holding nodes from two cases of one choice, which mandatoryPresent accepts at the first case node it finds, and no other check compares the cases; plan/release/fixes/spec-config-yang-when-unique-choice.md</p><p class="rfc-mark"><strong>Partial test coverage:</strong> Tests and fault test records cover only the part marked Tested; they do not prove the whole requirement. partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. Re-judged 2026-10-25 after the row went stale. The only change to the row since the verdict is the spec path in its Reason, plan/pre-release/ moved to plan/release/fixes/ (commit 666f1bc521); Tested, Gap, Producer and the requirement text are byte-identical, and reseal reported the tagged units unchanged. Section 7.9.4: &#34;If &#34;mandatory&#34; is &#34;true&#34;, at least one node from exactly one of the choice&#39;s case branches MUST exist.&#34; Tested &#34;at least one node from&#34;; Gap &#34;exactly one of the choice&#39;s case branches&#34;; Producer internal/component/config/yang/validator_mandatory.go::mandatoryPresent. Tested holds: TestMandatoryChoiceSatisfiedByACaseNode reports the missing choice for a container with no node of any case and accepts a node of one case and of a nested choice&#39;s case. Gap holds, re-read at the producer: mandatoryPresent returns true at the first case node it finds and no other check compares the cases, so data from two cases is accepted. Whole requirement earns no credit; spec-config-yang-when-unique-choice.</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7950-7.12-1">RFC7950-7.12-1</code></td><td colspan="3"><span class="rfc-subject">A grouping MUST NOT reference itself, neither directly nor indirectly through a chain of other groupings. If the grouping is defined at the top level of a YANG module or submodule, the grouping&#39;s identifier MUST be unique within the module. (§7.12)</span></td></tr>
 <tr><td></td>
@@ -1178,7 +1204,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7950-9.10.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L205" title="internal/component/config/yang/rfc7950_reference_test.go" target="_blank" rel="noopener"><code>TestRFC7950IdentityrefAccepted</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_reference_test.go#L216" title="internal/component/config/yang/rfc7950_reference_test.go" target="_blank" rel="noopener"><code>TestRFC7950IdentityrefRefused</code></a></span></div>
-</div><p class="rfc-mark"><strong>{partial}:</strong> tested &#34;If a prefix is present on the identity name, it refers to an identity defined in the module that was imported with that prefix&#34;; gap &#34;MUST be present at least once&#34;; internal/component/config/yang/validator_reference.go::validateIdentityref is the boundary: Tested covers an identityref with one base, prefixed by an imported module&#39;s prefix or local, resolved by goyang (which refuses an identityref with no base or a base it cannot resolve), whose value must name an identity derived from it; Gap is a type naming the base statement more than once, because goyang keeps one base statement per identityref type (Type.IdentityBase holds one value), so the values derived from every base are not computed; plan/post-release/features/spec-config-yang-reference-types.md</p><p class="rfc-mark"><strong>Scoped evidence:</strong> Tests and tag-claim records apply only to Tested; zero whole-requirement credit. not audited: no reader has judged these tests</p></td>
+</div><p class="rfc-mark"><strong>{partial}:</strong> tested &#34;If a prefix is present on the identity name, it refers to an identity defined in the module that was imported with that prefix&#34;; gap &#34;MUST be present at least once&#34;; internal/component/config/yang/validator_reference.go::validateIdentityref is the boundary: Tested covers an identityref with one base, prefixed by an imported module&#39;s prefix or local, resolved by goyang (which refuses an identityref with no base or a base it cannot resolve), whose value must name an identity derived from it; Gap is a type naming the base statement more than once, because goyang keeps one base statement per identityref type (Type.IdentityBase holds one value), so the values derived from every base are not computed; plan/post-release/features/spec-config-yang-reference-types.md</p><p class="rfc-mark"><strong>Partial test coverage:</strong> Tests and fault test records cover only the part marked Tested; they do not prove the whole requirement. not reviewed: no reviewer has checked whether these tests enforce the requirement</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7950-9.10.3-1">RFC7950-9.10.3-1</code></td><td colspan="3"><span class="rfc-subject">Otherwise, an identity with the matching name MUST be defined in the current module or one of its submodules. (Section 9.10.3)</span></td></tr>
 <tr><td></td>
@@ -1530,7 +1556,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Proof state</h2>
-<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<p>A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.</p>
 <h3><a href="#rfc7950-9.6-1"><code>RFC7950-9.6-1</code></a></h3>
 <p>The enumeration built-in type represents values from a set of assigned names. (§9.6)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-12, second pass (independent auditor) after 60a74fc04b, 600996fb77, 975428e1b3, 3f1bec74f0 and 84382339ce. SHIFTED only: the tagged units are byte-identical (gate-verified) and validateEnumeration is unchanged. Re-read: TestValidateTree_FamilyModeEnum and TestValidateTree_AddPathDirectionEnum supply router-id and session/asn/local, so no missing-mandatory error precedes errs[0]; the invalid name is refused ErrTypeEnum and every assigned name gives no error; radius auth-method and isis algorithm refuse an unassigned name with ErrTypeEnum and accept every defined one. Re-run green 2026-10-12. Verdict stands.</p>
@@ -1608,7 +1634,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7950-7.6.5-1"><code>RFC7950-7.6.5-1</code></a></h3>
 <p>If &#34;mandatory&#34; is &#34;true&#34;, the behavior of the constraint depends on the type of the leaf&#39;s closest ancestor node in the schema tree that is not a non-presence container (see Section 7.5.1): o If no such ancestor exists in the schema tree, the leaf MUST exist. (§7.6.5)</p>
-<p>Scoped tag-claim records only: tested &#34;the leaf MUST exist&#34;; gap &#34;If no such ancestor exists in the schema tree&#34;; internal/component/config/validate_sections.go::ValidateCustomSections is the boundary: Tested covers a mandatory leaf whose ancestors are all non-presence containers, required whenever its top-level section is present in the config (bgp/router-id, bgp/session/asn/local, once the bgp section holds a peer or a group); Gap is the same leaf when the whole top-level section is absent, which Ze does not require, because its top-level sections are non-presence containers that stand for an enabled feature and requiring their leaves would refuse every config that omits bgp; owner-approved deviation, OWNER RULING 6 of 2026-10-12 (Thomas, &#34;Like FRR/libyang (Recommended)&#34;): mandatory leaves are checked only in sections present in the config, as libyang&#39;s LYD_VALIDATE_PRESENT (&#34;Validate only modules whose data actually exist&#34;) does when FRR sets it in nb_candidate_validate_yang (lib/northbound.c) and yang_parse_data (lib/yang.c); Gap also holds bgp/router-id and bgp/session/asn/local absent at the bgp level while every BGP session carries the value itself or from its group, which bgpMandatoryFailures counts as present through EverySessionCarries: a second owner-approved deviation, ruling of 2026-10-12 (Thomas, &#34;yes enforce&#34;, spec AC-2); that ruling binds only once a session exists: a bgp section with no peer and no group is accepted and does nothing, so EverySessionCarries counts both leaves as present there (Thomas, 2026-10-16, spec AC-2 RULING 7); a deviation is never counted conformant; plan/release/fixes/spec-config-yang-when-unique-choice.md; zero whole-requirement credit.</p>
+<p>Records cover only part of this requirement: tested &#34;the leaf MUST exist&#34;; gap &#34;If no such ancestor exists in the schema tree&#34;; internal/component/config/validate_sections.go::ValidateCustomSections is the boundary: Tested covers a mandatory leaf whose ancestors are all non-presence containers, required whenever its top-level section is present in the config (bgp/router-id, bgp/session/asn/local, once the bgp section holds a peer or a group); Gap is the same leaf when the whole top-level section is absent, which Ze does not require, because its top-level sections are non-presence containers that stand for an enabled feature and requiring their leaves would refuse every config that omits bgp; owner-approved deviation, OWNER RULING 6 of 2026-10-12 (Thomas, &#34;Like FRR/libyang (Recommended)&#34;): mandatory leaves are checked only in sections present in the config, as libyang&#39;s LYD_VALIDATE_PRESENT (&#34;Validate only modules whose data actually exist&#34;) does when FRR sets it in nb_candidate_validate_yang (lib/northbound.c) and yang_parse_data (lib/yang.c); Gap also holds bgp/router-id and bgp/session/asn/local absent at the bgp level while every BGP session carries the value itself or from its group, which bgpMandatoryFailures counts as present through EverySessionCarries: a second owner-approved deviation, ruling of 2026-10-12 (Thomas, &#34;yes enforce&#34;, spec AC-2); that ruling binds only once a session exists: a bgp section with no peer and no group is accepted and does nothing, so EverySessionCarries counts both leaves as present there (Thomas, 2026-10-16, spec AC-2 RULING 7); a deviation is never counted conformant; plan/release/fixes/spec-config-yang-when-unique-choice.md; they do not prove the whole requirement.</p>
 <p><strong>Audit verdict:</strong> partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. Re-judged 2026-10-25 after the row went stale. The only change to the row since the 2026-10-23 verdict is the spec path in its Reason, plan/pre-release/ moved to plan/release/fixes/ (commit 666f1bc521); Tested, Gap, Producer, the owner-approved deviations and the requirement text are byte-identical, and reseal reported the tagged units unchanged. RFC 7950 Section 7.6.5: &#34;If &#34;mandatory&#34; is &#34;true&#34;, the behavior of the constraint depends on the type of the leaf&#39;s closest ancestor node in the schema tree that is not a non-presence container (see Section 7.5.1): o If no such ancestor exists in the schema tree, the leaf MUST exist.&#34; Tested &#34;the leaf MUST exist&#34;; Gap &#34;If no such ancestor exists in the schema tree&#34;; Producer internal/component/config/validate_sections.go::ValidateCustomSections. The earlier judgement stands: the direct validator requires the exact missing path under an absent non-presence ancestor and accepts the supplied leaf; the config carriers require LoadConfig to refuse a missing local ASN or router-id and to accept the complete config. The whole absent top-level section stays unwalked and EverySessionCarries implements the declared deviations, none of which counts as conformance. Zero whole-requirement credit.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1709,40 +1735,40 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7950-7.5.3-1"><code>RFC7950-7.5.3-1</code></a></h3>
 <p>All such constraints MUST evaluate to &#34;true&#34; for the data to be valid. (§7.5.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-7.5.3-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-7.5.3-1, so there is no linked test.</p>
 <h3><a href="#rfc7950-9.2.4-1"><code>RFC7950-9.2.4-1</code></a></h3>
 <p>If a range restriction is applied to a type that is already range-restricted, the new restriction MUST be equally limiting or more limiting, i.e., raising the lower bounds, reducing the upper bounds, removing explicit values or ranges, or splitting ranges into multiple ranges with intermediate gaps. (§9.2.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-9.2.4-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-9.2.4-1, so there is no linked test.</p>
 <h3><a href="#rfc7950-9.4.5-1"><code>RFC7950-9.4.5-1</code></a></h3>
 <p>If the type has multiple &#34;pattern&#34; statements, the expressions are ANDed together, i.e., all such expressions have to match. (§9.4.5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-9.4.5-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-9.4.5-1, so there is no linked test.</p>
 <h3><a href="#rfc7950-x-1"><code>RFC7950-x-1</code></a></h3>
 <p>The &#34;yang-version&#34; statement specifies which version of the YANG language was used in developing the module. The statement&#39;s argument is a string. It MUST contain the value &#34;1.1&#34; for YANG modules defined based on this specification. (§7.1.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-x-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-x-1, so there is no linked test.</p>
 <h3><a href="#rfc7950-x-2"><code>RFC7950-x-2</code></a></h3>
 <p>An &#34;enumeration&#34; type may have new enums added, provided the old enums&#39;s values do not change. (§11)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-x-2, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-x-2, so there is no linked test.</p>
 <h3><a href="#rfc7950-5.1-1"><code>RFC7950-5.1-1</code></a></h3>
 <p>Within a server, all module names MUST be unique. A module uses the &#34;include&#34; statement to list all its submodules. A module, or submodule belonging to that module, can reference definitions in the module and all submodules included by the module. A module or submodule uses the &#34;import&#34; statement to reference external modules. Statements in the module or submodule can reference definitions in the external module using the prefix specified in the &#34;import&#34; statement. For backward compatibility with YANG version 1, a submodule MAY use the &#34;include&#34; statement to reference other submodules within its module, but this is not necessary in YANG version 1.1. A submodule can reference any definition in the module it belongs to and in all submodules included by the module. A submodule MUST NOT include different revisions of other submodules than the revisions that its module includes. A module or submodule MUST NOT include submodules from other modules, and a submodule MUST NOT import its own module. The &#34;import&#34; and &#34;include&#34; statements are used to make definitions available from other modules: o For a module or submodule to reference definitions in an external module, the external module MUST be imported. o A module MUST include all its submodules. o A module, or submodule belonging to that module, MAY reference definitions in the module and all submodules included by the module. There MUST NOT be any circular chains of imports. For example, if module &#34;a&#34; imports module &#34;b&#34;, &#34;b&#34; cannot import &#34;a&#34;. When a definition in an external module is referenced, a locally defined prefix MUST be used, followed by a colon (&#34;:&#34;) and then the external identifier. (§5.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-5.1-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-5.1-1, so there is no linked test.</p>
 <h3><a href="#rfc7950-5.3-1"><code>RFC7950-5.3-1</code></a></h3>
 <p>Namespace URIs MUST be chosen so they cannot collide with standard or other enterprise namespaces -- for example, by using the enterprise or organization name in the namespace. (Section 5.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-5.3-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-5.3-1, so there is no linked test.</p>
 <h3><a href="#rfc7950-5.5-1"><code>RFC7950-5.5-1</code></a></h3>
 <p>Scoped definitions MUST NOT shadow definitions at a higher scope. (§5.5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-5.5-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-5.5-1, so there is no linked test.</p>
 <h3><a href="#rfc7950-5.6.5-1"><code>RFC7950-5.6.5-1</code></a></h3>
 <p>A server MUST NOT implement more than one revision of a module. If a server implements a module A that imports a module B, and A uses any node from B in an &#34;augment&#34; or &#34;path&#34; statement that the server supports, then the server MUST implement a revision of module B that has these nodes defined. (§5.6.5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-5.6.5-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-5.6.5-1, so there is no linked test.</p>
 <h3><a href="#rfc7950-6.1.3-1"><code>RFC7950-6.1.3-1</code></a></h3>
 <p>The backslash MUST NOT be followed by any other character. (§6.1.3)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-09 after 180df07922 (Resolve returns *yang.Resolved, one Resolve per Loader; process, checkExtensions, checkPatterns, checkStructure still all run and join, refusals unchanged): tagged units changed only in the 64-char tail of ModuleLoadAccepted (schema.GetEntry from the Resolved); cases unchanged, package green. RFC 6.1.3: &#39;The backslash MUST NOT be followed by any other character.&#39; Prior judgement, still true: Re-judged 2026-10-09; the case edited in ModuleLoadRefused is another row&#39;s. Negative: case &#34;bad escape&#34; (description &#34;bad \q escape&#34;, the only fault) requires an error containing &#34;escape&#34;. Positive: case &#34;valid escapes&#34; loads \t \n \&#34; \\ in a double-quoted string. Probe 2026-10-09: a single-quoted &#39;bad \q kept&#39;, where backslash is not special, loads, so the refusal is scoped to double quotes as Section 6.1.3 scopes it.</p>
@@ -1780,20 +1806,20 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7950-6.2.1-1"><code>RFC7950-6.2.1-1</code></a></h3>
 <p>All identifiers defined in a namespace MUST be unique. o All module and submodule names share the same global module identifier namespace. o All extension names defined in a module and its submodules share the same extension identifier namespace. o All feature names defined in a module and its submodules share the same feature identifier namespace. o All identity names defined in a module and its submodules share the same identity identifier namespace. o All derived type names defined within a parent node or at the top level of the module or its submodules share the same type identifier namespace. This namespace is scoped to all descendant nodes of the parent node or module. This means that any descendant node may use that typedef, and it MUST NOT define a typedef with the same name. o All grouping names defined within a parent node or at the top level of the module or its submodules share the same grouping identifier namespace. This namespace is scoped to all descendant nodes of the parent node or module. This means that any descendant node may use that grouping, and it MUST NOT define a grouping with the same name. (§6.2.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-6.2.1-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-6.2.1-1, so there is no linked test.</p>
 <h3><a href="#rfc7950-6.3.1-1"><code>RFC7950-6.3.1-1</code></a></h3>
 <p>When an imported extension is used, the extension&#39;s keyword MUST be qualified using the prefix with which the extension&#39;s module was imported. If an extension is used in the module where it is defined, the extension&#39;s keyword MUST be qualified with the prefix of this module. The processing of extensions depends on whether support for those extensions is claimed for a given YANG parser or the tool set in which it is embedded. An unsupported extension appearing in a YANG module as an unknown-statement (see Section 14) MAY be ignored in its entirety. Any supported extension MUST be processed in accordance with the specification governing that extension. (§6.3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-6.3.1-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-6.3.1-1, so there is no linked test.</p>
 <h3><a href="#rfc7950-6.4-1"><code>RFC7950-6.4-1</code></a></h3>
 <p>An implementation is not required to implement an XPath interpreter but MUST ensure that the requirements encoded in the data model are enforced. (Section 6.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-6.4-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-6.4-1, so there is no linked test.</p>
 <h3><a href="#rfc7950-6.4-2"><code>RFC7950-6.4-2</code></a></h3>
 <p>The XPath expressions MUST be syntactically correct, and all prefixes used MUST be present in the XPath context (see Section 6.4.1). (§6.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-6.4-2, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-6.4-2, so there is no linked test.</p>
 <h3><a href="#rfc7950-6.5-1"><code>RFC7950-6.5-1</code></a></h3>
 <p>References to identifiers defined in external modules MUST be qualified with appropriate prefixes, and references to identifiers defined in the current module and its submodules MAY use a prefix. (§6.5)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-09 after 180df07922 (Resolve returns *yang.Resolved, one Resolve per Loader; process, checkExtensions, checkPatterns, checkStructure still all run and join, refusals unchanged): cases unchanged. RFC 6.5: &#39;References to identifiers defined in external modules MUST be qualified with appropriate prefixes&#39;. Prior judgement, still true: Re-judged 2026-10-09; unchanged cases. Clause 1: ModuleLoadRefused case &#34;external typedef without prefix&#34; (type port with ext imported) requires &#34;unknown type&#34;, against Accepted case &#34;prefixed external and bare local&#34; (ext:port and bare local l load). Clause 2 (MAY): Accepted case &#34;extension with own and import prefix&#34; loads m:e under the module&#39;s own prefix. The submodule half of the MAY clause is not driven; a MAY imposes no refusal.</p>
@@ -1816,12 +1842,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7950-7.1.4-1"><code>RFC7950-7.1.4-1</code></a></h3>
 <p>If there is a conflict, i.e., two different modules that both have defined the same prefix are imported, at least one of them MUST be imported with a different prefix. All prefixes, including the prefix for the module itself, MUST be unique within the module or submodule. (§7.1.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-7.1.4-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-7.1.4-1, so there is no linked test.</p>
 <h3><a href="#rfc7950-7.3-1"><code>RFC7950-7.3-1</code></a></h3>
 <p>The &#34;typedef&#34; statement&#39;s argument is an identifier that is the name of the type to be defined and MUST be followed by a block of substatements that holds detailed typedef information. The name of the type MUST NOT be one of the YANG built-in types. If the typedef is defined at the top level of a YANG module or submodule, the name of the type to be defined MUST be unique within the module. (§7.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-7.3-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-7.3-1, so there is no linked test.</p>
 <h3><a href="#rfc7950-7.3.4-1"><code>RFC7950-7.3.4-1</code></a></h3>
 <p>The value of the &#34;default&#34; statement MUST be valid according to the type specified in the &#34;type&#34; statement. If the base type has a default value and the new derived type does not specify a new default value, the base type&#39;s default value is also the default value of the new derived type. If the type&#39;s default value is not valid according to the new restrictions specified in a derived type or leaf definition, the derived type or leaf definition MUST specify a new default value compatible with the restrictions. (§7.3.4)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. all three sentences, both polarities, isolated by one-statement twins: (1) typedef default in/out of its own range (old pair, records on validateLeafDefaults); (2) a leaf of the typedef with no default carries 5, a narrowing leaf or typedef giving a new default carries 7/8 with no error (record on yangToLeaf); (3) a leaf and a typedef narrowing 1..10 to 6..10 with no new default each refused naming &#34;5&#34; (record on validateTypedefDefault).</p>
@@ -1920,7 +1946,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3><a href="#rfc7950-7.6.1-4"><code>RFC7950-7.6.1-4</code></a></h3>
 <p>In these cases, the default value is said to be in use. Note that if the leaf or any of its ancestors has a &#34;when&#34; condition or &#34;if-feature&#34; expression that evaluates to &#34;false&#34;, then the default value is not in use. When the default value is in use, the server MUST operationally behave as if the leaf was present in the data tree with the default value as its value. (§7.6.1)</p>
 <p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-20 (independent judge, after 7f34543a08). Section 7.6.1: &#34;Note that if the leaf or any of its ancestors has a \&#34;when\&#34; condition or \&#34;if-feature\&#34; expression that evaluates to \&#34;false\&#34;, then the default value is not in use.&#34; ApplyDefaults changed only to skip children whose case is not in effect (choiceMembers.skipsDefaults -&gt; yang.CaseInEffect); it still evaluates no when and no if-feature, so a default under a false when stays in use. The {gap} annotation remains accurate. Owned by plan/pre-release/spec-config-yang-when-unique-choice.md.</p>
-<p>No test carries RFC7950-7.6.1-4, so no unit is bound to it.</p>
+<p>No test carries RFC7950-7.6.1-4, so there is no linked test.</p>
 <h3><a href="#rfc7950-7.6.3-1"><code>RFC7950-7.6.3-1</code></a></h3>
 <p>The &#34;type&#34; statement, which MUST be present, takes as an argument the name of an existing built-in or derived type. (Section 7.6.3)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-09 after 180df07922 (Resolve returns *yang.Resolved, one Resolve per Loader; process, checkExtensions, checkPatterns, checkStructure still all run and join, refusals unchanged): cases unchanged. RFC 7.6.3: &#39;The &#34;type&#34; statement, which MUST be present, takes as an argument the name of an existing built-in or derived type.&#39; The revert records on Resolve and AddModuleFromText for this row no longer verify (producer/unit changed) and are owed a re-record. Prior judgement, still true: Re-judged 2026-10-09; unchanged cases. MUST be present: ModuleLoadRefused case &#34;leaf without type&#34; refused / Accepted &#34;leaf with type&#34; loads. Names an existing type: TestRFC7950LeafTypeMustNameAnExistingType refuses type nosuch as unknown type against local typedef and imported ext:port twins that differ in the type name alone, with revert records on Resolve.</p>
@@ -1993,12 +2019,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7950-7.7-1"><code>RFC7950-7.7-1</code></a></h3>
 <p>In configuration data, the values in a leaf-list MUST be unique. The definitions of the default values MUST NOT be marked with an &#34;if-feature&#34; statement. Conceptually, the values in the data tree MUST be in the canonical form (see Section 9.1). (§7.7)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-7.7-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-7.7-1, so there is no linked test.</p>
 <h3><a href="#rfc7950-7.7.2-1"><code>RFC7950-7.7.2-1</code></a></h3>
 <p>The usage of the default values depends on the leaf-list&#39;s closest ancestor node in the schema tree that is not a non-presence container (see Section 7.5.1): o If no such ancestor exists in the schema tree, the default values MUST be used. o Otherwise, if this ancestor is a case node, the default values MUST be used if any node from the case exists in the data tree or the case node is the choice&#39;s default case, and if no nodes from any other case exist in the data tree. o Otherwise, the default values MUST be used if the ancestor node exists in the data tree. In these cases, the default values are said to be in use. Note that if the leaf-list or any of its ancestors has a &#34;when&#34; condition or &#34;if-feature&#34; expression that evaluates to &#34;false&#34;, then the default values are not in use. When the default values are in use, the server MUST operationally behave as if the leaf-list was present in the data tree with the default values as its values. (§7.7.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-7.7.2-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-7.7.2-1, so there is no linked test.</p>
 <h3><a href="#rfc7950-7.7.4-1"><code>RFC7950-7.7.4-1</code></a></h3>
 <p>The value of the &#34;default&#34; statement MUST be valid according to the type specified in the leaf-list&#39;s &#34;type&#34; statement. The &#34;default&#34; statement MUST NOT be present on nodes where &#34;min-elements&#34; has a value greater than or equal to one. (§7.7.4)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: a leaf-list default invalid for its type loading; a leaf-list default beside min-elements &gt;= 1 loading. (b) TestRFC7950DefaultInvalidForType: leaf-list range 1..10 default 30 requires an error containing `default &#34;30&#34; is not valid for type uint8`, and leaf-list min-elements 1 default 1 requires &#34;min-elements 1 is invalid&#34;; positive TestRFC7950DefaultValidForType: leaf-list default 3 inside 1..10 with no min-elements, assert.NoError. min-elements above 1 is not cased separately; 1 is the boundary.</p>
@@ -2041,23 +2067,23 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7950-7.8.2-1"><code>RFC7950-7.8.2-1</code></a></h3>
 <p>The &#34;key&#34; statement, which MUST be present if the list represents configuration and MAY be present otherwise, takes as an argument a string that specifies a space-separated list of one or more leaf identifiers of this list. A leaf identifier MUST NOT appear more than once in the key. Each such leaf identifier MUST refer to a child leaf of the list. The leafs can be defined directly in substatements to the list or in groupings used in the list. The combined values of all the leafs specified in the key are used to uniquely identify a list entry. All key leafs MUST be given values when a list entry is created. Thus, any default values in the key leafs or their types are ignored. Any &#34;mandatory&#34; statements in the key leafs are ignored. A leaf that is part of the key can be of any built-in or derived type. All key leafs in a list MUST have the same value for their &#34;config&#34; as the list itself. (§7.8.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-7.8.2-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-7.8.2-1, so there is no linked test.</p>
 <h3><a href="#rfc7950-7.8.3-1"><code>RFC7950-7.8.3-1</code></a></h3>
 <p>The &#34;unique&#34; statement is used to put constraints on valid list entries. It takes as an argument a string that contains a space- separated list of schema node identifiers, which MUST be given in the descendant form (see the rule &#34;descendant-schema-nodeid&#34; in Section 14). Each such schema node identifier MUST refer to a leaf. If one of the referenced leafs represents configuration data, then all of the referenced leafs MUST represent configuration data. The &#34;unique&#34; constraint specifies that the combined values of all the leaf instances specified in the argument string, including leafs with default values, MUST be unique within all list entry instances in which all referenced leafs exist or have default values. (§7.8.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-7.8.3-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-7.8.3-1, so there is no linked test.</p>
 <h3><a href="#rfc7950-7.9.2-1"><code>RFC7950-7.9.2-1</code></a></h3>
 <p>The identifiers of all these child nodes MUST be unique within all cases in a choice. (§7.9.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-7.9.2-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-7.9.2-1, so there is no linked test.</p>
 <h3><a href="#rfc7950-7.9.3-1"><code>RFC7950-7.9.3-1</code></a></h3>
 <p>The &#34;default&#34; statement MUST NOT be present on choices where &#34;mandatory&#34; is &#34;true&#34;. The default case is only important when considering the &#34;default&#34; statements of nodes under the cases (i.e., default values of leafs and leaf-lists, and default cases of nested choices). The default values and nested default cases under the default case are used if none of the nodes under any of the cases are present. There MUST NOT be any mandatory nodes (Section 3) directly under the default case. (§7.9.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-7.9.3-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-7.9.3-1, so there is no linked test.</p>
 <h3><a href="#rfc7950-7.9.4-1"><code>RFC7950-7.9.4-1</code></a></h3>
 <p>If &#34;mandatory&#34; is &#34;true&#34;, at least one node from exactly one of the choice&#39;s case branches MUST exist. (Section 7.9.4)</p>
-<p>Scoped tag-claim records only: tested &#34;at least one node from&#34;; gap &#34;exactly one of the choice&#39;s case branches&#34;; internal/component/config/yang/validator_mandatory.go::mandatoryPresent is the boundary: Tested covers a mandatory choice reported missing when no data node of any of its cases exists, and satisfied by a node of one case, nested choices included; Gap is data holding nodes from two cases of one choice, which mandatoryPresent accepts at the first case node it finds, and no other check compares the cases; plan/release/fixes/spec-config-yang-when-unique-choice.md; zero whole-requirement credit.</p>
+<p>Records cover only part of this requirement: tested &#34;at least one node from&#34;; gap &#34;exactly one of the choice&#39;s case branches&#34;; internal/component/config/yang/validator_mandatory.go::mandatoryPresent is the boundary: Tested covers a mandatory choice reported missing when no data node of any of its cases exists, and satisfied by a node of one case, nested choices included; Gap is data holding nodes from two cases of one choice, which mandatoryPresent accepts at the first case node it finds, and no other check compares the cases; plan/release/fixes/spec-config-yang-when-unique-choice.md; they do not prove the whole requirement.</p>
 <p><strong>Audit verdict:</strong> partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. Re-judged 2026-10-25 after the row went stale. The only change to the row since the verdict is the spec path in its Reason, plan/pre-release/ moved to plan/release/fixes/ (commit 666f1bc521); Tested, Gap, Producer and the requirement text are byte-identical, and reseal reported the tagged units unchanged. Section 7.9.4: &#34;If &#34;mandatory&#34; is &#34;true&#34;, at least one node from exactly one of the choice&#39;s case branches MUST exist.&#34; Tested &#34;at least one node from&#34;; Gap &#34;exactly one of the choice&#39;s case branches&#34;; Producer internal/component/config/yang/validator_mandatory.go::mandatoryPresent. Tested holds: TestMandatoryChoiceSatisfiedByACaseNode reports the missing choice for a container with no node of any case and accepts a node of one case and of a nested choice&#39;s case. Gap holds, re-read at the producer: mandatoryPresent returns true at the first case node it finds and no other check compares the cases, so data from two cases is accepted. Whole requirement earns no credit; spec-config-yang-when-unique-choice.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -2078,32 +2104,32 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7950-7.12-1"><code>RFC7950-7.12-1</code></a></h3>
 <p>A grouping MUST NOT reference itself, neither directly nor indirectly through a chain of other groupings. If the grouping is defined at the top level of a YANG module or submodule, the grouping&#39;s identifier MUST be unique within the module. (§7.12)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-7.12-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-7.12-1, so there is no linked test.</p>
 <h3><a href="#rfc7950-7.14.2-1"><code>RFC7950-7.14.2-1</code></a></h3>
 <p>If a leaf in the input tree has a &#34;mandatory&#34; statement with the value &#34;true&#34;, the leaf MUST be present in an RPC invocation. If a leaf in the input tree has a default value, the server MUST use this value in the same cases as those described in Section 7.6.1. In these cases, the server MUST operationally behave as if the leaf was present in the RPC invocation with the default value as its value. If a leaf-list in the input tree has one or more default values, the server MUST use these values in the same cases as those described in Section 7.7.2. In these cases, the server MUST operationally behave as if the leaf-list was present in the RPC invocation with the default values as its values. Since the input tree is not part of any datastore, all &#34;config&#34; statements for nodes in the input tree are ignored. If any node has a &#34;when&#34; statement that would evaluate to &#34;false&#34;, then this node MUST NOT be present in the input tree. (§7.14.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-7.14.2-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-7.14.2-1, so there is no linked test.</p>
 <h3><a href="#rfc7950-7.14.3-1"><code>RFC7950-7.14.3-1</code></a></h3>
 <p>If a leaf in the output tree has a &#34;mandatory&#34; statement with the value &#34;true&#34;, the leaf MUST be present in an RPC reply. If a leaf in the output tree has a default value, the client MUST use this value in the same cases as those described in Section 7.6.1. In these cases, the client MUST operationally behave as if the leaf was present in the RPC reply with the default value as its value. If a leaf-list in the output tree has one or more default values, the client MUST use these values in the same cases as those described in Section 7.7.2. In these cases, the client MUST operationally behave as if the leaf-list was present in the RPC reply with the default values as its values. Since the output tree is not part of any datastore, all &#34;config&#34; statements for nodes in the output tree are ignored. If any node has a &#34;when&#34; statement that would evaluate to &#34;false&#34;, then this node MUST NOT be present in the output tree. (§7.14.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-7.14.3-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-7.14.3-1, so there is no linked test.</p>
 <h3><a href="#rfc7950-7.15-1"><code>RFC7950-7.15-1</code></a></h3>
 <p>An action MUST NOT be defined within an rpc, another action, or a notification, i.e., an action node MUST NOT have an rpc, action, or a notification node as one of its ancestors in the schema tree. For example, this means that it is an error if a grouping that contains an action somewhere in its node hierarchy is used in a notification definition. An action MUST NOT have any ancestor node that is a list node without a &#34;key&#34; statement. (§7.15)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-7.15-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-7.15-1, so there is no linked test.</p>
 <h3><a href="#rfc7950-7.16-1"><code>RFC7950-7.16-1</code></a></h3>
 <p>A notification MUST NOT be defined within an rpc, action, or another notification, i.e., a notification node MUST NOT have an rpc, action, or a notification node as one of its ancestors in the schema tree. For example, this means that it is an error if a grouping that contains a notification somewhere in its node hierarchy is used in an rpc definition. A notification MUST NOT have any ancestor node that is a list node without a &#34;key&#34; statement. Since a notification cannot be defined in a &#34;case&#34; statement, it is an error if a grouping that contains a notification at the top of its node hierarchy is used in a case definition. If a leaf in the notification tree has a &#34;mandatory&#34; statement with the value &#34;true&#34;, the leaf MUST be present in a notification instance. If a leaf in the notification tree has a default value, the client MUST use this value in the same cases as those described in Section 7.6.1. In these cases, the client MUST operationally behave as if the leaf was present in the notification instance with the default value as its value. If a leaf-list in the notification tree has one or more default values, the client MUST use these values in the same cases as those described in Section 7.7.2. In these cases, the client MUST operationally behave as if the leaf-list was present in the notification instance with the default values as its values. (§7.16)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-7.16-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-7.16-1, so there is no linked test.</p>
 <h3><a href="#rfc7950-7.17-1"><code>RFC7950-7.17-1</code></a></h3>
 <p>The target node MUST be either a container, list, choice, case, input, output, or notification node. It is augmented with the nodes defined in the substatements that follow the &#34;augment&#34; statement. The argument string is a schema node identifier (see Section 6.5). If the &#34;augment&#34; statement is on the top level in a module or submodule, the absolute form (defined by the rule &#34;absolute-schema-nodeid&#34; in Section 14) of a schema node identifier MUST be used. If the &#34;augment&#34; statement is a substatement to the &#34;uses&#34; statement, the descendant form (defined by the rule &#34;descendant-schema-nodeid&#34; in Section 14) MUST be used. If the target node is a container, list, case, input, output, or notification node, the &#34;container&#34;, &#34;leaf&#34;, &#34;list&#34;, &#34;leaf-list&#34;, &#34;uses&#34;, and &#34;choice&#34; statements can be used within the &#34;augment&#34; statement. If the target node is a container or list node, the &#34;action&#34; and &#34;notification&#34; statements can be used within the &#34;augment&#34; statement. If the target node is a choice node, the &#34;case&#34; statement or a shorthand &#34;case&#34; statement (see Section 7.9.2) can be used within the &#34;augment&#34; statement. The &#34;augment&#34; statement MUST NOT add multiple nodes with the same name from the same module to the target node. If the augmentation adds mandatory nodes (see Section 3) that represent configuration to a target node in another module, the augmentation MUST be made conditional with a &#34;when&#34; statement. (§7.17)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-7.17-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-7.17-1, so there is no linked test.</p>
 <h3><a href="#rfc7950-7.18.2-1"><code>RFC7950-7.18.2-1</code></a></h3>
 <p>If a prefix is present on the base name, it refers to an identity defined in the module that was imported with that prefix, or the local module if the prefix matches the local module&#39;s prefix. Otherwise, an identity with the matching name MUST be defined in the current module or an included submodule. An identity MUST NOT reference itself, neither directly nor indirectly through a chain of other identities. (§7.18.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-7.18.2-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-7.18.2-1, so there is no linked test.</p>
 <h3><a href="#rfc7950-7.19-1"><code>RFC7950-7.19-1</code></a></h3>
 <p>Syntactically, the substatements MUST be YANG statements, including extensions defined using &#34;extension&#34; statements. YANG statements in extensions MUST follow the syntactical rules in Section 14. (§7.19)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-09 after 180df07922 (Resolve returns *yang.Resolved, one Resolve per Loader; process, checkExtensions, checkPatterns, checkStructure still all run and join, refusals unchanged): only the ModuleLoadAccepted tail changed. RFC 7.19: &#39;the substatements MUST be YANG statements, including extensions defined using &#34;extension&#34; statements.&#39; The earlier finding that sources was keyed by file name no longer holds at HEAD: sourcedModules.texts is keyed by *yang.Module (Parse binds each module added by a parse to its text). Revert records on AddModuleFromText for the ModuleLoadAccepted/Refused tags are owed a re-record. Prior judgement, still true: Re-judged 2026-10-09 after 6c06cb43af/037cc25e29. Sentence 1: TestRFC7950ExtensionUsageSubstatementsAreYANGStatements refuses m:e &#34;x&#34; { bogus &#34;y&#34;; } against description and nested m:e twins. Sentence 2 (Section 14 rules) now whole: substatements are resolved against the embedded RFC ABNF (resolveProduction) and checked for argument grammar (config maybe, namespace not a URI, path a / ../a[), cardinality (two type, two description; one type + two must loads), required substatements and blocks (leaf without type, list without data-def, refine with no block) and context forms (deviate add/not-supported mixing, type-body alternatives, augment absolute vs descendant), each tagged test with a revert record on its producer. Independent probe 2026-10-09 of ~70 valid unusual forms under a usage (quoted/unquoted/single-quoted args, + concatenation, nested usages at depth, leafref require-instance, multiple leaf-list defaults, deviate add/replace/delete in full, if-feature expressions with extra whitespace, path predicates with WSP, IPv6/percent URIs, refine across comments/newlines/tabs/UTF-8/CRLF, nested module/submodule) all load; config TRUE, max-elements 0/007, fraction-digits 19, deref() path, refine x; via comment or concatenation, empty input/augment are refused. The ModuleLoadRefused/Accepted tags drive the extension DEFINITION (extension e { bogus }), governed by the Section 14 extension-stmt rule, a neighbouring rule; their claims state what the body checks but do not bear on this sentence.</p>
@@ -2176,32 +2202,32 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7950-7.20.1-1"><code>RFC7950-7.20.1-1</code></a></h3>
 <p>A feature MUST NOT reference itself, neither directly nor indirectly through a chain of other features. In order for a server to support a feature that is dependent on any other features (i.e., the feature has one or more &#34;if-feature&#34; substatements), the server MUST also support all the dependent features. (§7.20.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-7.20.1-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-7.20.1-1, so there is no linked test.</p>
 <h3><a href="#rfc7950-7.20.2-1"><code>RFC7950-7.20.2-1</code></a></h3>
 <p>If a prefix is present on a feature name in the boolean expression, the prefixed name refers to a feature defined in the module that was imported with that prefix, or the local module if the prefix matches the local module&#39;s prefix. Otherwise, a feature with the matching name MUST be defined in the current module or an included submodule. A leaf that is a list key MUST NOT have any &#34;if-feature&#34; statements. (§7.20.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-7.20.2-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-7.20.2-1, so there is no linked test.</p>
 <h3><a href="#rfc7950-7.20.3-1"><code>RFC7950-7.20.3-1</code></a></h3>
 <p>This means that deviations MUST never be part of a published standard, since they are the mechanism for learning how implementations vary from the standards. Server deviations are strongly discouraged and MUST only be used as a last resort. Telling the application how a server fails to follow a standard is no substitute for implementing the standard correctly. A server that deviates from a module is not fully compliant with the module. However, in some cases, a particular device may not have the hardware or software ability to support parts of a standard module. When this occurs, the server makes a choice to either treat attempts to configure unsupported parts of the module as an error that is reported back to the unsuspecting application or ignore those incoming requests. Neither choice is acceptable. Instead, YANG allows servers to document portions of a base module that are not supported, or that are supported but with different syntax, by using the &#34;deviation&#34; statement. After applying all deviations announced by a server, in any order, the resulting data model MUST still be valid. (§7.20.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-7.20.3-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-7.20.3-1, so there is no linked test.</p>
 <h3><a href="#rfc7950-7.20.3.2-1"><code>RFC7950-7.20.3.2-1</code></a></h3>
 <p>The argument &#34;add&#34; adds properties to the target node. The properties to add are identified by substatements to the &#34;deviate&#34; statement. If a property can only appear once, the property MUST NOT exist in the target node. The argument &#34;replace&#34; replaces properties of the target node. The properties to replace are identified by substatements to the &#34;deviate&#34; statement. The properties to replace MUST exist in the target node. The argument &#34;delete&#34; deletes properties from the target node. The properties to delete are identified by substatements to the &#34;delete&#34; statement. The substatement&#39;s keyword MUST match a corresponding keyword in the target node, and the argument&#39;s string MUST be equal to the corresponding keyword&#39;s argument string in the target node. (§7.20.3.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-7.20.3.2-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-7.20.3.2-1, so there is no linked test.</p>
 <h3><a href="#rfc7950-7.21.2-1"><code>RFC7950-7.21.2-1</code></a></h3>
 <p>If a definition is &#34;current&#34;, it MUST NOT reference a &#34;deprecated&#34; or &#34;obsolete&#34; definition within the same module. If a definition is &#34;deprecated&#34;, it MUST NOT reference an &#34;obsolete&#34; definition within the same module. (§7.21.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-7.21.2-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-7.21.2-1, so there is no linked test.</p>
 <h3><a href="#rfc7950-7.21.5-1"><code>RFC7950-7.21.5-1</code></a></h3>
 <p>A leaf that is a list key MUST NOT have a &#34;when&#34; statement. If a key leaf is defined in a grouping that is used in a list, the &#34;uses&#34; statement MUST NOT have a &#34;when&#34; statement. (§7.21.5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-7.21.5-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-7.21.5-1, so there is no linked test.</p>
 <h3><a href="#rfc7950-8.1-1"><code>RFC7950-8.1-1</code></a></h3>
 <p>These constraints are enforced in different ways, depending on what type of data the statement defines. o If the constraint is defined on configuration data, it MUST be true in a valid configuration data tree. o If the constraint is defined on state data, it MUST be true in a valid state data tree. o If the constraint is defined on notification content, it MUST be true in any notification data tree. o If the constraint is defined on RPC or action input parameters, it MUST be true in an invocation of the RPC or action operation. o If the constraint is defined on RPC or action output parameters, it MUST be true in the RPC or action reply. (§8.1)</p>
 <p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-20 (independent judge, after 4bf9935e38). Section 8.1: &#34;If the constraint is defined on configuration data, it MUST be true in a valid configuration data tree.&#34; walkTree now resolves data keys through schemaChild (case data is type-checked and walked) and moves the mandatory scan into requireMandatoryChildren, which also checks cases holding data. It still evaluates no unique (ListNode.Unique is read only by the web UI for display), no choice exclusivity and no when. Judge probe via -overlay: ValidateTree over a choice with data in two cases (alpha and gamma, mandatory leaves supplied) returns zero errors, so a configuration violating Section 8.1&#39;s choice constraint is accepted. {gap} stands. Owned by spec-config-yang-when-unique-choice.</p>
-<p>No test carries RFC7950-8.1-1, so no unit is bound to it.</p>
+<p>No test carries RFC7950-8.1-1, so there is no linked test.</p>
 <h3><a href="#rfc7950-8.1-3"><code>RFC7950-8.1-3</code></a></h3>
 <p>All leaf data values MUST match the type constraints for the leaf, including those defined in the type&#39;s &#34;range&#34;, &#34;length&#34;, and &#34;pattern&#34; properties. (§8.1)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-12, second pass (independent auditor) after 60a74fc04b, 600996fb77, 975428e1b3, 3f1bec74f0 and 84382339ce. SHIFTED only: the tagged units are byte-identical (gate-verified). range: receive-hold-time 2 and port 0 refused ErrTypeRange, 1 and 2 refused and 0, 3, 180, 65535 accepted; pattern: router-id not-an-ip refused ErrTypePattern at errs[0] with session/asn/local supplied so no missing-mandatory error comes first, 192.0.2.1 accepted; length: a 256-char isis hostname refused ErrTypeLength and a within-length one raises no length error. The validateString record on TestValidateTree_PatternViolation is current again (no stale record). Base-type conformance is carried by the Section 9 rows. Re-run green 2026-10-12. Verdict stands.</p>
@@ -2212,12 +2238,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L418" title="internal/component/config/rfc7950_validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidateTree_LengthViolation</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L317" title="internal/component/config/rfc7950_validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidateTree_PatternViolation</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L176" title="internal/component/config/rfc7950_validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidateTree_RangeViolation</code></a></td>
@@ -2232,7 +2258,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L852" title="internal/component/config/rfc7950_validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidator_ValidatePattern</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L900" title="internal/component/config/rfc7950_validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidator_HoldTimeRange</code></a></td>
@@ -2242,7 +2268,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L851" title="internal/component/config/rfc7950_validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidator_ValidatePattern</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -2250,7 +2276,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3><a href="#rfc7950-8.1-4"><code>RFC7950-8.1-4</code></a></h3>
 <p>All key leafs MUST be present for all list entries. o Nodes MUST be present for at most one case branch in all choices. o There MUST be no nodes tagged with &#34;if-feature&#34; present if the &#34;if-feature&#34; expression evaluates to &#34;false&#34; in the server. o There MUST be no nodes tagged with &#34;when&#34; present if the &#34;when&#34; condition evaluates to &#34;false&#34; in the data tree. The following properties are true in a valid data tree: o All &#34;must&#34; constraints MUST evaluate to &#34;true&#34;. o All referential integrity constraints defined via the &#34;path&#34; statement MUST be satisfied. o All &#34;unique&#34; constraints on lists MUST be satisfied. o The &#34;mandatory&#34; constraint is enforced for leafs and choices, unless the node or any of its ancestors has a &#34;when&#34; condition or &#34;if-feature&#34; expression that evaluates to &#34;false&#34;. (§8.1)</p>
 <p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-20 (independent judge, after 4bf9935e38). Section 8.1: &#34;Nodes MUST be present for at most one case branch in all choices.&#34; walkTree&#39;s change (schemaChild descent into case data, requireMandatoryChildren/requireMandatoryInPresentCases) checks each case holding data for its mandatory nodes but never counts the cases: judge probe ValidateTree(&#34;wrap&#34;, {a-flag, a-need, g-one, g-need}) with two cases of one choice present returns no error. unique constraints are extracted into ListNode.Unique and consumed only by the web UI, never validated; Ze modules declare no when or if-feature, and walkTree evaluates neither. {gap} stands. Owned by spec-config-yang-when-unique-choice.</p>
-<p>No test carries RFC7950-8.1-4, so no unit is bound to it.</p>
+<p>No test carries RFC7950-8.1-4, so there is no linked test.</p>
 <h3><a href="#rfc7950-8.1-2"><code>RFC7950-8.1-2</code></a></h3>
 <p>The running configuration datastore MUST always be valid. (Section 8.1)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after 9d4a5e79e2). Section 8.1: &#34;The running configuration datastore MUST always be valid.&#34; The earlier finding (only config.LoadConfig was driven; no install route) is answered for the reload route: TestRFC7950ReloadInstallsAValidConfig and TestRFC7950ReloadRefusesAConstraintViolation write the file and drive diskConfigLoaders and doReload, the path every SIGHUP and editor reload notifier reaches, and assert the refused reload returns ErrCustomValidation naming the value while the reactor keeps system/host reload-valid-host. TestRFC7950WebCommitRefusesAConstraintViolation shows the web editor commit writes nothing for the same violation. Startup stays covered by the LoadConfig units. Residual: the SSH session editor (session_editor.go) sets no pre-commit validator, so its commit relies on the reload refusal the reload units prove; no tagged unit drives that editor, and none drives the gNMI/API configValidationHook route.</p>
@@ -2306,7 +2332,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_datastore_test.go#L53" title="internal/component/config/rfc7950_datastore_test.go" target="_blank" rel="noopener"><code>TestRFC7950RunningDatastoreRefusesAViolationAtParse</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc7950_web_commit_validation_test.go#L58" title="cmd/ze/hub/rfc7950_web_commit_validation_test.go" target="_blank" rel="noopener"><code>TestRFC7950WebCommitWritesAValidEdit</code></a></td>
@@ -2316,19 +2342,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_datastore_test.go#L34" title="internal/component/config/rfc7950_datastore_test.go" target="_blank" rel="noopener"><code>TestRFC7950RunningDatastoreAcceptsAValidConfig</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc7950-8.3.1-2"><code>RFC7950-8.3.1-2</code></a></h3>
 <p>If data for more than one case branch of a choice is present, the server MUST reply with a &#34;bad-element&#34; &lt;error-tag&gt; in the &lt;rpc-error&gt;. o If data for a node tagged with &#34;if-feature&#34; is present and the &#34;if-feature&#34; expression evaluates to &#34;false&#34; in the server, the server MUST reply with an &#34;unknown-element&#34; &lt;error-tag&gt; in the &lt;rpc-error&gt;. o If data for a node tagged with &#34;when&#34; is present and the &#34;when&#34; condition evaluates to &#34;false&#34;, the server MUST reply with an &#34;unknown-element&#34; &lt;error-tag&gt; in the &lt;rpc-error&gt;. (§8.3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-8.3.1-2, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-8.3.1-2, so there is no linked test.</p>
 <h3><a href="#rfc7950-8.3.2-1"><code>RFC7950-8.3.2-1</code></a></h3>
 <p>During this processing, the following errors MUST be detected: o Delete requests for non-existent data. o Create requests for existent data. o Insert requests with &#34;before&#34; or &#34;after&#34; parameters that do not exist. o Modification requests for nodes tagged with &#34;when&#34;, and the &#34;when&#34; condition evaluates to &#34;false&#34;. In this case, the server MUST reply with an &#34;unknown-element&#34; &lt;error-tag&gt; in the &lt;rpc-error&gt;. (§8.3.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-8.3.2-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-8.3.2-1, so there is no linked test.</p>
 <h3><a href="#rfc7950-8.3.3-1"><code>RFC7950-8.3.3-1</code></a></h3>
 <p>When datastore processing is complete, the final contents MUST obey all validation constraints. (§8.3.3)</p>
 <p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Row narrowed 2026-09-30 to the first sentence. The tags prove LoadConfig refuses a ze:validate violation with ErrCustomValidation and no partial tree, and accepts a valid config. &#34;All validation constraints&#34; is not met by the stack: a missing mandatory leaf is only a warning (SectionValidationError.Blocking), and when, unique and choice are evaluated nowhere, so a final datastore content violating those is accepted. Owner ruling 4: carried by spec-config-yang-when-unique-choice AC-2.</p>
@@ -2351,11 +2377,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7950-8.3.3-2"><code>RFC7950-8.3.3-2</code></a></h3>
 <p>If the datastore is &#34;running&#34; or &#34;startup&#34;, these constraints MUST be enforced at the end of the &lt;edit-config&gt; or &lt;copy-config&gt; operation. (§8.3.3)</p>
-<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. Independently rejudged 2026-10-22; no execution or stamping. RFC 7950 Section 8.3.3: &#34;If the datastore is &#34;running&#34; or &#34;startup&#34;, these constraints MUST be enforced at the end of the &lt;edit-config&gt; or &lt;copy-config&gt; operation.&#34; Section 8.1 includes the complete obligations &#34;Nodes MUST be present for at most one case branch in all choices.&#34;, &#34;There MUST be no nodes tagged with &#34;when&#34; present if the &#34;when&#34; condition evaluates to &#34;false&#34; in the data tree.&#34;, and &#34;All &#34;unique&#34; constraints on lists MUST be satisfied.&#34; This gap row has no tagged tests. Read internal/component/config/loader.go::LoadConfig/refuseInvalidCustomSections, config/validate_sections.go::ValidateCustomSections and referenceFailures, cli/validator.go::sectionErrors and cli/editor_commit.go::validateStagedTree. Load/validation/editor surfaces reach the shared boundary; referenceFailures walks ToPluginMap and the SSH editor retains BGP reference failures. The new original-tree validator registered in bgp/config/register.go and implemented by redistribution.go::validateFilterPolicies/parsePolicyDisposition rejects malformed explicit policy layers, but is not general evaluation of when, list unique or choice exclusivity. config/yang/validator.go::walkTree validates supplied values, cardinality and mandatory nodes; validator_mandatory.go::requireMandatoryInPresentCases visits each present case without rejecting multiple cases. The schema still declares unique mac/address and mac/match on interface ethernet and unique mac/address on veth/bridge in internal/component/iface/yang/ze-iface-conf.yang. Thus the existing unmet general constraints remain unmet and the verdict stays unimplemented. Correct an unsupported current-state claim in the prior note: its 174/200 versus 26/200 overlay observation is historical, not evidence of present nondeterministic default-reference acceptance. Current config/yang/validator_default.go::activeBranch counts present branches and CaseInEffect explicitly returns false when holding &gt; 1, so no conflicting-case default is in effect. That correction does not enforce choice exclusivity itself: it withholds defaults, rather than refusing the conflicting data tree. Preserve the declared gap and do not claim any new test, overlay or conformance credit.</p>
-<p>No test carries RFC7950-8.3.3-2, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. Rejudged against RFC 7950 Sections 8.1 and 8.3.3, the checklist gap annotation, and the current end-of-operation producers. validateStagedTree invokes the supplied pre-commit validation; sectionErrors invokes ValidateCustomSections on the active tree. ValidateCustomSections checks registered original-tree validators, listed sections&#39; type and custom validators, mandatory nodes and whole-tree references through referenceFailures. The changed sectionErrors renders typed refusal details but adds no general when, unique or choice-exclusivity enforcement. walkTree and requireMandatoryChildren validate values, cardinality and mandatory choice presence; requireMandatoryInPresentCases checks every present case but does not reject two cases. CaseInEffect suppresses defaults when multiple cases hold data rather than rejecting that data. ze-iface-conf still declares ethernet unique mac/address and mac/match constraints. The existing gap annotation remains accurate: the final running/startup contents do not receive all Section 8.1 constraint checks. This row has no tagged tests; this is missing behavior, not a claim that the entire YANG constraint model is implemented. Source review only; no tests executed by this reviewer.</p>
+<p>No test carries RFC7950-8.3.3-2, so there is no linked test.</p>
 <h3><a href="#rfc7950-9.1-1"><code>RFC7950-9.1-1</code></a></h3>
 <p>Implementations MUST support all lexical representations specified in this document. (§9.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent source rejudgment against RFC 7950 Section 9.1: &#34;Implementations MUST support all lexical representations specified in this document.&#34; Read all tagged units, their type/default/reference helpers and cited producers. Integer tags exercise +17/17/-17 and legal signed hexadecimal/octal module defaults, with exact normalized values and malformed-notation refusals. Decimal64 tags require the declared signed/integral/fraction forms and exact error classes for invalid forms and restrictions. Binary and bits tags distinguish accepted defined representations from malformed alphabet/padding, lengths and unknown bit names. Reference tags exercise type loading, leafref lexical validation, union-default member selection and both quoted leaf-list-predicate forms versus absent target. canonicalValue still canonicalizes signed/unsigned decimal integers and decimal64, returning other representations unchanged; canonicalKey, sameValue and referenceWalk.instanceExists use it for comparison. Its current exhaustive-ignore directive documents that deliberately narrow normalization switch; no new grammar is introduced. Canonical-comparison-specific tests under other IDs are not silently counted as 9.1-1 tags. Verdict enforced. No execution or recorded-proof freshness was verified here.</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Independently reread Section 9.1 and the applicable built-in lexical clauses, all fourteen tagged units, and the cited current producers. The tags discriminate selected integer and module-default representations, decimal64 forms, binary padding/length, bit names, leafref target lexical validation, union-default member selection and both quote styles in instance-identifier leaf-list predicates. The changed validateDecimal64 still checks string lexical form and fraction digits before range. This does not justify the previous whole-requirement enforced verdict. TestRFC7950ReferenceTypesLoad resolves declarations without submitting lexical values. TestRFC7950InstanceIdentifierLeafListPredicateAbsent first accepts the lexical value, then rejects its absent target, so its negative proves require-instance rather than Section 9.1 lexical support. The integer runtime control never exercises unsigned negative zero: validateUnsigned removes only a leading plus and passes minus-zero to ParseUint, refusing a representation of zero admitted by Section 9.2.1&#39;s optional plus or minus sign. canonicalValue has the same unsigned parsing boundary. The module-default test already accepts unsigned minus-zero because parseModuleInteger removes the sign and CanonicalModuleDefault normalizes zero. This source-level counterexample was not executed by this reviewer and needs a focused main-thread regression and producer correction; it must not be hidden by restamping enforced. The remaining tagged examples establish their specific cases, not all lexical representations required by Section 9.1. No tests executed by this reviewer.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2435,8 +2461,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7950-9.2.4-2"><code>RFC7950-9.2.4-2</code></a></h3>
 <p>If multiple values or ranges are given, they all MUST be disjoint and MUST be in ascending order. If a range restriction is applied to a type that is already range-restricted, the new restriction MUST be equally limiting or more limiting, i.e., raising the lower bounds, reducing the upper bounds, removing explicit values or ranges, or splitting ranges into multiple ranges with intermediate gaps. Each explicit value and range boundary value given in the range expression MUST match the type being restricted or be one of the special values &#34;min&#34; or &#34;max&#34;. (§9.2.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-9.2.4-2, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-9.2.4-2, so there is no linked test.</p>
 <h3><a href="#rfc7950-9.3.1-1"><code>RFC7950-9.3.1-1</code></a></h3>
 <p>A decimal64 value is lexically represented as an optional sign (&#34;+&#34; or &#34;-&#34;), followed by a sequence of decimal digits, optionally followed by a period (&#39;.&#39;) as a decimal indicator and a sequence of decimal digits. (§9.3.1)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after 2e4be94ae3). Read at rfc/full/rfc7950.txt Section 9.3.1: &#34;A decimal64 value is lexically represented as an optional sign (&#34;+&#34; or &#34;-&#34;), followed by a sequence of decimal digits, optionally followed by a period (&#39;.&#39;) as a decimal indicator and a sequence of decimal digits.&#34; The units changed only from validateYangType to ValidateType, which is the same producer path (validateLeafValue with no leaf). validateDecimal64 tests ^[+-]?\d+(\.\d+)?$ (ASCII digits in Go RE2) before the fraction-digits parse. Positive accepts +1.5, -1.5, -10.5, 1, 0.25, 0.0, 10.50; negative refuses .5, 1., +, -, 1.2.3, abc and the empty string with ErrTypeType and &#39;expected decimal64&#39;, with fraction-digits and range refusals asserted as distinct kinds. Each clause of the sentence has a value that would flip if the regexp lost it; records on validateDecimal64 replay.</p>
@@ -2539,11 +2565,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7950-9.6.4-1"><code>RFC7950-9.6.4-1</code></a></h3>
 <p>The &#34;enum&#34; statement, which is a substatement to the &#34;type&#34; statement, MUST be present if the type is &#34;enumeration&#34;. It is repeatedly used to specify each assigned name of an enumeration type. It takes as an argument a string that is the assigned name. The string MUST NOT be zero-length and MUST NOT have any leading or trailing whitespace characters (any Unicode character with the &#34;White_Space&#34; property). The use of Unicode control codes SHOULD be avoided. The statement is optionally followed by a block of substatements that holds detailed enum information. All assigned names in an enumeration MUST be unique. (§9.6.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-9.6.4-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-9.6.4-1, so there is no linked test.</p>
 <h3><a href="#rfc7950-9.6.4-2"><code>RFC7950-9.6.4-2</code></a></h3>
 <p>When an existing enumeration type is restricted, the set of assigned names in the new type MUST be a subset of the base type&#39;s set of assigned names. The value of such an assigned name MUST NOT be changed. (§9.6.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2623,19 +2649,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7950-9.7-1"><code>RFC7950-9.7-1</code></a></h3>
 <p>When an existing bits type is restricted, the set of assigned names in the new type MUST be a subset of the base type&#39;s set of assigned names. The bit position of such an assigned name MUST NOT be changed. (§9.7)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-9.7-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-9.7-1, so there is no linked test.</p>
 <h3><a href="#rfc7950-9.7.4-1"><code>RFC7950-9.7.4-1</code></a></h3>
 <p>The &#34;bit&#34; statement, which is a substatement to the &#34;type&#34; statement, MUST be present if the type is &#34;bits&#34;. It is repeatedly used to specify each assigned named bit of a bits type. It takes as an argument a string that is the assigned name of the bit. It is followed by a block of substatements that holds detailed bit information. The assigned name follows the same syntax rules as an identifier (see Section 6.2). All assigned names in a bits type MUST be unique. (§9.7.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-9.7.4-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-9.7.4-1, so there is no linked test.</p>
 <h3><a href="#rfc7950-9.7.4.2-1"><code>RFC7950-9.7.4.2-1</code></a></h3>
 <p>The position value MUST be in the range 0 to 4294967295, and it MUST be unique within the bits type. If a bit position is not specified, then one will be automatically assigned. If the &#34;bit&#34; substatement is the first one defined, the assigned value is zero (0); otherwise, the assigned value is one greater than the current highest bit position (i.e., the highest bit position, implicit or explicit, prior to the current &#34;bit&#34; substatement in the parent &#34;type&#34; statement). Note that the presence of an &#34;if-feature&#34; statement in a &#34;bit&#34; statement does not affect the automatically assigned position. If the current highest bit position value is equal to 4294967295, then a position value MUST be specified for &#34;bit&#34; substatements following the one with the current highest position value. When an existing bits type is restricted, the &#34;position&#34; statement MUST either have the same value as in the base type or not be present, in which case the value is the same as in the base type. (§9.7.4.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-9.7.4.2-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-9.7.4.2-1, so there is no linked test.</p>
 <h3><a href="#rfc7950-9.9-1"><code>RFC7950-9.9-1</code></a></h3>
 <p>If the &#34;require-instance&#34; property (Section 9.9.3) is &#34;true&#34;, there MUST exist a node in the data tree, or a node with a default value in use (see Sections 7.6.1 and 7.7.2), of the referred schema tree leaf or leaf-list node with the same value as the leafref value in a valid data tree. If the referring node represents configuration data and the &#34;require-instance&#34; property (Section 9.9.3) is &#34;true&#34;, the referred node MUST also represent configuration. There MUST NOT be any circular chains of leafrefs. If the leaf that the leafref refers to is conditional based on one or more features (see Section 7.20.2), then the leaf with the leafref type MUST also be conditional based on at least the same set of features. (§9.9)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2680,7 +2706,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7950-9.9.2-1"><code>RFC7950-9.9.2-1</code></a></h3>
 <p>The &#34;path&#34; statement, which is a substatement to the &#34;type&#34; statement, MUST be present if the type is &#34;leafref&#34;. It takes as an argument a string that MUST refer to a leaf or leaf-list node. The syntax for a path argument is a subset of the XPath abbreviated syntax. Predicates are used only for constraining the values for the key nodes for list entries. Each predicate consists of exactly one equality test per key, and multiple adjacent predicates MAY be present if a list has multiple keys. The syntax is formally defined by the rule &#34;path-arg&#34; in Section 14. The predicates are only used when more than one key reference is needed to uniquely identify a leaf instance. This occurs if a list has multiple keys or a reference to a leaf other than the key in a list is needed. In these cases, multiple leafrefs are typically specified, and predicates are used to tie them together. The &#34;path&#34; expression evaluates to a node set consisting of zero, one, or more nodes. If the &#34;require-instance&#34; property is &#34;true&#34;, this node set MUST be non-empty. (§9.9.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2700,7 +2726,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7950-9.9.3-1"><code>RFC7950-9.9.3-1</code></a></h3>
 <p>If &#34;require-instance&#34; is &#34;true&#34;, it means that the instance being referred to MUST exist for the data to be valid. (Section 9.9.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2720,8 +2746,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7950-9.10.2-1"><code>RFC7950-9.10.2-1</code></a></h3>
 <p>The &#34;base&#34; statement, which is a substatement to the &#34;type&#34; statement, MUST be present at least once if the type is &#34;identityref&#34;. The argument is the name of an identity, as defined by an &#34;identity&#34; statement. If a prefix is present on the identity name, it refers to an identity defined in the module that was imported with that prefix. Otherwise, an identity with the matching name MUST be defined in the current module or an included submodule. (§9.10.2)</p>
-<p>Scoped tag-claim records only: tested &#34;If a prefix is present on the identity name, it refers to an identity defined in the module that was imported with that prefix&#34;; gap &#34;MUST be present at least once&#34;; internal/component/config/yang/validator_reference.go::validateIdentityref is the boundary: Tested covers an identityref with one base, prefixed by an imported module&#39;s prefix or local, resolved by goyang (which refuses an identityref with no base or a base it cannot resolve), whose value must name an identity derived from it; Gap is a type naming the base statement more than once, because goyang keeps one base statement per identityref type (Type.IdentityBase holds one value), so the values derived from every base are not computed; plan/post-release/features/spec-config-yang-reference-types.md; zero whole-requirement credit.</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>Records cover only part of this requirement: tested &#34;If a prefix is present on the identity name, it refers to an identity defined in the module that was imported with that prefix&#34;; gap &#34;MUST be present at least once&#34;; internal/component/config/yang/validator_reference.go::validateIdentityref is the boundary: Tested covers an identityref with one base, prefixed by an imported module&#39;s prefix or local, resolved by goyang (which refuses an identityref with no base or a base it cannot resolve), whose value must name an identity derived from it; Gap is a type naming the base statement more than once, because goyang keeps one base statement per identityref type (Type.IdentityBase holds one value), so the values derived from every base are not computed; plan/post-release/features/spec-config-yang-reference-types.md; they do not prove the whole requirement.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2741,7 +2767,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7950-9.10.3-1"><code>RFC7950-9.10.3-1</code></a></h3>
 <p>Otherwise, an identity with the matching name MUST be defined in the current module or one of its submodules. (Section 9.10.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2761,11 +2787,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7950-9.12-2"><code>RFC7950-9.12-2</code></a></h3>
 <p>When the type is &#34;union&#34;, the &#34;type&#34; statement (Section 7.4) MUST be present. (Section 9.12)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-9.12-2, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-9.12-2, so there is no linked test.</p>
 <h3><a href="#rfc7950-9.13-1"><code>RFC7950-9.13-1</code></a></h3>
 <p>For identifying list entries with keys, each predicate consists of one equality test per key, and each key MUST have a corresponding predicate. If a key is of type &#34;empty&#34;, it is represented as a zero-length string (&#34;&#34;). If the leaf with the instance-identifier type represents configuration data and the &#34;require-instance&#34; property (Section 9.9.3) is &#34;true&#34;, the node it refers to MUST also represent configuration. Such a leaf puts a constraint on valid data. All such leaf nodes MUST reference existing nodes or leaf or leaf-list nodes with their default value in use (see Sections 7.6.1 and 7.7.2) for the data to be valid. (§9.13)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2795,16 +2821,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7950-11-1"><code>RFC7950-11-1</code></a></h3>
 <p>For any published change, a new &#34;revision&#34; statement (Section 7.1.9) MUST be included in front of the existing &#34;revision&#34; statements. If there are no existing &#34;revision&#34; statements, then one MUST be added to identify the new revision. Furthermore, any necessary changes MUST be applied to any metadata statements, including the &#34;organization&#34; and &#34;contact&#34; statements (Sections 7.1.7 and 7.1.8). Note that definitions contained in a module are available to be imported by any other module and are referenced in &#34;import&#34; statements via the module name. Thus, a module name MUST NOT be changed. Furthermore, the &#34;namespace&#34; statement MUST NOT be changed, since all XML elements are qualified by the namespace. Obsolete definitions MUST NOT be removed from published modules, since their identifiers may still be referenced by other modules. (§11)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-11-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-11-1, so there is no linked test.</p>
 <h3><a href="#rfc7950-11-2"><code>RFC7950-11-2</code></a></h3>
 <p>Otherwise, if the semantics of any previous definition are changed (i.e., if a non-editorial change is made to any definition other than those specifically allowed above), then this MUST be achieved by a new definition with a new identifier. (§11)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-11-2, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-11-2, so there is no linked test.</p>
 <h3><a href="#rfc7950-11-3"><code>RFC7950-11-3</code></a></h3>
 <p>In statements that have any data definition statements as substatements, those data definition substatements MUST NOT be reordered. (§11)</p>
 <p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. {gap} stands, re-judged 2026-10-09 after 180df07922: LoadEmbedded only gained the refuseLoad guard and still parses ze-extensions.yang and ze-types.yang with no comparison against a previous revision, so a reordering of data definition substatements passes. RFC 11: &#39;In statements that have any data definition statements as substatements, those data definition substatements MUST NOT be reordered.&#39; Recorded under OWNER RULING 4 (2026-09-30), not closed.</p>
-<p>No test carries RFC7950-11-3, so no unit is bound to it.</p>
+<p>No test carries RFC7950-11-3, so there is no linked test.</p>
 <h3><a href="#rfc7950-7.2.2-1"><code>RFC7950-7.2.2-1</code></a></h3>
 <p>A submodule MUST only be included by either the module to which it belongs or another submodule that belongs to that module. (§7.2.2)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after bb173975ea). Read at rfc/full/rfc7950.txt Section 7.2.2: &#34;A submodule MUST only be included by either the module to which it belongs or another submodule that belongs to that module.&#34; Producer: checkStructure (joined by Resolve) runs moduleIncludeErrors over every loaded module and submodule (sourceModules); it resolves the including unit&#39;s owner (its own name, or its belongs-to) and refuses an include whose submodule belongs to another module with ErrIncludeBelongsTo. TestRFC7950SubmoduleIncludedOnlyByItsModule covers both clauses in both polarities: negatives refuse module a including s (belongs-to b) and submodule a-s of a including s, each requiring the text &#34;belongs to module b&#34;; positives load module a including a-t and a-s including sibling a-t. Module b is loaded and includes s in the negatives, so only the belongs-to differs. Independent overlay mutants (tags ze_core ze_bgp), each red on an assertion: owner ignores belongs-to (submodule-sibling positive red), modules skipped (submodule negative red), submodules skipped (module negative red), comparison always passes (both negatives red), comparison always fails (both positives red). Two equivalent-in-test mutants survive: dropping either lookup in includedSubmodule (include.Module, or the SubModules map fallback) leaves the test green because the other still finds the submodule; the redundancy changes no verdict but no test proves the fallback is needed. The recorded revert tuples (panic in moduleIncludeErrors) prove reach only. {gap} removed from the row in bb173975ea; Ze ships no submodule of its own, so the check guards loaded module sets.</p>
@@ -2868,7 +2894,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3><a href="#rfc7950-7.21.5-2"><code>RFC7950-7.21.5-2</code></a></h3>
 <p>If the XPath expression references any node that also has associated &#34;when&#34; statements, those &#34;when&#34; expressions MUST be evaluated first. There MUST NOT be any circular dependencies among &#34;when&#34; expressions. (§7.21.5)</p>
 <p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-20 (independent judge, after 4bf9935e38). Section 7.21.5: &#34;There MUST NOT be any circular dependencies among \&#34;when\&#34; expressions.&#34; walkTree&#39;s change is the case-data descent through schemaChild and the mandatory checks in requireMandatoryChildren; no when expression is parsed, ordered or evaluated anywhere in config/yang, so neither the evaluation order nor the cycle rule is applied. Ze&#39;s modules declare no when today. {gap} stands. Owned by spec-config-yang-when-unique-choice.</p>
-<p>No test carries RFC7950-7.21.5-2, so no unit is bound to it.</p>
+<p>No test carries RFC7950-7.21.5-2, so there is no linked test.</p>
 <h3><a href="#rfc7950-9.1-2"><code>RFC7950-9.1-2</code></a></h3>
 <p>If the data type does not have a canonical form, the format of the value MUST match the data type&#39;s lexical representation, but the exact format is implementation dependent. (§9.1)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after 2e4be94ae3). Read at rfc/full/rfc7950.txt Section 9.1: &#34;If the data type does not have a canonical form, the format of the value MUST match the data type&#39;s lexical representation, but the exact format is implementation dependent.&#34; The types are identityref (Section 9.10.4) and instance-identifier (Section 9.13.3). Both prior findings are fixed. (1) Section 9.13.2 &#34;All node names in an instance-identifier value MUST be qualified with explicit namespace prefixes&#34;: checkInstanceKeyPrefix now refuses an unprefixed or foreign key prefix; TestRFC7950InstanceIdentifierKeyPrefix (negative) asserts both messages and the accepted rf:name form, and overlay mutants dropping the empty-prefix branch and the entryPrefixed branch each turned it red. (2) Cascade confounding: TestRFC7950IdentityrefFormat now asserts the format check&#39;s own message, and TestRFC7950InstanceIdentifierLexical asserts &#39;not an instance-identifier&#39; for rf:sys and the unprefixed-node message for /sys/mgmt; overlay mutants removing the identifierRefLength check and the leading-slash check turned each red. A probe of further malformed values (rf:1aes, rf:, :aes, trailing space, //rf:sys, an unquoted key value, [0], mismatched and embedded quotes, a space between steps) found each refused with ErrTypeType.</p>
@@ -2916,10 +2942,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7950-12-1"><code>RFC7950-12-1</code></a></h3>
 <p>A YANG version 1.1 module MUST NOT include a YANG version 1 submodule, and a YANG version 1 module MUST NOT include a YANG version 1.1 submodule. A YANG version 1 module or submodule MUST NOT import a YANG version 1.1 module by revision. (§12)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7950-12-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC7950-12-1, so there is no linked test.</p>
 </section>
-<section><h2>Extraction sign-off</h2>
+<section><h2>Requirement list review</h2>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
@@ -2971,1885 +2997,1885 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td><code>1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>1.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>2</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>3</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>3.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>4</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>4.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>4.2</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>4.2.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>4.2.2</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>4.2.2.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>4.2.2.2</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>4.2.2.3</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>4.2.2.4</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>4.2.2.5</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>4.2.3</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>4.2.4</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>4.2.5</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>4.2.6</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>4.2.7</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>4.2.8</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>4.2.9</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>4.2.10</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>5</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>5.1</code></td>
 <td>not stated</td>
 <td>7</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>5.1.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>5.1.2</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>5.1.2.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>5.2</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>5.3</code></td>
 <td>not stated</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>5.3.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>5.4</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>5.5</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>5.6</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>5.6.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>5.6.2</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>5.6.3</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>5.6.4</code></td>
 <td>not stated</td>
 <td>4</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>5.6.5</code></td>
 <td>not stated</td>
 <td>4</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>5.7</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>6</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>6.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>6.1.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>6.1.2</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>6.1.3</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>6.1.3.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>6.2</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>6.2.1</code></td>
 <td>not stated</td>
 <td>3</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>6.3</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>6.3.1</code></td>
 <td>not stated</td>
 <td>3</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>6.4</code></td>
 <td>not stated</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>6.4.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>6.4.1.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>6.5</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.1</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.1.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.1.2</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.1.3</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.1.4</code></td>
 <td>not stated</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.1.5</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.1.5.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.1.6</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.1.7</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.1.8</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.1.9</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.1.9.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.1.10</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.2</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.2.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.2.2</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.2.3</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.3</code></td>
 <td>not stated</td>
 <td>3</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.3.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.3.2</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.3.3</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.3.4</code></td>
 <td>not stated</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.3.5</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.4</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.4.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.5</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.5.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.5.2</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.5.3</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.5.4</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.5.4.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.5.4.2</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.5.4.3</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.5.5</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.5.6</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.5.7</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.5.8</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.5.9</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.6</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.6.1</code></td>
 <td>not stated</td>
 <td>4</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.6.2</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.6.3</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.6.4</code></td>
 <td>not stated</td>
 <td>3</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.6.5</code></td>
 <td>not stated</td>
 <td>3</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.6.6</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.6.7</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.6.8</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.7</code></td>
 <td>not stated</td>
 <td>3</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.7.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.7.2</code></td>
 <td>not stated</td>
 <td>4</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.7.3</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.7.4</code></td>
 <td>not stated</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.7.5</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.7.6</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.7.7</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.7.7.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.7.7.2</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.7.8</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.7.9</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.7.10</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.8</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.8.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.8.2</code></td>
 <td>not stated</td>
 <td>5</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.8.3</code></td>
 <td>not stated</td>
 <td>4</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.8.3.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.8.4</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.8.5</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.8.6</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.8.7</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.9</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.9.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.9.2</code></td>
 <td>not stated</td>
 <td>3</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.9.2.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.9.3</code></td>
 <td>not stated</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.9.4</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.9.5</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.9.6</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.10</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.10.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.10.2</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.10.3</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.10.4</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.11</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.11.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.11.2</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.11.3</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.11.4</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.12</code></td>
 <td>not stated</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.12.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.12.2</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.13</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.13.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.13.2</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.13.3</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.13.4</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.14</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.14.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.14.2</code></td>
 <td>not stated</td>
 <td>6</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.14.2.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.14.3</code></td>
 <td>not stated</td>
 <td>6</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.14.3.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.14.4</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.14.5</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.15</code></td>
 <td>not stated</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.15.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.15.2</code></td>
 <td>not stated</td>
 <td>3</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.15.3</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.16</code></td>
 <td>not stated</td>
 <td>7</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.16.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.16.2</code></td>
 <td>not stated</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.16.3</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.17</code></td>
 <td>not stated</td>
 <td>5</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.17.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.17.2</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.17.3</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.18</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.18.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.18.2</code></td>
 <td>not stated</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.18.3</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.19</code></td>
 <td>not stated</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.19.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.19.2</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.19.2.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.19.2.2</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.19.3</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.20</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.20.1</code></td>
 <td>not stated</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.20.1.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.20.2</code></td>
 <td>not stated</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.20.2.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.20.3</code></td>
 <td>not stated</td>
 <td>3</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.20.3.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.20.3.2</code></td>
 <td>not stated</td>
 <td>3</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.20.3.3</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.21</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.21.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.21.2</code></td>
 <td>not stated</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.21.3</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.21.4</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>7.21.5</code></td>
 <td>not stated</td>
 <td>4</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>8</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>8.1</code></td>
 <td>not stated</td>
 <td>14</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>8.2</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>8.3</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>8.3.1</code></td>
 <td>not stated</td>
 <td>7</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>8.3.2</code></td>
 <td>not stated</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>8.3.3</code></td>
 <td>not stated</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.1</code></td>
 <td>not stated</td>
 <td>3</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.2</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.2.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.2.2</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.2.3</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.2.4</code></td>
 <td>not stated</td>
 <td>3</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.2.4.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.2.5</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.3</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.3.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.3.2</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.3.3</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.3.4</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.3.5</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.4</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.4.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.4.2</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.4.3</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.4.4</code></td>
 <td>not stated</td>
 <td>3</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.4.4.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.4.5</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.4.5.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.4.6</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.4.7</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.5</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.5.1</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.5.2</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.5.3</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.6</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.6.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.6.2</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.6.3</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.6.4</code></td>
 <td>not stated</td>
 <td>5</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.6.4.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.6.4.2</code></td>
 <td>not stated</td>
 <td>3</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.6.5</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.7</code></td>
 <td>not stated</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.7.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.7.2</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.7.3</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.7.4</code></td>
 <td>not stated</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.7.4.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.7.4.2</code></td>
 <td>not stated</td>
 <td>3</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.7.5</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.8</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.8.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.8.2</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.8.3</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.9</code></td>
 <td>not stated</td>
 <td>4</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.9.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.9.2</code></td>
 <td>not stated</td>
 <td>3</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.9.3</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.9.4</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.9.5</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.9.6</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.10</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.10.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.10.2</code></td>
 <td>not stated</td>
 <td>2</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.10.3</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.10.4</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.10.5</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.11</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.11.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.11.2</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.11.3</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.11.4</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.12</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.12.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.12.2</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.12.3</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.12.4</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.13</code></td>
 <td>not stated</td>
 <td>3</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.13.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.13.2</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.13.3</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>9.13.4</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>10</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>10.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>10.1.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>10.1.1.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>10.2</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>10.2.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>10.2.1.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>10.3</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>10.3.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>10.3.1.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>10.4</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>10.4.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>10.4.1.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>10.4.2</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>10.4.2.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>10.5</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>10.5.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>10.5.1.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>10.6</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>10.6.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>10.6.1.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>11</code></td>
 <td>not stated</td>
 <td>8</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>12</code></td>
 <td>not stated</td>
 <td>3</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>13</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>13.1</code></td>
 <td>not stated</td>
 <td>3</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>13.1.1</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>14</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>15</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>15.1</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>15.2</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>15.3</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>15.4</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>15.5</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>15.6</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>15.7</code></td>
 <td>not stated</td>
 <td>1</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>16</code></td>
@@ -4861,7 +4887,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td><code>17</code></td>
 <td>not stated</td>
 <td>0</td>
-<td>walked</td>
+<td>reviewed</td>
 <td>not stated</td>
 </tr>
 <tr><td><code>18</code></td>
@@ -5095,7 +5121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     </a>
                     <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
                         <span class="page-sidebar-link-label">Verify debugging</span>
-                        <small>How failed checks route to evidence.</small>
+                        <small>How to investigate failed checks using their logs.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -5114,7 +5140,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 01:56 UTC</span>
                 </div>
             </div>
         </footer>

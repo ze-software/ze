@@ -879,8 +879,12 @@ a following declaration is not part of that function. An unresolved Go
 declaration cannot authorize an approval. The existing tag-scope reader keeps
 its conservative behavior for incomplete source.</p>
 <!-- source: internal/le/rfc/approvalunits.go -- ResolveApprovalUnit -->
-<p>Approvals live in the existing <code>tmp/commit-rfc-approved-&lt;session&gt;.md</code> table.
-Ordinary rows are unbound and admit only their own change carrier. To judge an
+<p>Approvals live in the existing <code>tmp/commit-rfc-approved-&lt;session&gt;.md</code> table,
+<code>| Test | Reason | Target | Content |</code>. Ordinary rows have no target and admit
+only their own change carrier, and only while the unit still matches the
+<code>Content</code> digests recorded with the verdict: a later different change of the
+same unit makes the row stale (<code>docs/architecture/testing/test-health.md</code>, "One
+approval names one test"). To judge an
 already committed change, use
 <code>./le rfc approve commit &lt;fullSHA&gt; unit &lt;package&gt;.&lt;TestName&gt; reason "&lt;verdict&gt;"</code>.
 The full canonical SHA must resolve, and its parent/commit blobs must change
@@ -1151,7 +1155,7 @@ func (n *MyNLRI) SupportsAddPath() bool { return true }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 02:04 UTC</span>
                 </div>
             </div>
         </footer>

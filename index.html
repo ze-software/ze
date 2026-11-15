@@ -364,30 +364,6 @@ Keep the logs if a check fails.</pre>
                 </div>
             </section>
 
-
-            <section class="whats-new reveal" aria-labelledby="whats-new-title">
-                <div class="whats-new-head">
-                    <h2 id="whats-new-title">Latest news</h2>
-                    <a href="project/changes/">All updates</a>
-                </div>
-                <article class="whats-new-item cat-meta">
-                    <span class="whats-new-label">Engineering note</span>
-                    <h3><a href="blog/reference-from-the-system/">Keeping documentation in step with the code</a></h3>
-                    <p>Ze generates public reference from its code and records, with links to the decisions behind them. Operators…</p>
-                </article>
-                <article class="whats-new-item cat-meta">
-                    <span class="whats-new-label">Recently shipped</span>
-                    <h3><a href="project/changes/2026-10-25/">2026-10-25 – 2026-11-09 (16 days)</a></h3>
-                    <p>This update covers two weeks, and a number of the changes can break a working configuration. Following RFC…</p>
-                </article>
-                <article class="whats-new-item cat-meta">
-                    <span class="whats-new-label">RFC compliance progress</span>
-                    <h3><a href="quality/rfc-compliance/">Mandatory RFC requirements and their test evidence</a></h3>
-                    <p>One page per RFC, naming each requirement, the test evidence behind it, and the ones that have none.</p>
-                </article>
-            </section>
-
-
             <section id="proof" class="home-proof-block index4-evidence reveal" aria-labelledby="proof-title">
                 <div class="index4-evidence-heading">
                     <div><span class="index4-kicker">Evidence for your decision</span><h2 id="proof-title">Tests that catch bugs</h2></div>
@@ -404,8 +380,8 @@ Keep the logs if a check fails.</pre>
                     <article class="index4-metric-panel" aria-labelledby="index4-rfc-title">
                         <span class="index4-badge concept-evidence">Standards requirements</span>
                         <h3 id="index4-rfc-title">Mandatory RFC requirements proven</h3>
-                        <p class="index4-big-figure"><span data-ze-stat="rfc.proven_percent">45.2</span><span class="index4-percent">%</span></p>
-                        <p><span data-ze-stat="rfc.proven_display">2,149</span> of <span data-ze-stat="rfc.must_kept_display">4,752</span> requirements for Ze or the OS.</p>
+                        <p class="index4-big-figure"><span data-ze-stat="rfc.proven_percent">44.9</span><span class="index4-percent">%</span></p>
+                        <p><span data-ze-stat="rfc.proven_display">2,136</span> of <span data-ze-stat="rfc.must_kept_display">4,752</span> requirements for Ze or the OS.</p>
                         <div class="index4-small-figures"><div><b><span data-ze-stat="rfc.implemented_display">196</span></b><span>RFCs implemented</span></div>
                             <div><b><span data-ze-stat="rfc.not_walked_display">0</span></b><span>unreviewed requirement lists excluded</span></div></div>
                         <p class="index4-panel-note">Each test identifies the requirement it checks. The ledger names the evidence and missing coverage.</p>
@@ -460,7 +436,7 @@ Keep the logs if a check fails.</pre>
                             <tr role="row"><th scope="row" role="rowheader">Multi-node topologies</th><td role="cell"><span data-ze-stat="interop.protocols.topology">18</span></td><td role="cell">Links, routes and service interactions between nodes.</td></tr>
 
                         </tbody>
-                        <tfoot role="rowgroup"><tr role="row"><th scope="row" role="rowheader">All scenarios</th><td role="cell"><span data-ze-stat="interop.scenarios">399</span></td><td role="cell">Each scenario is counted once by its primary protocol or test area, including cases that exercise several protocols.</td></tr></tfoot>
+                        <tfoot role="rowgroup"><tr role="row"><th scope="row" role="rowheader">All scenarios</th><td role="cell"><span data-ze-stat="interop.scenarios">399</span></td><td role="cell">Each scenario counts toward one category only. If it tests several protocols, we group it only under the main one it tests.</td></tr></tfoot>
                     </table>
                 </section>
                 <div class="index4-test-grid" aria-label="Other test layers">
@@ -731,7 +707,7 @@ Keep the logs if a check fails.</pre>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="license/">Ze is AGPLv3 open source.</a>
                     <a href="legal/">Legal notice</a>
-                    <span class="footer-published">Published 15 November 2026 01:14 UTC</span>
+                    <span class="footer-published">Published 15 November 2026 01:18 UTC</span>
                 </div>
             </div>
         </footer>

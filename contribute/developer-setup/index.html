@@ -199,6 +199,17 @@ cache, <code>$XDG_CACHE_HOME/ze</code>, else <code>~/.cache/ze</code>, instead o
 folder (<code>~/Library/Caches</code> on macOS). It sets four variables, creates their
 directories, and then replaces itself with the program, so the program's exit
 status is the caller's and every argument after the path reaches it untouched.</p>
+<p>A heavy tool that needs a job slot is the exception: <code>go test</code>, <code>golangci-lint run</code>, <code>staticcheck</code> and the formatters, judged as the Bash hook judges a raw
+command. In a checkout, <code>le exec</code> waits for a slot, then runs the tool as its
+child on the same terminal, forwards every SIGINT, SIGTERM, SIGHUP and SIGQUIT
+to it until it exits, releases the slot and exits with the tool's code. Inside
+a live parent's slot (<code>./le go lint run</code>
+starting the linter) or outside a checkout it holds nothing and replaces
+itself, as for any other program. The main thread's post-edit lint goes past
+the shim on purpose and takes no slot
+(<code>docs/contributing/running-commands.md</code>, "Waiting for another session's job").</p>
+<!-- source: internal/le/job/tool.go -- HoldTool -->
+<!-- source: internal/le/exec/exec.go -- holdHeavy, Program -->
 <table>
 <thead>
 <tr>
@@ -743,8 +754,12 @@ All of them go through one helper, so the table of states earlier in this
 section governs each of them.</p>
 <h2 id="after-setup">After Setup</h2>
 <p>Check that the checkout builds and its tests run with one scoped package test:</p>
-<pre><code class="language-bash">./le job run label unit-pkg command go test ./internal/core/textbuf/
+<pre><code class="language-bash">./le test unit pkg path ./internal/core/textbuf/
 </code></pre>
+<p>It runs the package's tests under the feature tags with the race detector,
+admitted as a job, and a green run answers one line counting the packages
+that passed and naming the log it wrote (<code>../contributing/running-commands.md</code>, "Testing
+one package while you develop it").</p>
 <p><code>./le verify changed</code> is the day-to-day evidence once you have a change: it
 judges only the change set against the upstream, so on a fresh clone it judges
 nothing and proves nothing about the setup.</p>
@@ -772,7 +787,7 @@ preventing the lists from drifting apart.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 02:42 UTC</span>
                 </div>
             </div>
         </footer>
