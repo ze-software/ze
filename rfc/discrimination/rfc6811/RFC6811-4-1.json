@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC6811-4-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rpki/rfc6811_origin_tracker_test.go::TestHandleROAChangeReValidates",
+    "unit-sha": "77b7caad794ca467",
+    "claim-sha": "c681dde09bfdd54c",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rpki/rpki.go::handleROAChange",
+    "producer-sha": "42e2bb0e760f001d",
+    "break": "line 1334: \"if !c.decisionRequired {\" -\u003e \"if c.decisionRequired {\""
+  },
+  {
+    "rid": "RFC6811-4-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rpki/rfc6811_origin_tracker_test.go::TestHandleROAChangeReValidates",
+    "unit-sha": "77b7caad794ca467",
+    "claim-sha": "432e6f9089a6a0bc",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rpki/origin_tracker.go::revalidate",
+    "producer-sha": "a11624127d697039",
+    "break": "line 109: \"reconsider := newState != rt.state\" -\u003e \"reconsider := true\""
+  }
+]
