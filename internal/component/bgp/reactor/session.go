@@ -775,6 +775,9 @@ type Session struct {
 	// asSetSendLog bounds the RFC 9774 Section 3 send-guard warning to one line per
 	// wellKnownScanLogInterval for this peer (session_rfc9774.go). The zero value is ready.
 	asSetSendLog wellKnownScanLog
+	// asZeroSendLog bounds the RFC 7607 outbound refusal warning. Its zero
+	// value is ready, independently of the AS_SET operator override.
+	asZeroSendLog wellKnownScanLog
 
 	// onNotifSent is called after every NOTIFICATION write attempt, with
 	// delivered saying whether the write returned no error. A refused write

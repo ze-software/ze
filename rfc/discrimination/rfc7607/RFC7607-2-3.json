@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC7607-2-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc7607_test.go::TestRFC7607AS4AggregatorNonZeroAccepted",
+    "unit-sha": "f62b7a04d33d1faa",
+    "claim-sha": "951f958b6acfa8f4",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/rfc7607.go::asnIsZero",
+    "producer-sha": "39bda69fa63725e8",
+    "break": "line 146: \"return false\" -\u003e \"return true\""
+  },
+  {
+    "rid": "RFC7607-2-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc7607_test.go::TestRFC7607AS4AggregatorZeroDiscard",
+    "unit-sha": "28af140eae7fce4c",
+    "claim-sha": "267fe553deeb1ddb",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/rfc7607.go::asnIsZero",
+    "producer-sha": "39bda69fa63725e8",
+    "break": "line 149: \"return true\" -\u003e \"return false\""
+  },
+  {
+    "rid": "RFC7607-2-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc7607_test.go::TestRFC7607AS4PathNonZeroAccepted",
+    "unit-sha": "a771f84b8a7cbd17",
+    "claim-sha": "2aa5ae6a3d3a0e9e",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/rfc7607.go::asnIsZero",
+    "producer-sha": "39bda69fa63725e8",
+    "break": "line 146: \"return false\" -\u003e \"return true\""
+  },
+  {
+    "rid": "RFC7607-2-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc7607_test.go::TestRFC7607AS4PathZeroDiscard",
+    "unit-sha": "1e08479e29dd1e23",
+    "claim-sha": "77eb6d88f6cd404a",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/rfc7607.go::asnIsZero",
+    "producer-sha": "39bda69fa63725e8",
+    "break": "line 149: \"return true\" -\u003e \"return false\""
+  }
+]

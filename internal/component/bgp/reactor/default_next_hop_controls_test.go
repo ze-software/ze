@@ -288,6 +288,13 @@ func TestQueuedDefaultNextHopResolvesReplacementConnection(t *testing.T) {
 				t.Fatalf("old connection received a queued route: %v", err)
 			}
 			replacement, client := newConnectedLocalSession(t, peer.settings, "127.0.0.2")
+			// The replacement owes its own negotiation before it enters Established.
+			caps := []capability.Capability{capIPv4()}
+			replacement.negotiated = capability.Negotiate(caps, caps, capability.PeerIdentity{
+				LocalASN: peer.settings.LocalAS,
+				PeerASN:  peer.settings.PeerAS,
+				Internal: peer.settings.IsIBGP(),
+			})
 			if err := replacement.fsm.Event(fsm.EventBGPOpen); err != nil {
 				t.Fatal(err)
 			}
@@ -295,6 +302,8 @@ func TestQueuedDefaultNextHopResolvesReplacementConnection(t *testing.T) {
 				t.Fatal(err)
 			}
 			peer.session = replacement
+			peer.negotiated.Store(NewNegotiatedCapabilities(replacement.negotiated))
+			peer.setEncodingContexts(replacement.negotiated)
 			peer.setTestInitialSync(1, true)
 			drainDefaultNextHopControl(t, peer, rail)
 			// Closing makes EOF a deterministic end of the complete wire capture.
@@ -325,6 +334,18 @@ func TestQueuedDefaultNextHopResolvesReplacementConnection(t *testing.T) {
 func newDefaultNextHopControlPeer(t *testing.T, rail, local string) (*Peer, *recordingConn) {
 	t.Helper()
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
+	// Model an established OLD-width peer consistently in the encoder and
+	// final writer. Merely driving the FSM leaves negotiation absent while
+	// Peer.asn4's pre-establishment default chooses four-octet output.
+	caps := []capability.Capability{capIPv4()}
+	neg := capability.Negotiate(caps, caps, capability.PeerIdentity{
+		LocalASN: peer.settings.LocalAS,
+		PeerASN:  peer.settings.PeerAS,
+		Internal: peer.settings.IsIBGP(),
+	})
+	peer.session.negotiated = neg
+	peer.negotiated.Store(NewNegotiatedCapabilities(neg))
+	peer.setEncodingContexts(neg)
 	// A configured bind address must not replace the connection's identity.
 	peer.settings.LocalAddress = netip.MustParseAddr("198.51.100.99")
 	peer.session.transport.Store(&sessionTransport{local: netip.MustParseAddr(local)})

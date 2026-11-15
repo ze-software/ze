@@ -1,0 +1,4 @@
+--relay-peer 172.30.0.3:179
+--relay-transparent
+--result /tmp/as-zero-wire
+--duration 180

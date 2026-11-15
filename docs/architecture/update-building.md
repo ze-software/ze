@@ -778,6 +778,23 @@ it can reach the socket. The existing raw ownership preflight supplies that last
 proof without a second walk. A complete recognized non-UPDATE control packet is
 unaffected; uncertain framing or trailing bytes require an accepting final.
 Raw's AS_SET diagnostic exception does not waive this export admission.
+RFC 7607 Section 2 also applies to raw injection: the shared final writer scans
+AS_PATH, AS4_PATH, AGGREGATOR and AS4_AGGREGATOR for an AS number of zero after
+policy replacement. An offending announcement becomes a withdrawal; original
+withdrawals and MP families survive with their negotiated ADD-PATH framing.
+For a forwarded replacement, the writer copies the original manifest's path
+identities into withdrawal spans before the transformation. Each output chunk
+keeps its corresponding source identities, so ownership withdraws the actual
+recipient path ID rather than mistaking a destination wire ID for an ingress
+ID. The original manifest is restored and the temporary projection is released
+after that write.
+The rate-limited `doctor-bgp-as-zero-outbound` event identifies the peer and
+attribute in `ze show doctor` and `ze show errors`; fix the route source or
+export policy and send the corrected route again.
+The scan reads only AS fields, leaving zero-valued NLRI descriptors and internal
+unknown-AS sentinels alone. Receive-side RFC 7606/6793 discard rules are separate.
+<!-- source: internal/component/bgp/reactor/session_rfc7607.go -- transmittedASZeroAttribute, writeASZeroAsWithdrawal -->
+<!-- source: internal/component/bgp/reactor/forward_provenance_withdraw.go -- projectFwdWithdrawals, bindWithdrawalChunk -->
 Its existing AIGP policy, PATHS-LIMIT admission and Label-Index normalization
 remain in force. Accountable final bytes establish local ownership, so a remote
 source cannot withdraw them.

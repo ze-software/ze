@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC7607-2-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc7607_egress_boundaries_test.go::TestRFC7607ASZeroReplacementWithdrawsMixedFamilies",
+    "unit-sha": "c1124b9d39f1f8aa",
+    "claim-sha": "d1089f7626f031a2",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_rfc7607.go::transmittedASZeroAttribute",
+    "producer-sha": "3afdd8e3f3dd7de6",
+    "break": "line 40: \"if message.AttributeHasASZero(uint8(code), value, asn4) {\" -\u003e \"if false \u0026\u0026 message.AttributeHasASZero(uint8(code), value, asn4) {\""
+  },
+  {
+    "rid": "RFC7607-2-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc7607_egress_test.go::TestRFC7607ASZeroNeverLeavesOriginatedOrRelayedRoutes",
+    "unit-sha": "cbd70095b1af2aa5",
+    "claim-sha": "c70e8befe8f4f105",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_rfc7607.go::transmittedASZeroAttribute",
+    "producer-sha": "3afdd8e3f3dd7de6",
+    "break": "line 40: \"if message.AttributeHasASZero(uint8(code), value, asn4) {\" -\u003e \"if false \u0026\u0026 message.AttributeHasASZero(uint8(code), value, asn4) {\""
+  },
+  {
+    "rid": "RFC7607-2-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc7607_egress_test.go::TestRFC7607RealASLeavesOriginatedAndRelayedRoutes",
+    "unit-sha": "493cee48f2135904",
+    "claim-sha": "c994cb95f668d271",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_rfc7607.go::transmittedASZeroAttribute",
+    "producer-sha": "3afdd8e3f3dd7de6",
+    "break": "line 40: \"if message.AttributeHasASZero(uint8(code), value, asn4) {\" -\u003e \"if true || message.AttributeHasASZero(uint8(code), value, asn4) {\""
+  }
+]

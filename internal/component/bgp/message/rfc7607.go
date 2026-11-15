@@ -90,9 +90,9 @@ func validateAS4PathPolicy(code uint8, attrData []byte, acceptASSet bool) *RFC76
 // AS4_AGGREGATOR attribute."
 //
 // The attribute length is not policed here. RFC 6793 Section 6 owns that condition
-// ("malformed if the attribute length is not 8") and no receive path enforces it, which
-// rfc/short/rfc6793.md records under RFC6793-6-5. The bound below is what this function
-// needs to read the AS field, not a length verdict.
+// ("malformed if the attribute length is not 8"); canonical receive reconciliation
+// in attribute.ReconcileASPathFamily discards that malformed attribute. The bound
+// below only permits this separate AS-zero check to read the AS field.
 func validateAS4AggregatorAttr(code uint8, _ int, attrData []byte, _, _ bool, _ receivePolicy) *RFC7606ValidationResult {
 	if len(attrData) < as4AggregatorASOctets {
 		return nil
@@ -147,4 +147,43 @@ func asnIsZero(asn []byte) bool {
 		}
 	}
 	return true
+}
+
+// AttributeHasASZero reports an AS zero in one of the four attributes RFC 7607
+// Section 2 names. The caller supplies the AS_PATH/AGGREGATOR width negotiated
+// by the recipient; AS4 attributes always carry four-octet AS numbers.
+//
+// This shares the receive validators' ASN walkers, but assigns no receive-side
+// error action: the outgoing prohibition also binds locally built routes and
+// policy replacements. Zero octets in an address, another attribute or NLRI
+// never reach the ASN comparison. Unframeable values remain the structural
+// validators' responsibility rather than being guessed into an AS number.
+//
+// RFC 7607 Section 2: "A BGP speaker MUST NOT originate or propagate a route with an AS
+// number of zero in the AS_PATH, AS4_PATH, AGGREGATOR, or
+// AS4_AGGREGATOR attributes."
+func AttributeHasASZero(code uint8, value []byte, asn4 bool) bool {
+	asnOctets := 2
+	if asn4 {
+		asnOctets = 4
+	}
+	// Only the four attribute codes in RFC 7607 carry the AS being judged.
+	//exhaustive:ignore
+	switch code {
+	case attrCodeASPath:
+		return asPathHoldsASZero(value, asnOctets)
+	case attrCodeAS4Path:
+		return asPathHoldsASZero(value, as4AggregatorASOctets)
+	case attrCodeAggregator:
+		if len(value) < asnOctets {
+			return false
+		}
+		return asnIsZero(value[:asnOctets])
+	case attrCodeAS4Aggregator:
+		if len(value) < as4AggregatorASOctets {
+			return false
+		}
+		return asnIsZero(value[:as4AggregatorASOctets])
+	}
+	return false
 }

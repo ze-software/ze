@@ -1,4 +1,4 @@
-# Egress attribute rules: two prohibitions, opposite precedence
+# Egress attribute rules: provenance and final wire admission
 
 Two RFC 4271 sections, one apart, constrain what an UPDATE carries when ze
 relays it. They share one mechanism and they answer an operator filter in
@@ -7,6 +7,34 @@ that no compiler and no type sees.
 
 <!-- source: internal/component/bgp/reactor/forward_local_pref.go -- Section 5.1.5, LOCAL_PREF -->
 <!-- source: internal/component/bgp/reactor/forward_med.go -- Section 5.1.4, MULTI_EXIT_DISC -->
+
+RFC 7607 Section 2 adds an unconditional final-wire prohibition: no originated
+or propagated route may carry AS zero in AS_PATH, AS4_PATH, AGGREGATOR or
+AS4_AGGREGATOR. `Session.writeUpdateBody` applies it after export transformation
+on ordinary origination, explicit raw injection and both forwarding rails.
+`transmittedASZeroAttribute` visits every attribute occurrence at the recipient's
+negotiated width, sharing the receive validators' ASN walkers while leaving
+NLRI and internal unknown-AS state untouched.
+
+An offending announcement leaves as a withdrawal through the existing family
+synthesizer; original withdrawals survive too. The ordinary ownership filter
+prevents a withdrawal for a route the peer never held, while explicit raw writes
+retain their raw ownership semantics. A forwarded replacement first projects
+the original section identities into withdrawal spans. This keeps the source's
+identity and the recipient's assigned ADD-PATH identifier distinct, including
+when export policy replaced the complete payload or sizing splits the output.
+The projection lasts for that write; the original manifest is restored on
+success and failure. The refusal appears in `ze show doctor` and `ze show errors`
+under `doctor-bgp-as-zero-outbound`, rate limited per session. Remove AS zero
+from the route source, plugin or export policy, then send the corrected route.
+This outbound admission does not change
+the receive-side distinction: RFC 7606 treats malformed AS_PATH as withdrawn
+and discards AGGREGATOR, while RFC 6793 discards malformed AS4 attributes.
+The final-socket matrix in `rfc7607_egress_test.go` pairs each zero case with a
+real-AS case that must still reach the recipient.
+<!-- source: internal/component/bgp/reactor/session_rfc7607.go -- transmittedASZeroAttribute, writeASZeroAsWithdrawal -->
+<!-- source: internal/component/bgp/reactor/forward_provenance_withdraw.go -- projectFwdWithdrawals, bindWithdrawalChunk -->
+<!-- source: internal/component/bgp/message/rfc7607.go -- AttributeHasASZero -->
 
 ## The two rules
 

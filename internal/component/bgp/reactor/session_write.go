@@ -747,6 +747,13 @@ func (s *Session) writeUpdateBody(body []byte, raw bool) (opaque bool, result er
 			return false, nil
 		}
 	}
+	// RFC 7607 Section 2: "A BGP speaker MUST NOT originate or propagate a
+	// route with an AS number of zero in the AS_PATH, AS4_PATH, AGGREGATOR,
+	// or AS4_AGGREGATOR attributes." Judge the final post-policy bytes on
+	// every rail, including explicit raw injection: this rule has no override.
+	if code, found := s.transmittedASZeroAttribute(body); found {
+		return false, s.writeASZeroAsWithdrawal(body, code, raw)
+	}
 	// RFC 9774 Section 3. Ahead of the AIGP guard: the withdrawal carries no AIGP.
 	// Raw injection is exempt (owner, Q-4 (b), 2026-10-18): it is the operator override
 	// Section 3 names, and the only way to put a set on the wire to test a peer.

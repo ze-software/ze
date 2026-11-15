@@ -146,6 +146,7 @@ const (
 	CodeDoctorBGPListen                            = "doctor-bgp-listen"
 	CodeDoctorBGPPeerNotReading                    = "doctor-bgp-peer-not-reading"
 	CodeDoctorBGPWritePathHeld                     = "doctor-bgp-write-path-held"
+	CodeDoctorBGPASZeroOutbound                    = "doctor-bgp-as-zero-outbound"
 	CodeDoctorImageListen                          = "doctor-image-listen"
 	CodeDoctorIPsecListen                          = "doctor-ipsec-listen"
 	CodeDoctorListenUnavailable                    = "doctor-listen-unavailable"
@@ -1473,6 +1474,16 @@ var builtinCodes = append([]CodeMeta{
 			"Remedy: on the peer, find why its BGP process stopped reading (CPU load, a stalled process). When the peer reads normally, run `ze show doctor`: its plugin rows name a plugin that stopped, crashed, or whose event batches failed or were slow to complete. A plugin that still holds one batch has no such row until that batch ends.",
 		Examples:     []string{exampleShowDoctor, exampleShowErrors, "ze show bgp peer", "ze show diagnostic doctor-bgp-write-path-held"},
 		RelatedCodes: []string{CodeDoctorBGPPeerNotReading},
+	},
+	{
+		Code:  CodeDoctorBGPASZeroOutbound,
+		Title: "BGP route withdrawn because an AS attribute contains zero",
+		Description: "A route source or export policy supplied AS zero in AS_PATH, AS4_PATH, AGGREGATOR or AS4_AGGREGATOR. " +
+			"RFC 7607 forbids advertising that route, so ze withheld the announcement and withdrew any older advertised version through the normal ownership checks. " +
+			"The BGP session stays open. The event names the peer and attribute; repeated events are rate limited per session. " +
+			"Remedy: remove AS zero from the route source, plugin or export policy and send the corrected route again. " +
+			"Use ze show errors to find the affected peer and attribute.",
+		Examples: []string{exampleShowDoctor, exampleShowErrors, "ze show diagnostic doctor-bgp-as-zero-outbound"},
 	},
 	{
 		Code:        "doctor-bgp-md5",

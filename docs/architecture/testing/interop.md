@@ -565,6 +565,42 @@ were also read at the lab's pinned 10.7.1 tag before writing these assertions.
 <!-- source: internal/le/interoplab/bgp/check_fsm_error_wire.go -- judgeFSMRelay, judgeFRRFSMNotification -->
 <!-- source: internal/le/interoplab/bgp/check_fsm_error.go -- checkFSMErrorFRR -->
 
+### AS-zero raw writes observed before FRR
+
+`bgp-as-zero-raw-frr` sends real operator `send bgp ... raw hex ... type update`
+commands through an established session, with FRR 10.7.1 behind the existing
+transparent relay. Ze's configured two-octet mode omits capability 65; FRR still
+advertises it, so the raw diagnostics use OLD AS_PATH/AGGREGATOR widths and
+retained four-octet compatibility fields. Four twins exercise AS_PATH,
+AS4_PATH, AGGREGATOR and AS4_AGGREGATOR. The AS4_PATH twin pairs AS_TRANS with
+non-mappable 70000; the AS4_AGGREGATOR twin pairs an AS_TRANS aggregator with
+70000. FRR must decode each prefix, reconstruct the expected AS_PATH and report
+the ordinary or reconstructed aggregator ASN with identifier `192.0.2.9`. Four raw
+replacements then contain zero in the respective ASN field. Every replacement
+must reach the relay as the subject's withdrawal, followed by a later valid
+control route on the same FIFO stream. Exact complete-frame comparison through
+that fence rejects a leaked zero even if FRR refuses it. Native table and session
+queries require all subjects gone, the control present and the original session
+still Established. This scenario covers explicit raw IPv4 origination; it does
+not claim ADD-PATH ownership, ordinary origination or either forwarding rail.
+
+FRR's `bgp_attr_aspath_check` withdraws eBGP AS_PATH zero;
+`bgp_attr_aggregator` and `bgp_attr_as4_aggregator` discard zero aggregators;
+`bgp_attr_munge_as4_attrs` reconstructs compatibility attributes from an OLD
+speaker and ignores them when the sender advertised ASN4. Captured OPENs must
+match the deliberate OLD-to-NEW boundary, preventing a different width from
+passing this fixture. Its raw-diagnostic mode does not claim conformance for
+the separate NEW-speaker capability-advertisement obligation.
+Thus remote absence or native AS4-attribute storage alone would prove too little.
+These contracts were read in [FRR 10.7.1's attribute
+parser](https://github.com/FRRouting/frr/blob/frr-10.7.1/bgpd/bgp_attr.c).
+The checker retains commands, original wire snapshots, native RIB/session
+answers and FRR image/version under the current session scratch. The native
+scenario passed. Removing the final outbound AS-zero guard made its checker
+reject the fifth UPDATE because an announcement escaped instead of a withdrawal.
+<!-- source: internal/le/interoplab/bgp/check_as_zero_wire.go -- checkASZeroRawFRR -->
+<!-- source: internal/le/interoplab/bgp/check_as_zero_wire_oracle.go -- judgeASZeroWire -->
+
 ## Prerequisites
 
 | Requirement | Used By | Notes |

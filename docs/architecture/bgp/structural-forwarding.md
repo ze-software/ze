@@ -401,6 +401,19 @@ spans. A synthesized withdrawal keeps its per-item mark (`fwdProvenance`
 `synthesizedWithdrawal`, read by recovery staging) through splitting,
 transcoding and overflow. Item release returns the manifest. Superseding cannot
 collapse different source/session generations, policy epochs or manifested ingress paths.
+
+Final outbound AS-zero admission can turn an already encoded announcement into
+a withdrawal after those producer spans were bound. It copies the current
+body's original `writePath` identities into temporary withdrawal spans before
+synthesis, then binds each compliant output chunk to the corresponding paths.
+This retains the source identity used to resolve the recipient's actual
+ADD-PATH identifier; destination wire bytes never become an ingress identifier.
+The existing ownership filter still decides whether that source can withdraw
+the held route. The writer restores the original manifest and body index and
+releases the temporary copy on every exit.
+<!-- source: internal/component/bgp/reactor/forward_provenance_withdraw.go -- projectFwdWithdrawals, bindWithdrawalChunk -->
+<!-- test: internal/component/bgp/reactor/rfc7607_egress_provenance_review_test.go TestRFC7607ExportASZeroWithdrawsHeldForwardedPath -->
+
 Unknown ordinary withdrawals look up outgoing identifiers without minting new
 mappings. A retained replay can assign a path's first outgoing identifier after
 a live withdrawal was materialized but before the replay fence releases it.
