@@ -2,7 +2,7 @@
 #       that entry's route, and the entry the pool keeps is not re-sent.
 # Initial config: peer1's watchdog pool wd-pool holds two entries, 10.0.0.0/24
 #                 (MED 1) and 10.0.1.0/24 (MED 2), neither with a withdraw leaf
-#                 (the plugin reads its presence, not its value), so both
+#                 (withdraw defaults to false), so both
 #                 are announced when the session comes up.
 # Live change:    the staged fixture (reload/live-stages, run inside the daemon)
 #                 removes the 10.0.0.0/24 update block and sends SIGHUP. A

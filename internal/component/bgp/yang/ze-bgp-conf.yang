@@ -480,14 +480,15 @@ module ze-bgp-conf {
                 description "The bgp-watchdog plugin owns every route of the block, so the BGP engine holds none of
                     them as a static route. The plugin sends a route that is not withdrawn when the session reaches
                     Established.";
-                ze:help "Watchdog-controlled route - held until 'bgp watchdog announce <name>'";
+                ze:help "Watchdog-controlled route with an optional initial hold";
                 leaf name { type string; description "request bgp watchdog announce <name> announces every route that carries the name, and request bgp
      watchdog withdraw <name> withdraws them. Ze skips a block whose name is empty.";
  ze:help "Watchdog group name"; }
-                leaf withdraw { type boolean; description "The bgp-watchdog plugin reads the PRESENCE of the leaf and not its value, so withdraw false starts every
-     route of the block withdrawn exactly as withdraw true does. Delete the leaf to announce the routes as soon as
-     the session reaches Established. request bgp watchdog announce <name> announces a withdrawn route.";
- ze:help "Start in withdrawn state (default true)"; }
+                leaf withdraw { type boolean; default false; description "With true, bgp-watchdog holds every route of the block until request bgp watchdog announce <name>.
+     With false, or when this leaf is omitted, the plugin announces the routes when the session reaches Established.
+     The default matches ExaBGP. Changing this setting on reload preserves the runtime state of an existing route;
+     a new route uses the configured initial state.";
+ ze:help "Hold routes until explicitly announced (default false)"; }
             }
         }
     }

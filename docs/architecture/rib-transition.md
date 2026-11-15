@@ -40,6 +40,25 @@ Engine receives UPDATE → Cache wire bytes (msg-id) → Send event to plugins �
 | Policy | Plugins | Done |
 | Watchdog | Plugin (bgp-watchdog) | Done |
 
+### Watchdog initial announcement state
+
+The watchdog plugin owns every route in an update block with a named watchdog.
+Its `withdraw` setting defaults to `false`: omitted and explicit false announce
+the route when the session reaches Established; true holds the route until an
+explicit announce command. This matches ExaBGP's initial-state behavior.
+The owner approved that choice on 2026-11-15 with "ok", in response to
+"Omitted or withdraw false: announce" and "withdraw true: hold until explicitly
+announced".
+
+The config reader sets the initial pool flag. Existing peer-up and command
+handlers send the routes through the SDK; the engine adds no watchdog policy.
+Reload keeps an existing route's runtime announcement state. Newly added routes
+use the initial state that their configuration selects.
+<!-- source: internal/component/bgp/plugins/watchdog/config.go -- collectWatchdogRoutes, parseNLRIEntries -->
+<!-- source: internal/component/bgp/plugins/watchdog/server.go -- handleStateUp -->
+<!-- source: internal/component/bgp/plugins/watchdog/config_tx.go -- carryEntryState -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- update-block watchdog default -->
+
 ### Owner ruling: best routes reach the other peers by default
 
 Thomas has ruled that Ze passes the best route it elected between its BGP

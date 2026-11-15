@@ -15,7 +15,9 @@ import (
 	bgp "github.com/ze-software/ze/internal/component/bgp"
 	routepkg "github.com/ze-software/ze/internal/component/bgp/route"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/configvalue"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -156,7 +158,20 @@ func collectWatchdogRoutes(updateMap map[string]any, peerAddr string, pools *poo
 			continue
 		}
 
-		_, wdWithdraw := wdMap["withdraw"]
+		// An omitted setting announces, as ExaBGP does. A present setting
+		// must carry a boolean; malformed delivery cannot choose that default.
+		wdWithdraw := false
+		if value, present := wdMap["withdraw"]; present {
+			var valid bool
+			wdWithdraw, valid = configvalue.Bool(value)
+			if !valid {
+				return nil, opererr.New(
+					fmt.Sprintf("peer %s watchdog %s has invalid withdraw value %v", peerAddr, wdName, value),
+					"The withdraw setting must be true or false before the route can choose its initial announcement state.",
+					"withdraw false",
+				)
+			}
+		}
 
 		// Parse attributes into a base Route (family/prefix/RD/labels added per NLRI).
 		attrMap, _ := getMap(updateTree, "attribute")

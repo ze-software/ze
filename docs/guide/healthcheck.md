@@ -32,6 +32,15 @@ bgp {
 
 The `bgp-healthcheck` plugin depends on `bgp-watchdog` -- both are loaded automatically when healthcheck config is present.
 
+The example sets `withdraw true` so the route stays held until the probe
+announces it. If `withdraw` is omitted or set to `false`, the watchdog route
+is announced when the BGP session reaches Established, matching ExaBGP.
+Reload preserves the runtime state of an existing route; a newly added route
+uses its configured initial state.
+<!-- source: internal/component/bgp/plugins/watchdog/config.go -- collectWatchdogRoutes reads the boolean value -->
+<!-- source: internal/component/bgp/plugins/watchdog/config_tx.go -- carryEntryState preserves existing state on reload -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- update-block watchdog withdraw default -->
+
 The probe runs `dig` every 5 seconds (default). After 3 consecutive successes, the route `10.0.0.1/32` is announced. After 3 consecutive failures, the route is withdrawn.
 
 ## Configuration Reference
