@@ -78,6 +78,13 @@ func Resolve(rib Reader, addr netip.Addr) Distance {
 			return Distance{}
 		}
 	}
+	return resolve(rib, nil, addr)
+}
+
+// resolve keeps one recursive algorithm for ordinary and prospective reads.
+// The concrete overlay pointer never enters an interface, so a per-candidate
+// preview stays on the caller's stack instead of allocating its selected path.
+func resolve(rib Reader, prospective *prospectiveReader, addr netip.Addr) Distance {
 	if !addr.IsValid() {
 		return Distance{}
 	}
@@ -88,7 +95,13 @@ func Resolve(rib Reader, addr netip.Addr) Distance {
 		if current.Is4() {
 			fam = family.IPv4Unicast
 		}
-		path, _, found := rib.LPM(fam, current)
+		var path locrib.Path
+		var found bool
+		if prospective != nil {
+			path, _, found = prospective.LPM(fam, current)
+		} else {
+			path, _, found = rib.LPM(fam, current)
+		}
 		if !found || path.RouteType.Discards() {
 			return Distance{MissingAIGP: distance.MissingAIGP}
 		}

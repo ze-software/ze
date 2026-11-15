@@ -131,6 +131,21 @@ func applyRouteInstall(rib *locrib.RIB, input rpc.RouteInstallInput) ([]routeKey
 	if rib == nil {
 		return nil, fmt.Errorf("route-install: engine has no Loc-RIB")
 	}
+	ops, err := parseRouteInstall(input)
+	if err != nil {
+		return nil, err
+	}
+	keys := make([]routeKey, 0, len(ops))
+	for i := range ops {
+		rib.InsertForward(ops[i].fam, ops[i].prefix, ops[i].path, nil)
+		keys = append(keys, routeKey{fam: ops[i].fam, prefix: ops[i].prefix, source: ops[i].path.Source, instance: ops[i].path.Instance})
+	}
+	return keys, nil
+}
+
+// parseRouteInstall validates self-contained route offers without applying them.
+// Metrics previews and actual installs MUST use this same wire interpretation.
+func parseRouteInstall(input rpc.RouteInstallInput) ([]installOp, error) {
 	ops := make([]installOp, 0, len(input.Routes))
 	cache := make(map[string]redistevents.ProtocolID)
 	for i := range input.Routes {
@@ -223,12 +238,7 @@ func applyRouteInstall(rib *locrib.RIB, input rpc.RouteInstallInput) ([]routeKey
 			},
 		})
 	}
-	keys := make([]routeKey, 0, len(ops))
-	for i := range ops {
-		rib.InsertForward(ops[i].fam, ops[i].prefix, ops[i].path, nil)
-		keys = append(keys, routeKey{fam: ops[i].fam, prefix: ops[i].prefix, source: ops[i].path.Source, instance: ops[i].path.Instance})
-	}
-	return keys, nil
+	return ops, nil
 }
 
 // parseFilterFields reads an entry's IS-IS level and OSPF route type. A value

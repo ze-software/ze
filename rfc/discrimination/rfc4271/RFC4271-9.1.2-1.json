@@ -1,0 +1,127 @@
+[
+  {
+    "rid": "RFC4271-9.1.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rfc4271_next_hop_reachability_test.go::TestRFC4271IndependentRecursiveNextHopIsInstalled",
+    "unit-sha": "a56498923860895b",
+    "claim-sha": "3272173bc0b6cabd",
+    "route": "mutant",
+    "producer": "internal/core/rib/igpcost/prospective.go::LPM",
+    "producer-sha": "cd08bc4dcbaeba97",
+    "break": "line 51: \"if prefix.Bits() \u003e view.prefix.Bits() {\" -\u003e \"if false {\""
+  },
+  {
+    "rid": "RFC4271-9.1.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc4271_next_hop_reachability_test.go::TestRFC4271NextHopCannotDependOnItsProspectiveRoute",
+    "unit-sha": "9682d0ef52a4d854",
+    "claim-sha": "dd436ae710015603",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/rib_next_hop.go::candidateNextHopResolved",
+    "producer-sha": "b84de229617e04b3",
+    "break": "line 49: \"return igpcost.ResolveProspective(r.locRIB.Load(), nextHop, fam, prefix, path).Resolved\" -\u003e \"return igpcost.Resolve(r.locRIB.Load(), nextHop).Resolved\""
+  },
+  {
+    "rid": "RFC4271-9.1.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc4271_next_hop_reachability_test.go::TestRFC4271OnlyUnresolvedNextHopIsNotInstalled",
+    "unit-sha": "58662d3739cbf4bb",
+    "claim-sha": "365046fc593075ca",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/rib_next_hop.go::candidateNextHopResolved",
+    "producer-sha": "b84de229617e04b3",
+    "break": "line 49: \"return igpcost.ResolveProspective(r.locRIB.Load(), nextHop, fam, prefix, path).Resolved\" -\u003e \"return true\""
+  },
+  {
+    "rid": "RFC4271-9.1.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rfc4271_next_hop_reachability_test.go::TestRFC4271ReachableZeroCostNextHopIsInstalled",
+    "unit-sha": "848e92793e108f58",
+    "claim-sha": "ba158cfdaeae033d",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/rib_next_hop.go::candidateNextHopResolved",
+    "producer-sha": "b84de229617e04b3",
+    "break": "line 49: \"return igpcost.ResolveProspective(r.locRIB.Load(), nextHop, fam, prefix, path).Resolved\" -\u003e \"return func() bool { distance := igpcost.ResolveProspective(r.locRIB.Load(), nextHop, fam, prefix, path); return distance.Resolved \u0026\u0026 distance.Cost != 0 }()\""
+  },
+  {
+    "rid": "RFC4271-9.1.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc4271_next_hop_reachability_test.go::TestRFC4271RecursiveNextHopLoopIsNotInstalled",
+    "unit-sha": "f2a9622f995898ce",
+    "claim-sha": "fbf6db6f93de47a9",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/rib_next_hop.go::candidateNextHopResolved",
+    "producer-sha": "b84de229617e04b3",
+    "break": "line 49: \"return igpcost.ResolveProspective(r.locRIB.Load(), nextHop, fam, prefix, path).Resolved\" -\u003e \"return true\""
+  },
+  {
+    "rid": "RFC4271-9.1.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rfc4271_next_hop_reachability_test.go::TestRFC4271SamePrefixConnectedNextHopRemainsUsable",
+    "unit-sha": "23d477181b54d371",
+    "claim-sha": "ee14687de6510715",
+    "route": "mutant",
+    "producer": "internal/core/rib/igpcost/prospective.go::ResolveProspective",
+    "producer-sha": "7c90fe9a22005648",
+    "break": "line 22: \"selected, found := rib.PreviewSelected(fam, prefix, offered)\" -\u003e \"selected, found := offered, true\""
+  },
+  {
+    "rid": "RFC4271-9.1.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc4271_next_hop_reachability_test.go::TestRFC4271UnresolvedNextHopCannotWinOnLocalPref",
+    "unit-sha": "28f21d64f743efea",
+    "claim-sha": "971aa96934ee5598",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/rib_next_hop.go::candidateNextHopResolved",
+    "producer-sha": "b84de229617e04b3",
+    "break": "line 49: \"return igpcost.ResolveProspective(r.locRIB.Load(), nextHop, fam, prefix, path).Resolved\" -\u003e \"return true\""
+  },
+  {
+    "rid": "RFC4271-9.1.2-1",
+    "polarity": "positive",
+    "unit": "test/plugin/rfc4271-next-hop-kernel-forked.ci",
+    "unit-sha": "b6a801a0b75e56df",
+    "claim-sha": "94cd5336a176497f",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/rib_next_hop.go::candidateNextHopResolved",
+    "producer-sha": "b84de229617e04b3",
+    "break": "line 47: \"return remote.prospectiveDistance(fam, prefix, path).Resolved\" -\u003e \"return true\"",
+    "citation": "expect=stderr:contains=OK: real forked BGP ingress excludes unresolved preference, replaces and removes the Loc-RIB and kernel winner on cover loss, restores retained input without UPDATEs, and preserves a directly reachable BGP control"
+  },
+  {
+    "rid": "RFC4271-9.1.2-1",
+    "polarity": "negative",
+    "unit": "test/plugin/rfc4271-next-hop-kernel-forked.ci",
+    "unit-sha": "b6a801a0b75e56df",
+    "claim-sha": "713465135b37e8f6",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/rib_next_hop.go::candidateNextHopResolved",
+    "producer-sha": "b84de229617e04b3",
+    "break": "line 47: \"return remote.prospectiveDistance(fam, prefix, path).Resolved\" -\u003e \"return func() bool { d := remote.prospectiveDistance(fam, prefix, path); return d.Resolved \u0026\u0026 d.Cost != 0 }()\"",
+    "citation": "expect=stderr:contains=OK: real forked BGP ingress excludes unresolved preference, replaces and removes the Loc-RIB and kernel winner on cover loss, restores retained input without UPDATEs, and preserves a directly reachable BGP control"
+  },
+  {
+    "rid": "RFC4271-9.1.2-1",
+    "polarity": "positive",
+    "unit": "test/plugin/rfc4271-next-hop-kernel.ci",
+    "unit-sha": "a5e6b0bee04d8814",
+    "claim-sha": "308581277af6fb6b",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/rib_next_hop.go::candidateNextHopResolved",
+    "producer-sha": "b84de229617e04b3",
+    "break": "line 49: \"return igpcost.ResolveProspective(r.locRIB.Load(), nextHop, fam, prefix, path).Resolved\" -\u003e \"return true\"",
+    "citation": "expect=stderr:contains=OK: real internal BGP ingress excludes unresolved preference, replaces and removes the Loc-RIB and kernel winner on cover loss, restores retained input without UPDATEs, and preserves a directly reachable BGP control"
+  },
+  {
+    "rid": "RFC4271-9.1.2-1",
+    "polarity": "negative",
+    "unit": "test/plugin/rfc4271-next-hop-kernel.ci",
+    "unit-sha": "a5e6b0bee04d8814",
+    "claim-sha": "37db6167479b391a",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/rib_next_hop.go::candidateNextHopResolved",
+    "producer-sha": "b84de229617e04b3",
+    "break": "line 49: \"return igpcost.ResolveProspective(r.locRIB.Load(), nextHop, fam, prefix, path).Resolved\" -\u003e \"return func() bool { d := igpcost.ResolveProspective(r.locRIB.Load(), nextHop, fam, prefix, path); return d.Resolved \u0026\u0026 d.Cost != 0 }()\"",
+    "citation": "expect=stderr:contains=OK: real internal BGP ingress excludes unresolved preference, replaces and removes the Loc-RIB and kernel winner on cover loss, restores retained input without UPDATEs, and preserves a directly reachable BGP control"
+  }
+]

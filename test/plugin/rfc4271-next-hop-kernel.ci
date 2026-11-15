@@ -1,0 +1,57 @@
+# Test: does real BGP ingress exclude an unresolved preferred path, reselect and
+# withdraw on next-hop loss, and recover without UPDATEs while a direct control survives?
+# A unit cannot prove the configured selecting RIB publishes through the daemon
+# system RIB into the actual Linux kernel, or preserve its real process placement.
+# RFC requirement: RFC4271-9.1.2-1 positive -- an unresolved higher-LOCAL_PREF wire input cannot shadow its reachable alternative in the BGP best path, Loc-RIB or kernel.
+# RFC requirement: RFC4271-9.1.2-1 negative -- the zero-cost resolved alternate and directly reachable BGP control enter the real kernel.
+# RFC requirement: RFC4271-9.1.2-4 positive -- changing only interior covers reselects the retained wire inputs without another BGP UPDATE.
+# RFC requirement: RFC4271-9.1.2.1-2 positive -- loss of both resolving covers removes the subject from BGP best, Loc-RIB candidates and every kernel table.
+# RFC requirement: RFC4271-9.1.2.1-2 negative -- the independent directly reachable BGP control stays installed, and restoring a cover recovers retained subject input.
+option=needs-linux:caps=net-admin
+option=netns-link:name=zesrproof
+option=timeout:value=150s
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+ external rfc4271-next-hop-test { run "le test fixture plugin/rfc4271-next-hop-kernel internal 127.0.0.1:$PORT"; encoder json; }
+ internal sysrib-owner { use rib; }
+ internal bgp-rib { use bgp-rib; }
+ internal fib-kernel { use fib-kernel; }
+}
+interface { backend netlink; }
+connected { }
+fib { kernel { flush-on-stop true; } }
+rib { distance { ospf 110; } }
+bgp {
+ filter { import { final accept; } export { final accept; } }
+ peer preferred {
+  connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.2; connect false; } }
+  session { asn { local 65001; remote 65001; } router-id 1.1.1.1; family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
+  behavior { group-updates disable; }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer alternate {
+  connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.3; connect false; } }
+  session { asn { local 65001; remote 65001; } router-id 1.1.1.1; family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
+  behavior { group-updates disable; }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=le test fixture plugin/rfc4271-next-hop-kernel-empty:exit=0
+cmd=foreground:seq=2:exec=ze -:stdin=ze-conf:timeout=150s
+expect=exit:code=0
+expect=stderr:contains=OK: sysrib placement internal, running owner and child count 0
+expect=stderr:contains=OK: bgp-rib placement internal, running owner and child count 0
+expect=stderr:contains=OK: real internal BGP ingress excludes unresolved preference, replaces and removes the Loc-RIB and kernel winner on cover loss, restores retained input without UPDATEs, and preserves a directly reachable BGP control
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+cmd=foreground:seq=3:exec=le test fixture daemon/await-exit:exit=0
+expect=stderr:contains=OK: the first daemon exited
+cmd=foreground:seq=4:exec=le test fixture plugin/rfc4271-next-hop-link-cleanup:exit=0
+expect=stderr:contains=OK: joined daemon removed Ze next-hop routes while the fixture device and OS route survived before owned cleanup
+cmd=foreground:seq=5:exec=le test fixture plugin/rfc4271-next-hop-kernel-empty:exit=0
+expect=stderr:contains=OK: next-hop fixture prefixes are absent from every kernel table
+cmd=foreground:seq=6:exec=ze config validate -:stdin=ze-conf:exit=0

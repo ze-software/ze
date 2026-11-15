@@ -131,6 +131,9 @@ func recoveryIdentity(fam family.Family, raw []byte, addPath bool) (ribOutKey, e
 // is a candidate, an ADD-PATH source's several identifiers included. Each
 // excluded source's candidates, the destination's own, and those of down peers
 // are skipped before election. Election needs no sent entry for the key.
+// This existing Adj-RIB-Out wire query does not offer an installation into the
+// local forwarding table. Only its private gather purpose omits that feasibility
+// check; source policy, receive validation and self-next-hop guards still apply.
 // The caller MUST hold peerMu throughout selection and the byte snapshot.
 func (r *RIBManager) recoverySurvivorsLocked(request *ribevents.RecoveryRequest, key *ribevents.RecoveryKey, identity ribOutKey) ([]ribevents.RecoveryRoute, error) {
 	var candidates []*Candidate
@@ -146,7 +149,8 @@ func (r *RIBManager) recoverySurvivorsLocked(request *ribevents.RecoveryRequest,
 				return nil, fmt.Errorf("recovery: invalid CIDR NLRI")
 			}
 		}
-		candidates = r.gatherPrefixCandidatesLocked(request.Family, prefix)
+		// RFC 7911 Section 2 and RFC 8277 Section 3.1: gather the retained paths.
+		candidates = r.gatherPrefixCandidatesForLocked(request.Family, prefix, candidateAdmissionRecovery)
 	} else {
 		// A sent-table identity is not necessarily a receive-storage key:
 		// FlowSpec's sent identity omits its native length framing, while
@@ -158,7 +162,8 @@ func (r *RIBManager) recoverySurvivorsLocked(request *ribevents.RecoveryRequest,
 		}
 		var scratch [nlrisplit.PrefixKeyScratchSize]byte
 		receiveKey := storage.RouteKey(request.Family, raw, scratch[:], false)
-		candidates = r.gatherKeyCandidatesLocked(request.Family, receiveKey)
+		// RFC 7911 Section 2: path identifiers do not partition route recovery.
+		candidates = r.gatherKeyCandidatesForLocked(request.Family, receiveKey, candidateAdmissionRecovery)
 	}
 	defer releaseCandidates(candidates)
 	eligible := 0

@@ -1,0 +1,72 @@
+[
+  {
+    "rid": "RFC4271-9.1.2.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc4271_next_hop_reachability_test.go::TestRFC4271NextHopLossReselectsAndRestorationRecovers",
+    "unit-sha": "6cd9894f40fe74cc",
+    "claim-sha": "a0c8dc09b85d879b",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange",
+    "producer-sha": "3f5dec7a9b9128da",
+    "break": "line 948: \"r.removeLocRIB(fam, pfx)\" -\u003e \"if false { r.removeLocRIB(fam, pfx) }\""
+  },
+  {
+    "rid": "RFC4271-9.1.2.1-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rfc4271_next_hop_reachability_test.go::TestRFC4271NextHopLossReselectsAndRestorationRecovers",
+    "unit-sha": "6cd9894f40fe74cc",
+    "claim-sha": "064d8e2a4167ac73",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange",
+    "producer-sha": "3f5dec7a9b9128da",
+    "break": "line 1030: \"if !cidr {\" -\u003e \"if !cidr || (havePrev \u0026\u0026 prevNextHop != nextHop) {\""
+  },
+  {
+    "rid": "RFC4271-9.1.2.1-2",
+    "polarity": "negative",
+    "unit": "test/plugin/rfc4271-next-hop-kernel-forked.ci",
+    "unit-sha": "b6a801a0b75e56df",
+    "claim-sha": "83b23784997301e2",
+    "route": "mutant",
+    "producer": "internal/core/rib/igpcost/igpcost.go::resolve",
+    "producer-sha": "75f19b10a028ff46",
+    "break": "line 110: \"distance.Resolved = true\" -\u003e \"distance.Resolved = path.NextHop.IsValid()\"",
+    "citation": "expect=stderr:contains=OK: real forked BGP ingress excludes unresolved preference, replaces and removes the Loc-RIB and kernel winner on cover loss, restores retained input without UPDATEs, and preserves a directly reachable BGP control"
+  },
+  {
+    "rid": "RFC4271-9.1.2.1-2",
+    "polarity": "positive",
+    "unit": "test/plugin/rfc4271-next-hop-kernel-forked.ci",
+    "unit-sha": "b6a801a0b75e56df",
+    "claim-sha": "5733b362e2fe1e72",
+    "route": "mutant",
+    "producer": "internal/plugins/fib/kernel/fibkernel.go::processEvent",
+    "producer-sha": "3dcf50f357bfb0a3",
+    "break": "line 465: \"case routeaction.VerbRemove:\" -\u003e \"case routeaction.VerbRemove: continue\"",
+    "citation": "expect=stderr:contains=OK: real forked BGP ingress excludes unresolved preference, replaces and removes the Loc-RIB and kernel winner on cover loss, restores retained input without UPDATEs, and preserves a directly reachable BGP control"
+  },
+  {
+    "rid": "RFC4271-9.1.2.1-2",
+    "polarity": "negative",
+    "unit": "test/plugin/rfc4271-next-hop-kernel.ci",
+    "unit-sha": "a5e6b0bee04d8814",
+    "claim-sha": "83b23784997301e2",
+    "route": "mutant",
+    "producer": "internal/core/rib/igpcost/igpcost.go::resolve",
+    "producer-sha": "75f19b10a028ff46",
+    "break": "line 110: \"distance.Resolved = true\" -\u003e \"distance.Resolved = path.NextHop.IsValid()\"",
+    "citation": "expect=stderr:contains=OK: real internal BGP ingress excludes unresolved preference, replaces and removes the Loc-RIB and kernel winner on cover loss, restores retained input without UPDATEs, and preserves a directly reachable BGP control"
+  },
+  {
+    "rid": "RFC4271-9.1.2.1-2",
+    "polarity": "positive",
+    "unit": "test/plugin/rfc4271-next-hop-kernel.ci",
+    "unit-sha": "a5e6b0bee04d8814",
+    "claim-sha": "83ab1a4aa92763b7",
+    "route": "mutant",
+    "producer": "internal/plugins/fib/kernel/fibkernel.go::processEvent",
+    "producer-sha": "3dcf50f357bfb0a3",
+    "break": "line 465: \"case routeaction.VerbRemove:\" -\u003e \"case routeaction.VerbRemove: continue\"",
+    "citation": "expect=stderr:contains=OK: real internal BGP ingress excludes unresolved preference, replaces and removes the Loc-RIB and kernel winner on cover loss, restores retained input without UPDATEs, and preserves a directly reachable BGP control"
+  }
+]

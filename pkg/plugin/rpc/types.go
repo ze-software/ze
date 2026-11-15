@@ -1263,6 +1263,10 @@ const RouteMetricsAddressMax = 4096
 // An empty address list requests only the current routing revision.
 type RouteMetricsInput struct {
 	Addresses []string `json:"addresses,omitempty"`
+	// ProspectiveRoutes, when present, supplies one independent proposed
+	// contribution per address. Each distance is computed after that one
+	// contribution; the batch never installs routes or combines proposals.
+	ProspectiveRoutes []RouteInstallEntry `json:"prospective-routes,omitempty"`
 }
 
 // RouteMetric distinguishes an unresolved hop from a resolved zero-cost path.

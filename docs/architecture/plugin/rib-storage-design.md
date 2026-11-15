@@ -369,6 +369,18 @@ only in data. The RIB skips every candidate of an excluded source, the
 destination's own candidates and those of down peers, without deleting any
 received state from a possibly reconnected session. Election needs no sent
 entry for the key.
+
+This is a forwarded-wire replacement query over received state, not an offer
+to install a route in Ze's forwarding Loc-RIB. Its private gather admission
+therefore does not require the next hop to resolve through that local table.
+Import policy, receive validation, self-next-hop rejection and the destination,
+excluded-source and down-peer checks still apply. The ordinary forwarding
+gathers retain prospective next-hop feasibility. The published callback and
+hidden command parser enter the same recovery handler and select this same
+private purpose; no public role or mode field changes that contract.
+<!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- candidateAdmission, gatherPrefixCandidatesForLocked, gatherKeyCandidatesForLocked -->
+<!-- test: internal/component/bgp/plugins/rib/rib_recovery_admission_test.go -- TestRecoveryAdmissionKeepsWireCandidates, TestRecoveryAdmissionPreservesCandidateGuards -->
+
 For non-CIDR recovery, candidate lookup derives the receive-storage key from the
 validated requested NLRI after removing ADD-PATH framing. It does not reuse the
 sent-table identity: FlowSpec receive keys retain a canonical native length field,

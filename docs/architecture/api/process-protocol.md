@@ -2079,6 +2079,21 @@ either as a usable snapshot.
 <!-- source: internal/component/plugin/server/dispatch_route_metrics.go -- opRouteMetrics -->
 <!-- source: pkg/plugin/sdk/sdk_engine.go -- RouteMetrics -->
 
+An optional `prospective-routes` list uses the `RouteInstallEntry` wire shape
+and must contain one contribution per requested address. Each distance resolves
+through the table that would result from that one contribution, under the same
+import policy and selection rules as an actual install. The proposals are
+independent: they are not installed, combined into one hypothetical batch, or
+published as routing changes. This lets a selecting plugin exclude a next hop
+that would become recursive through its own destination. The SDK exposes this
+query as `RouteMetricsProspective`; ordinary `RouteMetrics` calls keep the
+current-table behavior.
+<!-- source: pkg/plugin/rpc/types.go -- RouteMetricsInput, RouteInstallEntry -->
+<!-- source: pkg/plugin/sdk/sdk_engine.go -- RouteMetricsProspective -->
+<!-- source: internal/component/plugin/server/dispatch_route.go -- parseRouteInstall -->
+<!-- source: internal/component/plugin/server/dispatch_route_metrics.go -- opRouteMetrics -->
+<!-- source: internal/core/rib/locrib/prospective.go -- PreviewSelected -->
+
 `batch-validate` carries `ValidationDecision.MsgID` as the received UPDATE
 generation. A zero explicitly selects the current route, or the next route when
 none is stored. A rejected route marked `Ineligible` remains stored for later

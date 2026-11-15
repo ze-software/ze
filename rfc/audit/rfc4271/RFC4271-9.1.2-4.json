@@ -1,0 +1,29 @@
+{
+  "code": {
+    "internal/component/bgp/plugins/rib/bestpath.go::compareAfterMED": "e3acdb29914c56bf",
+    "internal/component/bgp/plugins/rib/rib_aigp.go::runAIGPSelection": "fd37972266e4fa65",
+    "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange": "c77c841c72278a2b",
+    "internal/component/bgp/plugins/rib/rib_commands.go::extractCandidate": "de6673abc9d6cc22",
+    "internal/component/bgp/plugins/rib/rib_remote.go::runRemoteMetrics": "5749196a44f5f8c4",
+    "internal/core/rib/locrib/candidate.go::Equal": "6ddf73308866f9d4"
+  },
+  "note": "RFC 4271 Section 9.1.2 states: If either the immediate next-hop or the IGP cost to the NEXT_HOP (where the NEXT_HOP is resolved through an IGP route) changes, Phase 2 Route Selection MUST be performed again. Independently re-read all six tagged occurrences and their real resolver, production subscriber, candidate extraction/selection and Loc-RIB mirroring producers. The immediate-hop unit drains initial and resulting no-op selection lookups, changes only the interior gateway at fixed metric 10, and requires candidate extraction to observe that new gateway while keeping the received BGP NEXT_HOP and no AIGP before and after. Its positive record disables next-hop change detection. Its negative native break corrupts received-NEXT_HOP mirroring and also fails initial preservation, so that red is not attributed solely to post-change reselection. The newly tagged cost-only unit keeps every existing test statement unchanged: two real Loc-RIB interior covers start at costs A10/B20, two stored iBGP paths have equal earlier ranking attributes and no AIGP, and the initially preferred A opposes later peer-address fallback. Changing only A's interior cost to 30 then 5 requires the mirrored selected route to move A to B and back to A, without another BGP input or a direct selector call. Its current native record preserves the initial production scan and omits only subscriber-driven repeated selection; clean passes, while the named mutated test fails specifically after A's cost rises to 30 because B never becomes selected. The existing retained-input loss/restoration unit and both internal/forked Linux daemon carriers additionally exercise selection changes on interior-cover availability without another UPDATE, with real ingress and actual BGP-best/Loc-RIB/kernel observations for the latter. Their trigger cuts preserve initial selection and fail after cover changes; these live scenarios do not separately claim cost-only daemon/forked/kernel reselection. The immediate-hop and cost-only triggers are now both directly asserted and discriminated within the bounded in-process IPv4 production subscriber, with distinct preservation controls, so the previous cost-only tagging/recording gap is closed. This does not prove every route-ranking criterion, prospective-recursion integration or packet forwarding.",
+  "requirement_sha": "893ab89901e0af7d",
+  "tests": {
+    "internal/component/bgp/plugins/rib/rfc4271_igp_cost_reselect_test.go::TestIGPCostChangeReselectsWithoutAIGP": "1c79653345894545",
+    "internal/component/bgp/plugins/rib/rfc4271_next_hop_reachability_test.go::TestRFC4271NextHopLossReselectsAndRestorationRecovers": "fca14cd460934378",
+    "internal/component/bgp/plugins/rib/rfc4271_next_hop_reselection_proof_test.go::TestRFC4271ImmediateNextHopChangeRepeatsSelection": "0a3f9db271a418ed",
+    "internal/component/bgp/plugins/rib/rfc4271_next_hop_reselection_proof_test.go::TestRFC4271ImmediateNextHopChangeRepeatsSelection#2": "0a3f9db271a418ed",
+    "test/plugin/rfc4271-next-hop-kernel-forked.ci": "737bab785ab5810b",
+    "test/plugin/rfc4271-next-hop-kernel.ci": "d5583bb8101bc463"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/rfc4271_igp_cost_reselect_test.go::TestIGPCostChangeReselectsWithoutAIGP": "880a65e835f2c381",
+    "internal/component/bgp/plugins/rib/rfc4271_next_hop_reachability_test.go::TestRFC4271NextHopLossReselectsAndRestorationRecovers": "4e9aaf932fa9e918",
+    "internal/component/bgp/plugins/rib/rfc4271_next_hop_reselection_proof_test.go::TestRFC4271ImmediateNextHopChangeRepeatsSelection": "67048824598adb36",
+    "internal/component/bgp/plugins/rib/rfc4271_next_hop_reselection_proof_test.go::TestRFC4271ImmediateNextHopChangeRepeatsSelection#2": "67048824598adb36",
+    "test/plugin/rfc4271-next-hop-kernel-forked.ci": "737bab785ab5810b",
+    "test/plugin/rfc4271-next-hop-kernel.ci": "d5583bb8101bc463"
+  },
+  "verdict": "enforced"
+}

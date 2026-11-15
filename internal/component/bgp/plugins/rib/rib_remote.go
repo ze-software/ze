@@ -12,6 +12,7 @@ import (
 	"github.com/ze-software/ze/internal/core/rib/igpcost"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
 	"github.com/ze-software/ze/internal/core/rib/routeinstall"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -24,12 +25,16 @@ import (
 // that no-op through Path.Equal, and the forked mirror MUST drop it the same
 // way. Its size is bounded by the selected routes installed in the engine.
 type remoteRIB struct {
-	mu        sync.Mutex
-	client    *sdk.Plugin
-	sink      *routeinstall.Sink
-	revision  uint64
-	costs     map[netip.Addr]igpcost.Distance
-	installed map[remoteRoute]locrib.Path
+	mu                  sync.Mutex
+	client              *sdk.Plugin
+	sink                *routeinstall.Sink
+	revision            uint64
+	costs               map[netip.Addr]igpcost.Distance
+	prospective         map[prospectiveMetricKey]igpcost.Distance
+	installed           map[remoteRoute]locrib.Path
+	metricFailed        bool
+	metricIssueRevision uint64
+	metricIssueSent     uint64
 }
 
 // remoteUnchanged reports a re-mirror the engine would treat as a no-op. It
@@ -58,11 +63,15 @@ func (r *RIBManager) igpDistance(addr netip.Addr) igpcost.Distance {
 	if d, ok := remote.costs[addr]; ok {
 		return d
 	}
-	out, err := remote.client.RouteMetrics(context.Background(), []string{addr.String()})
-	if err != nil || len(out.Distances) != 1 {
-		logger().Error("next-hop metric lookup failed", "next-hop", addr, "error", err)
+	ctx, cancel := context.WithTimeout(context.Background(), nextHopMetricTimeout)
+	defer cancel()
+	out, err := remote.client.RouteMetrics(ctx, []string{addr.String()})
+	if err != nil {
+		remote.noteMetricFailure(true)
+		logger().Error(remoteMetricProblem, "code", codeRemoteMetricFailure, "next-hop", addr, "error", err)
 		return igpcost.Distance{}
 	}
+	remote.noteMetricFailure(false)
 	d := out.Distances[0]
 	cost := igpcost.Distance{Cost: d.Cost, Resolved: d.Resolved, Recursive: d.Recursive, MissingAIGP: d.MissingAIGP}
 	if len(remote.costs) >= 4096 {
@@ -91,23 +100,95 @@ func (r *RIBManager) runRemoteMetrics(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			out, err := r.plugin.RouteMetrics(ctx, nil)
+			r.reportRemoteMetricIssue(ctx)
+			poll, cancel := context.WithTimeout(ctx, nextHopMetricTimeout)
+			out, err := r.plugin.RouteMetrics(poll, nil)
+			cancel()
 			if err != nil {
-				logger().Error("mandatory next-hop metric feed failed", "error", err)
+				if ctx.Err() != nil {
+					return
+				}
+				logger().Error(remoteMetricProblem, "code", codeRemoteMetricFailure, "error", err)
+				// Preserve the mandatory feed's fatal lifecycle, but retain an error
+				// event before Close removes this process's active warnings.
+				r.reportRemoteMetricFailure(ctx)
 				_ = r.plugin.Close()
 				return
 			}
 			r.forkRIB.mu.Lock()
 			changed := out.Revision != r.forkRIB.revision
+			if r.forkRIB.metricFailed {
+				// A failed admission was deliberately not cached. Retry retained
+				// paths even when the routing table itself has not changed.
+				changed = true
+			}
+			r.forkRIB.noteMetricFailure(false)
 			if changed {
 				r.forkRIB.revision = out.Revision
 				clear(r.forkRIB.costs)
+				clear(r.forkRIB.prospective)
 			}
 			r.forkRIB.mu.Unlock()
 			if changed {
 				r.reselectAIGPRoutes()
 			}
+			r.reportRemoteMetricIssue(ctx)
 		}
+	}
+}
+
+const codeRemoteMetricFailure = "doctor-bgp-next-hop-metrics"
+
+const remoteMetricProblem = "The BGP RIB could not read next-hop reachability from the engine; affected paths cannot be selected. Inspect the plugin connection with ze show doctor."
+
+// noteMetricFailure coalesces failures into one bounded warning. The caller
+// MUST hold remote.mu; only the existing metric worker sends report RPCs.
+func (remote *remoteRIB) noteMetricFailure(failed bool) {
+	if remote.metricFailed == failed {
+		return
+	}
+	remote.metricFailed = failed
+	remote.metricIssueRevision++
+}
+
+// reportRemoteMetricIssue sends a snapshot outside peerMu and remote.mu. A
+// concurrent transition remains pending for the worker's next tick.
+func (r *RIBManager) reportRemoteMetricIssue(ctx context.Context) {
+	remote := r.forkRIB
+	remote.mu.Lock()
+	revision := remote.metricIssueRevision
+	failed := remote.metricFailed
+	pending := revision != remote.metricIssueSent
+	remote.mu.Unlock()
+	if !pending {
+		return
+	}
+	reportCtx, cancel := context.WithTimeout(ctx, nextHopMetricTimeout)
+	defer cancel()
+	var err error
+	if failed {
+		err = r.plugin.RaiseIssue(reportCtx, sdk.Issue{Severity: rpc.ReportWarning,
+			Code: codeRemoteMetricFailure, Subject: "bgp-rib", Message: remoteMetricProblem, Fix: "ze show doctor"})
+	} else {
+		err = r.plugin.ClearIssue(reportCtx, codeRemoteMetricFailure, "bgp-rib")
+	}
+	if err != nil {
+		logger().Error("The BGP RIB could not report its next-hop lookup problem; inspect the plugin connection with ze show doctor.",
+			"code", codeRemoteMetricFailure, "error", err)
+		return
+	}
+	remote.mu.Lock()
+	remote.metricIssueSent = revision
+	remote.mu.Unlock()
+}
+
+func (r *RIBManager) reportRemoteMetricFailure(ctx context.Context) {
+	reportCtx, cancel := context.WithTimeout(ctx, nextHopMetricTimeout)
+	defer cancel()
+	if err := r.plugin.RaiseIssue(reportCtx, sdk.Issue{Severity: rpc.ReportError,
+		Code: codeRemoteMetricFailure, Subject: "bgp-rib", Message: remoteMetricProblem, Fix: "ze show doctor"}); err != nil {
+		logger().Error("The BGP RIB could not report its failed metric feed; inspect the plugin connection with ze show doctor.",
+			"code", codeRemoteMetricFailure, "error", err)
 	}
 }
 

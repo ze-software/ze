@@ -171,7 +171,20 @@ func (p *Plugin) RouteRemove(ctx context.Context, routes []rpc.RouteRemoveEntry)
 
 // RouteMetrics uses the registered engine RPC on both socket and Direct rails.
 func (p *Plugin) RouteMetrics(ctx context.Context, addresses []string) (*rpc.RouteMetricsOutput, error) {
-	result, err := p.callEngineWithResult(ctx, rpc.MethodRouteMetrics, &rpc.RouteMetricsInput{Addresses: addresses})
+	return p.routeMetrics(ctx, &rpc.RouteMetricsInput{Addresses: addresses})
+}
+
+// RouteMetricsProspective resolves each address after its matching proposed
+// contribution, without installing any route. The proposals are independent.
+func (p *Plugin) RouteMetricsProspective(ctx context.Context, addresses []string, routes []rpc.RouteInstallEntry) (*rpc.RouteMetricsOutput, error) {
+	if len(routes) != len(addresses) {
+		return nil, fmt.Errorf("route-metrics: got %d prospective routes for %d addresses", len(routes), len(addresses))
+	}
+	return p.routeMetrics(ctx, &rpc.RouteMetricsInput{Addresses: addresses, ProspectiveRoutes: routes})
+}
+
+func (p *Plugin) routeMetrics(ctx context.Context, input *rpc.RouteMetricsInput) (*rpc.RouteMetricsOutput, error) {
+	result, err := p.callEngineWithResult(ctx, rpc.MethodRouteMetrics, input)
 	if err != nil {
 		return nil, err
 	}
@@ -182,8 +195,8 @@ func (p *Plugin) RouteMetrics(ctx context.Context, addresses []string) (*rpc.Rou
 	if out == nil {
 		return nil, errors.New("route-metrics: engine returned no result")
 	}
-	if len(out.Distances) != len(addresses) {
-		return nil, fmt.Errorf("route-metrics: got %d distances for %d addresses", len(out.Distances), len(addresses))
+	if len(out.Distances) != len(input.Addresses) {
+		return nil, fmt.Errorf("route-metrics: got %d distances for %d addresses", len(out.Distances), len(input.Addresses))
 	}
 	return out, nil
 }

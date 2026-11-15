@@ -114,6 +114,7 @@ func TestAddPathOpaqueOneElectionPerRoute(t *testing.T) {
 // candidates whichever session's key triggers, and the plain peer wins.
 // PREVENTS: each peer being asked with the triggering session's wire key, so
 // the four path-id octets keep the two sessions' routes from ever meeting.
+// RFC requirement: RFC8277-3.1-1 positive -- VPN-IPv4 paths for the same RD and prefix from plain and ADD-PATH sessions are both candidates whichever session's key triggers selection; the plain peer's LOCAL_PREF 500 route wins in one election.
 func TestAddPathOpaqueMixedModeMeetInOneElection(t *testing.T) {
 	for _, tc := range opaqueFamilyCases() {
 		t.Run(tc.name, func(t *testing.T) {

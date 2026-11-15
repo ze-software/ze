@@ -1193,7 +1193,41 @@ func (r *RIBManager) gatherCandidatesLocked(fam family.Family, nlriBytes []byte,
 	return r.gatherPrefixCandidatesLocked(fam, pfx)
 }
 
-// gatherPrefixCandidatesLocked collects every stored path of pfx from every
+// candidateAdmission names the local operation requesting candidate snapshots.
+// It is never parsed from peer input or a recovery request. Callers MUST select
+// a named purpose; an absent or unknown purpose is an internal programming bug.
+type candidateAdmission uint8
+
+const (
+	candidateAdmissionUnspecified candidateAdmission = iota
+	candidateAdmissionForwarding
+	candidateAdmissionRecovery
+)
+
+// requiresResolution distinguishes a prospective forwarding install from the
+// existing source-owned wire-recovery query. Its callers MUST pass one of the
+// two named purposes, rather than infer a purpose from peer or transport flags.
+func (admission candidateAdmission) requiresResolution() bool {
+	switch admission {
+	case candidateAdmissionForwarding:
+		return true
+	case candidateAdmissionRecovery:
+		return false
+	case candidateAdmissionUnspecified:
+		panic("BUG: candidate gather admission is unspecified")
+	default:
+		panic("BUG: invalid candidate gather admission")
+	}
+}
+
+// gatherPrefixCandidatesLocked requests the ordinary forwarding election.
+// The caller MUST hold peerMu.RLock and later call releaseCandidates.
+func (r *RIBManager) gatherPrefixCandidatesLocked(fam family.Family, pfx netip.Prefix) []*Candidate {
+	// RFC 7911 Section 2 and RFC 8277 Section 3.1: compare all paths of the prefix.
+	return r.gatherPrefixCandidatesForLocked(fam, pfx, candidateAdmissionForwarding)
+}
+
+// gatherPrefixCandidatesForLocked collects every stored path of pfx from every
 // peer. Caller MUST hold r.peerMu.RLock and later call releaseCandidates.
 //
 // RFC 7911 Section 2: "a particular path for an address prefix can be
@@ -1208,7 +1242,8 @@ func (r *RIBManager) gatherCandidatesLocked(fam family.Family, nlriBytes []byte,
 //
 // Each peer is asked by prefix, never with another session's wire key: a key
 // framed for ADD-PATH reads as a different prefix in a peer stored without it.
-func (r *RIBManager) gatherPrefixCandidatesLocked(fam family.Family, pfx netip.Prefix) []*Candidate {
+func (r *RIBManager) gatherPrefixCandidatesForLocked(fam family.Family, pfx netip.Prefix, admission candidateAdmission) []*Candidate {
+	requiresResolution := admission.requiresResolution()
 	var candidates []*Candidate
 	// Loaded ONCE, so every candidate for this prefix is judged against the same
 	// set of this speaker's own addresses (rib_self_nexthop.go). A per-candidate
@@ -1237,6 +1272,13 @@ func (r *RIBManager) gatherPrefixCandidatesLocked(fam family.Family, pfx netip.P
 			c.PathID = path.PathID
 			c.AddPath = peerAddPath
 			c.entry, c.labelHandle = path.Entry, path.Labels
+			if requiresResolution {
+				// RFC 4271 Section 9.1.2: forwarding feasibility precedes ranking.
+				if !r.candidateNextHopResolved(fam, pfx, c) {
+					path.Release()
+					continue
+				}
+			}
 			candidates = append(candidates, c)
 			if gate != nil {
 				gate.queries = append(gate.queries, ribevents.EligibilityQuery{
@@ -1252,7 +1294,14 @@ func (r *RIBManager) gatherPrefixCandidatesLocked(fam family.Family, pfx netip.P
 	return candidates
 }
 
-// gatherKeyCandidatesLocked collects every stored path of the route routeKey
+// gatherKeyCandidatesLocked requests the ordinary forwarding election.
+// The caller MUST hold peerMu.RLock and later call releaseCandidates.
+func (r *RIBManager) gatherKeyCandidatesLocked(fam family.Family, routeKey []byte) []*Candidate {
+	// RFC 7911 Section 2 and RFC 8277 Section 3.1: compare every path of the route.
+	return r.gatherKeyCandidatesForLocked(fam, routeKey, candidateAdmissionForwarding)
+}
+
+// gatherKeyCandidatesForLocked collects every stored path of the route routeKey
 // names from every peer, for a family whose NLRI is no CIDR prefix. routeKey
 // is a routeIdentity result: no path identifier and no label. Caller MUST hold
 // r.peerMu.RLock and later call releaseCandidates.
@@ -1266,7 +1315,8 @@ func (r *RIBManager) gatherPrefixCandidatesLocked(fam family.Family, pfx netip.P
 // the same route from a session without ADD-PATH, are candidates of ONE
 // selection. Each peer is asked by the route key, never with the triggering
 // session's wire NLRI, whose four path-id octets no other framing matches.
-func (r *RIBManager) gatherKeyCandidatesLocked(fam family.Family, routeKey []byte) []*Candidate {
+func (r *RIBManager) gatherKeyCandidatesForLocked(fam family.Family, routeKey []byte, admission candidateAdmission) []*Candidate {
+	requiresResolution := admission.requiresResolution()
 	var candidates []*Candidate
 	selfNextHops := r.selfNextHops.Load()
 	// Stack-backed for the same reason gatherPrefixCandidatesLocked's is.
@@ -1293,6 +1343,13 @@ func (r *RIBManager) gatherKeyCandidatesLocked(fam family.Family, routeKey []byt
 			c.AddPath = peerAddPath
 			c.Route = path.Route
 			c.entry, c.labelHandle = path.Entry, path.Labels
+			if requiresResolution {
+				// RFC 4271 Section 9.1.2: forwarding feasibility precedes ranking.
+				if !r.candidateNextHopResolved(fam, netip.Prefix{}, c) {
+					path.Release()
+					continue
+				}
+			}
 			candidates = append(candidates, c)
 		}
 	}

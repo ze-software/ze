@@ -79,6 +79,22 @@ Received UPDATE → best-path change (all `file:line` in `internal/component/bgp
   iBGP, 6 lowest IGP cost (0 unless a resolver is set via `SetIGPCostFunc`), 7 lowest
   Router-ID/ORIGINATOR_ID, 8 lowest peer address. `SelectBest` is a linear reduce; multipath
   siblings tie on steps 1–5 (`multipathEqual`, `bestpath.go`).
+- **Next-hop admission:** both ordinary forwarding candidate gathers call
+  `candidateNextHopResolved` before ranking. CIDR candidates resolve through a
+  prospective selected-path view using the same Loc-RIB policy, distance and
+  selection as insertion; non-CIDR candidates cannot alter that prefix-keyed
+  table and use current resolution.
+  An unresolved address next hop excludes the path without removing received
+  storage. Forked RIBs send the same self-contained proposed contribution through
+  `RouteMetricsProspective`; destination and rank fields are part of the bounded
+  revision-invalidated cache key (`rib_next_hop.go`, `rib_remote.go`).
+  The private forwarded-wire recovery purpose skips local forwarding-resolution
+  admission while retaining the shared candidate guards; it does not install a
+  forwarding contribution (`rib_commands.go`, `rib_recovery.go`).
+  Engine lookups and revision polls have a five-second response bound. The
+  existing remote metric worker sends coalesced issue raise/clear calls outside
+  the peer/cache locks; a failed revision poll raises an error before closing
+  the plugin. Broader fixture repair and native kernel proof review remain open.
 - **Change tracking:** previous best per prefix is a packed `bestPathRecord` uint64 (three
   uint16 interner indices for peer/next-hop/MED + a flags word); zero GC pointers per entry so a
   1M-prefix BART fringe is opaque to the GC mark phase. Same-best short-circuit is one value

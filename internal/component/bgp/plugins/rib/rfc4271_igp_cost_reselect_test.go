@@ -1,4 +1,7 @@
-// RFC naming: untagged -- Section 9.1.2.2 step (e), interior cost, has no MUST-level row in rfc/short/rfc4271.md to tag.
+// Design: docs/architecture/route-selection.md -- interior changes repeat BGP selection
+// RFC: rfc/short/rfc4271.md -- Section 9.1.2 cost-change reselection
+// RFC naming: the cost-change lifecycle is tagged; Section 9.1.2.2 step (e)
+// ranking has no separate MUST-level row and remains untagged.
 package rib
 
 import (
@@ -43,6 +46,11 @@ func igpRoute(metric uint32) locrib.Path {
 //
 // The lookup registered here is the one sysrib registers in production:
 // nhResolver.IGPMetric is igpcost.Resolve over the same Loc-RIB.
+//
+// RFC 4271 Section 9.1.2: "If either the immediate next-hop or the IGP
+// cost to the NEXT_HOP (where the NEXT_HOP is resolved through an IGP
+// route) changes, Phase 2 Route Selection MUST be performed again."
+// RFC requirement: RFC4271-9.1.2-4 positive -- changing only the interior IGP cost, without another BGP UPDATE or AIGP, makes the production change subscriber reselect the retained paths and move the mirrored winner A to B and back to A.
 func TestIGPCostChangeReselectsWithoutAIGP(t *testing.T) {
 	loc := locrib.NewRIB()
 	r := newRIBManager(nil)

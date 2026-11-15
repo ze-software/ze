@@ -1,0 +1,70 @@
+[
+  {
+    "rid": "RFC4271-9.1.2-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc4271_igp_cost_reselect_test.go::TestIGPCostChangeReselectsWithoutAIGP",
+    "unit-sha": "72d946f3e4031d4d",
+    "claim-sha": "a571929f2947b9f8",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/rib_aigp.go::runAIGPSelection",
+    "producer-sha": "6030c15d2fb9bf15",
+    "break": "line 45: \"r.reselectAIGPRoutes()\" -\u003e \"continue\""
+  },
+  {
+    "rid": "RFC4271-9.1.2-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc4271_next_hop_reachability_test.go::TestRFC4271NextHopLossReselectsAndRestorationRecovers",
+    "unit-sha": "6cd9894f40fe74cc",
+    "claim-sha": "4832fdf14dbcaa15",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/rib_aigp.go::runAIGPSelection",
+    "producer-sha": "6030c15d2fb9bf15",
+    "break": "line 45: \"r.reselectAIGPRoutes()\" -\u003e \"continue\""
+  },
+  {
+    "rid": "RFC4271-9.1.2-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc4271_next_hop_reselection_proof_test.go::TestRFC4271ImmediateNextHopChangeRepeatsSelection",
+    "unit-sha": "b3d7c366285cc421",
+    "claim-sha": "062ff020477a8eb6",
+    "route": "mutant",
+    "producer": "internal/core/rib/locrib/candidate.go::Equal",
+    "producer-sha": "785457a77254db6f",
+    "break": "line 264: \"p.NextHop == q.NextHop\" -\u003e \"true\""
+  },
+  {
+    "rid": "RFC4271-9.1.2-4",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rfc4271_next_hop_reselection_proof_test.go::TestRFC4271ImmediateNextHopChangeRepeatsSelection",
+    "unit-sha": "b3d7c366285cc421",
+    "claim-sha": "4e618c35bf5457da",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange",
+    "producer-sha": "3f5dec7a9b9128da",
+    "break": "line 1039: \"NextHop:  nextHop,\" -\u003e \"NextHop:  netip.Addr{},\""
+  },
+  {
+    "rid": "RFC4271-9.1.2-4",
+    "polarity": "positive",
+    "unit": "test/plugin/rfc4271-next-hop-kernel-forked.ci",
+    "unit-sha": "b6a801a0b75e56df",
+    "claim-sha": "45efac1c946cb9e3",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/rib_remote.go::runRemoteMetrics",
+    "producer-sha": "ac9dc07b356f4bd1",
+    "break": "line 133: \"r.reselectAIGPRoutes()\" -\u003e \"continue\"",
+    "citation": "expect=stderr:contains=OK: real forked BGP ingress excludes unresolved preference, replaces and removes the Loc-RIB and kernel winner on cover loss, restores retained input without UPDATEs, and preserves a directly reachable BGP control"
+  },
+  {
+    "rid": "RFC4271-9.1.2-4",
+    "polarity": "positive",
+    "unit": "test/plugin/rfc4271-next-hop-kernel.ci",
+    "unit-sha": "a5e6b0bee04d8814",
+    "claim-sha": "5263750f36404791",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/rib_aigp.go::runAIGPSelection",
+    "producer-sha": "6030c15d2fb9bf15",
+    "break": "line 45: \"r.reselectAIGPRoutes()\" -\u003e \"continue\"",
+    "citation": "expect=stderr:contains=OK: real internal BGP ingress excludes unresolved preference, replaces and removes the Loc-RIB and kernel winner on cover loss, restores retained input without UPDATEs, and preserves a directly reachable BGP control"
+  }
+]

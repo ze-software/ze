@@ -16,6 +16,9 @@ import (
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/redistevents"
+	"github.com/ze-software/ze/internal/core/rib/igpcost"
+	"github.com/ze-software/ze/internal/core/rib/locrib"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -44,6 +47,26 @@ import (
 // RFC requirement: RFC8277-3.1-1 positive -- two labeled paths of one prefix on one ADD-PATH session, under different path identifiers and labels, are both candidates of the one selection for the prefix, and the MED 10 path, path 9, is selected over path 7's MED 20 whichever path's key starts the lookup.
 func TestRFC8277AddPathRoutesOnOneSessionAreComparable(t *testing.T) {
 	r := newTestRIBManager(t)
+	// Independent terminal host routes resolve both offered next hops without
+	// letting the advertised /8 become its own resolution path. Ranking and
+	// prospective admission must read the same real routing table.
+	loc := locrib.NewRIB()
+	r.SetLocRIB(loc)
+	igpcost.Set(func(addr netip.Addr) igpcost.Distance { return igpcost.Resolve(loc, addr) })
+	t.Cleanup(func() {
+		r.SetLocRIB(nil)
+		igpcost.Set(nil)
+	})
+	connected := redistevents.RegisterProtocol("connected")
+	for _, hop := range []string{"10.0.0.1", "10.0.0.2"} {
+		address := netip.MustParseAddr(hop)
+		loc.Insert(family.IPv4Unicast, netip.PrefixFrom(address, 32), locrib.Path{
+			Source: connected, Interface: "rfc8277-test0",
+		})
+		distance := igpcost.Resolve(loc, address)
+		require.True(t, distance.Resolved, "independent connected next-hop prerequisite: %s", hop)
+		require.Zero(t, distance.Cost)
+	}
 	peer := netip.MustParseAddr("192.0.2.31")
 	ctxID, _ := bgpctx.Registry.Register(
 		bgpctx.EncodingContextWithAddPath(true, map[family.Family]bool{labeledFamily: true}))

@@ -9,6 +9,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -16,6 +17,17 @@ import (
 )
 
 func init() {
+	if err := diagnostic.Register(diagnostic.CodeMeta{
+		Code:        codeRemoteMetricFailure,
+		Title:       "BGP next-hop reachability lookup failed",
+		Description: "The BGP RIB could not read next-hop reachability from the engine. Affected received paths remain stored but cannot be selected until the connection recovers. A failed revision feed stops the plugin, preserving its mandatory dependency. Inspect ze show doctor for the plugin connection problem and restore that connection.",
+		Examples:    []string{"ze show doctor", "ze show diagnostic doctor-bgp-next-hop-metrics"},
+	}); err != nil {
+		panic("BUG: bgp rib: next-hop metric diagnostic registration failed: " + err.Error())
+	}
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeRemoteMetricFailure}); err != nil {
+		panic("BUG: bgp rib: next-hop metric event registration failed: " + err.Error())
+	}
 	// Publish the TABLE_DUMP_V2 snapshot provider through the leaf registry
 	// seam. MRT reads it from there, so neither plugin imports the other and
 	// the always-on hub no longer names a BGP package (spec-feature-gate-10).

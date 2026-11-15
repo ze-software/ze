@@ -1,0 +1,40 @@
+{
+  "code": {
+    "internal/component/bgp/plugins/rib/rib_commands.go::gatherPrefixCandidatesForLocked": "cd694637a42a231e",
+    "internal/component/bgp/plugins/rib/rib_next_hop.go::candidateNextHopResolved": "c2db152ea2c8d215",
+    "internal/component/bgp/plugins/rib/rib_remote.go::runRemoteMetrics": "5749196a44f5f8c4",
+    "internal/core/rib/igpcost/igpcost.go::resolve": "7d178136aba04445",
+    "internal/core/rib/igpcost/prospective.go::LPM": "f4a9dae294650a7c",
+    "internal/core/rib/igpcost/prospective.go::ResolveProspective": "7403595739826e18",
+    "internal/core/rib/locrib/prospective.go::PreviewSelected": "c63568f271836bc0"
+  },
+  "note": "RFC 4271 Section 9.1.2 states: If the NEXT_HOP attribute of a BGP route depicts an address that is not resolvable, or if it would become unresolvable if the route was installed in the routing table, the BGP route MUST be excluded from the Phase 2 decision function. Tested is \"the BGP route MUST be excluded from the Phase 2 decision function\"; Gap is \"if the route was installed in the routing table\"; Producer is internal/component/bgp/plugins/rib/rib_next_hop.go::candidateNextHopResolved. Independently re-read all seven admission units, both promoted Linux carriers, their actual BGP socket/SDK/query fixture, and the admission, ordinary/prospective resolution, selection and mirroring producers. The unit tests isolate higher-LOCAL_PREF unresolved admission, a lone unresolved route, static self/mutual recursion, a currently reachable candidate made recursively dependent by its proposed installation, resolved zero cost, terminating independent recursion, longer-prefix protection and a same-prefix connected winner. Their received paths, ordinary resolver controls and selected BGP contributions remain explicit. The longer-prefix negative record discriminates that branch, not separately recursive-static acceptance. Both daemon placements now receive the three actual wire inputs and prove a currently unresolved higher-LOCAL_PREF subject cannot displace the reachable zero-cost alternate in BGP best, Loc-RIB or Linux, while a direct BGP control is installed. The internal and forked native admission cuts independently admit the unresolved preference or refuse legitimate zero cost, and each named red occurs at the initial subject election after a clean full lifecycle. Those live carriers never create a currently resolvable candidate whose prospective installation would capture its own direct or indirect resolution chain. The prospective algorithm is implemented and unit-tested; the remaining gap is that prospective condition at the live daemon/forked selecting-RIB and installed-routing-table boundary. These scenarios do not close that clause, and this row retains zero whole-requirement credit.",
+  "requirement_sha": "c1734a589329213b",
+  "tests": {
+    "internal/component/bgp/plugins/rib/rfc4271_next_hop_reachability_test.go::TestRFC4271IndependentRecursiveNextHopIsInstalled": "fca14cd460934378",
+    "internal/component/bgp/plugins/rib/rfc4271_next_hop_reachability_test.go::TestRFC4271NextHopCannotDependOnItsProspectiveRoute": "fca14cd460934378",
+    "internal/component/bgp/plugins/rib/rfc4271_next_hop_reachability_test.go::TestRFC4271OnlyUnresolvedNextHopIsNotInstalled": "fca14cd460934378",
+    "internal/component/bgp/plugins/rib/rfc4271_next_hop_reachability_test.go::TestRFC4271ReachableZeroCostNextHopIsInstalled": "fca14cd460934378",
+    "internal/component/bgp/plugins/rib/rfc4271_next_hop_reachability_test.go::TestRFC4271RecursiveNextHopLoopIsNotInstalled": "fca14cd460934378",
+    "internal/component/bgp/plugins/rib/rfc4271_next_hop_reachability_test.go::TestRFC4271SamePrefixConnectedNextHopRemainsUsable": "fca14cd460934378",
+    "internal/component/bgp/plugins/rib/rfc4271_next_hop_reachability_test.go::TestRFC4271UnresolvedNextHopCannotWinOnLocalPref": "fca14cd460934378",
+    "test/plugin/rfc4271-next-hop-kernel-forked.ci": "737bab785ab5810b",
+    "test/plugin/rfc4271-next-hop-kernel-forked.ci#2": "737bab785ab5810b",
+    "test/plugin/rfc4271-next-hop-kernel.ci": "d5583bb8101bc463",
+    "test/plugin/rfc4271-next-hop-kernel.ci#2": "d5583bb8101bc463"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/rfc4271_next_hop_reachability_test.go::TestRFC4271IndependentRecursiveNextHopIsInstalled": "6ff39a9a2d3b6aa8",
+    "internal/component/bgp/plugins/rib/rfc4271_next_hop_reachability_test.go::TestRFC4271NextHopCannotDependOnItsProspectiveRoute": "ea07e90be311666d",
+    "internal/component/bgp/plugins/rib/rfc4271_next_hop_reachability_test.go::TestRFC4271OnlyUnresolvedNextHopIsNotInstalled": "5e87d4674aa6af6c",
+    "internal/component/bgp/plugins/rib/rfc4271_next_hop_reachability_test.go::TestRFC4271ReachableZeroCostNextHopIsInstalled": "3ff9e1d58c147a6f",
+    "internal/component/bgp/plugins/rib/rfc4271_next_hop_reachability_test.go::TestRFC4271RecursiveNextHopLoopIsNotInstalled": "7b0022b613e5f9f2",
+    "internal/component/bgp/plugins/rib/rfc4271_next_hop_reachability_test.go::TestRFC4271SamePrefixConnectedNextHopRemainsUsable": "79428d948b33fcdf",
+    "internal/component/bgp/plugins/rib/rfc4271_next_hop_reachability_test.go::TestRFC4271UnresolvedNextHopCannotWinOnLocalPref": "4053720c9bd94722",
+    "test/plugin/rfc4271-next-hop-kernel-forked.ci": "737bab785ab5810b",
+    "test/plugin/rfc4271-next-hop-kernel-forked.ci#2": "737bab785ab5810b",
+    "test/plugin/rfc4271-next-hop-kernel.ci": "d5583bb8101bc463",
+    "test/plugin/rfc4271-next-hop-kernel.ci#2": "d5583bb8101bc463"
+  },
+  "verdict": "partial"
+}

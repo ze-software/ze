@@ -14,6 +14,187 @@ module ze-plugin-engine {
         description "Initial revision";
     }
 
+    typedef route-install-address {
+        type union {
+            type zt:ip-address;
+            type string { length "0"; }
+            type string {
+                length "3..255";
+                pattern '[0-9a-fA-F:.]+%[^ \t\r\n]+';
+            }
+        }
+        description "An IP address, including scoped IPv6, or an empty value stating no gateway.";
+    }
+    grouping route-install-identity {
+        description "The route identity fields of rpc.RouteInstallEntry.";
+        leaf protocol {
+            type string { length "1..64"; }
+            mandatory true;
+            ze:help "Registered source protocol name";
+            description "The engine resolves this name to its own protocol identifier.";
+        }
+        leaf afi {
+            type uint16;
+            mandatory true;
+            ze:help "Address family number";
+            description "The numeric address family is stable across plugin processes.";
+        }
+        leaf safi {
+            type uint8;
+            mandatory true;
+            ze:help "Subsequent address family number";
+            description "The numeric subsequent address family completes the route's family identity.";
+        }
+        leaf prefix {
+            type zt:ip-prefix;
+            mandatory true;
+            ze:help "Destination prefix";
+            description "The contribution is inserted or previewed at this exact prefix.";
+        }
+        leaf instance {
+            type uint32;
+            mandatory true;
+            ze:help "Source protocol instance";
+            description "Protocol and instance identify the contribution replaced at this prefix.";
+        }
+    }
+    grouping route-install-next-hop {
+        description "The complete rpc.RouteNextHop wire value, also used by the primary next hop.";
+        leaf next-hop {
+            type route-install-address;
+            ze:help "Gateway address";
+            description "Omission or an empty value supplies no gateway, as for a directly connected or device-only route.";
+        }
+        leaf interface {
+            type string { length "0..255"; }
+            ze:help "Outgoing interface name";
+            description "The gateway or device-only member uses this outgoing device.";
+        }
+        leaf on-link {
+            type boolean;
+            ze:help "Whether the gateway is directly reachable on the interface";
+            description "True retains the producer's direct adjacency instead of resolving another gateway.";
+        }
+        leaf weight {
+            type uint8;
+            ze:help "Relative forwarding weight";
+            description "Zero states no weight; the forwarding consumer then uses equal shares.";
+        }
+    }
+    grouping route-install-entry {
+        description
+            "The complete rpc.RouteInstallEntry wire value. Preview queries and actual
+             installs use the same engine parser. Repeated fields fit the complete
+             16777216-byte transport frame; the element bounds below cannot enlarge it.";
+        uses route-install-identity;
+        uses route-install-next-hop;
+        leaf route-type {
+            type uint8;
+            ze:help "Forwarding action number";
+            description "Zero states no action; one is unicast and six through eight are discard actions.";
+        }
+        leaf distance {
+            type uint8;
+            ze:help "This contribution's administrative distance override";
+            description "Omission uses the daemon's distance declaration for the source protocol and class.";
+        }
+        leaf metric {
+            type uint32;
+            mandatory true;
+            ze:help "Source protocol metric";
+            description "The route metric breaks ties between contributions with the same distance.";
+        }
+        leaf-list labels {
+            type uint32;
+            max-elements 16777216;
+            ordered-by user;
+            ze:help "Outgoing label stack";
+            description "Label values retain their order and remain subject to the complete frame bound.";
+        }
+        leaf srv6-sid {
+            type union {
+                type zt:ipv6-address;
+                type string { length "0"; }
+            }
+            ze:help "Selected SRv6 service SID";
+            description "The engine rejects an IPv4 or IPv4-mapped service SID.";
+        }
+        leaf is-ebgp {
+            type boolean;
+            ze:help "Whether the route was learned through external BGP";
+            description "This class selects the declared external BGP administrative distance.";
+        }
+        leaf is-bgp {
+            type boolean;
+            ze:help "Whether the contribution is a selected BGP route";
+            description "BGP next hops are recursively resolved instead of ending the interior metric walk.";
+        }
+        leaf aigp {
+            type uint64;
+            ze:help "Received accumulated interior metric";
+            description "This is the received AIGP value, before adding the local next-hop cost.";
+        }
+        leaf aigp-present {
+            type boolean;
+            ze:help "Whether the received AIGP metric is present";
+            description "True distinguishes an explicit zero metric from an absent AIGP attribute.";
+        }
+        leaf metric-recursive {
+            type boolean;
+            ze:help "Whether a non-BGP route recursively resolves its metric";
+            description "True follows the route's next hop before counting a terminal interior metric.";
+        }
+        list ecmp {
+            max-elements 16777216;
+            ordered-by user;
+            ze:help "Equal-cost next-hop members";
+            description "Each ordered member is a complete rpc.RouteNextHop value within the frame bound.";
+            uses route-install-next-hop;
+        }
+        leaf backup-next-hop {
+            type route-install-address;
+            ze:help "Backup gateway address";
+            description "This gateway is the repair path rather than the selected primary next hop.";
+        }
+        leaf-list backup-repair-labels {
+            type uint32;
+            max-elements 16777216;
+            ordered-by user;
+            ze:help "Backup repair label stack";
+            description "Repair labels retain their order within the complete frame bound.";
+        }
+        leaf backup-interface {
+            type string { length "0..255"; }
+            ze:help "Backup outgoing interface name";
+            description "The backup gateway or device-only repair uses this outgoing device.";
+        }
+        leaf backup-on-link {
+            type boolean;
+            ze:help "Whether the backup gateway is directly reachable";
+            description "True retains the backup's direct adjacency on its declared interface.";
+        }
+        leaf tag {
+            type uint32;
+            ze:help "Route tag read by import policy";
+            description "The value is meaningful only when has-tag is true.";
+        }
+        leaf has-tag {
+            type boolean;
+            ze:help "Whether the contribution carries a route tag";
+            description "True distinguishes an explicit tag zero from an absent tag.";
+        }
+        leaf level {
+            type uint8 { range "0..2"; }
+            ze:help "IS-IS level read by import policy";
+            description "One and two name the protocol level; zero states no level.";
+        }
+        leaf ospf-route-type {
+            type uint8 { range "0..6"; }
+            ze:help "OSPF path type read by import policy";
+            description "One through six name the registered OSPF path types; zero states no type.";
+        }
+    }
+
     grouping state-key {
         leaf key {
             type string { length "1..512"; pattern 'meta/[A-Za-z0-9_.:/-]+'; }
@@ -711,7 +892,9 @@ every peer, so an omitted selector is not a no-op.";
         ze:help "Read recursive next-hop metrics from the engine.";
         description
             "Returns the Loc-RIB revision and one result per requested address, in
-             request order. An empty address list requests the revision alone.";
+             request order. An empty address list requests the revision alone.
+             Optional prospective contributions are independently previewed,
+             never installed or combined into one hypothetical batch.";
         input {
             leaf-list addresses {
                 type zt:ip-address;
@@ -719,6 +902,16 @@ every peer, so an omitted selector is not a no-op.";
                 ordered-by user;
                 ze:help "Next-hop addresses to resolve";
                 description "Each address is resolved through the engine's current Loc-RIB.";
+            }
+            list prospective-routes {
+                max-elements 4096;
+                ordered-by user;
+                ze:help "Independent proposed contribution for each address";
+                description
+                    "When present, the list length must equal the address count. Each
+                     result resolves after only its matching contribution, under normal
+                     import and selection rules, without publishing a routing change.";
+                uses route-install-entry;
             }
         }
         output {
