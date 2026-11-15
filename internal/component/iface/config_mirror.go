@@ -101,6 +101,7 @@ func mirrorDestination(targets mirrorTargets, name string) string {
 	}
 	if target, isUnit := targets.unitNamed(name); isUnit {
 		parentDevice, bound := deviceFor(targets.devices, target.parent)
+		// refuse-by-default: guards applyMirror -- an unbound parent supplies no destination, so no mirror is installed toward the logical name.
 		if !bound {
 			return ""
 		}

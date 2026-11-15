@@ -696,6 +696,7 @@ func ospfMultiAFViewsDatabase(ctx context.Context, plugin *sdk.Plugin) error {
 			return false
 		}
 		lastErr = ospfMultiAFViewsSelfOriginated(records)
+		// refuse-by-default: guards Poll -- only validated family records with this router's LSA open readiness; exhaustion returns lastErr.
 		return lastErr == nil
 	}) {
 		var tb textbuf.Buffer

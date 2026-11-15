@@ -73,6 +73,7 @@ func ospfMultiAFViewsCLIReady(ctx context.Context, _ []string) error {
 			return false
 		}
 		lastErr = ospfMultiAFViewsSelfOriginated(records)
+		// refuse-by-default: guards Poll -- only validated family records with this router's LSA open readiness; exhaustion returns lastErr.
 		return lastErr == nil
 	}) {
 		fmt.Println("READY: the daemon's SSH session answers a tagged database record for each family, ipv4-unicast holding this router's LSA")
