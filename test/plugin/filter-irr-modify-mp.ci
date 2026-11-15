@@ -8,7 +8,9 @@
 #           prefix and left the re-admission worker asking for it again.
 #
 # Flow:
-# 1. The mock IRR serves AS-TEST with ipv6 2001:db8::/32.
+# 1. The mock IRR serves AS-TEST with ipv6 2001:db8::/32. The irr plugin stores
+#    it and the filter enforces it; the observer sees show bgp irr report it and
+#    writes irr-listed, which releases source-peer.
 # 2. source-peer (AS65001) sends one UPDATE whose MP_REACH_NLRI (ipv6/unicast)
 #    carries 2001:db8::/32 (authorized) and 2001:db9::/48 (not authorized).
 # 3. bgp-filter-irr answers modify with "mp ipv6/unicast add 2001:db8::/32".
@@ -22,6 +24,14 @@ stdin=source:terminator=EOF_SOURCE
 option=tcp_connections:value=1
 option=timeout:value=20s
 option=linger:value=true
+# A first start stores nothing: the irr plugin fetches AS-TEST from the mock
+# and the filter enforces it on the owner's notice, while the session may
+# already be up. An UPDATE judged before that is rejected whole and held by
+# design (docs/architecture/bgp/filter-irr.md), and this peer negotiates no
+# route-refresh to be asked again, so no modify would ever be answered. The
+# peer holds its UPDATE until the observer writes irr-listed, which it does
+# once show bgp irr reports AS-TEST enforced.
+option=await-file:path=irr-listed
 action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004802000000314001010040020602010000FDE9800E210002011020010DB8000000000000000000000001002020010DB83020010DB90000
 EOF_SOURCE
 
@@ -41,9 +51,10 @@ plugin {
 	internal adj-rib-in {
 		use bgp-adj-rib-in
 	}
-	# The relay observer: it waits until dest-peer was sent the route.
+	# The relay observer: it releases source-peer once AS-TEST is enforced,
+	# then waits until dest-peer was sent the route.
 	external test-strip {
-		run "le test fixture plugin/prefix-filter-modify-mp"
+		run "le test fixture plugin/filter-irr-modify-mp"
 		encoder json
 	}
 }
@@ -111,6 +122,12 @@ bgp {
 				remote 65002
 			}
 			router-id 1.2.3.4
+			# The relayed route keeps the source next hop (asserted in the hex
+			# above). next-hop auto toward an eBGP peer now writes self, which here
+			# is 127.0.0.2, the peer's own address, and that route is withheld
+			# (RFC 4271 Section 5.1.3). This test asks about the IRR modify, not
+			# the next-hop default, so it pins the transparent next hop.
+			next-hop unchanged
 			family {
 				ipv6/unicast { prefix { maximum 10000; } }
 			}
