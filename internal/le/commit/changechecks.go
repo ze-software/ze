@@ -10,6 +10,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/commit/changecheck"
 	"github.com/ze-software/ze/internal/le/commit/hunks"
+	specpath "github.com/ze-software/ze/internal/le/spec/path"
 )
 
 // changeCheckRefusal runs every check registered in changecheck over the
@@ -35,8 +36,8 @@ func runChangeChecks(root string, paths, removed []string, selection hunks.Selec
 		Root:    root,
 		Paths:   paths,
 		Removed: removed,
-		Before:  sideReader(sides.before),
-		After:   sideReader(sides.after),
+		Before:  sideReader(sides.Before),
+		After:   sideReader(sides.After),
 	}
 	refusals, err := changecheck.Run(change, checks)
 	if err != nil {
@@ -58,7 +59,7 @@ func runChangeChecks(root string, paths, removed []string, selection hunks.Selec
 // sideReader adapts one commit side to the seam's Side, turning a read
 // problem into an error a check cannot mistake for an absent file. The side's
 // own present flag is passed through, so an absent path stays absent.
-func sideReader(side specSide) changecheck.Side {
+func sideReader(side specpath.Side) changecheck.Side {
 	return func(path string) (string, bool, error) {
 		text, present, problem := side(path)
 		if problem != "" {

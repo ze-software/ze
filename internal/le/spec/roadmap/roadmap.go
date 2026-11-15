@@ -161,7 +161,9 @@ func Collect(ctx context.Context, root, revision string) (Snapshot, error) {
 	// A spec's set depends on the other files of the snapshot, so it is
 	// answered once every spec is parsed, by the grouping the inventory and the
 	// closure detector read too.
-	sets := specstatus.GroupSets(population)
+	// The snapshot is derived from what git tracks, so it reads no record
+	// of closed specs from session scratch: ClosedChildren answers not read.
+	sets := specstatus.GroupSets(population, specstatus.ClosedSpecs{})
 	for index := range snapshot.Items {
 		snapshot.Items[index].Set = sets.Name(snapshot.Items[index].Path)
 	}

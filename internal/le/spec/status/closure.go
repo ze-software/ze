@@ -78,7 +78,9 @@ func inspectClosurePopulation(root string, relatives []string, learned []learned
 		}
 		specs = append(specs, spec)
 	}
-	sets := GroupSets(specs)
+	// The record of closed specs is not read here, so no set carries its
+	// closed children: ClosedChildren answers not read for each.
+	sets := GroupSets(specs, ClosedSpecs{})
 
 	report := make(ClosureReport, 0, len(relatives))
 	for _, relative := range relatives {

@@ -97,7 +97,7 @@ func TestOneGroupingFunctionAnswersEveryReader(t *testing.T) {
 	if len(report) != len(wantSet) {
 		t.Fatalf("closure population = %d specs, want %d", len(report), len(wantSet))
 	}
-	sets := GroupSets(inventory)
+	sets := GroupSets(inventory, ClosedSpecs{})
 	for _, one := range report {
 		if one.IsUmbrella != wantUmbrella[one.Stem] {
 			t.Errorf("the closure detector's umbrella verdict for %s = %v, want %v", one.Stem, one.IsUmbrella, wantUmbrella[one.Stem])

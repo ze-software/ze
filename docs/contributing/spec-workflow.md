@@ -211,15 +211,76 @@ take their answer from it, so they cannot disagree about a set.
   spec whose whole stem is the prefix: `spec-single-owner-lifecycle.md` beside
   `spec-single-owner-lifecycle-1-plugin-process.md`. Where a `-0-umbrella`
   exists, a number-less file of the same prefix is not a member at all.
-- **A set** is a prefix whose files hold an umbrella, or at least two numbered
-  children. An umbrella alone is a set, because its children may all have
-  closed and it still owes its own criteria. One numbered file with no umbrella
-  and no numbered sibling is no set, and its `Set` column reads `-`.
+- **A set** is a prefix whose files hold a `-0-umbrella`, or a numbered child
+  beside a number-less parent or a second numbered child. Only a `-0-umbrella`
+  file is a set on its own, because its children may all have closed and it
+  still owes its own criteria. A number-less parent is not: `spec-foo.md` is recognised as an
+  umbrella only beside a numbered file of its prefix, so once every numbered
+  child has closed it is no set. One numbered file with no umbrella and no
+  numbered sibling is no set, and its `Set` column reads `-`, so a two-child
+  set with no umbrella stops being a set when one child closes. The files
+  alone decide membership, so a reader that read the record of closed specs
+  and one that did not name the same sets.
+- **A closed child** is a numbered stem in the record of closed specs below,
+  listed on the set the files already form for its prefix by the same number
+  rule. A closed stem never forms a set, so a lone numbered spec does not
+  become one because a sibling closed, and a prefix with no file left is no
+  set. A closed umbrella is no child, and a stem the population holds again is
+  the open file. `GroupSets` takes the record as an argument, and
+  `ClosedChildren` answers the children with whether the record was read:
+  given the zero record, which is the record not read, it answers not read.
+  The inventory, the roadmap and the closure detector pass the zero record
+  today; the roadmap always will, because its snapshot is derived from what
+  git tracks.
 
 The closure detector never raises an umbrella to a high-confidence closure
 candidate, because an umbrella's stem matches its children's closure records.
 <!-- source: internal/le/spec/status/specset.go -- GroupSets -->
 <!-- source: internal/le/spec/status/closure.go -- inspectClosurePopulation -->
+
+### The record of closed specs
+
+A closed spec's file is gone, so which children of a set closed is read from
+git history: every first-parent commit reachable from HEAD that removes a spec
+is judged by `specpath.ClosedStems`, the rule the commit gate applies (next
+section), with that commit's own blobs as the two sides. A move between
+buckets and a pure rename are not closures. A merge is judged by its diff
+against its first parent.
+
+The answer is kept in one file every session of the checkout shares,
+`tmp/session/.closed-specs`. A session's own scratch is empty when it starts,
+so a record kept there would be walked again by each one.
+
+```
+ze-closed-specs 1
+commit <the full commit id it was computed at>
+stem <stem>
+end
+```
+
+One `stem` line per closed spec, sorted. The `end` line is the completion
+mark: a file whose last line is not exactly `end` is corrupt, never a shorter
+list. The header's number is bumped whenever `ClosedStems` or
+`HistoricalBucket` changes what counts as a closure, because the record is
+keyed by commit and not by rule: a bumped header reads as corrupt and the
+record is recomputed. In a shallow clone, whose history stops at its graft,
+`LoadClosedSpecs` answers "not computed" with that reason rather than a
+record missing the earlier closures. A path git prints quoted (a control
+character in the name) is unquoted and judged like any other path, so a spec
+whose name holds a tab closes when it is removed. A quoting that cannot be
+unquoted is skipped when its text holds no `spec-`, and refuses the walk when
+it does. A spec whose stem is empty (`spec-.md`) or holds a line break is
+never recorded closed, because its stem cannot be one line of the record:
+written, it would make every later read of the record corrupt and every load
+walk the whole history again. A carriage return is no line break here, so a
+spec whose name holds one closes like any other.
+
+| Reader | What it does |
+|--------|--------------|
+| `LoadClosedSpecs` | Extends the record from its commit to HEAD, walking only that range, and rewrites it. A record that is absent, corrupt, or computed at a commit that is no ancestor of HEAD (after a rebase, or a commit git no longer holds) is recomputed from the whole history and replaced; none of these fails the caller. Sessions write without a lock: each one publishes a whole file with one rename, so a reader never sees a torn record and the last writer wins |
+| `ReadClosedSpecs` | Answers what the file holds and the commit it was computed at, and runs no git, for the session-start summary. An absent or corrupt record answers "not computed" with the reason, never an empty list |
+<!-- source: internal/le/spec/status/closed.go -- LoadClosedSpecs, ReadClosedSpecs, closedInHistory -->
+<!-- source: internal/le/spec/path/closure.go -- ClosedStems -->
 
 ## What each closure gate reads
 
@@ -234,7 +295,9 @@ candidate, because an umbrella's stem matches its children's closure records.
 | Review artifact | `checkVerificationGates` at `./le commit create` | The one spec this commit closes, which `closureStem` answers, and its whole change set: the commits tagged `Spec-work: <stem>`, the earlier blocks of this script, and this commit |
 
 `closureStem` reads a REMOVED spec file as the closure, and that removal is the
-ONLY signal. The same spec name removed from one release bucket and carried in
+ONLY signal. Which removal is a closure is `ClosedStems` in
+`internal/le/spec/path/closure.go`, the one statement of the rule, which the
+record of closed specs applies to history too. The same spec name removed from one release bucket and carried in
 another in the same commit is a RELOCATION, not a closure, and `relocatedSpecs`
 excludes it. It recognizes historical source locations as well as all current
 categories, so old-to-new migration remains relocation. A spec removed under one
@@ -250,8 +313,10 @@ in order, current snapshots and hunks, then removals
 (`docs/contributing/committing.md`, "Committing some hunks of a shared file");
 the push derivation reads the commit's parent and the commit, through
 the same `closedSpecStem`. One commit closes one spec, and `oneStem` refuses a
-second.
-<!-- source: internal/le/commit/review.go -- closedSpecStem, renamedSpecs -->
+second: that refusal is the commit gate's, not the rule's, because history
+holds commits that closed several.
+<!-- source: internal/le/commit/review.go -- closedSpecStem, oneStem -->
+<!-- source: internal/le/spec/path/closure.go -- ClosedStems, relocatedSpecs, renamedSpecs -->
 <!-- source: internal/le/commit/owed_answers.go -- commitSides -->
 
 

@@ -21,10 +21,10 @@ const NoSet = "-"
 const umbrellaName = "umbrella"
 
 // SpecSet is one spec set, as GroupSets answers it from the files in a
-// population. It carries the structural fields only: which children have
-// closed, who holds each one, the set's state and the child to run next are
-// facts about history and claims, and are added beside these by their own
-// readers rather than left here as values that read as answers.
+// population and the record of closed specs. Who holds each child, the set's
+// state and the child to run next are facts about claims, and are added beside
+// these by their own readers rather than left here as values that read as
+// answers.
 type SpecSet struct {
 	// Prefix is the set's name: the stem tokens before a member's number.
 	Prefix string
@@ -34,6 +34,30 @@ type SpecSet struct {
 	// Open is every numbered child the population holds, by number and then
 	// path. The umbrella is never one of them.
 	Open []SetChild
+	// closed is every numbered child of the set the record of closed specs
+	// names and the population no longer holds, by number and then stem.
+	// It is unexported because it is empty both when no child closed and when
+	// the record was not read; ClosedChildren answers it with which one.
+	closed []ClosedChild
+	// closedRead is whether GroupSets was given a known record.
+	closedRead bool
+}
+
+// ClosedChild is one closed child of a set: a numbered stem the record of
+// closed specs names, whose file a commit removed.
+type ClosedChild struct {
+	Number int
+	Stem   string
+}
+
+// ClosedChildren answers the set's closed children, by number and then stem,
+// and whether they were read from a known record of closed specs. When read
+// is false the children are nil and say nothing about whether a child closed.
+func (set SpecSet) ClosedChildren() (children []ClosedChild, read bool) {
+	if !set.closedRead {
+		return nil, false
+	}
+	return slices.Clone(set.closed), true
 }
 
 // SetChild is one open child of a set: a numbered member that is not the
@@ -108,10 +132,22 @@ func (sets SpecSets) IsUmbrella(specPath string) bool {
 // umbrella is the member named `<prefix>-0-umbrella`; a group without one takes
 // as its umbrella the spec whose whole stem is the prefix, carrying no number
 // (`spec-foo.md` beside `spec-foo-1-x.md`). A lone numbered name with no
-// umbrella is no set: one file is not a group. An umbrella alone is a set,
-// because a set whose children have all closed still owes its umbrella's own
-// criteria and its closure.
-func GroupSets(specs []Spec) SpecSets {
+// umbrella is no set: one file is not a group. A `-0-umbrella` file alone is
+// a set, because a set whose children have all closed still owes its
+// umbrella's own criteria and its closure. A number-less parent alone is not:
+// with no numbered file beside it, nothing in its name marks it as one.
+//
+// Membership comes from the files alone, so every reader agrees on the sets
+// whether or not it read the record of closed specs. The record only adds
+// closed children to a set the files already form, read by the same
+// numberedStem rule: a closed stem whose prefix no file numbers is dropped, so
+// a lone numbered spec never becomes a set because a namesake closed. An
+// umbrella whose children all closed is still a set, as any umbrella alone is,
+// and lists them. A closed umbrella is no child, and a closed stem the
+// population holds again (a spec written anew under a closed name) is the open
+// file. The zero ClosedSpecs, a record not read, makes every set's
+// ClosedChildren answer not read.
+func GroupSets(specs []Spec, closed ClosedSpecs) SpecSets {
 	paths := make(map[string]string, len(specs))
 	groups := make(map[string]*SpecSet)
 	for index := range specs {
@@ -121,18 +157,37 @@ func GroupSets(specs []Spec) SpecSets {
 		if !numbered {
 			continue
 		}
-		group, present := groups[prefix]
+		member, present := groups[prefix]
 		if !present {
-			group = &SpecSet{Prefix: prefix}
-			groups[prefix] = group
+			member = &SpecSet{Prefix: prefix, closedRead: closed.Known()}
+			groups[prefix] = member
 		}
 		if number == 0 {
 			if name == umbrellaName {
-				group.Umbrella = spec.Path
+				member.Umbrella = spec.Path
 				continue
 			}
 		}
-		group.Open = append(group.Open, SetChild{Number: number, Path: spec.Path, Status: spec.Status, Depends: spec.Depends})
+		member.Open = append(member.Open, SetChild{Number: number, Path: spec.Path, Status: spec.Status, Depends: spec.Depends})
+	}
+	for _, stem := range closed.Stems() {
+		if _, open := paths[stem]; open {
+			continue
+		}
+		prefix, number, name, numbered := numberedStem(stem)
+		if !numbered {
+			continue
+		}
+		if number == 0 {
+			if name == umbrellaName {
+				continue
+			}
+		}
+		member, filed := groups[prefix]
+		if !filed {
+			continue
+		}
+		member.closed = append(member.closed, ClosedChild{Number: number, Stem: stem})
 	}
 
 	sets := make(SpecSets, 0, len(groups))
@@ -154,6 +209,12 @@ func GroupSets(specs []Spec) SpecSets {
 				return order
 			}
 			return cmp.Compare(left.Path, right.Path)
+		})
+		slices.SortFunc(group.closed, func(left, right ClosedChild) int {
+			if order := cmp.Compare(left.Number, right.Number); order != 0 {
+				return order
+			}
+			return cmp.Compare(left.Stem, right.Stem)
 		})
 		sets = append(sets, *group)
 	}

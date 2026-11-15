@@ -1,4 +1,4 @@
-// Related: review.go — closureStem, closedSpecStem, renamedSpecs
+// Related: review.go -- closureStem, closedSpecStem; ../spec/path/closure.go -- ClosedStems, renamedSpecs
 //
 // VALIDATES: a spec whose stem is renamed in one commit, with its content
 // carried over and only the old stem replaced by the new one, is a rename and

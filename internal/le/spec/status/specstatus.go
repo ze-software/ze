@@ -520,7 +520,9 @@ func Collect(ctx context.Context, root string, now time.Time, warn func(string))
 
 	// A spec's set is a fact about the population, never about one file, so it
 	// is answered once every spec is read.
-	sets := GroupSets(specs)
+	// The record of closed specs is not read here, so no set carries its
+	// closed children: ClosedChildren answers not read for each.
+	sets := GroupSets(specs, ClosedSpecs{})
 	for i := range specs {
 		specs[i].Set = sets.Name(specs[i].Path)
 		specs[i].Category = Category(specs[i].Status)

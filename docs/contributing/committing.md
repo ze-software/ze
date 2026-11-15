@@ -375,7 +375,7 @@ path before the script is written:
   occurrence of the old stem replaced by the new stem. Pairing is one to one.
   Other edits in a stem rename make the removal a closure: rename first and
   edit later (`renamedSpecs`, `docs/contributing/spec-workflow.md`).
-<!-- source: internal/le/commit/review.go -- renamedSpecs -->
+<!-- source: internal/le/spec/path/closure.go -- renamedSpecs -->
 
 - A directory. Scripts stage explicit files.
 

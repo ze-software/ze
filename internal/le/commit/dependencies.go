@@ -13,6 +13,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/commit/hunks"
 	"github.com/ze-software/ze/internal/le/deps"
+	specpath "github.com/ze-software/ze/internal/le/spec/path"
 )
 
 // dependencyRefusal permits full use of ordinary modules declared at HEAD,
@@ -34,9 +35,9 @@ func dependencyRefusal(root string, paths, removed []string, selection hunks.Sel
 			return "", false, ""
 		}
 		if slices.Contains(paths, path) {
-			return sides.after(path)
+			return sides.After(path)
 		}
-		return sides.before(path)
+		return sides.Before(path)
 	}
 	moduleExists := func(path string) (bool, error) {
 		_, present, problem := prospective(path)
@@ -53,7 +54,7 @@ func dependencyRefusal(root string, paths, removed []string, selection hunks.Sel
 	if err != nil {
 		return err
 	}
-	declared, _, problem := sides.before("go.mod")
+	declared, _, problem := sides.Before("go.mod")
 	if problem != "" {
 		return couldNotRun(errors.New("judge declared dependencies: " + problem))
 	}
@@ -92,7 +93,7 @@ func dependencyRefusal(root string, paths, removed []string, selection hunks.Sel
 }
 
 // dependencyModule reads the module path from go.mod as the commit leaves it.
-func dependencyModule(prospective specSide) (string, error) {
+func dependencyModule(prospective specpath.Side) (string, error) {
 	goMod, present, problem := prospective("go.mod")
 	if problem != "" {
 		return "", errors.New("judge third-party imports: " + problem)
@@ -108,8 +109,8 @@ func dependencyModule(prospective specSide) (string, error) {
 // does not hold is the seed: its rows are the tree's existing imports, so the
 // commit that creates it owes no record, and it is created once, because its
 // removal is refused.
-func carriedLedger(root string, paths []string, sides specSides) (deps.Ledger, []string, error) {
-	before, beforePresent, problem := sides.before(deps.LedgerRel)
+func carriedLedger(root string, paths []string, sides specpath.Sides) (deps.Ledger, []string, error) {
+	before, beforePresent, problem := sides.Before(deps.LedgerRel)
 	if problem != "" {
 		return deps.Ledger{}, nil, couldNotRun(errors.New("judge the dependency ledger: " + problem))
 	}
@@ -120,7 +121,7 @@ func carriedLedger(root string, paths []string, sides specSides) (deps.Ledger, [
 		}
 		return ledger, nil, nil
 	}
-	after, _, problem := sides.after(deps.LedgerRel)
+	after, _, problem := sides.After(deps.LedgerRel)
 	if problem != "" {
 		return deps.Ledger{}, nil, couldNotRun(errors.New("judge the dependency ledger: " + problem))
 	}
@@ -154,8 +155,8 @@ func carriedLedger(root string, paths []string, sides specSides) (deps.Ledger, [
 
 // addedImports answers the third-party paths path's carried text imports that
 // HEAD's text at the same path did not. A file the commit removes adds nothing.
-func addedImports(module, path string, sides specSides) ([]string, error) {
-	after, present, problem := sides.after(path)
+func addedImports(module, path string, sides specpath.Sides) ([]string, error) {
+	after, present, problem := sides.After(path)
 	if problem != "" {
 		return nil, couldNotRun(errors.New("judge third-party imports of " + path + ": " + problem))
 	}
@@ -166,7 +167,7 @@ func addedImports(module, path string, sides specSides) ([]string, error) {
 	if err != nil {
 		return nil, errors.New("judge third-party imports of " + path + ": " + err.Error())
 	}
-	before, present, problem := sides.before(path)
+	before, present, problem := sides.Before(path)
 	if problem != "" {
 		return nil, couldNotRun(errors.New("judge third-party imports of " + path + ": " + problem))
 	}

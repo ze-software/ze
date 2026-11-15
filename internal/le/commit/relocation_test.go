@@ -1,4 +1,4 @@
-// Related: review.go — closureStem, relocatedSpecs
+// Related: review.go -- closureStem; ../spec/path/closure.go -- ClosedStems, relocatedSpecs
 //
 // VALIDATES: a spec removed from one release bucket and added under another in
 // the same commit is a relocation, and does not count as a closure.

@@ -148,7 +148,7 @@ func TestClosureSidesHunksReadSelectedBlob(t *testing.T) {
 	configureCommitAuthor(t, root)
 	selection := selectFixture(t, root, "shared.txt", hunkBase, hunkMine, hunkBoth)
 
-	text, present, problem := workingTreeSides(root, "HEAD", selection).after("shared.txt")
+	text, present, problem := workingTreeSides(root, "HEAD", selection).After("shared.txt")
 	if problem != "" {
 		t.Fatal(problem)
 	}

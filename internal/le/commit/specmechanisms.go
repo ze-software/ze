@@ -1,6 +1,7 @@
 // Design: docs/contributing/committing.md -- the gates ./le commit create runs
 // Related: prepare.go -- Create, which calls this gate after the verification gates
-// Related: review.go -- workingTreeSides and the rename rule this gate shares
+// Related: review.go -- workingTreeSides, the two sides this gate reads
+// Related: ../spec/path/closure.go -- ClosedStems, the rename rule this gate shares
 // Related: ../spec/mechanisms/specmechanisms.go -- Problem, the judgement this gate applies
 
 package commit
@@ -23,7 +24,7 @@ import (
 // A carried spec whose text is not an
 // edit is not judged either: the text HEAD holds at the same path, or the text
 // of a spec the commit removes with its stem replaced (a rename or a move
-// between buckets, as renamedSpecs reads one). A spec that predates the rule
+// between buckets, as specpath.ClosedStems reads one). A spec that predates the rule
 // therefore owes the section only in the commit that next changes its text. A
 // removed spec carries no design and is judged by nobody.
 func specMechanismsRefusal(root string, paths, removed []string, selection hunks.Selection, head string) error {
@@ -33,7 +34,7 @@ func specMechanismsRefusal(root string, paths, removed []string, selection hunks
 		if !specpath.IsSpec(path) {
 			continue
 		}
-		text, present, problem := sides.after(path)
+		text, present, problem := sides.After(path)
 		if problem != "" {
 			return couldNotRun(errors.New("judge the Existing Mechanisms section of " + path + ": " + problem))
 		}
@@ -64,8 +65,8 @@ func specMechanismsRefusal(root string, paths, removed []string, selection hunks
 // specTextUnedited reports whether text is a spec's committed text carried
 // unchanged: HEAD's text at path, or a removed spec's HEAD text with its stem
 // replaced by path's stem.
-func specTextUnedited(path, text string, removed []string, sides specSides) (bool, string) {
-	before, present, problem := sides.before(path)
+func specTextUnedited(path, text string, removed []string, sides specpath.Sides) (bool, string) {
+	before, present, problem := sides.Before(path)
 	if problem != "" {
 		return false, problem
 	}
@@ -77,7 +78,7 @@ func specTextUnedited(path, text string, removed []string, sides specSides) (boo
 		if stem == "" {
 			continue
 		}
-		old, present, problem := sides.before(source)
+		old, present, problem := sides.Before(source)
 		if problem != "" {
 			return false, problem
 		}
