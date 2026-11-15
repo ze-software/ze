@@ -29,9 +29,13 @@ costs more than a whole one past the second slice.
 
 The main thread is the same arithmetic on a smaller share: 19% of the spend,
 one session averaging 375k over 335 calls, because a 1M window never compacts.
-No hook reaches the main thread, so the answer is a habit in
-`.claude/rules/session-start.md`: one spec per session, and the next spec in a
-fresh one.
+The answer is a habit in `.claude/rules/session-start.md`: one spec per
+session, and the next spec in a fresh one. Since 2026-11-15 a hook backs it:
+when the main thread spawns an agent with its last recorded context past 600k,
+the after-hook of the Agent call tells it the size and to hand off
+(`mark-agent-spawned`, `.claude/hooks/README.md`). The spawn is the moment
+chosen, because a session whose owner is away gets few prompts and spawns many
+agents.
 
 ## Why an editing agent hands off at 100 tool calls
 

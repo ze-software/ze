@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md -- native delegation hook policy
-// Related: agent.go -- the checks on the spawn; session.go -- the parent session identity
+// Related: runtime.go -- Run, the dispatcher whose last check the budget is; session.go -- the parent session identity
 package hookruntime
 
 import (

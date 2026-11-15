@@ -645,6 +645,11 @@ var hookSourcePackages = [...]string{
 	// instruction files. Only this child package is listed, not the rules
 	// generator internal/le/ai/rules that also reads it for the payload report.
 	"internal/le/ai/rules/ruleset",
+	// The context size of a model call and the transcript tail reader the
+	// agent-spawn hook (mark-agent-spawned) decides its handoff notice from.
+	// Only this child package is listed, not the token report
+	// internal/le/ai/tokens that also reads it for its totals.
+	"internal/le/ai/tokens/contextsize",
 	"internal/le/arch/tier",
 	// The test-first category asks the commit gate's test-coverage refusal.
 	"internal/le/commit",
