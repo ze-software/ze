@@ -19,8 +19,8 @@ phase itself.
   `subagent_type: ze-read` or `ze-work`, hand it the spec path, then stop. Do not
   run the steps below inline. You do not need to ask permission first
   (`ai/INSTRUCTIONS.md`, STANDING REQUEST).
-- **AT MOST THREE CLOSURES AT ONCE.** Closure is the most expensive phase in
-  this repository and it ends in a commit. Up to three may run together, each
+- **AT MOST THREE CLOSURES AT ONCE** (why: `ai/rationale/ze-close.md`, "At most
+  three closures"). Up to three may run together, each
   on a different spec in its own agent with its own claim (`ai/META-DECISIONS.md`);
   a fourth waits for one to land.
 - **This skill MUST NOT spawn a subagent, and the agent running it MUST NOT
@@ -29,8 +29,7 @@ phase itself.
   `ze-read` nor `ze-work` carries the Agent tool
   (`ai/rules/context-economy.md`), so the constraint is enforced by the agent
   type as well as stated here: pick one of those two and the tool is simply
-  absent. A closure that fans out multiplies token spend without adding a lens
-  the same agent cannot apply by reading.
+  absent. Why: `ai/rationale/ze-close.md`, "No subagent in a closure".
 - **If you are that agent:** run the steps below yourself. Resolve symbols with
   the LSP tool if your registry carries it and with `gopls` from Bash if it does
   not (`ai/rules/context-economy.md`). You cannot ask the user, so when you hit a
@@ -63,12 +62,7 @@ phase itself.
 
 Two reasons, both load-bearing.
 
-**Context.** Closure used to be steps 11-16 of a 16-step skill, reached with the
-context already full of implementation detail. The measurable result: across 161
-specs, the closure tables were byte-identical to the template in 65-75% of
-in-progress specs, while sections authors added when they needed them were
-untouched in 0%. `plan/templates/TEMPLATE-CLOSURE.md` was split out of `plan/templates/TEMPLATE.md`
-for exactly this reason; this skill is the same fix applied to the instructions.
+**Context:** `ai/rationale/ze-implement.md`, "Closure in its own skill".
 
 **Independence.** This skill judges work, so it must run in a context that did
 not produce it. No specific model is required (`ai/rules/planning.md`).
@@ -177,7 +171,7 @@ The main thread sets the spec back to `in-progress` when the blocker clears.
 5. **/ze-review gate (BLOCKING -- the final review before closure):** `/ze-implement`'s inline reviews check the diff against the spec's own checklists. This gate runs the generic adversarial `/ze-review` over the COMPLETE diff -- including every fix those reviews produced -- and loops until it is clean. It satisfies the Review Gate defined in `ai/rules/planning.md`; the inline reviews do not substitute for it (they check the spec's own checklists; `/ze-review` checks what nobody planned for).
    - Run `/ze-review`'s steps YOURSELF over the uncommitted changes. Its own Delegation section tells a main thread to spawn a reviewer; you are not a main thread, so that paragraph does not apply to you and you MUST NOT spawn one (see Delegation above). Read the skill, then work its steps in this context. It runs its own automated pre-checks (`./le repo check`, `./le test weakened check`) as its step 0.
    - **The style pass is part of that gate, and it is the part a reviewer under time pressure drops.** `/ze-review` step 18 checks every changed Go file against `docs/contributing/ze-go-style.md`. It asks six questions there. The first one is a BLOCKER whenever its trace reaches a socket: can a peer reach this `panic()`? A run that reports no style finding on a diff carrying new Go states that it ran the pass.
-   - **Independence still holds, and it is satisfied by the PHASE boundary, not by a fresh agent.** `ai/rules/planning.md` requires the review not be run by the context that WROTE the code. This skill is that separate context: `/ze-implement` produced the diff and ended, and you are judging work you did not author. Reading the diff from source is what makes the review independent; spawning another reader adds a hop, not a lens.
+   - **Independence still holds, and it is satisfied by the PHASE boundary, not by a fresh agent.** `ai/rules/planning.md` requires the review not be run by the context that WROTE the code. This skill is that separate context: `/ze-implement` produced the diff and ended, and you are judging work you did not author, reading the diff from source (why no second reader: `ai/rationale/ze-close.md`, "No subagent in a closure").
    - **Record the machine artifact, not just prose:** `./le spec review record spec <spec> verdict CLEAN rounds <N> file <path> ...`, then `./le spec review check spec <spec> file <path> ...`. `./le commit create` runs that same check on the closure commit and refuses without a fresh, hash-pinned, CLEAN artifact, so a hand-written table alone does not satisfy the gate. A file the commit carries through `hunks <path> <patch-file>` is recorded with the same pair, `hunks <path> <patch-file>` in place of `file <path>`, so the pin covers the content the commit lands (`docs/contributing/committing.md`, "Committing some hunks of a shared file"). Put the artifact path, the check result and the round count in the Review Gate table.
    - `rounds` is required and more than five is refused without `rounds-reason <reason>`. The reason must name the PRODUCT defect a later round found. A false statement in the spec's own closure prose is not one: those are NOTEs, they are fixed in ONE edit, and they never earn another round (`ai/rules/planning.md`, "Work Phases and the Review Loop"). A round whose findings are all record defects is the last round.
    - **More than five passes is THOMAS'S decision.** A sixth round is also refused without `owner-authorised <reason>` (owner ruling 2026-08-17). Both tolls are owed past the cap, and neither substitutes for the other. You MUST NOT set that keyword on your own initiative. At the cap you stop, report what the loop keeps finding, and ask him whether it runs another pass.
@@ -187,7 +181,7 @@ The main thread sets the spec back to `in-progress` when the blocker clears.
      test of each package a fix changed, its changed-code lint, and the
      functional test of each behavior it changed. The main thread runs them,
      and a red comes back to you as a finding of the next round.
-   - Re-run `/ze-review`; add a `### Run 2+` block. Loop until a run reports 0 BLOCKER and 0 ISSUE. No cap on re-runs -- each fix is new code that needs a fresh review. If the same finding survives 3 fix attempts (3-Fix Rule, `ai/rules/completion.md`), STOP and ask the user.
+   - Re-run `/ze-review`; add a `### Run 2+` block. Loop until a run reports 0 BLOCKER and 0 ISSUE, within the five rounds that the `rounds` bullet and the "More than five passes" bullet of this step bound. If the same finding survives 3 fix attempts (3-Fix Rule, `ai/rules/completion.md`), STOP and ask the user.
    - Paste the final clean run into the Review Gate section. The gate is satisfied only when the last run shows 0 BLOCKER, 0 ISSUE.
 6. **Close spec and commit (BLOCKING -- do ALL of this BEFORE the commit lines are handed back and run):**
    Precondition: the spec's **Review Gate** section (step 5) shows a final `/ze-review` run with
@@ -261,12 +255,9 @@ The main thread sets the spec back to `in-progress` when the blocker clears.
       validates journal row shape; removal of a spec identifies closure.
       <!-- source: internal/le/commit/review.go -- closureStem, closedSpecStem -->
       If there is no lesson, create no lesson record.
-   b. **Keep the claim until the script has run.** `./le commit create` writes
-      `Spec-work: <stem>` from the session's claim, and the push discharge of a
-      `Review-owed:` finds commit A only through that line
-      (`specWorkPopulation`, `internal/le/commit/review.go`). A claim released
-      before step d leaves commits A and B untagged, so the discharge judges
-      fewer files than the closure gate did. The main thread runs
+   b. **Keep the claim until the script has run** (why:
+      `ai/rationale/ze-close.md`, "Keeping the claim until the script has
+      run"). The main thread runs
       `./le commit create`, so it holds a claim on this spec when it does.
       Step e releases it.
    c. List all changes made (files modified/created, tests added, docs updated, issues found and fixed).
@@ -279,9 +270,8 @@ The main thread sets the spec back to `in-progress` when the blocker clears.
         but that is not the population that goes red: `./le doc check links` reads
         every tracked file, and `DesignReferences`
         (`internal/le/doc/wiring/designrefs.go`) resolves the `// Design:` header
-        of every tracked Go file. A Go header is the citer kind this step has
-        missed most often, and `plan/journal/closure-deletes-a-cited-document.md`
-        counts the recurrences. Each hit gets one of three moves. Repoint it at
+        of every tracked Go file (`ai/rationale/ze-close.md`, "Go headers are
+        the citer most often missed"). Each hit gets one of three moves. Repoint it at
         the durable document that replaced the spec. Restate the fact inline. Add
         the stem to `plan/.citation-baseline` when the citation is a historical
         record.
@@ -292,15 +282,11 @@ The main thread sets the spec back to `in-progress` when the blocker clears.
         the page in this same commit and cite it.
 
         A restatement writes the stem bare: `spec-<stem>`, with no `plan/`
-        prefix and no `.md` suffix. `speccitation.Scan` matches the full path
-        only, so the bare stem keeps the name a reader needs and drops a
-        resolution promise
-        the tree can no longer keep. Use it when the citation is prose about a
+        prefix and no `.md` suffix (why: `ai/rationale/ze-close.md`, "Why a
+        restatement writes the bare stem"). Use it when the citation is prose about a
         spec the committed tree does not hold. A closed spec is one such case.
-        An UNTRACKED sibling is the other, and it is the one that surprises:
-        `find_dangling` resolves a target with `(repo / ref).is_file()`, which
-        sees an untracked file, so the working tree reads green while the tree
-        your commit produces is red. Reaching for the bare stem to silence the
+        An UNTRACKED sibling is the other: the working tree reads green while
+        the tree your commit produces is red. Reaching for the bare stem to silence the
         gate over a citation a repoint could fix hides the rot where nothing
         can see it.
 
@@ -313,7 +299,7 @@ The main thread sets the spec back to `in-progress` when the blocker clears.
         After the script has run, `./le spec citation` is green. A closure that
         leaves it red is not closed.
       - **Commit A (implementation + spec):** run `./le commit create replace` with `file <path>` for every implementation file (code, tests, docs, schema), `file plan/journal/<class>.md` when step 6a wrote a journal row, `file website/changes/fragments/<stem>.md` when the closure writes a fragment, and `file <spec-path>` using its actual work-folder path to preserve all implementation edits in git history.
-      - **Sweep EVERY journal row this session wrote, not only step 6a's.** Run `git status --porcelain plan/journal/` and add `file <path>` for each row whose text this session added: a defect met while implementing is written the moment it is found, and it then waits, uncommitted, for a commit that names it. Rows belonging to another session stay out. An uncommitted row lives in one working tree and dies at the next clean or checkout, so a closure that leaves them behind loses the knowledge the closure exists to preserve (`ai/rules/completion.md`, "Recording").
+      - **Sweep EVERY journal row this session wrote, not only step 6a's.** Run `git status --porcelain plan/journal/` and add `file <path>` for each row whose text this session added: a defect met while implementing is written the moment it is found, and it then waits, uncommitted, for a commit that names it. Rows belonging to another session stay out (`ai/rules/completion.md`, "Recording"; why: `ai/rationale/ze-close.md`, "Sweeping every journal row").
       - **Commit B (spec closure):** run `./le commit create append remove <spec-path>` using the same actual path with the spec closure commit message, plus `no-news "<reason>"` when commit A carries no fragment. Leave the spec file on disk: once commit B succeeds, the script deletes it, because commit A's `file <spec-path>` committed exactly that content. A copy edited after `create` ran is kept and named on stderr (`NOTE: kept <path>`); decide about that copy, never delete it blind.
       - The native command owns the session ID, message files, executable script, ignored-path rejection, the commit itself, and journal-row checks.
    e. The main thread runs the generated script, with `bash` and the path from its `script=` line, then `./le repo compiles check` when commit A carried Go. Then the spec claim is released, `./le spec release`, which also frees a slot against the WIP cap (`./le spec wip`). The main thread reports the resulting commit SHA(s), the script path, message files, commit subjects, and included files.
@@ -324,11 +310,8 @@ The main thread sets the spec back to `in-progress` when the blocker clears.
       commit of its own. It does not reopen the spec and does not hold the
       closing commits (`ai/rules/pre-release.md`).
 
-   **Why one script, two commits, no follow-up:** closure must not depend on a
-   later reminder to remove the spec. Include all required changes in the script.
-   Two commits because commit B's removal deletes the spec's working copy, and
-   it deletes only a copy whose content a commit holds. Commit A preserves the
-   edited spec in git history; commit B removes it from git and from disk.
+   **Why one script, two commits, no follow-up:** `ai/rationale/ze-close.md`,
+   "One script, two commits". Include all required changes in the script.
 
 ## Rules
 

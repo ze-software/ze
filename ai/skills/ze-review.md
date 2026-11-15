@@ -22,10 +22,8 @@ phase itself.
   (`ai/rules/context-economy.md`). Do not run the steps below inline. You do
   not need to ask permission first (`ai/INSTRUCTIONS.md`, STANDING REQUEST).
   Independent work goes out in ONE message with parallel `Agent` calls.
-- **Write the diff to a file ONCE and hand every reviewer its path.** You already
-  know the scope: you wrote the file list. Left to find it, each agent runs its
-  own `git diff` and reads the changed files again. Measured 2026-08-10: three
-  lenses over a 1000-line diff cost 364k tokens between them. Put the diff under
+- **Write the diff to a file ONCE and hand every reviewer its path** (why:
+  `ai/rationale/ze-review.md`, "One diff file for every reviewer"). Put the diff under
   `$(./le session scratch ensure)` and name the path in the prompt.
   **This replaces the DISCOVERY, never the verification.** A finding still names
   the producing function, read from source (`ai/rules/evidence.md`).
@@ -50,8 +48,8 @@ phase itself.
   reading a file you must judge. Every finding still names the PRODUCING
   function, read from source (`ai/rules/evidence.md`). Every step and lens below
   runs in full.
-- **Review is not a cost target.** It is the cheapest phase measured, and it
-  prevents the most expensive one. Never skip a lens, a step, or a source read
+- **Review is not a cost target** (why: `ai/rationale/ze-review.md`, "Review is
+  not a cost target"). Never skip a lens, a step, or a source read
   to make it shorter.
 - **Scale the LENS COUNT to what the change can break.** Run all three lenses
   when the diff touches any of these:
@@ -61,10 +59,8 @@ phase itself.
   - a security or authorization surface
   - a test that pins any of the above
 
-  One lens covers everything else. The count is not padding where it applies:
-  on 2026-08-10 each of the three found a real defect. 94 live files
-  grandfathered as dead, a ratchet that disarmed itself on any git error, and
-  two false claims in a module docstring. The artifact is required for every
+  One lens covers everything else. The count is not padding where it applies
+  (`ai/rationale/ze-review.md`, "Three lenses where they apply"). The artifact is required for every
   closure commit carrying code, whichever count you run
   (`commit.reviewGateProblems`, `internal/le/commit/review.go`). This scales the
   WORK and never the requirement, and `rounds` stays bounded by what the
@@ -74,13 +70,13 @@ phase itself.
 
 0. **Automated pre-checks (run both, fix or report findings before proceeding).** Both are light actions that read the tree, so a reviewing agent runs them itself. Every other run this review wants is heavy: a test rerun that would confirm a finding, a lint, a compile check, `./le rfc check`. A reviewing agent lists each as an owed command in its report (the exact line, what it proves, the result it expects), and the main thread runs them one at a time:
     - `./le repo check` catches the mechanical subset of steps 2-4 (stale source anchors, line-number anchors, unwired exports, spec AC completeness, CLI handler coverage) without manual review.
-    - `./le test weakened check` for uncommitted changes, or `./le test weakened check base origin/main` to also cover committed-but-unpushed work (this repo commits directly to main, so `main` is normally HEAD and auditing against it would compare nothing; the tool refuses that with exit 2 rather than reporting clean). The audit reads accepted rows from each commit in the audited range and suppresses each matching structural finding. Treat every remaining `[DELETED]` and `[WEAKENED]` finding as a **BLOCKER**. A test edited to match broken code IS the defect, not the fix.
+    - `./le test weakened check` for uncommitted changes, or `./le test weakened check base origin/main` to also cover committed-but-unpushed work (why not `main`: `ai/rationale/ze-review.md`, "Auditing against origin/main"). The audit reads accepted rows from each commit in the audited range and suppresses each matching structural finding. Treat every remaining `[DELETED]` and `[WEAKENED]` finding as a **BLOCKER**. A test edited to match broken code IS the defect, not the fix.
 
-1. **Size the change (BEFORE any other analysis):** Count the changed lines and files. Ask "is this change bigger than the problem it solves?" A diff bigger than its problem gets ONE finding: a BLOCKER naming the smaller change. The review stops there. Auditing the details of over-engineered code ratifies it, and every fix it drives earns another pass over more of it (`ai/rules/simplicity.md`, `ai/rules/context-economy.md`). Size decides the spec and the phase sequence, and nothing else (`ai/rules/context-economy.md`). It never caps the review rounds, which `ai/rules/planning.md` "Work Phases and the Review Loop" owns. The rounds are bounded by what they FIND. `./le spec review record` refuses more than five without `rounds-reason <reason>` naming a PRODUCT defect a later round found; a sixth round also needs `owner-authorised <reason>` from Thomas.
+1. **Size the change (BEFORE any other analysis):** Count the changed lines and files. Ask "is this change bigger than the problem it solves?" A diff bigger than its problem gets ONE finding: a BLOCKER naming the smaller change. The review stops there (`ai/rules/simplicity.md`, `ai/rules/context-economy.md`; why: `ai/rationale/ze-review.md`, "A diff bigger than its problem"). Size decides the spec and the phase sequence, and nothing else (`ai/rules/context-economy.md`). It never caps the review rounds, which `ai/rules/planning.md` "Work Phases and the Review Loop" owns. The rounds are bounded by what they FIND. `./le spec review record` refuses more than five without `rounds-reason <reason>` naming a PRODUCT defect a later round found; a sixth round also needs `owner-authorised <reason>` from Thomas.
 
 1b. **Test shape:** For each test the diff adds or grows, apply `ai/rules/testing.md`, "one question per test". A test that breaks it is an ISSUE naming the split or the cheaper route. A test the diff does not touch is never a finding.
 
-2. **Wiring verification (before any analysis of correctness):** For every new function, type, handler, route, config option, CLI command, or plugin introduced in the diff, prove it is reachable from a user entry point. It leads the correctness checks because it catches the project's most recurring defect class (see `plan/learned/RECURRING-PATTERNS.md`). If new code has no caller in production, nothing else in this review matters.
+2. **Wiring verification (before any analysis of correctness):** For every new function, type, handler, route, config option, CLI command, or plugin introduced in the diff, prove it is reachable from a user entry point (why it leads: `ai/rationale/ze-review.md`, "Wiring first").
 
     For each new symbol, answer: **"What user action reaches this code?"** If you cannot name one, it is a BLOCKER.
 
@@ -100,7 +96,7 @@ phase itself.
 
     **Do not skip this step.** "The code compiles" and "tests pass" do not prove wiring. A function with zero callers outside tests is dead code in production. Report every unwired symbol as a BLOCKER finding.
 
-    **If any wiring BLOCKER is found:** report it immediately. Do not proceed to the remaining review steps until the user acknowledges. Unwired code means the feature does not exist from the user's perspective, so reviewing its correctness, security, or edge cases is premature.
+    **If any wiring BLOCKER is found:** report it immediately. Do not proceed to the remaining review steps until the user acknowledges (why: `ai/rationale/ze-review.md`, "Wiring first").
 
     **Top-down feature walkthrough (MANDATORY for new features):** The bottom-up check above proves existing code is reachable. It cannot find code that should exist but was never written. For every new feature (new NLRI family, new plugin, new protocol, new command category), also trace TOP-DOWN:
 
@@ -153,7 +149,7 @@ phase itself.
 7. **Understand intent via history:** For each changed region, run `git log --oneline -5` and `git blame` on the modified lines. Understand WHY the old code existed. Flag if the change removes a guard, workaround, or constraint that was added deliberately.
 8. **Removed-behavior audit:** For every line the diff DELETES or replaces, name the invariant or behavior it enforced. Then search the new code for where that invariant is re-established. If you cannot find it, that is a finding: a removed guard, a dropped error path, a narrowed validation, a deleted test that covered a real case. This step is distinct from step 7: step 7 asks "why did the old code exist?" This step asks "is the protection still there?"
 
-    **Test rewrite check (BLOCKING):** For every test file where the diff changes assertions (not just adds new ones), verify the OLD behavior is still tested. A test rewritten to cover a new issue while dropping the old assertion is a coverage regression, even when the assertion count stays the same. The hook cannot catch this (same structural shape); this step is the defense. Ask: "what did the old assertion prove, and where is that proof now?" If it is nowhere, report as BLOCKER: "test rewrite dropped coverage of [old behavior]." Rule: `ai/rules/testing.md` "Test Rewrite as Replacement."
+    **Test rewrite check (BLOCKING):** For every test file where the diff changes assertions (not just adds new ones), verify the OLD behavior is still tested. A test rewritten to cover a new issue while dropping the old assertion is a coverage regression, even when the assertion count stays the same (why this step: `ai/rationale/ze-review.md`, "The test rewrite check"). Ask: "what did the old assertion prove, and where is that proof now?" If it is nowhere, report as BLOCKER: "test rewrite dropped coverage of [old behavior]." Rule: `ai/rules/testing.md` "Test Rewrite as Replacement."
 9. **Check code comments:** Read WARNING, INVARIANT, NOTE, and TODO comments in modified files. Verify the changes do not violate stated invariants or ignore documented constraints.
 10. **Trace data flow:** For each changed component, trace data from entry through transformations to exit. Verify boundaries are respected.
 11. **Apply edge case techniques:** Apply EVERY technique in the table below to every changed component.
@@ -259,7 +255,7 @@ phase itself.
 | General quality concern not tied to a specific bug | Too vague to act on. A simplicity finding from step 17 is NOT this: it names the construct, the file, and the simpler shape |
 | Contradicts a project rule but has an explicit override comment in code | Intentional exception |
 
-    **Never discard wiring, functional-test, removed-behavior, logic, altitude, or hot-path performance findings.** An unwired symbol is dead code in production. A missing functional test is a coverage gap. A lost invariant from deleted code is a correctness regression. A logic bug (wrong condition, wrong variable, off-by-one) is a correctness defect. A bandaid fix at the wrong depth compounds maintenance cost. A hot-path allocation is measurable overhead. These always survive this filter.
+    **Never discard wiring, functional-test, removed-behavior, logic, altitude, or hot-path performance findings.** These always survive this filter (why: `ai/rationale/ze-review.md`, "Findings the filter never discards").
 
     **PLAUSIBLE by default.** Do not discard a finding for being "speculative" or "depends on runtime state" when the state is realistic: concurrency races, nil on a rare-but-reachable path (error handler, cold cache, missing optional field), falsy-zero treated as missing, off-by-one on a boundary the code does not exclude, retry storms, regex that lost an anchor. These are real findings. Only discard when you can prove the scenario is impossible from the code (quote the guard, cite the type constraint, show the invariant).
 
@@ -348,11 +344,10 @@ When the config structure changes (new container, new nesting level):
 
 ## Config-Surface & Command-Tree Checks
 
-Failure modes seen building nested config surfaces and cross-module command
-trees (the traffic / anomaly / ddos nesting). Apply whenever the diff adds or
+Apply whenever the diff adds or
 nests a config container, adds a plugin `show`/RPC command, registers a new wire
-method, or adds a `.ci` that loads a plugin. Each one broke silently or only
-surfaced at daemon startup / on another OS -- not at compile time.
+method, or adds a `.ci` that loads a plugin (where these came from:
+`ai/rationale/ze-review.md`, "Where the config-surface checks came from").
 
 | Check | What to verify | Failure it prevents |
 |-------|----------------|---------------------|
@@ -373,25 +368,23 @@ each round beats re-running one lens: logic and security on one pass,
 performance and completeness on the next.
 
 **Later rounds shrink, they do not repeat.** Round N+1 examines only the fixes
-round N made and what those fixes touched. A full-diff pass every round never
-converges, because a diff of any size always yields something new. The agent
-is then unable to close work that is genuinely finished. A finding
+round N made and what those fixes touched (why: `ai/rationale/ze-review.md`,
+"Why later rounds shrink"). A finding
 outside the round's scope is still fixed when the goal this work exists to
 achieve depends on it, when you are unsure whether it does, when it is small
 (the spec's scope is widened to carry it), or when it belongs
 to the always-in-scope classes. What those classes are, what happens to
 everything else, and why none of it is parking are settled in ONE place:
 `ai/rules/planning.md` "Work Phases and the Review Loop". Do not restate the list or
-the tests here. A second copy is how the corrected rule and the defective one
-end up one hop apart, and an enumeration that falls short by one class reads as
-permission to home the class it omitted.
+the tests here (why: `ai/rationale/ze-review.md`, "Why the always-in-scope list
+is not restated").
 
 ## Rules
 
 - Do NOT fix anything. Report findings only.
 - Do NOT check spec completeness -- that is `/ze-review-spec`.
 - After the user reviews your list, they will tell you which to fix.
-- **Regression test required per fix:** When fixing an issue found by this review, add a test that would have caught the problem during development. The issue exists because a test was missing; the fix is incomplete without one. If a regression test is genuinely impossible (e.g., the finding is a naming convention violation), note why in the fix. Otherwise, no test = not fixed.
+- **Regression test required per fix:** When fixing an issue found by this review, add a test that would have caught the problem during development (why: `ai/rationale/ze-review.md`, "A regression test per fix"). If a regression test is genuinely impossible (e.g., the finding is a naming convention violation), note why in the fix. Otherwise, no test = not fixed.
 - The diff's SIZE caps no review pass, and each pass has a hard bound on its SCOPE. Run a fresh pass whenever the code has changed since the last one, over the fixes that changed it. Stop when a pass finds nothing within its own scope. "I already reviewed this" is not a reason to stop. "A full re-read of the whole diff found something unrelated" is not a reason to continue (`ai/rules/planning.md`, "Work Phases and the Review Loop").
 - **What the passes FIND does bound them.** A false statement in the spec's own closure record is a NOTE and never re-opens a round, and a round whose findings are all record defects is the last round. `./le spec review record` takes `rounds <N>` and refuses more than five without `rounds-reason <reason>` naming the PRODUCT defect a later round found. Past five it also refuses without `owner-authorised <reason>`. A sixth pass is Thomas's decision, so you stop at the cap and ask him. You never set that keyword yourself (owner ruling 2026-08-17, `ai/rules/planning.md`, "Work Phases and the Review Loop").
 

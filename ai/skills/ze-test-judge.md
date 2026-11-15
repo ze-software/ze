@@ -11,7 +11,8 @@ change to an RFC-tagged test, and a golden file, fixture, `.ci` expectation or
 expected output refreshed to turn a red run green.
 
 **You did not make the change.** The agent that wrote it never runs this skill
-on its own work. If you authored any part of the diff, stop and say so.
+on its own work. If you authored any part of a unit's diff, do not judge that
+unit: say so and hand it back ("Several units in one run").
 
 See also: `/ze-test` (writing a `.ci`), `/ze-rfc-audit` (whether RFC tests still
 enforce their requirement), `docs/contributing/testing.md` ("When a test must
@@ -26,6 +27,37 @@ be weakened").
 | The reason | the author's one-paragraph claim of why the change is right |
 
 A missing item is a REFUSE: you cannot judge what you were not shown.
+
+## Several units in one run
+
+A phase that owes several judgments sends them to ONE judge agent in ONE brief,
+with the three Input items for each unit. One agent judges them all and gives
+one verdict per unit. Batching shares the agent's start and changes nothing
+else:
+
+- **Each unit is judged on its own.** Run the Procedure for each unit. Its
+  verdict rests only on its own old test, new test, producer and source.
+  Another unit's verdict, diff or reason is never evidence for this one.
+- **Each unit has its own verdict.** One verdict sentence per unit, one
+  approval command per unit, so the commit carries one `Weakening-approved:` or
+  `RFC-approved:` line per test. No sentence or row covers two units.
+- **A refusal stands, unit by unit.** Refusing one unit does not reopen, soften
+  or decide another. A unit missing an Input item is REFUSED and the others are
+  still judged.
+- **Independence holds for every unit.** If you authored any part of one unit's
+  diff, say so, judge the others, and hand that unit back for another judge.
+
+A judgment that must not see another's context stays alone, in a judge agent
+of its own: a unit whose change the briefed agent authored, and a unit whose
+author's reason rests on another unit's change, so that judging them together
+would let one claim carry the other. The main thread decides this when it
+writes the brief. A unit you find mid-batch to rest on another unit's change is
+handed back for a judge of its own, and is not refused.
+
+A handed-back unit gets the verdict HANDED BACK with its reason (you authored
+part of its diff, or it rests on another unit's change). HANDED BACK is not a
+refusal: it records no approval and decides nothing, and the main thread sends
+the unit to another judge.
 
 ## Procedure
 
@@ -54,7 +86,9 @@ A missing item is a REFUSE: you cannot judge what you were not shown.
 **REFUSE** otherwise, naming the proof that is lost: the assertion that leaves,
 the input no longer reached, the outcome now accepted that was refused. "The
 new output looks right", "the code changed", "the test was flaky" and the
-author's reason restated are not (a) or (b).
+author's reason restated are not (a) or (b). HANDED BACK is given only for the
+two reasons in "Several units in one run"; any other unit you cannot approve
+is REFUSED.
 
 A refusal stands. The author fixes the code; the test stays. Never ask Thomas,
 and never soften a refusal into a question.
@@ -75,9 +109,11 @@ A `.ci` unit is named `<dir>.<stem>` (`docs/functional-tests.md`).
 
 ## Report
 
-One row per unit: unit, APPROVE or REFUSE, the verdict sentence, and the
-command you ran (or the proof lost, for a refusal).
+One row per unit: unit, APPROVE, REFUSE or HANDED BACK, the verdict sentence,
+and the command you ran (or the proof lost, for a refusal, or the reason, for a
+unit handed back). A batched run has one row for every unit in the brief, a
+unit handed back included.
 
 ## Done when
 
-Done when the report has one row per unit with APPROVE or REFUSE, the verdict sentence, and the approval command that ran or the proof lost.
+Done when the report has one row per unit with APPROVE, REFUSE or HANDED BACK, the verdict sentence, and the approval command that ran, the proof lost, or the reason the unit was handed back.

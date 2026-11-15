@@ -135,6 +135,16 @@ marker line its caller supplies.
 <!-- source: internal/core/skillstub/skillstub.go -- At, Write, OwnedBy, RemoveOwnedBy, Frontmatter -->
 <!-- source: internal/le/ai/sync/report.go -- Report.Text -->
 
+A skill body holds every step, instruction, prohibition, command and gate the
+agent runs, because the whole body loads into that agent. The reasons, history
+and examples behind a step may live in `ai/rationale/<name>.md`, the page named
+after the skill, one `## ` section per reason. The step that needs a reason
+names its section at that point, as the page path and the heading in double
+quotes. A sentence moved to a page no step names is never read, so moving it
+deletes it. `TestEverySkillRationaleSectionIsNamedByItsSkill` refuses a section
+its skill does not name.
+<!-- source: internal/le/ai/sync/rationale_test.go -- TestEverySkillRationaleSectionIsNamedByItsSkill -->
+
 ## Notes
 
 - `/ze-commit` does **not** run `git commit` or `git add` as direct calls. It generates a message file and executable commit script through `internal/le/commit.Answer` and runs that script, which is what commits.

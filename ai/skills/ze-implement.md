@@ -26,8 +26,8 @@ phase itself.
 - **Read the documentation for every surface the spec touches BEFORE you spawn
   the first phase agent (`ai/rules/documentation.md`).** `ai/CODE-TO-DOCS.md`
   names the pages that document each file in the spec's **Files to Modify**
-  list. Put those page paths in each agent's prompt. An agent sent to discover
-  a contract that a page already states pays twice for one answer. A page that
+  list. Put those page paths in each agent's prompt (why:
+  `ai/rationale/ze-implement.md`, "Pages before the spawn"). A page that
   disagrees with the code is a defect this spec now owns.
 - **Order the phase agents by their dependencies.** Phases that do not depend on
   each other go out in ONE message with parallel `Agent` calls. A phase that
@@ -52,14 +52,14 @@ phase itself.
   discrimination route: revert the change, run the test red, restore it
   (`ai/rules/interop-and-goal-validation.md`), or `./le rfc record` for an
   RFC-tagged unit.
+- **A phase that owes several test judgments sends them to ONE `ze-test-judge`
+  agent in ONE brief**, one verdict per unit, unless a judgment must not see
+  another's context (`ai/skills/ze-test-judge.md`, "Several units in one run").
 - **Resolve every symbol BEFORE you spawn, and put `file + symbol + line range`
   in the agent's prompt.** This is an optimisation, not a precondition: an agent
   can resolve symbols itself, by the LSP tool where its registry carries one and
   by `gopls` from Bash where it does not (`ai/rules/context-economy.md`). What
-  you buy is paying the resolution ONCE rather than once per agent, and it is
-  worth buying: `gopls symbols` on `internal/component/ike/engine/fsm.go` costs
-  1,297 bytes against 44,164 for the file (34.1x), and an agent given a bare file
-  name that resolves nothing reads all of it.
+  it buys: `ai/rationale/ze-implement.md`, "Resolving symbols before the spawn".
 - **A phase whose VERIFICATION needs `findReferences` or `goToImplementation` IS
   delegatable: the agent answers it by the LSP tool or by `gopls references` /
   `gopls implementation`, whichever route is live for it.** "Every call site
@@ -68,13 +68,9 @@ phase itself.
   literals included -- and that is a reason to name the operation in the agent's
   prompt, not a reason to keep the phase inline. Sizing an agent is a cost
   decision, and tool availability does not constrain it.
-- **Why one agent per phase, and why a phase is about 60 tool calls.** Cost per
-  API call is the context size at that call, and context grows by about 1.9k
-  tokens a call from a 45k floor. A long agent therefore pays more for every
-  later call it makes: measured over this machine's session transcripts
-  (`./le ai tokens`, `ai/rationale/context-economy.md`), the eleven
-  longest implementation agents ran 200-400 calls to 400-750k of context and
-  were 41% of everything eight sessions spent. Cut each phase so one agent
+- **Why one agent per phase, and why a phase is about 60 tool calls:**
+  `ai/rationale/context-economy.md`, "Why an editing agent hands off at 100
+  tool calls", measured with `./le ai tokens`. Cut each phase so one agent
   finishes it in about 60 calls, and cut a phase the spec wrote too large into
   two packages. Splitting cuts the turns each agent carries. It does not cut
   the work: every phase still runs the full steps below.
@@ -112,8 +108,8 @@ family is layering
 (`ai/rules/no-layering.md`).
 
 The next phase's agent READS that file before it reads any source. It does not
-re-derive the phase before it. Re-reading a source file the handoff already
-digests is the cost this decomposition removes. Read the source when the digest
+re-derive the phase before it (why: `ai/rationale/ze-implement.md`, "Reading
+the handoff instead of the source"). Read the source when the digest
 lacks the detail you need. That is a judgement, never a default.
 
 A handoff carries four things:
@@ -149,10 +145,7 @@ This skill ends when the implementation is complete and green. It does NOT run
 the deliverables review, the security review, the documentation review, the
 Review Gate, or the two closure commits. Those are `/ze-close`, for two reasons:
 
-- **Context.** Closure instructions reached at the tail of a long skill get
-  partially followed. Across 161 specs the closure tables were byte-identical to
-  the template in 65-75% of in-progress specs, while sections authors added when
-  they needed them were untouched in 0%.
+- **Context:** `ai/rationale/ze-implement.md`, "Closure in its own skill".
 - **Independence.** Review is INDEPENDENT of the author: end this skill and hand the review to a
   fresh session or to the `/ze-close` agent, never to this context. That agent
   runs every review lens ITSELF and spawns nothing (`ai/rules/planning.md`,
@@ -201,14 +194,12 @@ start").
    Edit the spec file NOW: set `Status` to `in-progress`, `Phase` to `1/N`, `Updated` to today.
    This is the FIRST action after reading. Not after audit, not after implementation, not at the end.
    Do not proceed to step 3 until the spec file on disk shows `in-progress`.
-   **Why this is BLOCKING:** other sessions check spec status to avoid collisions. A spec that
-   stays in `design` or `ready` during implementation lies about its state.
+   **Why this is BLOCKING:** `ai/rationale/ze-implement.md`, "Status first".
 3. **Audit first:** Run `/ze-audit` logic. Check Files to Modify, Files to Create, and TDD Test Plan against the codebase. Identify what's already implemented, partially done, or missing. Do not redo existing work.
    - **BGP Family Checklist (BLOCKING):** If the spec involves a new SAFI, capability, or attribute
      but has no "BGP Family Checklist" section, STOP. Read `ai/patterns/bgp-family.md`, add the
-     checklist section to the spec, and present to the user before coding. This gate exists because
-     SR-Policy shipped incomplete (3 commits) due to missing integration points that the generic
-     wiring rules did not catch.
+     checklist section to the spec, and present to the user before coding. Why this gate exists:
+     `ai/rationale/ze-implement.md`, "The BGP Family Checklist".
    - **Validate assumptions (BLOCKING):** Read the spec's **Risks & Assumptions** Assumptions
      table. For every A-N row whose validation method is cheap (grep, read a file, run an
      existing test), run it NOW — before any feature code — and flip Status to `confirmed`
@@ -243,9 +234,8 @@ start").
    - Update the **Risks & Assumptions** tables: flip A-N statuses as evidence arrives;
      when an assumption breaks mid-phase, add the Mistake Log row immediately and STOP
      if the approved design no longer holds. Add new A-N/R-N rows as they surface.
-   - Before the phase ends, re-read the Go you wrote for it against `docs/contributing/ze-go-style.md`.
-     A style defect caught in the phase that produced it costs one edit. The same defect
-     caught in step 7 costs a re-read of every phase before it.
+   - Before the phase ends, re-read the Go you wrote for it against `docs/contributing/ze-go-style.md`
+     (why: `ai/rationale/ze-implement.md`, "Style in the phase that wrote the code").
    - **Update the documentation this phase made wrong, IN this phase, before the phase ends
      (BLOCKING, `ai/rules/documentation.md`).** The pages are the ones step 3 recorded, plus any
      page holding a `<!-- source: -->` anchor on a file you edited.
@@ -298,13 +288,12 @@ start").
    every one passes (`ai/rules/pre-release.md`). Then run step 6's targeted set
    once over what the fixes touched, under the same split as step 6: the fix
    agent lists the reruns as owed, and the main thread runs them.
-10. **Repeat steps 7-9** until the review finds zero issues and all tests pass. There is no cap on the NUMBER of passes, because each fix is new code that needs a fresh review. Each pass covers LESS than the one before it: round 1 the whole diff, round N+1 only round N's fixes and what they touched. Stop when a pass finds no BLOCKER and no ISSUE inside its own scope. "Stop only when a pass finds nothing anywhere" has no state in which it stops, which is why finished work fails to close (`ai/rules/planning.md`, "Work Phases and the Review Loop").
+10. **Repeat steps 7-9** until the review finds zero issues and all tests pass. Five review rounds are the session's to spend. The sixth is Thomas's decision: at the end of the fifth round you stop, say what the loop keeps finding, and ask him whether it runs again, and you never set `owner-authorised <reason>` on your own initiative. Each pass covers LESS than the one before it: round 1 the whole diff, round N+1 only round N's fixes and what they touched. Stop when a pass finds no BLOCKER and no ISSUE inside its own scope (`ai/rules/planning.md`, "Work Phases and the Review Loop"; why a pass ends inside its own scope: `ai/rationale/ze-implement.md`, "Why a round has a scope").
 11. **Stop here and hand off to `/ze-close`.** The implementation is done when
     steps 7-9 find nothing, every target is green, AND you have read the whole
     diff yourself, every phase agent's hunks included. Read it here, before the
-    report: `/ze-close` runs the Review Gate. A report that calls the work green
-    before anybody has read it makes that gate establish what you already
-    announced. Report what was built, what
+    report: `/ze-close` runs the Review Gate (why: `ai/rationale/ze-implement.md`,
+    "Why green means the diff was read"). Report what was built, what
     the tests prove, and any surviving risk from the spec's R-N rows. Then state
     plainly that closure (deliverables, security, docs, Review Gate, commits) is
     `/ze-close`, and that `ai/rules/planning.md` puts it on the review
@@ -352,12 +341,12 @@ start").
 - **A small problem found on the way is fixed here.** Fix it in a commit of its own and widen this spec's scope to carry it: name the fix in `## Task` and add an acceptance criterion, so review and closure judge it. Small means its fix needs no design or open-ended investigation of its own. One too big for that gets a journal row owned by an existing spec whose scope can be amended to take it, and a new spec only when none fits (`ai/rules/completion.md`).
 - **Keep the agreed capability boundary.** A design's future work does not become current scope merely because it belongs to the same problem. Complete the agreed acceptance criteria. Ask before adding absent features or changing those criteria.
 - Do NOT skip the audit step -- re-implementing existing code wastes time
-- If the same issue reappears after 3 fix attempts (3-Fix Rule, `ai/rules/completion.md`), STOP and ask for guidance. Otherwise keep reviewing -- there is no pass limit.
+- If the same issue reappears after 3 fix attempts (3-Fix Rule, `ai/rules/completion.md`), STOP and ask for guidance. Otherwise keep reviewing, within the five rounds step 10 states.
 - If the spec is missing a **Critical Review Checklist**, STOP and inform the user that the spec needs updating before implementation can proceed. (`/ze-close` makes the same check for the Deliverables, Security Review, and Documentation Update checklists it consumes.)
 - If the spec has a **Risks & Assumptions** section containing only template placeholder rows, STOP and ask the user to complete it (or confirm there are genuinely none). Specs created before the section existed are exempt -- do not retrofit without user request.
 - Before handing off, re-read the spec and confirm each item is actually implemented in the code
 - **"Implemented" is not "done".** This skill produces a clean diff, not a closed spec. Do not say done, complete, or ready to commit at step 11 -- say the implementation is green and closure is next (`ai/rules/completion.md`).
-- **"Green" is a claim about the DIFF, never about the gates.** Requirement 10 in `ai/rules/completion.md` binds this word: say it only after you have read the diff hunk by hunk, your own and every phase agent's. A gate covers what somebody thought to check, so a defect on a surface no gate reads passes every target. When you have run the gates and not read the change, say exactly that instead. It is one line, and it tells the reader which claim they are getting. Reporting "green" and leaving the reading to the Review Gate inverts the order: the review then establishes what you already announced.
+- **"Green" is a claim about the DIFF, never about the gates.** Requirement 10 in `ai/rules/completion.md` binds this word: say it only after you have read the diff hunk by hunk, your own and every phase agent's. When you have run the gates and not read the change, say exactly that instead. It is one line, and it tells the reader which claim they are getting. Why: `ai/rationale/ze-implement.md`, "Why green means the diff was read".
 - **The Review Gate is BLOCKING and lives in `/ze-close`.** The inline reviews in steps 7-10 do NOT satisfy it: they check the spec's own checklists, `/ze-review` checks what nobody planned for. This is the Review Gate from `ai/rules/planning.md`.
 
 ## Done when

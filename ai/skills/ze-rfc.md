@@ -38,17 +38,15 @@ it expects.
 2. READ: `rfc/full/$ARGUMENTS.txt` (drafts: `rfc/drafts/$ARGUMENTS.txt`). If it is not
    there, FETCH it before writing a line of summary -- `curl -o rfc/full/$ARGUMENTS.txt
    https://www.rfc-editor.org/rfc/$ARGUMENTS.txt`, or the datatracker archive for a draft.
-   Enrolment REQUIRES this file (`check_enrolment`, owner ruling 2026-07-27): a summary
-   written without its source is validated only against itself, which permits both a
-   requirement the RFC does not contain and, invisibly, one it does contain that was never
-   extracted.
+   Enrolment REQUIRES this file (`check_enrolment`, owner ruling 2026-07-27; why:
+   `ai/rationale/ze-rfc.md`, "Why enrolment requires the source text").
 3. WRITE: `rfc/short/$ARGUMENTS.md`
 4. CHECK errata: https://www.rfc-editor.org/errata/rfcNNNN
 5. ALLOCATE requirement IDs (see "Requirement IDs" below) — every checklist line gets one
 6. REGISTER: run `./le rfc update` to render the requirement into `rfc/requirements/<stem>.md`,
    then `./le rfc check`. **A summary that is new since HEAD and declares gated MUSTs
-   must be enrolled in the same change** (`check_new_summaries`): writing obligations down
-   and gating none of them is how a compliance claim rots. Enrolling does not mean every
+   must be enrolled in the same change** (`check_new_summaries`; why:
+   `ai/rationale/ze-rfc.md`, "Why a new summary is enrolled in the same change"). Enrolling does not mean every
    MUST is met: classify each honestly as tested, `{single-polarity}`, `{gap}`,
    `{partial}`, `{lower-layer}`, `{feature-declined}`, `{linux-limit}` (with register evidence and instance approval), or `{not-applicable}`. The gate also fails a new summary that does not parse, or that
    captures zero requirements while
@@ -124,8 +122,8 @@ it expects.
    - EVERY line has a unique requirement ID, and no ID was renumbered or reused?
 
 **Extraction sign-off (BLOCKING before enrolling).** The old two-grep, eyeball-the-ratio
-coverage check is superseded: it was an honour-system count that nothing recorded and
-nothing re-checked. Record the walk instead, in an artifact a machine re-checks on every
+coverage check is superseded (why: `ai/rationale/ze-rfc.md`, "Why the extraction walk is
+recorded"). Record the walk instead, in an artifact a machine re-checks on every
 `./le rfc check`:
 
 ```
@@ -141,9 +139,8 @@ sentence) and every section, with each disposition `null`. Classify each site `m
 a requirement id or `excluded` with a kind and a reason, and each section `walked` or
 `skipped`. **An unclassified site fails the check**, so generating the skeleton makes the
 gate redder, never greener; only the walk makes it green. That is why the
-skeleton lands in the scratch: an unclassified artifact under `rfc/extraction/`
-reds the gate for the whole corpus, and generating a batch of them would red it
-for everybody at once. The command writes in place only when every site and
+skeleton lands in the scratch (`ai/rationale/ze-rfc.md`, "Why the skeleton lands
+in the scratch"). The command writes in place only when every site and
 section already carries a disposition, which is the refresh of a walk already
 done.
 
@@ -156,11 +153,6 @@ For a stem enrolled since HEAD the sign-off is a PRECONDITION of enrolment
 (`check_enrolment`). RFCs enrolled before the gate existed are grandfathered and published
 as a counted backlog in `ai/RFC-REQUIREMENTS.md`; `./le rfc extraction report` emits the
 same counts as JSON.
-
-This replaces a check that had caught real failures and would have caught more: `rfc5303`,
-`rfc5304` and `rfc5310` shipped summaries with 23, 13 and 12 normative keywords in the
-source and **zero** captured. A ratio you eyeball says "roughly enough"; a classified site
-list says which sentence, by name.
 
 ## The ledger is DERIVED, never committed (BLOCKING)
 
@@ -176,12 +168,9 @@ the audits directly, so a generated file it never opens cannot be stale.
 
 So: do not run `./le rfc update` because a tagged test moved, and do not carry one of
 the five in a commit -- `./le commit create` refuses an ignored path. Run it when you want to
-READ the rendered ledger, which is the same thing a grep of one of those paths does for you.
-
-Until 2026-09-11 both outputs were owed in the same commit, and the cost was paid nine times
-in `plan/journal/concurrent-rfc-gate-stale.md`: this checkout is shared, a regeneration
-renders EVERY session's summaries at once, and the author either published another session's
-requirement rows under their own message or charged a verification-debt row for not doing so.
+READ the rendered ledger, which is the same thing a grep of one of those paths does for you
+(why the ledger is not committed: `ai/rationale/ze-rfc.md`, "Why the ledger is not
+committed").
 
 ## Structure
 
@@ -260,6 +249,34 @@ Group by:
 - [SHOULD] requirement - <consequence if not>
 - [MAY] option - <when to use>
 
+### Error Handling
+| Condition | Detect How | Response | Code/Subcode |
+|-----------|------------|----------|--------------|
+
+### State Machine
+| State | Event | Guard | Action | Next |
+|-------|-------|-------|--------|------|
+
+### Timers
+| Name | Default | Range | Behavior |
+|------|---------|-------|----------|
+
+### Constants
+| Name | Value | Usage |
+|------|-------|-------|
+
+### Algorithms
+Step-by-step, pseudocode if RFC provides it.
+
+### Pitfalls
+- **Edge cases**: <specific scenarios>
+- **Interop**: <known issues with other implementations>
+- **Security**: <attack vectors, mitigations>
+
+### Compatibility
+- Behavior with non-supporting peers
+- Feature negotiation fallback
+
 ## Compliance Checklist
 
 **MANDATORY section.** Every RFC 2119 keyword (MUST, MUST NOT, SHOULD,
@@ -319,13 +336,9 @@ RFC4271-9.1.2.2-3  §9.1.2.2, 3rd
 Drafts use the uppercased filename stem (`DRAFT-IETF-BESS-MUP-SAFI-6-1`).
 This ID is what tests reference, so it is a permanent contract.
 
-**Why the section, not a counter.** RFCs are immutable: section numbers are frozen the
-day the RFC publishes, which makes them the most stable name available. A bare counter
-(`RFC7606-R055` — the RETIRED form; never allocate one, the parser rejects it) encodes
-ALLOCATION ORDER — a fact about our editing history, not about
-the RFC. It teaches a reader nothing, its neighbours are unrelated requirements, and the
-moment you add a requirement (which must go at the end, since renumbering is forbidden)
-the numbering stops tracking the document at all.
+**Why the section, not a counter:** `ai/rationale/ze-rfc.md`, "Why the id carries the
+section, not a counter". A bare counter (`RFC7606-R055`) is the RETIRED form; never
+allocate one, the parser rejects it.
 
 | Rule | Why |
 |------|-----|
@@ -421,9 +434,8 @@ this the kind. A conformance rollup ("implement all of this document") never is:
 by the other rows, not by a layer.
 
 The reason MUST name the LAYER before the `;` and the PRODUCER as `<path>.go::<Symbol>`
-after it, and READ that producer before you name it. The producer demand is the whole
-difference from `{not-applicable}`: a judgement nobody can check is what grew that kind to
-915 sites the owner ruling presumes are mostly wrong. A `{lower-layer}` row stays in the
+after it, and READ that producer before you name it (why: `ai/rationale/ze-rfc.md`, "Why
+lower-layer names a producer"). A `{lower-layer}` row stays in the
 gated denominator and out of the proven share, so annotating one may not move the
 published percentage by a point.
 
@@ -487,15 +499,12 @@ with a qualifier after it if the document needs one: `rfc/short/rfc1334.md` writ
 `| Obsoleted-by (partial) |` because RFC 1994 replaced its CHAP half and left PAP here.
 `| Obsoletes |` is the backward direction and is allowed alongside it; 119 rows
 carry one. Any OTHER field name containing `obsolet` stops the run with exit 2 and
-names the field. That refusal exists because the reader used to know one spelling:
-the corpus wrote four, and 93 requirements of three enrolled summaries were gated as
-current documents until the label was widened.
+names the field (why: `ai/rationale/ze-rfc.md`, "Why the successor label is checked by
+one word").
 
 It refuses on that WORD alone. A field named `Superseded by`, `Replaced by` or
-`Successor` is skipped in silence, so do not reach for one: no summary writes such a
-spelling today, and widening the word waits on a survey of what the corpus writes,
-because the field-name pattern reads the first cell of every table row and a looser
-word would collide with the requirement tables.
+`Successor` is skipped in silence, so do not reach for one (why the word is not widened:
+`ai/rationale/ze-rfc.md`, "Why the successor label is checked by one word").
 
 ```
 - [ ] [RFC3768-5.2.3-1] [MUST] <text> (§5.2.3) {superseded: restated RFC9568-5.1.1.3-1; RFC 9568 §5.1.1.3 keeps the IPv4 TTL of 255}
@@ -545,13 +554,13 @@ counted in its own RFC. The full contract: `docs/contributing/rfc-conformance-ga
 
 The link is two-way, but only ONE side is authored: the test tags itself.
 `rfc/requirements/<stem>.md` renders the reverse direction and is GENERATED — never hand-write
-a test path into a summary (`ai/rules/evidence.md`). A hand-written back-link
-survives deletion of the test it names; a tag dies with the test.
+a test path into a summary (`ai/rules/evidence.md`; why: `ai/rationale/ze-rfc.md`, "Why
+only the test side of a link is authored").
 
 The rendered link names the file and the enclosing function, never a line, so an edit
-above a tag does not churn the ledger. It still drifts when a tagged test is added, moved
-between functions or deleted. Regenerate and commit it in the same change (see "Keep the
-ledger committed").
+above a tag does not churn the ledger. It still changes when a tagged test is added, moved
+between functions or deleted, and it is never committed: "The ledger is DERIVED, never
+committed" above says when it is rebuilt.
 
 In the test that enforces a requirement:
 
@@ -570,14 +579,12 @@ func TestRFC7606OriginValueIGP(t *testing.T) {
 Rules:
 - One ID per tag line, with a mandatory polarity. Multiple tags = multiple lines.
 - **Every gated requirement needs BOTH a positive and a negative tag** unless it carries
-  `{single-polarity: ...}`. A negative-only test passes if the code rejects everything; a
-  positive-only test passes if it accepts everything. Only the pair pins behavior to the
-  requirement.
+  `{single-polarity: ...}` (why: `ai/rationale/ze-rfc.md`, "Why a requirement needs both
+  polarities").
 - Place the tag on the test function's doc comment when the function tests exactly one
   requirement. Place it **inline at the table case** when one function covers many
   (e.g. `TestRFC7606SystematicLengthCorruption` spans ~100 cases across a dozen
-  requirements) — a function-level tag there stays green after the one enforcing case
-  is deleted, which is exactly the rot this system exists to catch.
+  requirements) (why: `ai/rationale/ze-rfc.md`, "Why a table case carries its own tag").
 - `.ci` tags must start at the line start (`internal/test/runner/parsing.go`) and must
   not sit inside a `terminator=` block, where `#` is raw file content, not a comment.
 
@@ -619,9 +626,8 @@ record", and `rfc/discrimination/README.md`.
 ## Changing an RFC Test (BLOCKING)
 
 **Once a test carries an `RFC requirement:` tag, do not change its behavior without
-an approval from an independent agent running `/ze-test-judge`.** `ai/rules/testing.md` already says fix the code, not the test;
-for RFC-tagged tests this is enforced, because a test that encodes a standards obligation
-is the only thing standing between a regression and a shipped protocol violation.
+an approval from an independent agent running `/ze-test-judge`** (why:
+`ai/rationale/ze-rfc.md`, "Why a tagged test needs a judge").
 
 | Situation | Do |
 |-----------|-----|
@@ -636,34 +642,6 @@ with `./le rfc approve unit <package>.<TestName> reason "<the judge's
 verdict>"`, which the
 commit carries as an `RFC-approved:` trailer. That row also accepts a weakening
 of the same test, so no second `./le test weakened approve` answer is owed.
-
-### Error Handling
-| Condition | Detect How | Response | Code/Subcode |
-|-----------|------------|----------|--------------|
-
-### State Machine
-| State | Event | Guard | Action | Next |
-|-------|-------|-------|--------|------|
-
-### Timers
-| Name | Default | Range | Behavior |
-|------|---------|-------|----------|
-
-### Constants
-| Name | Value | Usage |
-|------|-------|-------|
-
-### Algorithms
-Step-by-step, pseudocode if RFC provides it.
-
-### Pitfalls
-- **Edge cases**: <specific scenarios>
-- **Interop**: <known issues with other implementations>
-- **Security**: <attack vectors, mitigations>
-
-### Compatibility
-- Behavior with non-supporting peers
-- Feature negotiation fallback
 
 ## Rules
 - MUST read file, never from memory

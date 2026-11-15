@@ -50,7 +50,8 @@ spends again every 25 calls.
 The `/ze-implement` skill already cut a spec into one agent per phase and told
 the agent that reaching the edge of its context was not reaching the edge of
 its package. The phase agents still ran to 750k, because nothing named a size.
-The number does.
+The number does. A package is cut for about 60 calls, so one agent finishes
+it well inside the 100-call budget, and the handoff at 100 is the edge case.
 
 ## Why a subagent runs nothing past five minutes
 
