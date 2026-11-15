@@ -9,6 +9,63 @@ import (
 	"testing"
 )
 
+// TestDashSeparatedReferenceHeading checks the heading used by RFC 2845.
+// Method: parse exact citations from a dash-separated section and reject
+// prose, non-normative headings and table-of-contents entries beside it.
+func TestDashSeparatedReferenceHeading(t *testing.T) {
+	cases := []struct {
+		name string
+		text string
+		want []string
+		refs bool
+	}{
+		{
+			name: "RFC 2845 heading and next section boundary",
+			text: "8 - References\n\n" +
+				"   [RFC1034] Mockapetris, P., RFC 1034, November 1987.\n\n" +
+				"9 - Authors' Addresses\n\n   RFC 9999\n",
+			want: []string{"rfc1034"},
+			refs: true,
+		},
+		{
+			name: "indented heading remains accepted",
+			text: "   8 - References\n\n   [RFC1034] RFC 1034.\n",
+			want: []string{"rfc1034"},
+			refs: true,
+		},
+		{
+			name: "indented table of contents with dot leaders",
+			text: "Table of Contents\n\n   8 - References ........ 20\n\n   RFC 9999\n",
+		},
+		{
+			name: "column zero table of contents with page number",
+			text: "Table of Contents\n\n8 - References 20\n\n   RFC 9999\n",
+		},
+		{
+			name: "prose with heading prefix",
+			text: "8 - References are listed elsewhere.\n\n   RFC 9999\n",
+		},
+		{
+			name: "non-normative heading",
+			text: "8 - Non-Normative References\n\n   RFC 9999\n",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := Parse(tc.text)
+			if err != nil {
+				t.Fatalf("Parse: %v", err)
+			}
+			if !slices.Equal(got.Cites, tc.want) {
+				t.Errorf("Cites = %v, want %v", got.Cites, tc.want)
+			}
+			if got.HasReferences != tc.refs {
+				t.Errorf("HasReferences = %v, want %v", got.HasReferences, tc.refs)
+			}
+		})
+	}
+}
+
 // TestNormativeReferenceParse holds the reference parser to every trap the
 // corpus research found (AC-2): a table of contents that repeats the headings
 // indented, `RFC` wrapped onto the next line, `RFC-NNNN`, a combined

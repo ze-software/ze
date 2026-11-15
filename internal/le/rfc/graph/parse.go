@@ -74,7 +74,8 @@ var (
 	// `Non-` and `Normative`, and RE2 has no lookbehind to exclude it.
 	normativeHeadingRE    = regexp.MustCompile(`(?i)\bnormative\s+references\b`)
 	nonNormativeHeadingRE = regexp.MustCompile(`(?i)\bnon[\s-]*normative\s+references\b`)
-	combinedHeadingRE     = regexp.MustCompile(`(?i)^(?:(?:appendix\s+)?[0-9a-z]{1,3}(?:\.[0-9]+)*\.?\s+)?` +
+	// A section number can end in a period or a spaced dash (RFC 2845).
+	combinedHeadingRE = regexp.MustCompile(`(?i)^(?:(?:appendix\s+)?[0-9a-z]{1,3}(?:\.[0-9]+)*\.?(?:\s+-)?\s+)?` +
 		`(?:references|bibliography|references\s+and\s+bibliography)\s*$`)
 	// pageFooterRE and pageHeaderRE are the page furniture at column 0 that
 	// is not a heading.
