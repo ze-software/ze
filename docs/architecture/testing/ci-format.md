@@ -2566,6 +2566,19 @@ is still governed by its own exit/output/file assertions.
 <!-- source: internal/test/runner/peer_contract.go -- isSelfValidated, hasCheckPeer -->
 <!-- test: internal/test/runner/peer_contract_test.go TestIsSelfValidated, TestHasCheckPeer -->
 
+A non-zero `expect=exit:code=N` beside a check peer works the same way. When the
+foreground process exits with the code the file asserts, that exit is the outcome
+under test and not a failed run, so the peer's exchange alone decides the peer
+verdict: the test passes when every check peer printed `successful`, and fails on
+`peer-exchange` when one did not. A different exit code fails on `exit-code`
+before the peer is judged. This holds whichever arm supplies the exit: a
+foreground `ze` daemon, a quick-exit `ze` command, or a final foreground helper.
+Until 2026-11-15 the matched exit error reached the peer verdict as a failure, so
+every such test (`test/plugin/failure-policy-fatal-live-peer.ci` among them)
+reported `peer-exchange -> unknown` while its peer printed `successful`.
+<!-- source: internal/test/runner/runner_exec.go -- runOrchestrated, the exit-code block clears a matched exit -->
+<!-- test: internal/test/runner/expect_exit_check_peer_test.go TestAssertedExitBesideCheckPeer -->
+
 A check peer prints `successful` only when EVERY expectation it holds was met:
 every `expect=bgp` line of every `conn=N` it declares. A peer stopped before that,
 by SIGTERM from the runner, by the test's timeout, or because a dialing peer's one

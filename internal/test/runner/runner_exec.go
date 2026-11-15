@@ -1470,6 +1470,14 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			return false
 		}
 		rec.recordStep("exit-code", true, "")
+		// A non-zero exit the test asserted is the outcome under test, not a run
+		// failure. Clear it, so the check-peer branch below judges the exchange
+		// alone and does not read the asserted exit as a failed run. Only an exit
+		// whose code matched is cleared: a wait error that is not an exit, or a
+		// mismatched code, still fails.
+		if exitErr != nil {
+			err = nil
+		}
 	}
 
 	if !checkOutputAssertions(rec) {
