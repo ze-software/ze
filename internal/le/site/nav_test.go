@@ -2,6 +2,7 @@
 package site
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -37,8 +38,8 @@ func factSnapshotOf(t *testing.T, facts *siteFacts) siteFactSnapshot {
 	return snapshot
 }
 
-// siteNavigation reads website/data/nav.json from the real checkout, which is
-// the menu the published fragment was rendered from.
+// siteNavigation reads the current menu from the real checkout. Historical
+// rendering parity has its own recorded input in published-nav.json.
 func siteNavigation(t *testing.T) siteNav {
 	t.Helper()
 	var data siteNav
@@ -198,7 +199,17 @@ func TestTheSharedHeaderRefusesACountItCannotAnswer(t *testing.T) {
 // where Go writes &#39;, and the owner ruled on 2026-08-29 that a character reference a reader cannot tell
 // apart is not a difference.
 func TestTheSharedHeaderReadsAsThePublishedHeader(t *testing.T) {
-	header := renderSiteHeader(t)
+	// This is nav.json at 2f749b45b6c1694c1875c9afb40c414a9a16c90e, before
+	// the approved RFC-map entry was added. Live navigation remains covered
+	// by TestTheSharedHeaderCarriesEveryNavigationEntry.
+	var navigation siteNav
+	if err := json.Unmarshal([]byte(readTestdata(t, "published-nav.json")), &navigation); err != nil {
+		t.Fatal(err)
+	}
+	header, err := sharedHeaderHTML(navigation, factSnapshotOf(t, &publishedHeaderFacts))
+	if err != nil {
+		t.Fatal(err)
+	}
 	published := strings.ReplaceAll(readTestdata(t, "published-header.html"), "&#x27;", "&#39;")
 
 	if header != published {
