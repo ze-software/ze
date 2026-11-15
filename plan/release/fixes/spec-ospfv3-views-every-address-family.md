@@ -183,7 +183,7 @@ operator command runs through the daemon on every command surface").
 | `show ospf ipv6 database address-family ipv4-unicast` from an observer plugin | → | `OnExecuteCommand` AF selection over `v6EngineSet` | `test/ospf/ospf-multiaf-views.ci` |
 | `show ospf ipv6 neighbor address-family ipv4-unicast` against a second Ze | → | per-AF `neighborSnapshot` | interop `ospf-multiaf-v4-frr` checker |
 | `show ospf ipv6 route address-family ipv4-unicast` on a second Ze that learned an AS-External route | → | per-AF `routeSnapshot` | interop `ospf-multiaf-v4-frr` checker, the route step on `peerZePeer` (`10.99.0.0/24` tagged `ipv4-unicast`, 64); `ospf-multiaf-views.ci` proves only the tag and the keyword, one router computing no route |
-| `ze cli -c` with `show ospf ipv6 database address-family ipv4-unicast`, rendered as JSON and as a table | → | SSH session, builtin proxy, plugin, pipe renderer | `test/draft/ospf/ospf-multiaf-views-cli.ci` (fixture `ospf/ospf-multiaf-views-cli`), promoted to `test/ospf/` after its draft run |
+| `ze cli -c` with `show ospf ipv6 database address-family ipv4-unicast`, rendered as JSON and as a table | → | SSH session, builtin proxy, plugin, pipe renderer | `test/draft/ospf/ospf-multiaf-views-cli.ci` (runner `ze cli -c` steps, after the `ospf/ospf-multiaf-views-cli` readiness barrier), promoted to `test/ospf/` after its draft run |
 
 ## Acceptance Criteria
 
@@ -197,7 +197,7 @@ operator command runs through the daemon on every command surface").
 | AC-6 | `address-family bogus` | Refused by the registry before the plugin, naming the four valid values |
 | AC-7 | `ospf-multiaf-v4-frr` interop run | The checker sees Ze's IPv4-unicast neighbor Full through `show ospf ipv6 neighbor address-family ipv4-unicast`, beside the existing kernel-route check; with the AF selection reverted the step goes red |
 | AC-8 | `debug ipv6 ospf inject lsa ... address-family ipv4-unicast` with the enablement on | The LSA lands in the IPv4-unicast engine's LSDB; with the enablement off it is refused whatever AF is named |
-| AC-9 | The same views over REST, MCP and `ze cli` | The same rows (`TestEveryCommandOnEverySurface` green; `ospf-multiaf-views-cli.ci` drives `ze cli -c`) |
+| AC-9 | The same views over REST, MCP and `ze cli` | The same rows (`TestEveryCommandOnEverySurface` green; `ospf-multiaf-views-cli.ci` runs `ze cli -c` as runner steps, as the daemon's user) |
 | AC-10 | `| table` and `| json` on a multi-AF answer | The same rows; the table leads with the `address-family` and `instance-id` columns, which each per-AF view declares (`commandDecls`, `v3ViewColumns`; `TestOSPFv3ViewDeclsMatchV3Views`) |
 | AC-11 | `docs/guide/ospf.md`, multi-AF section | States the IPv4-unicast next hop as the neighbor's Link-LSA IPv4 address (RFC 5838 §2.5), as `v6NextHop` computes it |
 
@@ -244,7 +244,7 @@ operator command runs through the daemon on every command surface").
 - `internal/plugins/ospf/yang/ze-ospf-cmd.yang` - the `address-family` leaf on each view; the `route` container
 - `internal/le/interoplab/bgp/checkers.go` - the `ospf-multiaf-v4-frr` steps reading Ze's IPv4-unicast neighbor and route
 - `internal/test/fixture/routing_fixture.go` - the `ospf/ospf-multiaf-views` scenario
-- `internal/test/fixture/register_ospf_multiaf_views_cli.go` - the `ospf/ospf-multiaf-views-cli` fixture that drives `ze cli -c` (AC-9)
+- `internal/test/fixture/register_ospf_multiaf_views_cli.go` - the `ospf/ospf-multiaf-views-cli` barrier: waits over in-process SSH until the database view holds both tagged records and this router's ipv4-unicast LSA, so the `.ci`'s runner `ze cli -c` steps judge a built database (AC-9)
 - `internal/test/fixture/testdata/ze-help-ai-*.golden` - none exists in this tree (Phase A), so nothing is regenerated
 - `docs/guide/ospf.md`, `docs/guide/command-reference.md`, `docs/architecture/ospf/ospf-ext-15-multi-af.md` - the keyword, the route view, the AF tagging
 

@@ -1,0 +1,138 @@
+# Test: `ze cli -c` reads the OSPFv3 views of every running address family
+# (spec-ospfv3-views-every-address-family AC-9, AC-10).
+#
+# VALIDATES: with ipv6-unicast (Instance ID 0) and ipv4-unicast (Instance ID 64)
+# configured, `ze cli -c "show ospf ipv6 database address-family ipv4-unicast | json"`
+# answers the one ipv4-unicast record tagged with its instance-id and holding the LSA
+# this router (10.0.0.1) advertised, the unnarrowed `| json` answers a tagged record
+# for each family and no other, and `| table` shows the address-family and instance-id
+# columns, in that order, for both.
+# PREVENTS: the per-family rows reaching the plugin-dispatch route only
+# (ospf-multiaf-views.ci) while the client an operator's script runs answers
+# something else: the client speaks SSH, and the daemon's session applies the pipe
+# chain against the OSPF plugin's declared answer shapes.
+# WHY A .ci: the question is the whole client path, `ze cli` over SSH to the daemon,
+# the builtin proxy, the plugin and the session's pipe renderer; the unit tests
+# judge the producer and the renderer alone.
+#
+# Each `ze cli -c` is a runner step (policy-interface-list-counters.ci's shape), so the
+# runner starts it the way it starts the daemon: under the netns launch mode both run
+# as ZE_TEST_UID, the owner of the store the client opens, as an operator on the box
+# does. A compiled fixture stays root there, and the store refuses a client it starts.
+#
+# The steps run once, so seq=2 is a barrier on the state they judge
+# (ospfMultiAFViewsCLIReady, internal/test/fixture/register_ospf_multiaf_views_cli.go):
+# the daemon's readiness file is written before the SSH listener accepts, and the
+# engines originate their LSAs after startup. It waits, over SSH in its own process,
+# until the database view holds a tagged record for each family, the ipv4-unicast one
+# with an LSA 10.0.0.1 originated. No sleep stands in for it, since a fixed delay
+# cannot know when an LSA is originated.
+#
+# `| json` renders the answer indented by two spaces with sorted keys
+# (applyJSON, internal/component/command/pipe.go), so a record opens on a line of its
+# own as `  {`, and its address-family is followed by its instance-id.
+#
+# `ze cli` speaks SSH and nothing else (internal/component/cli/client/main.go), so
+# the daemon declares a server and a user, and the client takes its name and
+# password from the environment (resolveUsername,
+# internal/component/cli/sshclient/client.go); ze.ssh.insecure skips the host-key
+# check the zefs store would otherwise answer.
+
+# The daemon opens raw IPv6 sockets to run the OSPFv3 engines; darwin lacks that path, so
+# this runs under the Linux/QEMU functional harness.
+option=needs-linux:caps=net-admin
+# The `ze -` test that serves `ze cli` over SSH in the netns selection
+# (policy-interface-list-counters.ci) runs on disk storage; this one follows it.
+option=storage:value=disk
+# OSPFv3 opens raw proto-89 sockets on eth0/eth1 (IPv6 link-local, auto on link-up);
+# provision the dummy links inside the per-test netns.
+option=netns-link:name=eth0
+option=netns-link:name=eth1:address=10.0.2.1/24
+option=timeout:value=60s
+
+stdin=ze-conf:terminator=EOF_CONF
+ospf {
+	router-id 10.0.0.1
+	address-family {
+		ipv6-unicast {
+			instance-id 0
+			areas {
+				area 0.0.0.0 {
+					area-type normal
+				}
+			}
+			interfaces {
+				interface eth0 {
+					area 0.0.0.0
+					network-type point-to-point
+				}
+			}
+		}
+		ipv4-unicast {
+			instance-id 64
+			areas {
+				area 0.0.0.0 {
+					area-type normal
+				}
+			}
+			interfaces {
+				interface eth1 {
+					area 0.0.0.0
+					network-type point-to-point
+				}
+			}
+		}
+	}
+}
+system {
+	authentication {
+		user operator {
+			# bcrypt hash of testpass.
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO";
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true;
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.ssh.username:value=operator
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.insecure:value=true
+option=env:var=ze.ssh.port:value=$PORT
+
+cmd=background:seq=1:exec=ze -:stdin=ze-conf
+cmd=foreground:seq=2:exec=le test fixture ospf/ospf-multiaf-views-cli:timeout=45s:exit=0
+expect=stdout:contains=READY: the daemon's SSH session answers a tagged database record for each family
+
+# AC-9: the narrowed view answers one record, ipv4-unicast at instance-id 64, holding
+# this router's LSA. The reject on a second `  {` line refuses any second record, and
+# the one on ipv6-unicast refuses the other family leaking through the narrowing.
+cmd=foreground:seq=3:exec=ze cli -c "show ospf ipv6 database address-family ipv4-unicast | json":exit=0
+expect=stdout:pattern="address-family": "ipv4-unicast",\s*"instance-id": 64,
+expect=stdout:contains="advertising-router": "10.0.0.1"
+reject=stdout:pattern=\n  \{(?s:.*)\n  \{
+reject=stdout:contains=ipv6-unicast
+
+# The whole view answers a record for each configured family, each tagged with its
+# instance-id. Two tagged records and no third: no untagged or extra record either.
+cmd=foreground:seq=4:exec=ze cli -c "show ospf ipv6 database | json":exit=0
+expect=stdout:pattern="address-family": "ipv6-unicast",\s*"instance-id": 0,
+expect=stdout:pattern="address-family": "ipv4-unicast",\s*"instance-id": 64,
+reject=stdout:pattern=\n  \{(?s:.*)\n  \{(?s:.*)\n  \{
+
+# The database record holds address-family, instance-id and lsas, so the header is the
+# same whether the columns are declared or sorted by name: this proves the client shows
+# the identity columns ahead of the record's LSAs, and the unit test
+# TestOSPFv3ViewTableLeadsWithTheInstance proves the declared order on a route row.
+cmd=foreground:seq=5:exec=ze cli -c "show ospf ipv6 database | table":exit=0
+expect=stdout:contains=│ address-family │ instance-id │
+expect=stdout:contains=ipv6-unicast
+expect=stdout:contains=ipv4-unicast

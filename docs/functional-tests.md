@@ -1871,7 +1871,7 @@ A test that declares `option=netns-link` runs **only** in this mode. The option 
 a prerequisite, not a hint: the links it names (`eth0`, `eth1`, `nbma0`, `ptmp0`)
 are provisioned inside the throwaway namespace and must never be created on a real
 host, so off netns mode the test is SKIPped with a reason naming these targets.
-That covers, among others, the 9 `test/ospf` and 3 `test/ospfv3` tests named in
+That covers, among others, the 10 `test/ospf` and 3 `test/ospfv3` tests named in
 `netnsSelections` in `internal/le/test/qemu/netns_linux.go`; they carry `needs-linux` as well and
 use the same registered QEMU action path.
 
