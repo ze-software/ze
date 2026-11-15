@@ -107,6 +107,38 @@ has been rerun against all four probes and the owning evidence records the
 outcomes of their later assertions; another finding may still require the
 shared log. No new temporary evidence copy is needed.
 
+Three additional untagged probes in
+`internal/component/bgp/reactor/rfc4271_selected_boundaries_test.go` complete
+the original test campaign's selected-route boundary cases. They use the same
+real SDK consumers, connected next-hop routes and established sockets without
+RS/RR. They add no advertiser design or conformance credit. Execution is owed
+to the main thread for the later assertions; the initial baseline results are
+recorded below.
+
+| Probe | Required useful output before the boundary assertion | Later boundary assertion |
+|-------|------------------------------------------------------|--------------------------|
+| `TestRFC4271OrdinarySelectedMEDChangeReachesPeer` | The initial winner reaches the recipient; both equal-LOCAL_PREF candidates have AS_PATH beginning with the same AS 65010 | Lowering only the other path's MED changes the selected next hop and sends exactly its replacement, without a withdrawal |
+| `TestRFC4271OrdinarySelectedIBGPSplitHorizon` | An eBGP-source control reaches the internal recipient, and the iBGP-source subject reaches a permitted external recipient | The internal recipient receives neither announcement nor withdrawal for the iBGP-source subject, while its external-source control remains |
+| `TestRFC8212OrdinarySelectedAbsentExportPolicyWithholdsRoute` | The same selected subject and a later source marker reach an explicitly accepting eBGP recipient | The eBGP recipient with no export policy receives neither route; source ingress, SDK consumer work and the shared forward writer are joined before inspection |
+
+The main-thread scoped run in
+`tmp/session/2026-11-14-210034/scratch/job-unit-pkg-334ed25d.log` compiled and
+ran all three probes. Each passed source storage, real next-hop reachability
+and Loc-RIB selection, then failed at its first required advertisement:
+MED's initial winner `198.19.250.0/24`, split horizon's permitted external-source
+control `198.19.251.0/24`, and default rejection's explicitly exportable subject
+`198.19.254.0/24`. The absence at the control recipient is the observed defect;
+the later MED replacement, split-horizon and absent-policy assertions were not
+reached. The source cause remains `rib_bestchange.go` `publishBestChanges`,
+which emits best-change and redistribution events without an ordinary send.
+
+Retain that shared log for these three named failure blocks until an
+implemented advertiser supplies superseding results for all later assertions.
+Other findings may still require the same log. This evidence makes no claim
+that the shared run as a whole passed or was free of races. The later
+implementation must retain the useful-output controls and join any advertiser
+work it adds before the negative observations.
+
 #### Q-3: local and learned routes for the same prefix
 
 The owner's pending question, "What do BIRD and FRR do?", was investigated
