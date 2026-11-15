@@ -225,7 +225,11 @@ func runCheck(arguments leaction.Arguments) (any, int) {
 	if code := report.exit(); code != 0 {
 		return report, code
 	}
-	if arguments.Has(publicationReceiptKeyword) || arguments.Has(publicationDeploymentKeyword) {
+	publicationRequested := arguments.Has(publicationReceiptKeyword)
+	if arguments.Has(publicationDeploymentKeyword) {
+		publicationRequested = true
+	}
+	if publicationRequested {
 		receipt, err := checkPublication(context.Background(), paths)
 		if err != nil {
 			return publicationFailure(err)

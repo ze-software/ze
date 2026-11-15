@@ -370,6 +370,14 @@ whole-build provenance before replacing any page. Missing, legacy, mixed or
 raced provenance requires a fresh full build instead of a guessed source.
 <!-- source: internal/le/site/publication.go -- publicationSourceScope, publicationBuildStart, publicationBuildFinish, publicationPartial -->
 
+The final-byte snapshot opens each path component from its parent directory
+descriptor, with symbolic link following disabled. It checks the opened file's
+regular-file mode before reading bytes. A replaced leaf or ancestor alias is
+refused, including an alias inside the artifact root. A substituted FIFO is
+refused without waiting for a writer.
+<!-- source: internal/le/site/publication.go -- publicationSnapshot, publicationSnapshotWith -->
+<!-- source: internal/le/site/publication_file.go -- publicationOpenFile -->
+
 `./le site check receipt` checks that the observed source identity and reviewed
 artifact bytes still match. Commit only the reviewed artifact through the
 normal `./le commit` flow, and push only on the owner's instruction. After

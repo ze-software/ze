@@ -70,11 +70,17 @@ func publicationCommittedFiles(ctx context.Context, root, revision string) ([]pu
 		if len(fields) != 3 {
 			return nil, errors.New("committed blob reader returned a malformed header")
 		}
-		if fields[0] != entry.object || fields[1] != "blob" {
+		if fields[0] != entry.object {
+			return nil, errors.New("committed blob reader returned another object identity or type")
+		}
+		if fields[1] != "blob" {
 			return nil, errors.New("committed blob reader returned another object identity or type")
 		}
 		size, err := strconv.ParseInt(fields[2], 10, 64)
-		if err != nil || size != entry.file.Size {
+		if err != nil {
+			return nil, errors.New("committed blob reader returned another object size")
+		}
+		if size != entry.file.Size {
 			return nil, errors.New("committed blob reader returned another object size")
 		}
 		hash := sha256.New()
@@ -82,7 +88,10 @@ func publicationCommittedFiles(ctx context.Context, root, revision string) ([]pu
 			return nil, fmt.Errorf("read committed bytes for %s: %w", entry.file.Path, err)
 		}
 		ending, err := reader.ReadByte()
-		if err != nil || ending != '\n' {
+		if err != nil {
+			return nil, errors.New("committed blob reader returned an invalid record terminator")
+		}
+		if ending != '\n' {
 			return nil, errors.New("committed blob reader returned an invalid record terminator")
 		}
 		file := entry.file
@@ -129,7 +138,9 @@ func publicationTreeEntries(ctx context.Context, root, revision string) ([]publi
 		if len(fields) != 4 {
 			return nil, errors.New("committed artifact tree entry is malformed")
 		}
-		if fields[0] != "100644" && fields[0] != "100755" {
+		switch fields[0] {
+		case "100644", "100755":
+		default:
 			return nil, fmt.Errorf("committed artifact path %s has nonregular mode %s", path, fields[0])
 		}
 		if fields[1] != "blob" {
@@ -139,7 +150,13 @@ func publicationTreeEntries(ctx context.Context, root, revision string) ([]publi
 			return nil, err
 		}
 		size, err := strconv.ParseInt(fields[3], 10, 64)
-		if err != nil || size < 0 || size > publicationFileBytesMax {
+		if err != nil {
+			return nil, fmt.Errorf("committed artifact path %s has an unsupported blob size", path)
+		}
+		if size < 0 {
+			return nil, fmt.Errorf("committed artifact path %s has an unsupported blob size", path)
+		}
+		if size > publicationFileBytesMax {
 			return nil, fmt.Errorf("committed artifact path %s has an unsupported blob size", path)
 		}
 		total += size

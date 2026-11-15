@@ -86,7 +86,7 @@ func (store *fileNotificationStore) withLock(ctx context.Context, use func(notif
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	file, err := store.root.OpenFile(notificationLockFile, os.O_CREATE|os.O_RDWR|syscall.O_NOFOLLOW, 0o600)
+	file, err := notificationRootFile(store.root, notificationLockFile, os.O_CREATE|os.O_RDWR, 0o600)
 	if err != nil {
 		return err
 	}
@@ -111,7 +111,9 @@ func (store *fileNotificationStore) withLock(ctx context.Context, use func(notif
 type notificationFileLedger struct{ root *os.Root }
 
 func (ledger notificationFileLedger) load() (notificationReceipt, error) {
-	file, err := ledger.root.OpenFile(notificationStateFile, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+	// A FIFO must not wait for a writer while holding the scope lock. Open
+	// nonblocking, then qualify the actual descriptor before reading bytes.
+	file, err := notificationRootFile(ledger.root, notificationStateFile, os.O_RDONLY, 0)
 	if err != nil {
 		return notificationReceipt{}, err
 	}

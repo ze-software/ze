@@ -147,6 +147,13 @@ func publicationReceiptPath(paths Paths) string {
 }
 
 func publicationSnapshot(output string) ([]publicationFile, string, error) {
+	return publicationSnapshotWith(output, publicationOpenFile)
+}
+
+// publicationSnapshotWith keeps acquisition at the boundary after traversal
+// metadata. Tests can replace a path there deterministically before invoking
+// the same descriptor acquisition used by production.
+func publicationSnapshotWith(output string, acquire func(*os.Root, string) (*os.File, error)) ([]publicationFile, string, error) {
 	root, err := os.OpenRoot(output)
 	if err != nil {
 		return nil, "", err
@@ -187,7 +194,7 @@ func publicationSnapshot(output string) ([]publicationFile, string, error) {
 		if len(files) >= publicationFilesMax {
 			return fmt.Errorf("artifact exceeds %d files", publicationFilesMax)
 		}
-		file, openErr := root.Open(name)
+		file, openErr := acquire(root, name)
 		if openErr != nil {
 			return openErr
 		}

@@ -292,7 +292,12 @@ func publicationChanges(ctx context.Context, paths Paths, files []publicationFil
 	changed := make([]string, 0)
 	for _, file := range files {
 		known[file.Path] = file
-		if prior, found := before[file.Path]; !found || prior != file {
+		prior, found := before[file.Path]
+		if !found {
+			changed = append(changed, file.Path)
+			continue
+		}
+		if prior != file {
 			changed = append(changed, file.Path)
 		}
 	}
