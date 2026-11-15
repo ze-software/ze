@@ -26,10 +26,26 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-irr:show-irr", Handler: forwardShowIRR, PluginCommand: cmdShowIRR},
 		pluginserver.RPCRegistration{WireMethod: "ze-irr:update-irr-all", Handler: forwardUpdateIRRAll, PluginCommand: cmdUpdateIRRAll},
 		pluginserver.RPCRegistration{WireMethod: "ze-irr:update-irr-asn", Handler: forwardUpdateIRRAsn, PluginCommand: cmdUpdateIRRAsn},
-		pluginserver.RPCRegistration{WireMethod: "ze-irr:update-irr-as-set", Handler: forwardUpdateIRRAsSet, PluginCommand: cmdUpdateIRRAsSet},
+		pluginserver.RPCRegistration{WireMethod: "ze-irr:update-irr-as-set", Handler: forwardUpdateIRRAsSet, PluginCommand: cmdUpdateIRRAsSet, Complete: completeASSetArgument},
 		pluginserver.RPCRegistration{WireMethod: "ze-irr:clear-irr-asn", Handler: forwardClearIRRAsn, PluginCommand: cmdClearIRRAsn},
-		pluginserver.RPCRegistration{WireMethod: "ze-irr:clear-irr-as-set", Handler: forwardClearIRRAsSet, PluginCommand: cmdClearIRRAsSet},
+		pluginserver.RPCRegistration{WireMethod: "ze-irr:clear-irr-as-set", Handler: forwardClearIRRAsSet, PluginCommand: cmdClearIRRAsSet, Complete: completeASSetArgument},
 	)
+}
+
+// completeASSetArgument offers, after `update irr as-set` and `clear irr
+// as-set`, every AS-SET name the store holds (completion.go). It runs in the
+// daemon beside the forwarders and reads the daemon's store, never the
+// owner's process, so it answers while the owner runs forked or is stopped.
+// The dispatcher matches the typed prefix (builtinArgCompletions), and the
+// SSH tree hangs it on the command's node (WireArgCompletion). Safe for
+// concurrent use.
+func completeASSetArgument(_ *pluginserver.Server) []pluginserver.Completion {
+	known := daemonKnownASSets()
+	candidates := make([]pluginserver.Completion, 0, len(known))
+	for _, set := range known {
+		candidates = append(candidates, pluginserver.Completion{Value: set.name, ShortHelp: set.help()})
+	}
+	return candidates
 }
 
 // registerIRRShapes declares what `show irr` answers: one row per stored

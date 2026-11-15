@@ -195,7 +195,11 @@ plugin a later reload added.
    something only the running daemon knows declares an `ArgCompleter` in the
    `Complete` field of its `RPCRegistration`, beside its handler
    (`request plugin restart` offers every configured plugin, saying which
-   run). `handleArgComplete` asks that completer first and falls back to a
+   run). A plugin's daemon-side forwarder declares one the same way:
+   `update irr as-set` and `clear irr as-set` offer the AS-SETs the irr
+   owner's store keys hold, read in the daemon, so the answer does not depend
+   on the owner's process (`docs/architecture/irr-owner.md`, "Completion").
+   `handleArgComplete` asks that completer first and falls back to a
    `Completable` plugin command's own process. `args "<cmd>"` with no partial
    lists every candidate, and `system command list` marks each such command
    `completable`. The interactive trees use it: the SSH session's tree, built
@@ -207,6 +211,7 @@ plugin a later reload added.
 <!-- source: internal/component/plugin/server/arg_completion.go -- ArgCompleter, builtinArgCompletions, WireArgCompletion -->
 <!-- source: internal/component/plugin/server/system.go -- handleSystemCommandComplete, handleArgComplete, commandRows -->
 <!-- source: internal/component/plugin/server/register_plugin_restart.go -- completePluginRestart -->
+<!-- source: internal/plugins/irr/register_commands.go -- completeASSetArgument -->
 <!-- source: cmd/ze/hub/session_factory.go -- mergePluginCommands -->
 <!-- source: internal/component/cli/client/inject.go -- wireDaemonArgCompletion, fetchArgCompletions -->
 

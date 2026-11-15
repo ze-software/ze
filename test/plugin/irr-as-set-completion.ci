@@ -1,0 +1,65 @@
+# Test: a completion request after update irr as-set and clear irr as-set offers the AS-SET the forked irr owner stored
+# VALIDATES: spec-fetched-data-survives-restart B-5, the command half of "Editor autocomplete: AS-SET names from the interest keys"
+# PREVENTS: a completer that reads the owner's memory, which a forked owner holds in another process, so Tab offers nothing
+# WIRING: bgp-filter-irr interest -> forked irr owner fetch and pointer -> daemon store -> RPCRegistration.Complete ->
+#         system command complete args, the request ze cli sends at each Tab (cli/client/inject.go)
+#
+# Why not a unit test: the unit tests (internal/plugins/irr/completion_test.go)
+# call the completer over a store they wrote. Only a daemon proves the
+# completer is registered on the dispatcher's command, that the dispatcher
+# answers it for `system command complete args`, and that it reads the names
+# the owner stored while the owner runs in another process.
+#
+# Method: the irr owner and bgp-filter-irr run forked, in the plugin block
+# test/plugin/clear-irr-cache-external.ci uses (no hub block: the default
+# connect-back serves every external process). bgp-filter-irr names
+# AS-TEST in its interest, the owner fetches it from `le mock irr` and stores
+# it. The observer (internal/test/fixture/register_irr_as_set_completion.go)
+# waits for the stored dataset, then asks the daemon to complete each
+# AS-SET command with no prefix, with "AS-T", and with a prefix no name has.
+
+option=storage:value=disk
+option=timeout:value=60s
+
+stdin=ze-irr:terminator=EOF_CONF
+plugin {
+	external irr-as-set-completion-test {
+		run "le test fixture plugin/irr-as-set-completion"
+		encoder json
+	}
+	external irr {
+		run "ze plugin irr"
+	}
+	external bgp-filter-irr {
+		run "ze plugin bgp-filter-irr"
+	}
+}
+system {
+	irr { server 127.0.0.1:$PORT2; }
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			router-id 1.2.3.4;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			irr { as-set AS-TEST; }
+		}
+		filter {
+			export { final accept; }
+			import { filters [ bgp-filter-irr:65001 ]; final accept; }
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le mock irr --port $PORT2 --query-log irr-queries.log
+cmd=foreground:seq=2:exec=ze -:stdin=ze-irr
+expect=exit:code=0
+expect=stderr:pattern=OK: update irr as-set and clear irr as-set complete the stored AS-TEST
+reject=stderr:pattern=panic
+reject=stderr:pattern=ZE-OBSERVER-FAIL

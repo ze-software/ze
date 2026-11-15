@@ -346,8 +346,9 @@ var knownUnwalkedValidatorSections = map[string]string{
 // top-level section that declares one, and the subset of those that no rule
 // accounts for.
 type ValidatorCoverage struct {
-	// Declaring is every top-level section carrying a ze:validate anywhere in
-	// its subtree, in the model this binary compiled.
+	// Declaring is every top-level section carrying a ze:validate that refuses
+	// something anywhere in its subtree, in the model this binary compiled. A
+	// completion-only annotation is not counted (annotationRefuses).
 	Declaring map[string]bool
 	// Unaccounted is the sections in Declaring that ValidateCustomSections does
 	// not walk and knownUnwalkedValidatorSections does not excuse. Each one is
@@ -378,6 +379,12 @@ func ValidatorSectionCoverage() (ValidatorCoverage, error) {
 		walked[s] = true
 	}
 
+	// The registry the value validator builds (validatorFromResolved), so a
+	// completion-only name reads as one here too.
+	reg := yang.NewValidatorRegistry()
+	RegisterValidators(reg)
+	reg.MergeGlobalCompletions()
+
 	cov := ValidatorCoverage{Declaring: make(map[string]bool)}
 	unaccounted := make(map[string]bool)
 	for _, modName := range loader.ConfModuleNames() {
@@ -386,7 +393,7 @@ func ValidatorSectionCoverage() (ValidatorCoverage, error) {
 			continue
 		}
 		for section, sectionEntry := range entry.Dir {
-			if !subtreeDeclaresValidator(sectionEntry) {
+			if !subtreeDeclaresValidator(sectionEntry, reg) {
 				continue
 			}
 			cov.Declaring[section] = true
@@ -418,14 +425,37 @@ func KnownUnwalkedValidatorSections() map[string]string {
 }
 
 // subtreeDeclaresValidator reports whether entry or anything under it carries a
-// ze:validate. The recursion is over a resolved YANG tree, which is finite and
-// built from modules this binary compiled in, never from operator input.
-func subtreeDeclaresValidator(entry *gyang.Entry) bool {
-	if yang.GetValidateExtension(entry) != "" {
+// ze:validate that refuses something. The recursion is over a resolved YANG
+// tree, which is finite and built from modules this binary compiled in, never
+// from operator input.
+func subtreeDeclaresValidator(entry *gyang.Entry, reg *yang.ValidatorRegistry) bool {
+	if annotationRefuses(yang.GetValidateExtension(entry), reg) {
 		return true
 	}
 	for _, child := range entry.Dir {
-		if subtreeDeclaresValidator(child) {
+		if subtreeDeclaresValidator(child, reg) {
+			return true
+		}
+	}
+	return false
+}
+
+// annotationRefuses reports whether a ze:validate argument names a validator
+// the walk would run. A completion-only validator (RegisterSuggestion: a
+// CompleteFn and no ValidateFn) refuses nothing, so the walk has nothing to run
+// for it and its section owes neither a walk nor an excuse. A name the
+// registry does not hold counts as a rule: CheckAllValidatorsRegistered
+// reports it, and this derivation does not read the gap as an answer.
+func annotationRefuses(arg string, reg *yang.ValidatorRegistry) bool {
+	if arg == "" {
+		return false
+	}
+	for _, name := range yang.SplitValidatorNames(arg) {
+		validator := reg.Get(name)
+		if validator == nil {
+			return true
+		}
+		if validator.ValidateFn != nil {
 			return true
 		}
 	}

@@ -29,6 +29,9 @@ module ze-filter-irr {
 This leaf names that AS-SET. If this leaf is empty, Ze reads the remote ASN of the
 peer and discovers the AS-SET from PeeringDB.";
                 ze:help "Explicit AS-SET name for the IRR prefix lookup.";
+                // A completion, never a rule: the irr owner offers the AS-SET
+                // names the store holds (internal/plugins/irr/register_completion.go).
+                ze:validate "irr-as-set";
             }
 
             leaf enable {

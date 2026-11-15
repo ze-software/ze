@@ -22,6 +22,7 @@ view, and a notice tells a consumer to pull it.
 | Reading `system irr`, the schedule, the fetch, the store, the notices, the commands, the conversion of `meta/irr/{name}`, the doctor check | In place (`config.go`, `owner.go`, `schedule.go`, `datasets.go`, `command.go`, `legacy.go`, `doctor.go`) |
 | Read-only grant, per-key value bound | In place |
 | The refresh metrics `ze_irr_refresh_outcomes_total` and `ze_irr_data_age_seconds` | The owner's (`metrics.go`); no consumer registers them |
+| Completion of AS-SET names on the consumers' AS-SET leaves and after `update irr as-set` and `clear irr as-set` | In place (`completion.go`, `register_completion.go`, `register_commands.go`) |
 | `bgp-filter-irr` reading the owner's keys and writing its interest | In place: it holds no IRR or PeeringDB client (`filter_irr/stored.go`) |
 | `firewall-irr` reading the owner's keys and writing its interest | In place: it holds no IRR or PeeringDB client and no key of its own beyond its interest (`firewall/plugins/irr/stored.go`) |
 
@@ -147,6 +148,34 @@ lives in the worker, so a restart fetches a still-referenced cleared set again.
 through `OnResolverCacheClear`; the stored datasets stay.
 
 <!-- source: internal/plugins/irr/command.go -- handleCommand, updateASSet, updateASN, updateAll, clearASSet, clearASN -->
+
+## Completion
+
+Where an operator types an AS-SET name, Tab offers the AS-SETs the owner knows:
+every name a consumer's interest key holds (`meta/irr-interest/{consumer}`,
+decoded with `store.DecodeInterest`; its bare AS numbers are not offered) and
+every name a pointer key names (`meta/irr-set/{as-set}`), once each, in the upper
+case they are keyed in. Each one says whether a dataset is stored ("AS-SET with
+a stored IRR dataset") or only a consumer names it so far ("AS-SET a consumer
+references, nothing stored yet").
+
+| Where | How it is reached |
+|-------|-------------------|
+| `bgp ... session irr as-set`, firewall-irr's `firewall irr interface <name> source-as-set`, and the `from source-as-set` and `from destination-as-set` of a firewall term | Each leaf carries `ze:validate "irr-as-set"`, which the owner declares as a suggestion (`configyang.RegisterSuggestion`, `register_completion.go`). It refuses nothing: an AS-SET nothing stored or referenced yet stays valid, because writing it is how an operator asks for it |
+| `update irr as-set <name>`, `clear irr as-set <name>` | The owner's two `RPCRegistration`s carry `Complete: completeASSetArgument`, so `system command complete args` (what `ze cli` asks at a Tab) and the SSH tree's value hints answer them ([command completion](./cli/command-completion.md), path 3) |
+
+Both read the daemon's store, under the owner's own grants (`daemonStore`:
+`statestore.PluginList` and `PluginKeyReadable`), and never the worker. The
+editor and the dispatcher run in the daemon, and the store is the daemon's, so
+the names are the same when the owner runs forked and while it is stopped. A
+process with no store offers none, and the editor prints the leaf's type hint.
+A listing that fails offers none and logs a WARN with
+`doctor-irr-dataset-unreadable`; an interest value that cannot be decoded costs
+only its own names, and is logged the same way.
+
+<!-- source: internal/plugins/irr/completion.go -- knownASSets, pointerNames, interestNames, daemonStore, daemonKnownASSets -->
+<!-- source: internal/plugins/irr/register_completion.go -- asSetValidatorName, asSetValues, asSetHelp -->
+<!-- source: internal/plugins/irr/register_commands.go -- completeASSetArgument -->
 
 ## Converting the firewall's stored lists
 
@@ -318,3 +347,7 @@ falls back to a set a consumer dropped, and keeps the stored copy when an
 asn` on a running worker: a value outside the AS number range is refused
 before any question is asked, and the forwarders recover the value the
 dispatcher bound. `schedule_test.go` proves the due times.
+`completion_test.go` reads the completion source over a fake store, then drives
+the editor's `Completer.Complete` and the command completer over a daemon store
+it wrote; `test/plugin/irr-as-set-completion.ci` asks a daemon whose owner runs
+forked to complete both AS-SET commands.

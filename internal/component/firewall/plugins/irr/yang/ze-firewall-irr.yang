@@ -59,6 +59,9 @@ module ze-firewall-irr {
                                  needs a stored prefix list. A config commit is refused
                                  when nothing is stored.";
                     ze:help "AS-SET whose IRR-resolved prefixes are the allowed source addresses.";
+                    // A completion, never a rule: the irr owner offers the AS-SET
+                    // names the store holds (internal/plugins/irr/register_completion.go).
+                    ze:validate "irr-as-set";
                 }
             }
         }
@@ -84,6 +87,7 @@ module ze-firewall-irr {
                          'update irr as-set <name>' first. A config commit is refused
                          when nothing is stored.";
             ze:help "Match the source address against the IRR-resolved prefixes of this AS-SET.";
+            ze:validate "irr-as-set";
         }
 
         leaf destination-asn {
@@ -107,6 +111,7 @@ module ze-firewall-irr {
                          'update irr as-set <name>' first. A config commit is refused
                          when nothing is stored.";
             ze:help "Match the destination address against the IRR-resolved prefixes of this AS-SET.";
+            ze:validate "irr-as-set";
 
         }
     }

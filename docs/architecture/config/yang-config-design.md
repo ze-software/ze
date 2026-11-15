@@ -736,6 +736,13 @@ Neither call overwrites. A name the registry already holds keeps its
 ASNs with their network names while accepting every other uint32
 (`docs/architecture/bgp/filter-path-asn.md`).
 
+A suggestion may come from another plugin than the leaf's. The AS-SET leaves of
+`bgp-filter-irr` and `firewall-irr` carry `ze:validate "irr-as-set"`, which the
+irr owner declares, because the owner is the one plugin that knows every AS-SET
+in play. Its values are read from the daemon's store, where the editor runs, so
+they answer the same when the owner runs forked (`docs/architecture/irr-owner.md`,
+"Completion").
+
 <!-- source: internal/component/config/yang/validator_registry.go -- RegisterCompleteFn, RegisterSuggestion, MergeGlobalCompletions -->
 <!-- source: internal/component/config/yang/validator.go -- applyCustomValidators -->
 
@@ -808,6 +815,13 @@ which records each deliberate exclusion against its reason.
 new plugin that declares a validator under a new section is told rather than
 shipping a rule that does nothing.
 
+A section declares a rule only through an annotation that names a validator
+with a `ValidateFn`, or one nobody registered (`annotationRefuses`). A
+completion-only annotation (Completion-Only Validators above) refuses nothing,
+so the walk has nothing to run for it and its section owes neither a walk nor
+an excuse. The `firewall` section is that case: its only annotations are the
+irr owner's `irr-as-set` suggestion on the firewall-irr AS-SET leaves.
+
 Read the resolved model, never the YANG source: a `ze:validate` written inside a
 grouping lands wherever that grouping is used, so the source cannot say which
 section owns it. The derivation is also only as complete as the modules the
@@ -815,7 +829,7 @@ binary linked, and every plugin sits behind a feature build tag, which is why
 the test asserts its recorded exclusions are present before it reads an empty
 answer as good news.
 
-<!-- source: internal/component/config/validate_sections.go -- ValidatorSectionCoverage, knownUnwalkedValidatorSections -->
+<!-- source: internal/component/config/validate_sections.go -- ValidatorSectionCoverage, knownUnwalkedValidatorSections, annotationRefuses -->
 
 Components can also register an original-tree validator with
 `RegisterTreeValidator`. `ValidateCustomSections` calls these on the original
