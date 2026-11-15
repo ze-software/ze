@@ -66,8 +66,12 @@ Each regular file in the outer Docker archive must be dense and at most 16 GiB.
 The checker refuses sparse outer files and larger declared sizes before hashing
 their content. Filesystem layers inside those dense files can contain sparse
 entries. JSON metadata is limited to 16 MiB, and uncompressed filesystem layers
-are limited to 16 GiB.
-<!-- source: internal/le/build/preview/docker_archive.go -- scanImageArchive, archiveContent.json, archiveContent.layer -->
+are limited to 16 GiB. A layer whose stream runs past that limit is refused
+with the size limit, wherever the stream ran out. The bundle's own
+`manifest.json` and `SHA256SUMS` are limited to 16 MiB each; the checker reads
+at most one byte past that limit and refuses a larger file before parsing it.
+<!-- source: internal/le/build/preview/docker_archive.go -- scanImageArchive, archiveContent.json, archiveContent.layerWithin -->
+<!-- source: internal/le/build/preview/check.go -- regularFile, bundleMetadataLimit -->
 
 Verify the checksums before extracting or installing a received bundle:
 

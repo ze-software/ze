@@ -141,7 +141,12 @@ func diagnosticFixture(req *request) int {
 	if err != nil {
 		return 95
 	}
-	if err := syscall.Dup2(int(file.Fd()), 5); err != nil {
+	// unix.Dup2, not syscall.Dup2: linux/arm64 has no dup2 system call, so
+	// syscall defines no Dup2 there and this file would not compile. On Linux
+	// unix.Dup2 is dup3 with no flags, which differs from dup2 only when both
+	// descriptors are equal; descriptor 5 is the inherited diagnostics file,
+	// so os.Open never returns 5 here.
+	if err := unix.Dup2(int(file.Fd()), 5); err != nil {
 		return 96
 	}
 	if err := file.Close(); err != nil {

@@ -393,3 +393,41 @@ func TestCheckArchiveSparseEntrySizeLimitBoundary(t *testing.T) {
 		}
 	})
 }
+
+// TestRegularFileBundleMetadataSizeLimitBoundary proves that the bundle check
+// bounds what it reads of manifest.json and SHA256SUMS, which it reads whole
+// into memory from a bundle nobody here built. Method: write a file of exactly
+// a lowered bound and one of one byte more, and read each through regularFile
+// with that bound. The first must be returned whole, so the bound cannot be
+// met by refusing everything or by truncating; the second must be refused with
+// the size limit. Without the limit check after the bounded read, the second
+// file comes back whole with no error.
+func TestRegularFileBundleMetadataSizeLimitBoundary(t *testing.T) {
+	const bound int64 = 4 << 10
+	root := t.TempDir()
+	atLimit := bytes.Repeat([]byte{'m'}, int(bound))
+	if err := os.WriteFile(filepath.Join(root, "manifest.json"), atLimit, 0o600); err != nil {
+		t.Fatalf("write the at-limit fixture: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "SHA256SUMS"), append(atLimit, 's'), 0o600); err != nil {
+		t.Fatalf("write the over-limit fixture: %v", err)
+	}
+	t.Run("a file of exactly the limit is read whole", func(t *testing.T) {
+		body, err := regularFile(root, "manifest.json", bound)
+		if err != nil {
+			t.Fatalf("a file of exactly the %d byte bound was refused: %v", bound, err)
+		}
+		if !bytes.Equal(body, atLimit) {
+			t.Fatalf("a file of exactly the %d byte bound came back as %d bytes", bound, len(body))
+		}
+	})
+	t.Run("a file one byte past the limit is refused", func(t *testing.T) {
+		body, err := regularFile(root, "SHA256SUMS", bound)
+		if err == nil {
+			t.Fatalf("a file one byte past the %d byte bound was accepted as %d bytes", bound, len(body))
+		}
+		if !strings.Contains(err.Error(), "size limit") {
+			t.Fatalf("a file one byte past the bound was refused for another reason: %v", err)
+		}
+	})
+}

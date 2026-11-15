@@ -102,7 +102,7 @@ func elfString(file *elf.File, name string) (string, error) {
 
 func check(output string, inspect func(string, string, Source, string) error) (Manifest, error) {
 	var manifest Manifest
-	body, err := regularFile(output, "manifest.json")
+	body, err := regularFile(output, "manifest.json", bundleMetadataLimit)
 	if err != nil {
 		return manifest, err
 	}
@@ -124,7 +124,7 @@ func check(output string, inspect func(string, string, Source, string) error) (M
 	if sourceDigest(inputDigest(manifest.Source.Inputs), manifest.Source.Toolchain, manifest.Source.Tags) != manifest.Source.Digest {
 		return manifest, errors.New("preview selected-input inventory differs from source digest")
 	}
-	checksums, err := regularFile(output, "SHA256SUMS")
+	checksums, err := regularFile(output, "SHA256SUMS", bundleMetadataLimit)
 	if err != nil {
 		return manifest, err
 	}
@@ -217,7 +217,17 @@ func safeName(name string) bool {
 	return name != "" && name != "." && name != ".." && filepath.Base(name) == name && !strings.ContainsAny(name, "\\\r\n")
 }
 
-func regularFile(root, name string) ([]byte, error) {
+// bundleMetadataLimit is archiveJSONLimit, the ceiling a Docker archive's
+// JSON metadata gets, applied to the bundle's own manifest.json and
+// SHA256SUMS. The check reads each of them whole into memory, and it runs on
+// bundles nobody here built, so a crafted bundle must not make it read an
+// unbounded file. A bundle this tool prepared stays far below it.
+const bundleMetadataLimit int64 = archiveJSONLimit
+
+// regularFile reads the regular file name in the bundle directory root,
+// reading at most limit bytes. A longer file is refused with the size-limit
+// error, never truncated. limit MUST be positive.
+func regularFile(root, name string, limit int64) ([]byte, error) {
 	if !safeName(name) {
 		return nil, errors.New("unsafe preview artifact path")
 	}
@@ -229,7 +239,22 @@ func regularFile(root, name string) ([]byte, error) {
 	if !info.Mode().IsRegular() {
 		return nil, fmt.Errorf("preview artifact %s is not a regular file", name)
 	}
-	return os.ReadFile(path) //nolint:gosec // G304: safeName confines name to the bundle directory the caller named, and Lstat proved a regular file
+	file, err := os.Open(path) //nolint:gosec // G304: safeName confines name to the bundle directory the caller named, and Lstat proved a regular file
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close() //nolint:errcheck // read-only file
+	// One byte past the limit tells a file of exactly limit bytes from a
+	// longer one: N reaches zero only once more than limit bytes were read.
+	limited := &io.LimitedReader{R: file, N: limit + 1}
+	body, err := io.ReadAll(limited)
+	if limited.N <= 0 {
+		return nil, fmt.Errorf("preview %s is larger than its size limit of %d bytes, which a bundle this tool prepared never reaches; prepare a new bundle with ./le build preview run output <new directory>", name, limit)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return body, nil
 }
 
 func verifySum(root, name, want string) error {

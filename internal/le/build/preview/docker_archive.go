@@ -630,6 +630,15 @@ func (graph *imageGraph) attestation(descriptor imageDescriptor, manifest savedM
 }
 
 func (content *archiveContent) layer(name, mediaType, diffID string) error {
+	return content.layerWithin(name, mediaType, diffID, layerSizeLimit)
+}
+
+// layerWithin verifies the filesystem layer name against diffID, reading at
+// most limit uncompressed bytes. Every read of the stream (the tar headers,
+// the skipped bodies and the final drain) goes through one limited reader, so
+// a stream longer than limit is refused with the size-limit error wherever it
+// ran out. limit MUST be positive.
+func (content *archiveContent) layerWithin(name, mediaType, diffID string, limit int64) error {
 	if !validImageDigest(diffID) {
 		return errors.New("invalid filesystem layer diffID")
 	}
@@ -650,12 +659,22 @@ func (content *archiveContent) layer(name, mediaType, diffID string) error {
 	default:
 		return fmt.Errorf("unsupported preview filesystem layer compression: %s", mediaType)
 	}
-	limited := &io.LimitedReader{R: reader, N: layerSizeLimit + 1}
+	// One byte past the limit tells a stream of exactly limit bytes from a
+	// longer one: N reaches zero only once more than limit bytes were read.
+	// An exhausted reader answers io.EOF, which the tar reader turns into a
+	// short read or a clean end, so N is checked before any of those answers.
+	limited := &io.LimitedReader{R: reader, N: limit + 1}
+	oversized := func() error {
+		return fmt.Errorf("filesystem layer %s is larger than the preview size limit of %d uncompressed bytes, which the check enforces so an untrusted image cannot make it read without end; prepare the images again with ./le build preview run output <new directory> images", name, limit)
+	}
 	sum := sha256.New()
 	uncompressed := io.TeeReader(limited, sum)
 	tarball := tar.NewReader(uncompressed)
 	for {
 		header, err := tarball.Next()
+		if limited.N <= 0 {
+			return oversized()
+		}
 		if errors.Is(err, io.EOF) {
 			break
 		}
@@ -666,11 +685,12 @@ func (content *archiveContent) layer(name, mediaType, diffID string) error {
 			return err
 		}
 	}
-	if _, err := io.Copy(io.Discard, uncompressed); err != nil {
-		return err
-	}
+	_, err = io.Copy(io.Discard, uncompressed)
 	if limited.N <= 0 {
-		return errors.New("uncompressed filesystem layer exceeds preview bound")
+		return oversized()
+	}
+	if err != nil {
+		return err
 	}
 	if "sha256:"+hex.EncodeToString(sum.Sum(nil)) != diffID {
 		return fmt.Errorf("filesystem layer %s differs from its ordered config diffID", name)

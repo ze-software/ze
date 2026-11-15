@@ -5,6 +5,8 @@ import (
 	"archive/tar"
 	"bytes"
 	"encoding/json"
+	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -111,5 +113,105 @@ func TestDockerArchiveAcceptsSparseFilesystemLayer(t *testing.T) {
 	fixture.files["manifest.json"] = fixtureJSON(t, []compatibilityImage{{Config: fixture.config, Layers: fixture.layers}})
 	if err := checkDockerArchive(writeDockerFixture(t, fixture), fixture.image); err != nil {
 		t.Fatalf("a dense image archive with a sparse filesystem layer was refused: %v", err)
+	}
+}
+
+// layerTestBound is the uncompressed byte budget the layer tests hand the
+// check: far below the production layer limit so the oversized layers stay
+// small, and far above the small layers used as controls.
+const layerTestBound int64 = 64 << 10
+
+// layerContent stores layer as the only entry, layer.tar, of an outer archive
+// whose content the layer check reads by offset, and returns that content.
+func layerContent(t *testing.T, layer []byte) *archiveContent {
+	t.Helper()
+	filename := filepath.Join(t.TempDir(), "layer.tar")
+	if err := os.WriteFile(filename, layer, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	file, err := os.Open(filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { file.Close() }) //nolint:errcheck // Read-only fixture.
+	return &archiveContent{
+		file:    file,
+		entries: map[string]archiveEntry{"layer.tar": {offset: 0, size: int64(len(layer))}},
+		used:    map[string]bool{},
+	}
+}
+
+// boundLayerTar writes a raw filesystem layer holding one regular file of the
+// given body, then trailing zero bytes after the tar end marker.
+func boundLayerTar(t *testing.T, body []byte, trailing int) []byte {
+	t.Helper()
+	var layer bytes.Buffer
+	writer := tar.NewWriter(&layer)
+	if err := writer.WriteHeader(&tar.Header{Name: "file", Size: int64(len(body)), Mode: 0o644, Typeflag: tar.TypeReg}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := writer.Write(body); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return append(layer.Bytes(), make([]byte, trailing)...)
+}
+
+// TestDockerLayerRefusesStreamBeyondSizeLimit proves that a filesystem layer
+// whose uncompressed stream runs past the bound is refused with the size
+// limit wherever the budget ran out: inside an entry body the tar reader
+// skips, and in the bytes after the tar end marker that the check drains.
+// Method: build raw layers of sixteen times a lowered bound at each place,
+// bind each to its true diffID so only the bound can refuse it, and require
+// an error naming the size limit, never the raw short read. Without the
+// budget check right after the tar reader's Next, the skipped-body case
+// answers "invalid filesystem layer layer.tar: unexpected EOF"; without the
+// one after the drain, the trailing case is refused for the wrong reason: the
+// digest covers only the bytes the budget let through, so it answers that the
+// layer differs from its ordered config diffID, and never names the size limit.
+func TestDockerLayerRefusesStreamBeyondSizeLimit(t *testing.T) {
+	oversized := int(16 * layerTestBound)
+	cases := []struct {
+		name  string
+		layer []byte
+	}{
+		{name: "a skipped entry body", layer: boundLayerTar(t, make([]byte, oversized), 0)},
+		{name: "trailing data after the tar end marker", layer: boundLayerTar(t, []byte("file"), oversized)},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			content := layerContent(t, tc.layer)
+			err := content.layerWithin("layer.tar", "application/vnd.oci.image.layer.v1.tar", digestBytes(tc.layer), layerTestBound)
+			if err == nil {
+				t.Fatalf("a layer whose stream runs past a %d byte bound was accepted", layerTestBound)
+			}
+			if errors.Is(err, io.ErrUnexpectedEOF) {
+				t.Fatalf("the budget ran out and the raw short read was answered instead of the size limit: %v", err)
+			}
+			if !strings.Contains(err.Error(), "size limit") {
+				t.Fatalf("the oversized layer was refused for another reason: %v", err)
+			}
+		})
+	}
+}
+
+// TestDockerLayerAcceptsStreamOfExactlySizeLimit is the control for the
+// bound: the same layers, checked with a bound of exactly their length, are
+// accepted, so the bound cannot be met by refusing every layer or by counting
+// one byte too many.
+func TestDockerLayerAcceptsStreamOfExactlySizeLimit(t *testing.T) {
+	oversized := int(16 * layerTestBound)
+	for name, layer := range map[string][]byte{
+		"a large entry body":                     boundLayerTar(t, make([]byte, oversized), 0),
+		"trailing data after the tar end marker": boundLayerTar(t, []byte("file"), oversized),
+	} {
+		t.Run(name, func(t *testing.T) {
+			content := layerContent(t, layer)
+			if err := content.layerWithin("layer.tar", "application/vnd.oci.image.layer.v1.tar", digestBytes(layer), int64(len(layer))); err != nil {
+				t.Fatalf("a layer of exactly the %d byte bound was refused: %v", len(layer), err)
+			}
+		})
 	}
 }
