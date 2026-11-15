@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7606-7.5-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc7606_test.go::TestRFC7606LocalPrefIBGPInvalid",
+    "unit-sha": "943ce01f5dfac78c",
+    "claim-sha": "ac1850834fe71ddd",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/rfc7606.go::validateLocalPrefAttr",
+    "producer-sha": "2caa5e33b0604156",
+    "break": "line 842: \"RFC7606ActionTreatAsWithdraw\" -\u003e \"RFC7606ActionSessionReset\""
+  },
+  {
+    "rid": "RFC7606-7.5-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc7606_test.go::TestRFC7606LocalPrefIBGPValid",
+    "unit-sha": "86983c902a9e3ced",
+    "claim-sha": "8371c4acbca1688f",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/rfc7606.go::validateLocalPrefAttr",
+    "producer-sha": "2caa5e33b0604156",
+    "break": "line 839: \"if length != 4 {\" -\u003e \"if length == 4 {\""
+  }
+]

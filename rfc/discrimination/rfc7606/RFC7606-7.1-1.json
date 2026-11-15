@@ -1,0 +1,57 @@
+[
+  {
+    "rid": "RFC7606-7.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MalformedOriginLength",
+    "unit-sha": "28508434558c66b9",
+    "claim-sha": "69609bb613b336f7",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/rfc7606.go::validateOriginAttr",
+    "producer-sha": "22301565e0d2748a",
+    "break": "line 769: \"RFC7606ActionTreatAsWithdraw\" -\u003e \"RFC7606ActionSessionReset\""
+  },
+  {
+    "rid": "RFC7606-7.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginValueEGP",
+    "unit-sha": "f5824c4501380d68",
+    "claim-sha": "7e3ffbf83676d9da",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/rfc7606.go::validateOriginAttr",
+    "producer-sha": "22301565e0d2748a",
+    "break": "line 766: \"if length != 1 {\" -\u003e \"if length == 1 {\""
+  },
+  {
+    "rid": "RFC7606-7.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginValueIGP",
+    "unit-sha": "d5e9b9675aae9f64",
+    "claim-sha": "73d1fa321a99a206",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/rfc7606.go::validateOriginAttr",
+    "producer-sha": "22301565e0d2748a",
+    "break": "line 766: \"if length != 1 {\" -\u003e \"if length == 1 {\""
+  },
+  {
+    "rid": "RFC7606-7.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginValueIncomplete",
+    "unit-sha": "fffaffd56dc88aa2",
+    "claim-sha": "39c30389de10d1e5",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/rfc7606.go::validateOriginAttr",
+    "producer-sha": "22301565e0d2748a",
+    "break": "line 766: \"if length != 1 {\" -\u003e \"if length == 1 {\""
+  },
+  {
+    "rid": "RFC7606-7.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginValueInvalid",
+    "unit-sha": "3b703895810c65d6",
+    "claim-sha": "342e1510d32ffc4b",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/rfc7606.go::validateOriginAttr",
+    "producer-sha": "22301565e0d2748a",
+    "break": "line 777: \"RFC7606ActionTreatAsWithdraw\" -\u003e \"RFC7606ActionSessionReset\""
+  }
+]

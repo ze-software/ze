@@ -2,6 +2,28 @@
   {
     "rid": "RFC7606-3.d-1",
     "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MissingASPath",
+    "unit-sha": "fcfca21b7ef43c14",
+    "claim-sha": "9fab0425240b9851",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606Peer",
+    "producer-sha": "56a82251688aac11",
+    "break": "line 616: \"if !hasASPath {\" -\u003e \"if false {\""
+  },
+  {
+    "rid": "RFC7606-3.d-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MissingOrigin",
+    "unit-sha": "433da173c15b9e9a",
+    "claim-sha": "819c9cc47ee08e1e",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606Peer",
+    "producer-sha": "56a82251688aac11",
+    "break": "line 609: \"if !hasOrigin {\" -\u003e \"if false {\""
+  },
+  {
+    "rid": "RFC7606-3.d-1",
+    "polarity": "negative",
     "unit": "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption",
     "unit-sha": "a5b85689aac05495",
     "claim-sha": "c8dce934395198b7",
@@ -9,5 +31,16 @@
     "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606Peer",
     "producer-sha": "56a82251688aac11",
     "break": "body of ValidateUpdateRFC7606Peer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7606-3.d-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ValidUpdate",
+    "unit-sha": "2fd921c722ef4656",
+    "claim-sha": "367ec038bea00417",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606Peer",
+    "producer-sha": "56a82251688aac11",
+    "break": "line 609: \"if !hasOrigin {\" -\u003e \"if hasOrigin {\""
   }
 ]

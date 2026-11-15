@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7606-7.5-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc7606_test.go::TestRFC7606LocalPrefEBGPDiscard",
+    "unit-sha": "0c1865b18c7dcf4d",
+    "claim-sha": "273cab9bb0ecdb5f",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/rfc7606.go::validateLocalPrefAttr",
+    "producer-sha": "2caa5e33b0604156",
+    "break": "line 831: \"if !isIBGP {\" -\u003e \"if isIBGP {\""
+  },
+  {
+    "rid": "RFC7606-7.5-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc7606_test.go::TestRFC7606LocalPrefIBGPValid",
+    "unit-sha": "86983c902a9e3ced",
+    "claim-sha": "84f5239f00157568",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/rfc7606.go::validateLocalPrefAttr",
+    "producer-sha": "2caa5e33b0604156",
+    "break": "line 831: \"if !isIBGP {\" -\u003e \"if isIBGP {\""
+  }
+]

@@ -9,5 +9,16 @@
     "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606Peer",
     "producer-sha": "56a82251688aac11",
     "break": "body of ValidateUpdateRFC7606Peer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7606-7.3-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ValidUpdate",
+    "unit-sha": "2fd921c722ef4656",
+    "claim-sha": "21d4c58b20decc3b",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/rfc7606.go::validateNextHopAttr",
+    "producer-sha": "4c5aa4e6c9f4b4d2",
+    "break": "line 793: \"if length != 4 {\" -\u003e \"if length == 4 {\""
   }
 ]

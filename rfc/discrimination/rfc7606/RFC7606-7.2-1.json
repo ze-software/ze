@@ -1,0 +1,90 @@
+[
+  {
+    "rid": "RFC7606-7.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPath4ByteASN",
+    "unit-sha": "ab91acba9cbe26f6",
+    "claim-sha": "fb6fba8777e5f75e",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/rfc7606.go::validateASPathPolicy",
+    "producer-sha": "962ce246b0a79ae2",
+    "break": "line 1211: \"if asn4 {\" -\u003e \"if false {\""
+  },
+  {
+    "rid": "RFC7606-7.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPath4ByteASNOverrun",
+    "unit-sha": "99916fc7e6319a44",
+    "claim-sha": "7a5a937363512b86",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/rfc7606.go::validateASPathPolicy",
+    "producer-sha": "962ce246b0a79ae2",
+    "break": "line 1255: \"RFC7606ActionTreatAsWithdraw\" -\u003e \"RFC7606ActionSessionReset\""
+  },
+  {
+    "rid": "RFC7606-7.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathSegmentOverrun",
+    "unit-sha": "bbd935c74a12f4be",
+    "claim-sha": "e06b1ade04a44f5b",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/rfc7606.go::validateASPathPolicy",
+    "producer-sha": "962ce246b0a79ae2",
+    "break": "line 1255: \"RFC7606ActionTreatAsWithdraw\" -\u003e \"RFC7606ActionSessionReset\""
+  },
+  {
+    "rid": "RFC7606-7.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathSegmentUnderrun",
+    "unit-sha": "2f6ffdae069a0de2",
+    "claim-sha": "e26764fe7351b140",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/rfc7606.go::validateASPathPolicy",
+    "producer-sha": "962ce246b0a79ae2",
+    "break": "line 1221: \"RFC7606ActionTreatAsWithdraw\" -\u003e \"RFC7606ActionSessionReset\""
+  },
+  {
+    "rid": "RFC7606-7.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathUnrecognizedSegmentType",
+    "unit-sha": "a3a779ef4973cca7",
+    "claim-sha": "8e07c8ac4dd05105",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/rfc7606.go::validateASPathPolicy",
+    "producer-sha": "962ce246b0a79ae2",
+    "break": "line 1235: \"RFC7606ActionTreatAsWithdraw\" -\u003e \"RFC7606ActionSessionReset\""
+  },
+  {
+    "rid": "RFC7606-7.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathValidSequence",
+    "unit-sha": "97b6a076156d4fb5",
+    "claim-sha": "0d56ec9c277167c9",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/rfc7606.go::validateASPathPolicy",
+    "producer-sha": "962ce246b0a79ae2",
+    "break": "line 1210: \"asSize := 2\" -\u003e \"asSize := 4\""
+  },
+  {
+    "rid": "RFC7606-7.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathValidSet",
+    "unit-sha": "d68f8f1242595e8e",
+    "claim-sha": "abbb7526e8f0855b",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/rfc7606.go::validateASPathPolicy",
+    "producer-sha": "962ce246b0a79ae2",
+    "break": "line 1232: \"segType \u003c asPathTypeASSet\" -\u003e \"segType \u003c= asPathTypeASSet\""
+  },
+  {
+    "rid": "RFC7606-7.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathZeroSegmentLength",
+    "unit-sha": "ab534d721d4397a3",
+    "claim-sha": "7d447c5b57b90e32",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/rfc7606.go::validateASPathPolicy",
+    "producer-sha": "962ce246b0a79ae2",
+    "break": "line 1244: \"RFC7606ActionTreatAsWithdraw\" -\u003e \"RFC7606ActionSessionReset\""
+  }
+]

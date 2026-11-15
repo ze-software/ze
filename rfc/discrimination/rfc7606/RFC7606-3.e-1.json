@@ -1,6 +1,39 @@
 [
   {
     "rid": "RFC7606-3.e-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathUnrecognizedSegmentType",
+    "unit-sha": "a3a779ef4973cca7",
+    "claim-sha": "61ba618fbb1fca47",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/rfc7606.go::validateASPathPolicy",
+    "producer-sha": "962ce246b0a79ae2",
+    "break": "line 1235: \"RFC7606ActionTreatAsWithdraw\" -\u003e \"RFC7606ActionSessionReset\""
+  },
+  {
+    "rid": "RFC7606-3.e-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc7606_test.go::TestRFC7606LocalPrefIBGPInvalid",
+    "unit-sha": "943ce01f5dfac78c",
+    "claim-sha": "22c72f83ad7a4492",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/rfc7606.go::validateLocalPrefAttr",
+    "producer-sha": "2caa5e33b0604156",
+    "break": "line 842: \"RFC7606ActionTreatAsWithdraw\" -\u003e \"RFC7606ActionSessionReset\""
+  },
+  {
+    "rid": "RFC7606-3.e-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MalformedOriginLength",
+    "unit-sha": "28508434558c66b9",
+    "claim-sha": "f4b3b9f61b3cd425",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/rfc7606.go::validateOriginAttr",
+    "producer-sha": "22301565e0d2748a",
+    "break": "line 769: \"RFC7606ActionTreatAsWithdraw\" -\u003e \"RFC7606ActionSessionReset\""
+  },
+  {
+    "rid": "RFC7606-3.e-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption",
     "unit-sha": "a5b85689aac05495",
