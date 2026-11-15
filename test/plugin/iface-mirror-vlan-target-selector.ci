@@ -52,10 +52,10 @@ interface {
 EOF_CONF
 
 cmd=foreground:seq=1:exec=le test fixture plugin/iface-mirror-vlan-target-selector-setup
+expect=stdout:contains=MIRROR-VLAN-SETUP
 cmd=background:seq=2:exec=ze -:stdin=ze-bgp
 cmd=foreground:seq=3:exec=le test fixture plugin/iface-mirror-vlan-target-selector-driver:timeout=60s
 
 expect=exit:code=0
-expect=stdout:contains=MIRROR-VLAN-SETUP
 expect=stdout:contains=MIRROR-TO zvmt0.100
 expect=stdout:contains=DECOY-UNTOUCHED zvmcap.100
