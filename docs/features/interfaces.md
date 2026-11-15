@@ -1231,6 +1231,14 @@ addresses keys them by identity: `connected` keeps the set of addresses that
 cover each prefix, not a count of events.
 <!-- source: internal/plugins/iface/netlink/monitor_linux.go -- start, ListExisting -->
 
+The dump request goes to the kernel by unicast, while the subscribed socket
+keeps receiving multicast address changes. Sending the request to those groups
+would require `CAP_NET_ADMIN`, preventing a read-only daemon from starting.
+The vendored netlink patch keeps the two addresses separate, and a Linux test
+reads the existing loopback address with that capability removed.
+<!-- source: vendor/github.com/vishvananda/netlink/nl/nl_linux.go -- Send -->
+<!-- source: internal/le/vendorpatch/netlink_subscribe_linux_test.go -- TestAddressSubscriptionDumpsWithoutNetAdmin -->
+
 Links and addresses reach the monitor on two netlink subscriptions, and nothing
 orders one against the other: an interface created and addressed straight away
 (`ip link add`, then `ip addr add`) can deliver its address before the monitor

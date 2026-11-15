@@ -1,0 +1,31 @@
+Ze-Reviewed-Against: github.com/vishvananda/netlink v1.3.1
+
+No upstream pull request is opened yet.
+
+The interface monitor must announce addresses that predate its startup.
+See docs/features/interfaces.md, "Monitoring".
+
+AddrSubscribeWithOptions with ListExisting sends RTM_GETADDR on a socket
+subscribed to the IPv4 and IPv6 address multicast groups. NetlinkSocket.Send
+used the bound sockaddr as the destination, so the request was also sent to
+those groups. Sending multicast requires CAP_NET_ADMIN: a read-only daemon
+therefore failed at startup with EPERM. Requests belong to the kernel's
+unicast address; the socket's subscribed groups remain unchanged for receiving
+notifications. TestAddressSubscriptionDumpsWithoutNetAdmin checks the dump
+with CAP_NET_ADMIN removed from the calling thread.
+
+diff --git a/vendor/github.com/vishvananda/netlink/nl/nl_linux.go b/vendor/github.com/vishvananda/netlink/nl/nl_linux.go
+--- a/vendor/github.com/vishvananda/netlink/nl/nl_linux.go
++++ b/vendor/github.com/vishvananda/netlink/nl/nl_linux.go
+@@ -858,8 +858,10 @@ func (s *NetlinkSocket) Send(request *NetlinkRequest) error {
+ 		return err
+ 	}
+ 	serializedReq := request.Serialize()
++	// Subscription groups select incoming notifications, not request recipients.
++	destination := unix.SockaddrNetlink{Family: unix.AF_NETLINK}
+ 	err = rawConn.Write(func(fd uintptr) (done bool) {
+-		innerErr = unix.Sendto(int(s.fd), serializedReq, 0, &s.lsa)
++		innerErr = unix.Sendto(int(s.fd), serializedReq, 0, &destination)
+ 		return innerErr != unix.EWOULDBLOCK
+ 	})
+ 	if innerErr != nil {
