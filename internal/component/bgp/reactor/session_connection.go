@@ -531,11 +531,11 @@ func (s *Session) teardownAutomatic(subcode uint8, shutdownMsg string) error {
 // connectionEstablished answer "no conn is published on this session" once,
 // instead of once per rail that can reach it.
 //
-// Two callers seal: teardown, on its way to the wire, and Reactor.stop, which
-// seals every live session as part of the stop's own seal (peer.go,
-// sealSession). The second is not covered by the first -- StopForRestart
-// notifies nobody, so nothing would tear those sessions down -- and the seal has
-// to hold for that stop too.
+// Teardown seals on its way to the wire. A queued teardown seals under the peer
+// lock before discarding its old unsent operations, so new API input cannot be
+// discarded with them. Reactor.stop also seals every live session as part of
+// the stop's own seal (peer.go, sealSession): StopForRestart notifies nobody,
+// so it cannot rely on notified teardown to seal those sessions.
 func (s *Session) seal() {
 	s.tearingDown.Store(true)
 	// Every teardown path seals, so every one of them stops the recovery

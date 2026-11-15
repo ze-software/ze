@@ -207,6 +207,9 @@ func (session *Session) sendUpdateWithSplit(ctx context.Context, update *message
 
 // sendUpdateOwnedWithSplit borrows the producer through every synchronous chunk.
 // The caller MUST keep owner alive; sendUpdateCounted MUST clear it under writeMu.
+// A failure retains completed input chunks. If the failing callback itself
+// committed output after export policy transformed it, partial says that no
+// input-prefix boundary can be inferred from the completed-chunk count.
 func (session *Session) sendUpdateOwnedWithSplit(ctx context.Context, update *message.Update, maxSize int, addPath, replay bool, owner *fwdItem, writeUpdate func(*Session, *message.Update) error) error {
 	if update == nil {
 		return errBuildRejected
@@ -216,13 +219,34 @@ func (session *Session) sendUpdateOwnedWithSplit(ctx context.Context, update *me
 	}
 	s := message.GetSplitter()
 	defer message.PutSplitter(s)
+	completed := 0
+	partial := false
 	if err := s.Split(update, maxSize, func(family.Family) bool { return addPath }, func(chunk *message.Update) error {
-		return session.sendUpdateCounted(ctx, chunk, nil, replay, owner, writeUpdate)
+		var counts updateSendCounts
+		if err := session.sendUpdateCounted(ctx, chunk, &counts, replay, owner, writeUpdate); err != nil {
+			partial = counts.updates != 0
+			return err
+		}
+		completed++
+		return nil
 	}); err != nil {
-		return fmt.Errorf("splitting update: %w", err)
+		return &splitUpdateFailure{cause: fmt.Errorf("splitting update: %w", err), completed: completed, partial: partial}
 	}
 	return nil
 }
+
+// splitUpdateFailure is a failed split, never a success value. Its cause MUST
+// be non-nil and its completed count includes only callbacks that returned
+// successfully. partial means the failing callback committed transformed output,
+// so a caller MUST NOT infer an unsent source suffix from completed alone.
+type splitUpdateFailure struct {
+	cause     error
+	completed int
+	partial   bool
+}
+
+func (e *splitUpdateFailure) Error() string { return e.cause.Error() }
+func (e *splitUpdateFailure) Unwrap() error { return e.cause }
 
 // errBuildRejected reports that a builder could not encode an UPDATE into its
 // pooled build buffer, so nothing was sent. The route is lost, the SESSION is not:

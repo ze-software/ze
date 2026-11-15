@@ -210,7 +210,7 @@ func nlriUnitLen(count int, groupUpdates bool) int {
 // each peer that needed none because it already held the batch. The callers read
 // only whether it is zero, and a zero would say "no peer carries this family",
 // which is untrue of a peer that has the route already.
-func (a *reactorAPIAdapter) announceBatchToPeers(ctx context.Context, targets []announceTarget, batch bgptypes.NLRIBatch, facts announceFacts) (int, error) {
+func (a *reactorAPIAdapter) announceBatchToPeers(ctx context.Context, targets []announceTarget, batch bgptypes.NLRIBatch, facts announceFacts, attrs []attribute.Attribute, userASPath *attribute.ASPath) (int, error) {
 	maxMsgSize := int(message.MaxMessageLength(msgtype.TypeUPDATE, facts.extended))
 
 	attrHandle := getBuildBuf()
@@ -236,7 +236,7 @@ func (a *reactorAPIAdapter) announceBatchToPeers(ctx context.Context, targets []
 			// attributes and the same facts, so the refusal repeats: stop here
 			// rather than send part of the batch, and report the builder's own
 			// reason instead of a silent drop.
-			return sent, buildErr
+			return sent, retainAnnounceError(lastErr, buildErr)
 		}
 
 		for _, target := range targets {
@@ -244,8 +244,11 @@ func (a *reactorAPIAdapter) announceBatchToPeers(ctx context.Context, targets []
 				return sent, err
 			}
 			if err := target.sendBatchUpdate(ctx, update, maxMsgSize, facts.addPath, unit); err != nil {
-				lastErr = err
-				continue
+				err = a.queueRetiredAnnounce(ctx, target, update, unit, facts, attrs, userASPath, err)
+				if err != nil {
+					lastErr = retainAnnounceError(lastErr, err)
+					continue
+				}
 			}
 			sent++
 		}
@@ -558,7 +561,7 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(ctx context.Context, sel *selector
 				continue
 			}
 			if !errors.Is(queueErr, errQueueGateOpen) {
-				lastErr = queueErr
+				lastErr = retainAnnounceError(lastErr, queueErr)
 				continue
 			}
 			// The initial sync drained the queue and opened the gate after
@@ -581,7 +584,7 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(ctx context.Context, sel *selector
 		nextHop, nhErr := peer.resolveNextHop(target.session, peerBatch.NextHop, peerBatch.Family)
 		if nhErr != nil && peerBatch.Family.NeedsNextHop() {
 			routesLogger().Debug("next-hop resolution failed", "peer", peer.Settings().Address, "error", nhErr)
-			lastErr = nhErr
+			lastErr = retainAnnounceError(lastErr, nhErr)
 			continue
 		}
 		// Check family negotiation
@@ -608,9 +611,9 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(ctx context.Context, sel *selector
 				// ErrNoPeersAcceptedFamily would state a cause that is untrue
 				// (ai/rules/cli.md) and would be downgraded to a warning on
 				// that basis. failErr names which one it was.
-				lastErr = failErr
+				lastErr = retainAnnounceError(lastErr, failErr)
 			case sent == 0:
-				lastErr = route.ErrNoPeersAcceptedFamily
+				lastErr = retainAnnounceError(lastErr, route.ErrNoPeersAcceptedFamily)
 			}
 			continue
 		}
@@ -629,10 +632,10 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(ctx context.Context, sel *selector
 			// A single stack slot keeps the per-peer path allocation-free
 			// while binding resolution and delivery to the same session.
 			targets := [1]announceTarget{target}
-			n, sendErr := a.announceBatchToPeers(ctx, targets[:], peerBatch, facts)
+			n, sendErr := a.announceBatchToPeers(ctx, targets[:], peerBatch, facts, attrs, userASPath)
 			acceptedCount += n
 			if sendErr != nil {
-				lastErr = sendErr
+				lastErr = retainAnnounceError(lastErr, sendErr)
 			}
 		}
 	}
@@ -641,10 +644,10 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(ctx context.Context, sel *selector
 	// and the send invariant are announceBatchToPeers's, so a group of peers and
 	// a single peer cannot be framed differently.
 	for _, bg := range buildGroups {
-		n, sendErr := a.announceBatchToPeers(ctx, bg.targets, batch, bg.facts)
+		n, sendErr := a.announceBatchToPeers(ctx, bg.targets, batch, bg.facts, attrs, userASPath)
 		acceptedCount += n
 		if sendErr != nil {
-			lastErr = sendErr
+			lastErr = retainAnnounceError(lastErr, sendErr)
 		}
 	}
 	if err := ctx.Err(); err != nil {
@@ -677,24 +680,51 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(ctx context.Context, sel *selector
 		// ErrNextHopUnset reaches here only on the SentOwnerMessage rail, which
 		// the refusal before the peer loop leaves alone, and it answers the
 		// same operator error.
-		switch {
-		case errors.Is(lastErr, ErrNextHopUnset):
+		if errors.Is(lastErr, ErrNextHopUnset) {
 			return announceNextHopMissing(batch.Family)
-		case errors.Is(lastErr, errAnnounceTooLarge),
-			errors.Is(lastErr, errAnnounceNextHopUnencodable),
-			errors.Is(lastErr, message.ErrUnicastNextHopUnusable),
-			errors.Is(lastErr, message.ErrNLRITooLarge),
-			errors.Is(lastErr, message.ErrAttributesTooLarge),
-			errors.Is(lastErr, message.ErrMPOverheadTooLarge),
-			errors.Is(lastErr, ErrNextHopIncompatible),
-			errors.Is(lastErr, errWithdrawTooLarge),
-			errors.Is(lastErr, errStaleReadvertiseWithheld),
-			errors.Is(lastErr, message.ErrEVPNOrigination):
+		}
+		if isHardAnnounceError(lastErr) {
 			return lastErr
 		}
 		return route.ErrNoPeersAcceptedFamily
 	}
 	return lastErr
+}
+
+// retainAnnounceError keeps a refused operation visible when a later peer is
+// merely not ready. A later hard refusal can replace an earlier one, preserving
+// the existing last-error behavior within each error class.
+func retainAnnounceError(earlier, later error) error {
+	if isHardAnnounceError(earlier) {
+		if !isHardAnnounceError(later) {
+			return earlier
+		}
+	}
+	return later
+}
+
+// isHardAnnounceError names the failures that MUST NOT become a warning about
+// family negotiation. Aggregation and the final answer MUST use this same set;
+// an ordinary not-ready connection keeps its existing soft handling.
+func isHardAnnounceError(err error) bool {
+	switch {
+	case errors.Is(err, ErrNextHopUnset),
+		errors.Is(err, errAnnounceTooLarge),
+		errors.Is(err, ErrOpQueueFull),
+		errors.Is(err, errQueueGateOpen),
+		errors.Is(err, errAnnounceQueueBoundary),
+		errors.Is(err, errAnnounceNextHopUnencodable),
+		errors.Is(err, message.ErrUnicastNextHopUnusable),
+		errors.Is(err, message.ErrNLRITooLarge),
+		errors.Is(err, message.ErrAttributesTooLarge),
+		errors.Is(err, message.ErrMPOverheadTooLarge),
+		errors.Is(err, ErrNextHopIncompatible),
+		errors.Is(err, errWithdrawTooLarge),
+		errors.Is(err, errStaleReadvertiseWithheld),
+		errors.Is(err, message.ErrEVPNOrigination):
+		return true
+	}
+	return false
 }
 
 // withdrawFactsFor reads one peer's answer to every fact that decides the bytes

@@ -658,7 +658,7 @@ func (p *Peer) drainAndCloseQueueGate(session *Session, addr string, opMaxMsgSiz
 func (p *Peer) runQueuedTeardown(session *Session, addr string, op peerOp) {
 	// Checked before the End-of-RIB, so a session that has gone, or that op
 	// does not name, is not sent markers.
-	if !p.queuedTeardownEnds(session, addr, op) {
+	if !p.queuedTeardownEnds(session, addr, op, false) {
 		return
 	}
 	// EOR must be sent BEFORE NOTIFICATION per RFC 4724 Section 4.
@@ -684,7 +684,7 @@ func (p *Peer) runQueuedTeardown(session *Session, addr string, op peerOp) {
 	routesLogger().Debug("executing queued teardown", "peer", addr, "code", op.Notice.code, "subcode", op.Notice.subcode)
 	// Checked again: the session can end while the End-of-RIB sends run
 	// unlocked.
-	if !p.queuedTeardownEnds(session, addr, op) {
+	if !p.queuedTeardownEnds(session, addr, op, true) {
 		return
 	}
 	// Set state to Connecting BEFORE Teardown to avoid race condition:
@@ -695,13 +695,7 @@ func (p *Peer) runQueuedTeardown(session *Session, addr string, op peerOp) {
 	if err := sessionTeardown(session, op.Notice, op.Automatic); err != nil {
 		routesLogger().Debug("teardown error", "peer", addr, "error", err)
 	}
-	// Clear remaining opQueue: these routes were never sent, so they have
-	// no sent history for the mandatory RIB to restore on reconnect.
 	p.mu.Lock()
-	if len(p.opQueue) > 0 {
-		routesLogger().Debug("clearing unsent queue items after teardown", "peer", addr, "count", len(p.opQueue))
-		p.opQueue = p.opQueue[:0]
-	}
 	// Clear both facts under mutex for teardown path too: the markers sent
 	// above are the only ones this session gets.
 	session.sendingInitialRoutes.Store(0)
@@ -793,8 +787,11 @@ func (p *Peer) keepTeardownForNextSessionLocked(addr string, op peerOp) {
 // one (nil target) is kept for the next session by
 // keepTeardownForNextSessionLocked rather than spent on a session that has
 // ended. Target check and requeue are one p.mu hold, so a session ending between
-// them cannot requeue a targeted teardown. Called with p.mu NOT held.
-func (p *Peer) queuedTeardownEnds(session *Session, addr string, op peerOp) bool {
+// them cannot requeue a targeted teardown. On the final check, seal also seals
+// that session and clears its old unsent operations under the same lock. New
+// API arrivals then belong to the next session and MUST remain queued through
+// NOTIFICATION publication and teardown completion. Called with p.mu NOT held.
+func (p *Peer) queuedTeardownEnds(session *Session, addr string, op peerOp, seal bool) bool {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if op.TeardownSession != nil && op.TeardownSession != session {
@@ -802,6 +799,13 @@ func (p *Peer) queuedTeardownEnds(session *Session, addr string, op peerOp) bool
 		return false
 	}
 	if !p.syncSessionGoneLocked(session) {
+		if seal {
+			session.seal()
+			if len(p.opQueue) > 0 {
+				routesLogger().Debug("clearing unsent queue items before teardown", "peer", addr, "count", len(p.opQueue))
+				p.opQueue = p.opQueue[:0]
+			}
+		}
 		return true
 	}
 	if op.TeardownSession != nil {

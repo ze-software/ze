@@ -291,6 +291,30 @@ the sync clears its own session's gate and owed marker and returns, with no
 warning, so the join in the session-end defer never waits out the timeout.
 Operations still queued stay queued for the next session.
 
+Once teardown seals the session, new API announcements enter the peer's queue
+for the next session, even while the peer still reports Established. The seal
+precedes NOTIFICATION publication, so a command that answers that event cannot
+select the sealed session as its writer. A queued teardown clears its old,
+unsent operations at the seal under the peer lock, before publishing that
+notification; commands admitted afterward remain for the next session.
+<!-- source: internal/component/bgp/reactor/peer.go -- queueGateClosedLocked -->
+<!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- runQueuedTeardown -->
+
+If the session seals after the API checked the gate, the ordinary announcement
+rail puts the identifiable unsent suffix into that same queue. Completed UPDATE
+chunks remain sent history, which the RIB restores on reconnect. If export
+policy has already sent part of a transformed chunk, the request returns a
+partial failure: the original unsent suffix is unknown and is not queued.
+A sent-owner receipt or an initial replay retains its original session
+authority and never becomes a new local announcement for a later session.
+A queue refusal is reported as that refusal, rather than as a warning about
+a family that is negotiated. A refusal while retaining the unsent suffix
+keeps its original error identity and explains that some routes can already
+be queued. It tells the operator to inspect `show bgp peer list` before
+repeating the original announcement after reconnect.
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- announceBatchToPeers, AnnounceNLRIBatch -->
+<!-- source: internal/component/bgp/reactor/reactor_api_retired.go -- queueRetiredAnnounce -->
+
 In production the wait nearly always returns at once. Step 8 delivers the
 peer-up event to each barrier plugin and waits for its answer on the FSM
 callback goroutine (`deliverPeerState`): an acknowledgement opens the barrier,

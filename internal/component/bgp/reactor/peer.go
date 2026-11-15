@@ -2307,9 +2307,8 @@ func (p *Peer) teardownOf(target *Session, notice teardownNotice, automatic bool
 		if err := sessionTeardown(session, notice, automatic); err != nil {
 			peerLogger().Debug("teardown error", "peer", p.settings.Address, "error", err)
 		}
-		// Set state after teardown - there's a brief race window where
-		// AnnounceRoute might see ESTABLISHED, but SendUpdate will fail
-		// on the closed session (which is correct behavior)
+		// beginTeardown seals before publishing the NOTIFICATION. API routes
+		// that still see Established queue for the next session once sealed.
 		p.setState(PeerStateConnecting)
 		return nil
 	}
@@ -2408,7 +2407,9 @@ func (p *Peer) shouldQueue() bool {
 // under p.mu. drainAndCloseQueueGate empties the opQueue and opens the session's
 // gate (Session.sendingInitialRoutes) under one p.mu hold, so a caller holding
 // p.mu sees the gate either closed with a drainer still owed or open with
-// nothing to drain. The gate read is p.session's, and a peer that holds no
+// nothing to drain. A sealed session also queues: a NOTIFICATION observer may
+// submit routes before teardown publishes the peer's next state, and only the
+// next session can send them. The gate read is p.session's, and a peer that holds no
 // session reads as an open gate. A peer that is not Established always queues:
 // its next session's initial sync drains the queue. MUST be called with p.mu
 // held (read or write).
@@ -2416,8 +2417,13 @@ func (p *Peer) queueGateClosedLocked() bool {
 	if p.State() != PeerStateEstablished {
 		return true
 	}
-	if p.session != nil && p.session.sendingInitialRoutes.Load() != 0 {
-		return true
+	if p.session != nil {
+		if p.session.tearingDown.Load() {
+			return true
+		}
+		if p.session.sendingInitialRoutes.Load() != 0 {
+			return true
+		}
 	}
 	return len(p.opQueue) > 0
 }
