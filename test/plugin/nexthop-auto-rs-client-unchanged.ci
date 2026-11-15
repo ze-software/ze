@@ -1,0 +1,119 @@
+# Question: does a real session's rs-client setting preserve the received
+# NEXT_HOP under Auto, while the same daemon rewrites it for an ordinary eBGP
+# recipient? Unit tests cannot prove config-to-plugin-to-socket wiring.
+# The RS client is the positive and the ordinary recipient the role control.
+# This portable loopback harness is untagged wiring evidence; the synthetic
+# ordinary 127/8 next hop is not a claim of production RFC conformance.
+
+option=env:var=ze.log.bgp.rs:value=info
+
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=timeout:value=30s
+option=asn:value=65001
+option=linger:value=true
+option=await-file:path=client.up
+# ORIGIN IGP; AS_PATH [65001]; NEXT_HOP 192.0.2.9; NLRI 10.88.0.0/24.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE9400304C0000209180A5800
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_SOURCE
+
+stdin=client:terminator=EOF_CLIENT
+option=tcp_connections:value=1
+option=timeout:value=30s
+option=asn:value=65002
+option=linger:value=true
+option=established-file:path=client.up
+# The route-server client's UPDATE stays byte-identical to the received frame.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE9400304C0000209180A5800
+EOF_CLIENT
+
+stdin=ordinary:terminator=EOF_ORDINARY
+option=tcp_connections:value=1
+option=timeout:value=30s
+option=asn:value=65003
+option=linger:value=true
+# Control: Auto rewrites an ordinary recipient, so global preservation fails.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE80000FDE94003047F000006180A5800
+EOF_ORDINARY
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal rs { use bgp-rs; }
+	internal adj-rib-in { use bgp-adj-rib-in; }
+}
+bgp {
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer source {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.3; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			router-id 1.2.3.4;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+		attach process rs {
+			receive [ update-received state open-received refresh ];
+			send [ update ];
+		}
+		attach process adj-rib-in { receive [ update-received state ]; }
+	}
+	peer client {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.4; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65002; }
+			router-id 1.2.3.4;
+			rs-client true;
+			next-hop auto;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+		attach process rs {
+			receive [ update-received state open-received refresh ];
+			send [ update ];
+		}
+		attach process adj-rib-in { receive [ update-received state ]; }
+	}
+	peer ordinary {
+		connection {
+			remote { ip 127.0.0.5; }
+			local { ip 127.0.0.6; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65003; }
+			router-id 1.2.3.4;
+			next-hop auto;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+		attach process rs {
+			receive [ update-received state open-received refresh ];
+			send [ update ];
+		}
+		attach process adj-rib-in { receive [ update-received state ]; }
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=client
+cmd=background:seq=3:exec=le test peer --bind 127.0.0.5 --port $PORT:stdin=ordinary
+cmd=foreground:seq=4:exec=ze -:stdin=ze-bgp:timeout=30s
+await=stderr:contains=sent EOR:then=stop
+expect=exit:code=0
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=send refused
+reject=stderr:pattern=forward-cached failed

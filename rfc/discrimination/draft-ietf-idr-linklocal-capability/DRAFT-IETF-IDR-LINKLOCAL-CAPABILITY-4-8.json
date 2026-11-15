@@ -14,12 +14,12 @@
     "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go::TestLinkLocalReceivedPairStrippedForMultihopExternalPeer",
-    "unit-sha": "9a49085f27e08a3b",
-    "claim-sha": "8755929699952e52",
-    "route": "revert",
+    "unit-sha": "998dc6bc6f35c07f",
+    "claim-sha": "033d698c4a5cb930",
+    "route": "mutant",
     "producer": "internal/component/bgp/reactor/forward_next_hop.go::applyEgressNextHopScope",
     "producer-sha": "48ad3df5e514d285",
-    "break": "body of applyEgressNextHopScope replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "break": "line 733: \"field[:globalOctets]\" -\u003e \"field\""
   },
   {
     "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8",
@@ -36,12 +36,78 @@
     "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go::TestLinkLocalRouteServerStripsReceivedPairForMultihopClient",
-    "unit-sha": "0715036833756334",
+    "unit-sha": "5e719b515f6fd051",
     "claim-sha": "260c4404ca8be907",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/bgp/reactor/forward_next_hop.go::applyEgressNextHopScope",
     "producer-sha": "48ad3df5e514d285",
-    "break": "body of applyEgressNextHopScope replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "break": "line 733: \"field[:globalOctets]\" -\u003e \"field\""
+  },
+  {
+    "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_single_next_hop_test.go::TestDraftBareLinkLocalAttachedCached",
+    "unit-sha": "34c555a18b023610",
+    "claim-sha": "01e10dd7ddd32c71",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopLinkLocalOnlyOffLink",
+    "producer-sha": "c041921634486eb8",
+    "break": "line 845: \"if destOnLink(dest)\" -\u003e \"if false\""
+  },
+  {
+    "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_single_next_hop_test.go::TestDraftBareLinkLocalAttachedNative",
+    "unit-sha": "f06795d73f216ab6",
+    "claim-sha": "cec8c070b5de868f",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopLinkLocalOnlyOffLink",
+    "producer-sha": "c041921634486eb8",
+    "break": "line 845: \"if destOnLink(dest)\" -\u003e \"if false\""
+  },
+  {
+    "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_single_next_hop_test.go::TestDraftBareLinkLocalPolicyMultihopCached",
+    "unit-sha": "8f89c9d484d564bf",
+    "claim-sha": "134dceacf15ed258",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopLinkLocalOnlyOffLink",
+    "producer-sha": "c041921634486eb8",
+    "break": "line 851: \"return base.linkLocalOnly()\" -\u003e \"return false\""
+  },
+  {
+    "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_single_next_hop_test.go::TestDraftBareLinkLocalPolicyMultihopNative",
+    "unit-sha": "6610844bbbfd7b88",
+    "claim-sha": "62c550e2428553ba",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopLinkLocalOnlyOffLink",
+    "producer-sha": "c041921634486eb8",
+    "break": "line 851: \"return base.linkLocalOnly()\" -\u003e \"return false\""
+  },
+  {
+    "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_single_next_hop_test.go::TestDraftBareLinkLocalReceivedMultihopCached",
+    "unit-sha": "646724dbc3d5c7fe",
+    "claim-sha": "9fab11b5563b47d8",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopLinkLocalOnlyOffLink",
+    "producer-sha": "c041921634486eb8",
+    "break": "line 851: \"return base.linkLocalOnly()\" -\u003e \"return false\""
+  },
+  {
+    "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_single_next_hop_test.go::TestDraftBareLinkLocalReceivedMultihopNative",
+    "unit-sha": "dbd7ea1f8831e542",
+    "claim-sha": "ac34588cab9a9e68",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopLinkLocalOnlyOffLink",
+    "producer-sha": "c041921634486eb8",
+    "break": "line 851: \"return base.linkLocalOnly()\" -\u003e \"return false\""
   },
   {
     "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8",

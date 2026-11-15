@@ -1,0 +1,92 @@
+# Question: does omitting session next-hop select Auto all the way from daemon
+# configuration to a forwarded UPDATE's destination-specific NEXT_HOP?
+# A unit test cannot prove the running daemon's config, plugin grants and socket
+# writer are connected. The source waits for the recipient's Established UPDATE.
+# This portable loopback harness proves wiring only: its synthetic 127/8 output
+# is not evidence of a valid production NEXT_HOP or acceptance by another router.
+# The owning spec also requires the legal-topology FRR scenario before closure.
+
+option=env:var=ze.log.bgp.rs:value=info
+
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=timeout:value=30s
+option=asn:value=65001
+option=linger:value=true
+option=await-file:path=destination.up
+# ORIGIN IGP; AS_PATH [65001]; NEXT_HOP 192.0.2.9; NLRI 10.88.0.0/24.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE9400304C0000209180A5800
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_SOURCE
+
+stdin=destination:terminator=EOF_DESTINATION
+option=tcp_connections:value=1
+option=timeout:value=30s
+option=asn:value=65002
+option=linger:value=true
+option=established-file:path=destination.up
+# AS_PATH [65000,65001]; NEXT_HOP is Ze's actual local endpoint 127.0.0.4.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE80000FDE94003047F000004180A5800
+EOF_DESTINATION
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal rs { use bgp-rs; }
+	internal adj-rib-in { use bgp-adj-rib-in; }
+}
+bgp {
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer source {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.3; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			router-id 1.2.3.4;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+		attach process rs {
+			receive [ update-received state open-received refresh ];
+			send [ update ];
+		}
+		attach process adj-rib-in { receive [ update-received state ]; }
+	}
+	peer destination {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.4; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65002; }
+			router-id 1.2.3.4;
+			# next-hop deliberately omitted: the public default is the subject.
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+		attach process rs {
+			receive [ update-received state open-received refresh ];
+			send [ update ];
+		}
+		attach process adj-rib-in { receive [ update-received state ]; }
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=destination
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=30s
+# The runner waits for both lingering check peers' actual expectations before
+# stopping Ze. No observer may shut it down before the recipient sees the route.
+await=stderr:contains=sent EOR:then=stop
+expect=exit:code=0
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=send refused
+reject=stderr:pattern=forward-cached failed

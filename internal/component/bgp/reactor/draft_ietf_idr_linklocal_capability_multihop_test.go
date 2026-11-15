@@ -1,16 +1,17 @@
 // Design: docs/architecture/bgp/structural-forwarding.md -- the next hop a relayed route carries
 // RFC: rfc/short/draft-ietf-idr-linklocal-capability.md
 // Related: forward_next_hop.go -- the egress next-hop decisions of the forward rails
-// Related: rfc_draft_linklocal_reflect_test.go -- llnhForward, the forward rail harness
-// Overview: rfc_draft_linklocal_test.go -- the same Section 4 sentence under next hop self
+// Related: draft_ietf_idr_linklocal_capability_reflect_test.go -- llnhForward, the forward rail harness
+// Overview: draft_ietf_idr_linklocal_capability_test.go -- the same Section 4 sentence under next hop self
 //
 // draft-ietf-idr-linklocal-capability Section 4: "When sending a message to an
 // external peer X, and the peer is multiple IP hops away from the speaker (aka
 // "multihop EBGP"): * Link-Local IPv6 next hops MUST NOT be included."
-// These tests relay a route whose received MP_REACH_NLRI Next Hop field is the
-// 32-octet Global plus Link-Local pair through forwardUpdateCore, under the next
-// hop modes that leave the received next hop in place, and read the field each
-// external destination was asked to write.
+// These tests relay a received 32-octet Global plus Link-Local pair through the
+// cached and native forwarding rails. Toward multihop ordinary external peers,
+// Unchanged keeps the received Global alone, while Auto selects the speaker's
+// own Global. A directly attached Unchanged recipient keeps the received pair.
+// Each rail's forwarded Next Hop field is inspected.
 package reactor
 
 import (
@@ -96,25 +97,34 @@ func llnhExternalPeer(t *testing.T, addr string, connected []netip.Prefix, mode 
 var llnhExternalSource = forwardSourceInfo{resolved: true, globalLocalAS: 65000}
 
 // TestLinkLocalReceivedPairStrippedForMultihopExternalPeer relays the pair to a
-// multihop external peer under both modes that keep the received next hop.
+// multihop ordinary external peer under Unchanged and Auto.
 //
 // VALIDATES: the field written to the multihop external peer is the 16-octet
-// Global 2001:db8:1::1 alone, under next hop unchanged and under the default
-// next hop auto.
+// received Global alone under Unchanged, and the speaker's own Global alone
+// under Auto, which selects Self toward ordinary eBGP.
 // PREVENTS: the received Link-Local fe80::9 crossing to a peer that cannot
 // reach it, which the next-hop-self units never exercised.
 //
-// RFC requirement: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8 positive -- a route received with the 32-octet Global 2001:db8:1::1 plus Link-Local fe80::9 next hop and relayed through forwardUpdateCore to an external peer no connected subnet holds (multihop EBGP), under next hop unchanged and under next hop auto, is written with the Global alone: a 16-octet Next Hop field holding no Link-Local.
+// RFC requirement: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8 positive -- a route received with the 32-octet Global 2001:db8:1::1 plus Link-Local fe80::9 next hop and relayed through forwardUpdateCore to an external peer no connected subnet holds (multihop EBGP), under Unchanged and Auto, is written a 16-octet Global with no Link-Local: the received Global under Unchanged and the speaker's own usable Global under Auto.
 func TestLinkLocalReceivedPairStrippedForMultihopExternalPeer(t *testing.T) {
 	global := netip.MustParseAddr(llnhAdvertiserAddr).As16()
+	ownGlobal := netip.MustParseAddr("2001:db8:ffff::254")
 	for _, mode := range []uint8{NextHopUnchanged, NextHopAuto} {
 		multihop := llnhExternalPeer(t, llnhMultihopAddr, llnhSegment, mode)
+		// This recipient is ordinary eBGP, including on the native relay path.
+		require.False(t, multihop.Settings().RSClient)
+		multihop.settings.LocalAddress = ownGlobal
+		multihop.fwdFacts.Store(multihop.buildForwardFacts())
+		want := global[:]
+		if mode == NextHopAuto {
+			want = ownGlobal.AsSlice()
+		}
 
 		got := llnhForward(t, llnhReceivedPairPayload(), llnhExternalSource, multihop)
 
 		field, sent := got[netip.MustParseAddr(llnhMultihopAddr)]
 		require.True(t, sent, "mode %d: the route reached the multihop peer", mode)
-		assert.Equal(t, global[:], field, "mode %d: the Global alone, no Link-Local", mode)
+		assert.Equal(t, want, field, "mode %d: the correct Global alone, no Link-Local", mode)
 	}
 }
 
@@ -212,21 +222,31 @@ func llnhForwardRSRead[T any](t *testing.T, payload []byte, read func(*testing.T
 // through the route-server rail to a client no connected subnet holds.
 //
 // VALIDATES: reactorForwardRS asks the multihop client to write the 16-octet
-// Global 2001:db8:1::1 alone, under next hop unchanged and under next hop auto.
+// received Global alone under Unchanged and the speaker's own Global alone
+// under Auto. This recipient is not configured as a route-server client.
 // PREVENTS: the route-server rail losing the cut the general rail makes: the
 // forwardUpdateCore units above never reach reactorForwardRS.
 //
 // RFC requirement: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8 positive -- a route received with the 32-octet Global 2001:db8:1::1 plus Link-Local fe80::9 next hop and relayed through the route-server rail (reactorForwardRS) to an external client no connected subnet holds (multihop EBGP), under next hop unchanged and under next hop auto, is written with the Global alone: a 16-octet Next Hop field holding no Link-Local.
 func TestLinkLocalRouteServerStripsReceivedPairForMultihopClient(t *testing.T) {
 	global := netip.MustParseAddr(llnhAdvertiserAddr).As16()
+	ownGlobal := netip.MustParseAddr("2001:db8:ffff::254")
 	for _, mode := range []uint8{NextHopUnchanged, NextHopAuto} {
 		multihop := llnhExternalPeer(t, llnhMultihopAddr, llnhSegment, mode)
+		// This recipient is ordinary eBGP, including on the native relay path.
+		require.False(t, multihop.Settings().RSClient)
+		multihop.settings.LocalAddress = ownGlobal
+		multihop.fwdFacts.Store(multihop.buildForwardFacts())
+		want := global[:]
+		if mode == NextHopAuto {
+			want = ownGlobal.AsSlice()
+		}
 
 		got := llnhForwardRS(t, llnhReceivedPairPayload(), multihop)
 
 		field, sent := got[netip.MustParseAddr(llnhMultihopAddr)]
 		require.True(t, sent, "mode %d: the route reached the multihop client", mode)
-		assert.Equal(t, global[:], field, "mode %d: the Global alone, no Link-Local", mode)
+		assert.Equal(t, want, field, "mode %d: the correct Global alone, no Link-Local", mode)
 	}
 }
 

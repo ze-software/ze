@@ -1,6 +1,6 @@
 // Design: docs/architecture/core-design.md -- labeled unicast propagation
 // RFC: rfc/short/rfc8277.md -- label handling when a route is propagated
-// Related: filter_delta_handlers.go -- mpReachNextHopHandler, applyNextHopMod
+// Related: filter_delta_handlers.go -- mpReachNextHopHandler; peer_forward_facts.go -- applyFactsNextHop
 
 package reactor
 
@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // labeledMPReachNLRI is one RFC 8277 labeled unicast NLRI: Length = 24 label
@@ -24,7 +25,7 @@ var labeledMPReachNLRI = []byte{48, 0x00, 0x06, 0x41, 10, 0, 0}
 // copies the source attribute verbatim when no Set op reaches it, so the label
 // octets inside the NLRI are the ones that were received.
 //
-// VALIDATES: applyNextHopMod emits no op for NextHopUnchanged, and
+// VALIDATES: precomputeNextHop and applyFactsNextHop emit no op for NextHopUnchanged, and
 // mpReachNextHopHandler with no op reproduces the labeled MP_REACH byte for
 // byte (AFI/SAFI, next-hop, reserved octet, label entry and prefix).
 // PREVENTS: a propagated labeled route carrying a label the downstream router
@@ -37,7 +38,9 @@ func TestLabeledPropagationUnchangedNextHopKeepsLabels(t *testing.T) {
 	// A peer configured next-hop-unchanged produces no next-hop modification.
 	dest := &PeerSettings{NextHopMode: NextHopUnchanged}
 	var mods filterapi.ModAccumulator
-	applyNextHopMod(dest, &mods)
+	var facts peerForwardFacts
+	precomputeNextHop(dest, &facts)
+	applyFactsNextHop(&facts, &mods, family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIMPLSLabel})
 	require.Empty(t, mods.Ops(), "next-hop-unchanged emits no next-hop rewrite op")
 
 	// With no op, the labeled MP_REACH is copied verbatim.

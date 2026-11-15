@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // TestLabeledVPNPropagationUnchangedNextHopKeepsLabels pins the SAFI 128 half of RFC 8277
@@ -32,7 +33,9 @@ func TestLabeledVPNPropagationUnchangedNextHopKeepsLabels(t *testing.T) {
 
 	dest := &PeerSettings{NextHopMode: NextHopUnchanged}
 	var mods filterapi.ModAccumulator
-	applyNextHopMod(dest, &mods)
+	var facts peerForwardFacts
+	precomputeNextHop(dest, &facts)
+	applyFactsNextHop(&facts, &mods, family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIVPN})
 	require.Empty(t, mods.Ops(), "next-hop-unchanged emits no next-hop rewrite op")
 
 	vpnNextHop := []byte{0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 1} // RD 0, then 10.0.0.1.

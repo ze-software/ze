@@ -1,13 +1,13 @@
 {
-  "note": "Quote covers SAFI-4 and SAFI-128. TestLabeledPropagationUnchangedNextHopKeepsLabels pins SAFI 4 and TestLabeledVPNPropagationUnchangedNextHopKeepsLabels pins SAFI 128: next-hop-unchanged emits no op and mpReachNextHopHandler plans the MP_REACH verbatim, with the Next Hop, label entry, RD and prefix asserted byte for byte. The {single-polarity: positive} annotation holds: the RFC imposes nothing on a changed next hop. Observed-red record on mpReachNextHopHandler.",
+  "note": "Independent rejudge after replacing the test-only applyNextHopMod helper with the live precomputeNextHop and applyFactsNextHop producers. RFC 8277 Section 3.2.1 says: When a SAFI-4 or SAFI-128 route is propagated, if the Network Address of Next Hop field is left unchanged, the Label field(s) MUST also be left unchanged. TestLabeledPropagationUnchangedNextHopKeepsLabels retains its SAFI-4 source bytes, empty modification-set assertion, complete MP_REACH byte equality, label/prefix equality and S-bit assertion. TestLabeledVPNPropagationUnchangedNextHopKeepsLabels retains its SAFI-128 source bytes, empty modification-set assertion, complete attribute equality, twelve-octet VPN next hop, label, Route Distinguisher and prefix assertions. precomputeNextHop selects nhModeNone for NextHopUnchanged, applyFactsNextHop records no operation for that mode, and mpReachNextHopHandler takes its unchanged-source keepOrDrop branch when neither a next-hop Set nor an NLRI replacement exists. These assertions would detect loss or alteration of the preserved source attribute; they do not merely assert successful construction. The positive-only annotation still describes this conditional preservation obligation correctly and now cites the live producers without obsolete line numbers. Changed-next-hop behavior belongs to Section 3.2.2 and is not claimed by these tests. This rejudge is by source inspection, not a claim that the newly owed mutant observations or an interoperability scenario ran. Retain the enforced verdict with no scope expansion; the main thread must refresh the changed units' native discrimination observations before committing them.",
   "requirement_sha": "6dcf241796360ebe",
   "tests": {
-    "internal/component/bgp/reactor/rfc8277_test.go::TestLabeledPropagationUnchangedNextHopKeepsLabels": "7b9b6b8e7de6262e",
-    "internal/component/bgp/reactor/rfc8277_vpn_propagation_test.go::TestLabeledVPNPropagationUnchangedNextHopKeepsLabels": "93003d97a3492271"
+    "internal/component/bgp/reactor/rfc8277_test.go::TestLabeledPropagationUnchangedNextHopKeepsLabels": "45734ab7415fa981",
+    "internal/component/bgp/reactor/rfc8277_vpn_propagation_test.go::TestLabeledVPNPropagationUnchangedNextHopKeepsLabels": "56f414131a3f577d"
   },
   "units": {
-    "internal/component/bgp/reactor/rfc8277_test.go::TestLabeledPropagationUnchangedNextHopKeepsLabels": "a4c572b3a1784812",
-    "internal/component/bgp/reactor/rfc8277_vpn_propagation_test.go::TestLabeledVPNPropagationUnchangedNextHopKeepsLabels": "63adabba424c50c7"
+    "internal/component/bgp/reactor/rfc8277_test.go::TestLabeledPropagationUnchangedNextHopKeepsLabels": "80410589f5900db0",
+    "internal/component/bgp/reactor/rfc8277_vpn_propagation_test.go::TestLabeledVPNPropagationUnchangedNextHopKeepsLabels": "9da04dc22beea5c9"
   },
   "verdict": "enforced"
 }

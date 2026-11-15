@@ -16,6 +16,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // planOutcome records what one handler's plan resolved to.
@@ -339,7 +340,7 @@ func TestMPReachNextHopHandler_RejectsOverflow(t *testing.T) {
 // buildModifiedPayload pipeline rewrites a forwarded IPv6 UPDATE's MP_REACH
 // next-hop when a peer is configured with next-hop self.
 //
-// VALIDATES: cmd-1 end-to-end integration -- applyNextHopMod emits op 14,
+// VALIDATES: cmd-1 end-to-end integration -- the accumulator carries op 14,
 // buildModifiedPayload dispatches to mpReachNextHopHandler, and the NLRI
 // bytes survive the patch intact.
 // PREVENTS: A future refactor that silently drops MP_REACH mods from the
@@ -410,7 +411,7 @@ func TestBuildModifiedPayload_MPReachNextHopSelf(t *testing.T) {
 	assert.Equal(t, newNH, foundNH, "MP_REACH next-hop was rewritten to the self address")
 }
 
-// TestApplyNextHopMod_IPv4EmitsBothOps verifies that applyNextHopMod with
+// TestApplyNextHopMod_IPv4EmitsBothOps verifies that the live forwarding facts for
 // an IPv4 local address emits both a legacy NEXT_HOP (type 3) op and an
 // MP_REACH_NLRI (type 14) op with IPv4-mapped IPv6 bytes.
 //
@@ -424,7 +425,9 @@ func TestApplyNextHopMod_IPv4EmitsBothOps(t *testing.T) {
 		LocalAddress: netip.MustParseAddr("127.0.0.2"),
 	}
 	var mods filterapi.ModAccumulator
-	applyNextHopMod(dest, &mods)
+	var facts peerForwardFacts
+	precomputeNextHop(dest, &facts)
+	applyFactsNextHop(&facts, &mods, family.IPv6Unicast)
 
 	ops := mods.Ops()
 	require.Len(t, ops, 2, "IPv4 local must emit both type 3 and type 14 ops")
@@ -442,7 +445,7 @@ func TestApplyNextHopMod_IPv4EmitsBothOps(t *testing.T) {
 	assert.Equal(t, []byte{127, 0, 0, 2}, ops[1].Buf[12:16], "embedded IPv4 in mapped address")
 }
 
-// TestApplyNextHopMod_IPv6EmitsOnlyMPReach verifies that applyNextHopMod
+// TestApplyNextHopMod_IPv6EmitsOnlyMPReach verifies that live forwarding facts
 // with an IPv6 local address emits only an MP_REACH_NLRI (type 14) op.
 //
 // VALIDATES: IPv6 local does not emit a legacy NEXT_HOP op.
@@ -455,13 +458,17 @@ func TestApplyNextHopMod_IPv6EmitsOnlyMPReach(t *testing.T) {
 		LocalAddress: netip.MustParseAddr("2001:db8::1"),
 	}
 	var mods filterapi.ModAccumulator
-	applyNextHopMod(dest, &mods)
+	facts := peerForwardFacts{isEBGP: true}
+	precomputeNextHop(dest, &facts)
+	applyFactsNextHop(&facts, &mods, family.IPv6Unicast)
+	// A received Prefix-SID is present and this external peer is outside the SR domain.
+	applyFactsPrefixSID(&facts, true, &mods)
 
 	ops := mods.Ops()
 	require.Len(t, ops, 2, "IPv6 local emits MP_REACH op + PrefixSID suppress")
 	assert.Equal(t, uint8(14), ops[0].Code, "op is MP_REACH_NLRI")
 	assert.Len(t, ops[0].Buf, 16, "IPv6 next-hop is 16 bytes")
-	assert.Equal(t, uint8(40), ops[1].Code, "RFC 9252 Section 2: Prefix-SID Service TLV removal")
+	assert.Equal(t, uint8(40), ops[1].Code, "RFC 8669 Section 8: suppress Prefix-SID outside the SR domain")
 	assert.Equal(t, filterapi.AttrModSuppress, ops[1].Action)
 }
 
@@ -481,7 +488,13 @@ func TestApplyNextHopModIPv6LinkLocalBytes(t *testing.T) {
 		LinkLocal:    linkLocalAddr,
 	}
 	var mods filterapi.ModAccumulator
-	applyNextHopMod(dest, &mods)
+	facts := peerForwardFacts{isEBGP: true}
+	precomputeNextHop(dest, &facts)
+	scope := newLinkScopeFrom([]netip.Prefix{netip.MustParsePrefix("2001:db8::/64")}, netip.MustParseAddr("2001:db8::2"))
+	applyLinkLocalNextHop(dest, &facts, scope)
+	applyFactsNextHop(&facts, &mods, family.IPv6Unicast)
+	// Preserve the separate external-domain Prefix-SID assertion on its live producer.
+	applyFactsPrefixSID(&facts, true, &mods)
 
 	ops := mods.Ops()
 	require.Len(t, ops, 2, "IPv6 link-local emits MP_REACH op + PrefixSID suppress")
@@ -492,7 +505,7 @@ func TestApplyNextHopModIPv6LinkLocalBytes(t *testing.T) {
 	linkLocal := linkLocalAddr.As16()
 	assert.Equal(t, global[:], ops[0].Buf[:16], "first half is global IPv6 next-hop")
 	assert.Equal(t, linkLocal[:], ops[0].Buf[16:], "second half is link-local IPv6 next-hop")
-	assert.Equal(t, uint8(40), ops[1].Code, "RFC 9252 Section 2: Prefix-SID Service TLV removal")
+	assert.Equal(t, uint8(40), ops[1].Code, "RFC 8669 Section 8: suppress Prefix-SID outside the SR domain")
 	assert.Equal(t, filterapi.AttrModSuppress, ops[1].Action)
 }
 
@@ -508,6 +521,8 @@ func TestApplyNextHopModIPv6LinkLocalNoAlloc(t *testing.T) {
 		LocalAddress: netip.MustParseAddr("2001:db8::1"),
 		LinkLocal:    netip.MustParseAddr("fe80::1"),
 	}
+	facts := peerForwardFacts{isEBGP: true}
+	scope := newLinkScopeFrom([]netip.Prefix{netip.MustParsePrefix("2001:db8::/64")}, netip.MustParseAddr("2001:db8::2"))
 	var mods filterapi.ModAccumulator
 	mods.Op(0, filterapi.AttrModSuppress, nil)
 	mods.Op(0, filterapi.AttrModSuppress, nil)
@@ -515,7 +530,10 @@ func TestApplyNextHopModIPv6LinkLocalNoAlloc(t *testing.T) {
 
 	allocs := testing.AllocsPerRun(1000, func() {
 		mods.Reset()
-		applyNextHopMod(dest, &mods)
+		precomputeNextHop(dest, &facts)
+		applyLinkLocalNextHop(dest, &facts, scope)
+		applyFactsNextHop(&facts, &mods, family.IPv6Unicast)
+		applyFactsPrefixSID(&facts, true, &mods)
 	})
 	assert.Equal(t, 0.0, allocs, "next-hop value construction should not allocate")
 }
