@@ -90,7 +90,7 @@ func TestDoctorRuntimePhaseRunsOnlyThroughTheRuntimeRunner(t *testing.T) {
 	}
 
 	var got *diagnostic.Diagnostic
-	diags := RunRuntimeChecks(nil)
+	diags := RunRuntimeChecks(nil, nil)
 	for i := range diags {
 		if diags[i].Code == "doctor-test-runtime-only" {
 			got = &diags[i]

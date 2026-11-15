@@ -882,10 +882,18 @@ raise with no fix.
 An active warning whose code another `runtime` check declares in its own
 `Codes` is that check's row and is not repeated here: the check reads the state
 the warning mirrors, so one fault gives one row (`doctor-plugin-stopped` is
-reported by `plugin-stopped`, not by `recent-events`). Error events always
-render, because they are history no state check reports.
-<!-- source: internal/component/doctor/checks_recent_events.go -- runtimeCheckCodes, warningsNoCheckOwns -->
+reported by `plugin-stopped`, not by `recent-events`). The same holds for a
+running plugin's doctor check: `show doctor` asks the plugins first, and hands
+the runtime phase the codes declared by each plugin check that answered, so a
+plugin that raises a warning under a code its own check reports gives one row.
+A plugin check whose callback failed reports no state, so its codes are not
+handed on and the warning still renders here beside the
+`doctor-plugin-unreachable` row. Error events always render, because they are
+history no state check reports.
+<!-- source: internal/component/doctor/checks_recent_events.go -- ownedCodes, warningsNoCheckOwns -->
+<!-- source: internal/component/doctor/cmd/show.go -- answerDaemonDoctor, collectDoctorChecksFrom, pluginCheckAnswer -->
 <!-- test: internal/component/doctor/checks_recent_events_test.go TestRecentEventsSkipsWarningAStateCheckOwns -->
+<!-- test: internal/component/doctor/cmd/show_recent_events_test.go TestShowDoctorListsAPluginOwnedWarningOnce -->
 
 ### A full bus
 

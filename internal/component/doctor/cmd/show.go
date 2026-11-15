@@ -44,11 +44,14 @@ func HandleDoctor(cmdCtx *pluginserver.CommandContext, validated command.Validat
 // no plugin.
 func answerDaemonDoctor(source doctorCheckSource, callerName string, validated command.ValidatedArgs) (*plugin.Response, error) {
 	runtime := func(judged *config.Tree) []diagnostic.Diagnostic {
-		diags := doctor.RunRuntimeChecks(judged)
 		if source == nil {
-			return diags
+			return doctor.RunRuntimeChecks(judged, nil)
 		}
-		return append(diags, collectDoctorChecksFrom(source, callerName)...)
+		// The plugin checks run first so the runtime phase knows which codes
+		// they answered for (recent-events leaves those warnings to them);
+		// the in-tree findings still print first.
+		plugins := collectDoctorChecksFrom(source, callerName)
+		return append(doctor.RunRuntimeChecks(judged, plugins.codes), plugins.diagnostics...)
 	}
 	answer := func(args command.ValidatedArgs) command.LocalAnswer {
 		return doctor.Answer(args, runtime)
@@ -82,18 +85,28 @@ func doctorCheckSourceOf(cmdCtx *pluginserver.CommandContext) (doctorCheckSource
 	return cmdCtx.Server, callerName
 }
 
+// pluginCheckAnswer is what the running plugins' doctor checks answered:
+// their findings, and the codes declared by each check that answered. A check
+// whose callback failed is reported as unreachable and adds no code, because
+// it reported no state.
+type pluginCheckAnswer struct {
+	diagnostics []diagnostic.Diagnostic
+	codes       map[string]bool
+}
+
 // collectDoctorChecksFrom runs every doctor check the source's plugins
 // declared, skipping callerName's, in declared order, and answers their
-// findings with the fix each plugin named.
+// findings with the fix each plugin named, and the codes of the checks that
+// answered.
 //
 // It calls every check a running plugin declared, whatever its phase: inside
 // the daemon a plugin's live state is there to read, so a runtime check and a
 // config-phase check are both answered here, and this is the only route that
 // runs a declared check.
-func collectDoctorChecksFrom(source doctorCheckSource, callerName string) []diagnostic.Diagnostic {
+func collectDoctorChecksFrom(source doctorCheckSource, callerName string) pluginCheckAnswer {
 	plugins := source.DoctorCheckPlugins()
 	if len(plugins) == 0 {
-		return nil
+		return pluginCheckAnswer{}
 	}
 
 	platform, _ := host.DetectPlatform()
@@ -118,13 +131,13 @@ func collectDoctorChecksFrom(source doctorCheckSource, callerName string) []diag
 		return pending[i].check.Order < pending[j].check.Order
 	})
 
-	var diags []diagnostic.Diagnostic
+	var answer pluginCheckAnswer
 	for _, pc := range pending {
 		ctx, cancel := context.WithTimeout(context.Background(), perCheckTimeout)
 		out, err := source.CallDoctorCheck(ctx, pc.plugin, pc.check.Name)
 		cancel()
 		if err != nil {
-			diags = append(diags, diagnostic.Diagnostic{
+			answer.diagnostics = append(answer.diagnostics, diagnostic.Diagnostic{
 				Code:     "doctor-plugin-unreachable",
 				Severity: diagnostic.SeverityWarning,
 				Message:  "plugin " + pc.plugin + " doctor check " + pc.check.Name + " failed: " + err.Error(),
@@ -132,10 +145,11 @@ func collectDoctorChecksFrom(source doctorCheckSource, callerName string) []diag
 			})
 			continue
 		}
+		answer.addCodes(pc.check.Codes)
 		count := len(out.Diagnostics)
 		if count > maxDiagnosticsPerCheck {
 			count = maxDiagnosticsPerCheck
-			diags = append(diags, diagnostic.Diagnostic{
+			answer.diagnostics = append(answer.diagnostics, diagnostic.Diagnostic{
 				Code:     "doctor-plugin-excessive-diagnostics",
 				Severity: diagnostic.SeverityWarning,
 				Message:  "plugin " + pc.plugin + " check " + pc.check.Name + " returned too many diagnostics, truncated",
@@ -144,10 +158,20 @@ func collectDoctorChecksFrom(source doctorCheckSource, callerName string) []diag
 		for _, d := range out.Diagnostics[:count] {
 			diag := doctor.PluginDiagnostic(d)
 			diag.Severity = normalizeSeverity(d.Severity)
-			diags = append(diags, diag)
+			answer.diagnostics = append(answer.diagnostics, diag)
 		}
 	}
-	return diags
+	return answer
+}
+
+// addCodes records the codes a check that answered declares.
+func (a *pluginCheckAnswer) addCodes(codes []string) {
+	if a.codes == nil {
+		a.codes = make(map[string]bool, len(codes))
+	}
+	for _, code := range codes {
+		a.codes[code] = true
+	}
 }
 
 func platformMatches(platforms []string, info *host.PlatformInfo) bool {

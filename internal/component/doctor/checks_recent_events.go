@@ -93,11 +93,14 @@ type recentEventsGroup struct {
 // An active warning whose code another runtime check declares is that check's
 // row, not a second one here: the check reads the state the warning mirrors
 // (plugin-stopped reads the plugin snapshot doctor-plugin-stopped mirrors), so
-// one fault gives one row. Error events stay, because they are history no
+// one fault gives one row. That holds for an in-tree runtime check and for a
+// plugin check that answered in the same show doctor answer
+// (ctx.PluginCheckCodes): a plugin check that did not answer reports nothing,
+// so its warnings stay here. Error events stay, because they are history no
 // state check reports.
-func checkRecentEvents(diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+func checkRecentEvents(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 	groups := groupRecentEvents(nil, report.Errors(0))
-	groups = groupRecentEvents(groups, warningsNoCheckOwns(report.Warnings(), runtimeCheckCodes()))
+	groups = groupRecentEvents(groups, warningsNoCheckOwns(report.Warnings(), ownedCodes(ctx.PluginCheckCodes)))
 	if len(groups) == 0 {
 		return nil
 	}
@@ -109,11 +112,16 @@ func checkRecentEvents(diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 	return diags
 }
 
-// runtimeCheckCodes answers the codes the runtime checks other than this one
-// declare. Their own Codes only: the event codes are appended to this check's
-// listing alone (DeclaresEventCodes).
-func runtimeCheckCodes() map[string]bool {
-	codes := make(map[string]bool)
+// ownedCodes answers the codes a state check reports this answer: those the
+// in-tree runtime checks other than this one declare, and pluginCodes, the
+// codes of the plugin checks that answered. The in-tree checks' own Codes
+// only: the event codes are appended to this check's listing alone
+// (DeclaresEventCodes).
+func ownedCodes(pluginCodes map[string]bool) map[string]bool {
+	codes := make(map[string]bool, len(pluginCodes))
+	for code := range pluginCodes {
+		codes[code] = true
+	}
 	for _, check := range diagnostic.DoctorChecksForPhase(diagnostic.DoctorPhaseRuntime) {
 		if check.Name == recentEventsCheckName {
 			continue

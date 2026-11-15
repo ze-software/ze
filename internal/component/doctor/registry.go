@@ -40,6 +40,10 @@ type doctorCheckContext struct {
 	Plugins   []zeplugin.PluginConfig
 	Store     storage.Storage
 	Platform  *host.PlatformInfo
+
+	// PluginCheckCodes is the runtime phase's view of the plugin checks
+	// answered beside it (diagnostic.DoctorCheckContext.PluginCheckCodes).
+	PluginCheckCodes map[string]bool
 }
 
 // runDoctorChecks runs every check registered for one config phase, in
@@ -60,6 +64,8 @@ func runRegisteredChecks(phase doctorCheckPhase, ctx doctorCheckContext) []diagn
 		Plugins:   ctx.Plugins,
 		Store:     ctx.Store,
 		Platform:  ctx.Platform,
+
+		PluginCheckCodes: ctx.PluginCheckCodes,
 	}
 
 	var diags []diagnostic.Diagnostic
@@ -94,13 +100,23 @@ func runRegisteredChecks(phase doctorCheckPhase, ctx doctorCheckContext) []diagn
 // only to agree with a config-phase check that read the same file, and never
 // reads it as what the daemon runs; it reads its owner's live state where it
 // lives.
-func RunRuntimeChecks(judged *config.Tree) []diagnostic.Diagnostic {
+//
+// pluginCodes holds the codes declared by the plugin doctor checks that
+// answered in the same show doctor answer, nil when none did. The
+// recent-events check leaves an active warning under one of those codes to
+// the plugin check that reports its state, as it does for an in-tree runtime
+// check, so one fault gives one row.
+func RunRuntimeChecks(judged *config.Tree, pluginCodes map[string]bool) []diagnostic.Diagnostic {
 	// The answer this runs beside already reports a platform detection
 	// failure (runChecks, through resolveDoctorPlatform), so its findings are
 	// not repeated here; a nil platform still runs every check declared for
 	// any platform.
 	platform, _ := resolveDoctorPlatform()
-	return runRegisteredChecks(diagnostic.DoctorPhaseRuntime, doctorCheckContext{Tree: judged, Platform: platform})
+	return runRegisteredChecks(diagnostic.DoctorPhaseRuntime, doctorCheckContext{
+		Tree:             judged,
+		Platform:         platform,
+		PluginCheckCodes: pluginCodes,
+	})
 }
 
 // doctorTree answers the config tree a registered check reads.

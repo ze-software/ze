@@ -43,14 +43,23 @@ const DoctorPlatformAny = "any"
 // phase of the same answer judged, nil when that phase did not run. That tree
 // is the saved configuration, never the running one, so a runtime check reads
 // it only to agree with a config-phase check that read the same file. It reads
-// its owner's live state, never a store or directory, so every other field is
-// empty for it by design.
+// its owner's live state, never a store or directory, so ConfigDir, Plugins
+// and Store are empty for it by design.
+//
+// PluginCheckCodes is handed to the runtime phase on the daemon route only:
+// the codes declared by the doctor checks of the running plugins that
+// answered in the same show doctor answer. Those checks run beside the
+// runtime phase through the plugin callback, outside this registry, so this
+// is the only way the recent-events check learns that a plugin check already
+// reports a warning's state. Nil on every other route, and nil when no plugin
+// check answered.
 type DoctorCheckContext struct {
-	Tree      any
-	ConfigDir string
-	Plugins   []zeplugin.PluginConfig
-	Store     storage.Storage
-	Platform  *host.PlatformInfo
+	Tree             any
+	ConfigDir        string
+	Plugins          []zeplugin.PluginConfig
+	Store            storage.Storage
+	Platform         *host.PlatformInfo
+	PluginCheckCodes map[string]bool
 }
 
 // DoctorCheckFunc is the signature of a doctor check function.

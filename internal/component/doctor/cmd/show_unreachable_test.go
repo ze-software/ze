@@ -24,11 +24,11 @@ func (source *unreachableDoctorSource) CallDoctorCheck(_ context.Context, name, 
 }
 
 func TestCollectUnreachablePluginDoctorCheckNamesRecovery(t *testing.T) {
-	if healthy := collectDoctorChecksFrom(fakeDoctorCheckSource{}, ""); len(healthy) != 0 {
+	if healthy := collectDoctorChecksFrom(fakeDoctorCheckSource{}, "").diagnostics; len(healthy) != 0 {
 		t.Fatalf("healthy plugin findings = %v", healthy)
 	}
 	source := &unreachableDoctorSource{}
-	findings := collectDoctorChecksFrom(source, "")
+	findings := collectDoctorChecksFrom(source, "").diagnostics
 	if source.called != "forwarding-west" {
 		t.Fatalf("callback identity = %q", source.called)
 	}

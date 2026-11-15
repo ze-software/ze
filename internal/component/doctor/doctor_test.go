@@ -252,11 +252,11 @@ func TestRuntimeChecksReceiveTheConfigurationDoctorRead(t *testing.T) {
 
 	_, loaded := runChecks(cfgPath)
 	require.NotNil(t, loaded, "runChecks returned no tree for a configuration that loads")
-	RunRuntimeChecks(loaded)
+	RunRuntimeChecks(loaded, nil)
 
 	_, missing := runChecks(filepath.Join(t.TempDir(), "absent.conf"))
 	assert.Nil(t, missing, "runChecks returned a tree for a configuration that does not exist")
-	RunRuntimeChecks(missing)
+	RunRuntimeChecks(missing, nil)
 
 	require.Len(t, received, 2)
 	assert.Same(t, loaded, received[0], "the runtime check was not handed the tree the post-config phase judged")

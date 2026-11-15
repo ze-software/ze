@@ -50,7 +50,7 @@ func TestDoctorRecentEventsRowsFromReportRing(t *testing.T) {
 
 	// Readiness before any event: the other runtime checks this binary
 	// carries answer for the host, so the test compares, never assumes ready.
-	readyBefore := readyOf(RunRuntimeChecks(nil))
+	readyBefore := readyOf(RunRuntimeChecks(nil, nil))
 
 	errorCode := diagnostic.CodeDoctorDiskSpace
 	warningCode := diagnostic.CodeDoctorClockSkew
@@ -58,7 +58,7 @@ func TestDoctorRecentEventsRowsFromReportRing(t *testing.T) {
 	report.RaiseError(recentEventsFixtureSource, errorCode, "peer-a", "second failure")
 	report.RaiseWarning(recentEventsFixtureSource, warningCode, "clock", "clock drifts")
 
-	diags := RunRuntimeChecks(nil)
+	diags := RunRuntimeChecks(nil, nil)
 	if readyOf(diags) != readyBefore {
 		t.Fatalf("recent events changed readiness from %v: %+v", readyBefore, diags)
 	}

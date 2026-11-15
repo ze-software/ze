@@ -139,7 +139,7 @@ func TestCollectPluginDoctorChecksCarriesFix(t *testing.T) {
 	source := fakeDoctorCheckSource{answer: rpc.DoctorCheckOutput{Diagnostics: []rpc.DoctorCheckDiagnostic{{
 		Code: "doctor-fixture-degraded", Severity: "error", Message: "fixture state is degraded", Fix: "show fixture state",
 	}}}}
-	diags := collectDoctorChecksFrom(source, "")
+	diags := collectDoctorChecksFrom(source, "").diagnostics
 	require.Len(t, diags, 1)
 	assert.Equal(t, "doctor-fixture-degraded", diags[0].Code)
 	assert.Equal(t, diagnostic.SeverityError, diags[0].Severity)
