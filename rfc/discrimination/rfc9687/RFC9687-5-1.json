@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC9687-5-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact",
+    "unit-sha": "e12540bbb3dd089b",
+    "claim-sha": "018114e8911c2d7d",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_write.go::sendHoldDuration",
+    "producer-sha": "e199b576ef89ec5b",
+    "break": "line 286: \"return s.settings.SendHoldTime\" -\u003e \"return s.settings.SendHoldTime - time.Nanosecond\""
+  },
+  {
+    "rid": "RFC9687-5-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList",
+    "unit-sha": "aa8cc431fad8c115",
+    "claim-sha": "441681015ae92e55",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_connection.go::closeFlushed",
+    "producer-sha": "8f23e2d056308515",
+    "break": "line 974: \"defer closeConnQuietly(conn)\" -\u003e \"defer func() { _ = conn }()\""
+  },
+  {
+    "rid": "RFC9687-5-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc9687_valid_blocked_test.go::TestRFC9687ValidSendHoldExpiresBehindBlockedKeepalive",
+    "unit-sha": "acdca3e9075bebb7",
+    "claim-sha": "de81dd0f36d62c3a",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_connection.go::dropConn",
+    "producer-sha": "b5b570d4e65290cd",
+    "break": "line 1034: \"closeConnQuietly(conn)\" -\u003e \"func() { _ = conn }() // MUTATION-APPLIED\""
+  }
+]

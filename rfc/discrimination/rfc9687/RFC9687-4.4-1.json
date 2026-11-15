@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9687-4.4-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldTimeAboveHoldTimeAccepted",
+    "unit-sha": "216350ba1e942074",
+    "claim-sha": "912ee7174646550e",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/config.go::parsePeerSettings",
+    "producer-sha": "ecbae880a7c1b84b",
+    "break": "line 229: \"v != 0 \u0026\u0026 time.Duration(v)*time.Second \u003c= ps.ReceiveHoldTime\" -\u003e \"true\""
+  },
+  {
+    "rid": "RFC9687-4.4-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldTimeMustExceedHoldTime",
+    "unit-sha": "5df7155f87e3dac9",
+    "claim-sha": "f71dee34abfaf4a1",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/config.go::parsePeerSettings",
+    "producer-sha": "ecbae880a7c1b84b",
+    "break": "line 229: \"v != 0 \u0026\u0026 time.Duration(v)*time.Second \u003c= ps.ReceiveHoldTime\" -\u003e \"false\""
+  }
+]

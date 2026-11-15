@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9687-4.3-9",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NonZeroNegotiatedHoldTimeArmsTheSendHoldTimer",
+    "unit-sha": "b79143e58b9ed2a4",
+    "claim-sha": "9b42b8a164d9920e",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_write.go::startSendHoldTimer",
+    "producer-sha": "279f267aa9025adf",
+    "break": "line 310: \"d == 0 || s.timers.HoldTime() == 0\" -\u003e \"d == 0 || s.timers.HoldTime() \u003e= 0\""
+  },
+  {
+    "rid": "RFC9687-4.3-9",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687ZeroNegotiatedHoldTimeStopsTheSendHoldTimer",
+    "unit-sha": "49e64b9c5f13a263",
+    "claim-sha": "a24862cacee7b42f",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_write.go::startSendHoldTimer",
+    "producer-sha": "279f267aa9025adf",
+    "break": "line 310: \"d == 0 || s.timers.HoldTime() == 0\" -\u003e \"d == 0\""
+  }
+]

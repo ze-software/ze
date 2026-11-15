@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9687-4.3-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact",
+    "unit-sha": "e12540bbb3dd089b",
+    "claim-sha": "0bc70e9ababfb10d",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_write.go::sendHoldDuration",
+    "producer-sha": "e199b576ef89ec5b",
+    "break": "line 286: \"return s.settings.SendHoldTime\" -\u003e \"return s.settings.SendHoldTime - time.Nanosecond\""
+  },
+  {
+    "rid": "RFC9687-4.3-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList",
+    "unit-sha": "aa8cc431fad8c115",
+    "claim-sha": "fe377edee8785048",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_write.go::sendHoldTimerExpired",
+    "producer-sha": "9be43ebef6235ba9",
+    "break": "line 391: \"sessionLogger().Warn(\\\"send hold timer expired (RFC 9687)\\\",\" -\u003e \"sessionLogger().Warn(\\\"send timer diagnostic omitted\\\",\""
+  }
+]

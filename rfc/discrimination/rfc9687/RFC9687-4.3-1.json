@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9687-4.3-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldTimerArmedOnEstablished",
+    "unit-sha": "d00da25a0c8d65af",
+    "claim-sha": "ffe5a4d1eac22911",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_write.go::startSendHoldTimer",
+    "producer-sha": "279f267aa9025adf",
+    "break": "line 320: \"s.sendHoldDeadline.Store(s.clock.Now().Add(d).UnixNano())\" -\u003e \"s.sendHoldDeadline.Store(0)\""
+  },
+  {
+    "rid": "RFC9687-4.3-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldTimerNotArmedBeforeEstablished",
+    "unit-sha": "635053303c054c6f",
+    "claim-sha": "d43790bd0d83ba00",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_write.go::resetSendHoldTimer",
+    "producer-sha": "62768f1e461bc74f",
+    "break": "line 328: \"if s.sendHoldDeadline.Load() != 0 {\" -\u003e \"if true {\""
+  }
+]

@@ -1,13 +1,17 @@
 {
-  "note": "RFC 9687 Section 4.3 Event 29 changes state to Idle. Re-read SendHoldExpiryRunsTheEvent29ActionList and NoSendHoldExpiryLeavesTheSessionIntact: the positive advances exactly SendHoldTime, now joins exact ErrSendHoldTimerExpired and asserts StateIdle; the negative stops one nanosecond short, rejects terminal Run completion and requires StateEstablished. The fixture establishes through real OPEN/KEEPALIVE processing and chooses a deadline preceding every other session timer. sendHoldTimerExpired delivers the event to fsm's Established HoldTimerExpires handler, whose exact transition is Idle. A missing, wrong or premature transition violates a distinct state assertion; Run completion alone does not stand in for that transition. No native execution claimed.",
+  "note": "Independently rejudged RFC 9687 Section 4.3 against the current tests, producers and main-thread observations in job-rfc9687-completion-proofs-25e72061.log. This replaces the old audit rationale that a wrong destination necessarily fails the action-list test's final StateIdle assertion: transport cleanup can repair Established-to-Active to Idle, and that older mutant failed only the neighboring retry-counter assertion. The legacy action-list test remains auxiliary evidence, not the decisive transition or valid-timer-integration proof. TestRFC9687ExpiryFirstLeavesEstablishedForIdle now uses valid SendHoldTime greater than negotiated HoldTime and explicitly invokes the production expiry handler; its tag correctly claims a conditional action proof. TestRFC9687ValidSendHoldExpiresBehindBlockedKeepalive independently parses 90/480-second settings, keeps the receive timer renewed with processed inbound KEEPALIVEs, observes the session live at 479 seconds with an unchanged send deadline, and lets the actual Send Hold callback expire while the outbound write path remains held. The production Peer callback captures its actual from/to arguments in leaveSession; sessionDown appends that captured transition and PeerFSMHistory returns it, so later cleanup cannot change the recorded first destination. In the observed main-thread runs both new units passed unmodified. Changing handleEstablished's f.change(StateIdle) to f.change(StateActive) failed the direct target assertions with expected IDLE and actual ACTIVE in both units. The valid 479-second control and the unchanged NoSendHoldExpiryLeavesTheSessionIntact pre-expiry assertions reject unconditional or premature teardown. Together these enforce the Event 29 Idle action and its valid elapsed-timer path; they do not certify the whole RFC or aggregate figure freshness.",
   "requirement_sha": "c70f245f9bce1316",
   "tests": {
+    "internal/component/bgp/reactor/rfc9687_expiry_transition_test.go::TestRFC9687ExpiryFirstLeavesEstablishedForIdle": "f4d75309bb902b00",
     "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "0fca7abc77e5f43f",
-    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "0fca7abc77e5f43f"
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "0fca7abc77e5f43f",
+    "internal/component/bgp/reactor/rfc9687_valid_blocked_test.go::TestRFC9687ValidSendHoldExpiresBehindBlockedKeepalive": "eaa0cb771bc22abc"
   },
   "units": {
+    "internal/component/bgp/reactor/rfc9687_expiry_transition_test.go::TestRFC9687ExpiryFirstLeavesEstablishedForIdle": "46aa5f04ff26ce02",
     "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "d962e371f1fc6714",
-    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "f9f7c7e66f1280f6"
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "f9f7c7e66f1280f6",
+    "internal/component/bgp/reactor/rfc9687_valid_blocked_test.go::TestRFC9687ValidSendHoldExpiresBehindBlockedKeepalive": "d8dfd9760990ab15"
   },
   "verdict": "enforced"
 }
