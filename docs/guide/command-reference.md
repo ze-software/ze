@@ -2895,12 +2895,17 @@ its refusals are the ones `update data key` gives below. A file over 195,840
 bytes is refused before anything connects, with the daemon's own refusal: one
 SSH packet carries the whole command, and 195,840 bytes is what it holds. Write
 a larger value with ze stopped. With ze stopped, `write` writes any key, of any
-size.
+size. An empty file is the one input the two routes answer differently. While a
+daemon owns the store it is refused before anything connects: the daemon
+command takes no empty content, because a key is taken out with
+`delete data key`, never emptied. With ze stopped it writes an empty key.
 <!-- source: internal/component/config/storage/cli/main.go -- cmdWrite, writeKey, writeKeyThroughDaemon -->
 
 `import` lands each file in the config named by its file name, under the key
 `file/active/<basename>`, and prints `imported <key> (<n> bytes)` per file and
-`<n> files imported into <store>`. A config the store already holds is
+`<n> files imported into <store>`. Stdin (`-`) is refused on both routes,
+because it has no file name to name the config: import it with
+`ze config import --name <name> -`. A config the store already holds is
 committed as a new active version and the previous one is kept as rollback, as
 `ze config import` replaces one, so a daemon started after the import runs the
 imported config. A config the store does not hold yet is written as its key.

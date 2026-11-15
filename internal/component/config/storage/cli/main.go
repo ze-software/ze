@@ -288,8 +288,9 @@ const commandDataImport = "ze data import"
 // that daemon as `update data config name <name> content <base64>`, one
 // command per file (daemonroute). Both routes print `imported <key> (<n>
 // bytes)` per file and `<n> files imported into <store>`, and exit 0 when at
-// least one file was imported, 2 when none was, when the store could not be
-// reached or when stdin is named twice, 1 on usage.
+// least one file was imported, 2 when none was or when the store could not be
+// reached, 1 on usage. Stdin ("-") is refused on both routes: it has no file
+// name to name the config (unnamedImportRefusal).
 func cmdImport(storePath string, args []string) int {
 	return importConfigs(storePath, args, daemonroute.OverSSH, os.Stdout, os.Stderr)
 }
@@ -314,14 +315,13 @@ func importConfigs(storePath string, paths []string, ask daemonroute.Ask, stdout
 
 	imported := 0
 	for _, path := range paths {
+		if refusal := unnamedImportRefusal(path); refusal != nil {
+			writeErrorLine(stderr, refusal)
+			continue
+		}
 		data, readErr := cliio.ReadFile(path)
 		if readErr != nil {
 			writeReadError(stderr, path, readErr)
-			// Stdin can be read once; a second "-" fails closed after any
-			// preceding successful imports, as with config import.
-			if errors.Is(readErr, cliio.ErrStdinClaimed) {
-				return 2
-			}
 			continue
 		}
 		key := filePathToKey(path)
@@ -389,12 +389,13 @@ func importConfigOwned(s storage.Storage, name, path string, data []byte) error 
 func importConfigsThroughDaemon(storePath string, paths []string, busy error, ask daemonroute.Ask, stdout, stderr io.Writer) int {
 	imported := 0
 	for _, path := range paths {
+		if refusal := unnamedImportRefusal(path); refusal != nil {
+			writeErrorLine(stderr, refusal)
+			continue
+		}
 		data, readErr := cliio.ReadFile(path)
 		if readErr != nil {
 			writeReadError(stderr, path, readErr)
-			if errors.Is(readErr, cliio.ErrStdinClaimed) {
-				return 2
-			}
 			continue
 		}
 		name := filepath.Base(path)
@@ -426,6 +427,23 @@ func importConfigsThroughDaemon(storePath string, paths []string, busy error, as
 		imported++
 	}
 	return importedSummary(stdout, storePath, imported)
+}
+
+// unnamedImportRefusal refuses an input whose base name is no plain config
+// name (storage.PlainConfigName), before it is read. `ze data import` names
+// the config after the file, and stdin ("-") has no file name: read, it would
+// be committed as a config named "-", which no daemon ever loads and which
+// `update data config` refuses. Both routes ask here, so they refuse the same
+// inputs. It answers nil for an input that names a config.
+func unnamedImportRefusal(path string) *opererr.Error {
+	if storage.PlainConfigName(filepath.Base(path)) {
+		return nil
+	}
+	var problem textbuf.Buffer
+	problem.Str(commandDataImport).Str(": ").Str(strconv.Quote(path)).Str(" was not imported")
+	return opererr.New(problem.String(),
+		"the config is named after the file it is read from, and this input has no file name",
+		"ze config import --name <name> -")
 }
 
 // writeReadError prints the line a file that cannot be read gets.

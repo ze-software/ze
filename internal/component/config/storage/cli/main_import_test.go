@@ -277,3 +277,67 @@ func TestDataImportRefusesOversizeBeforeConnecting(t *testing.T) {
 		t.Fatal("the refused import changed the config")
 	}
 }
+
+// VALIDATES: ze data import refuses stdin ("-") on both routes, before it
+// reads anything, and names `ze config import --name <name> -`; the files
+// beside it are still imported.
+// PREVENTS: the offline route committing stdin as a config named "-", which
+// no daemon loads and which `update data config` refuses, so the two routes
+// disagreed about the same input.
+func TestDataImportRefusesStdinOnBothRoutes(t *testing.T) {
+	const wantFix = "ze config import --name <name> -"
+
+	// With the store free: nothing named "-" is written, the file is imported.
+	dir := t.TempDir()
+	seed, err := storage.Create(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := seed.Close(); err != nil {
+		t.Fatal(err)
+	}
+	tree := filepath.Join(dir, storage.TreeName)
+	var stdout, stderr bytes.Buffer
+	file := importTestFile(t, importTestName, []byte("new config"))
+	unasked := func(_, _ string) ([]byte, error) {
+		t.Fatal("the daemon was asked while the store was free")
+		return nil, nil
+	}
+	if code := importConfigs(tree, []string{"-", file}, unasked, &stdout, &stderr); code != 0 {
+		t.Fatalf("an import of stdin and one file returned %d, want 0; stderr:\n%s", code, stderr.String())
+	}
+	for _, want := range []string{"error: ze data import: \"-\" was not imported", wantFix} {
+		if !strings.Contains(stderr.String(), want) {
+			t.Fatalf("offline refusal lacks %q:\n%s", want, stderr.String())
+		}
+	}
+	if stdout.String() != importedLine(importTestName, len("new config"))+"1 files imported into "+tree+"\n" {
+		t.Fatalf("offline stdout:\n%s", stdout.String())
+	}
+	reader, err := storage.OpenTree(tree, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reader.Exists(zefs.KeyFileActive.Key("-")) {
+		t.Fatal("stdin was committed as a config named \"-\"")
+	}
+	if err := reader.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	// While a daemon owns the store: the daemon is not asked for stdin.
+	owner, path := ownedStore(t)
+	var sent []string
+	ask := daemonImportStub(t, owner, "", &sent)
+	stdout.Reset()
+	stderr.Reset()
+	if code := importConfigs(path, []string{"-"}, ask, &stdout, &stderr); code != 2 {
+		t.Fatalf("an import of stdin alone beside a daemon returned %d, want 2", code)
+	}
+	if len(sent) != 0 {
+		t.Fatalf("the daemon was asked %d times for stdin, want none", len(sent))
+	}
+	if !strings.Contains(stderr.String(), wantFix) {
+		t.Fatalf("daemon-route refusal lacks %q:\n%s", wantFix, stderr.String())
+	}
+}

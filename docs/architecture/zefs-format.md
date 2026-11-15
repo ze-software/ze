@@ -259,7 +259,10 @@ busy destination store, after its name checks and confirmation. The route is
 one package, `storage/daemonroute`, which both command packages call. The lock is never lifted: the daemon removes or
 writes the key through its own handle. `write` and `import` judge each command
 against the model before they connect, so a file over the 195,840 bytes one
-SSH packet carries is refused there with the daemon's own refusal. Offline,
+SSH packet carries is refused there with the daemon's own refusal. An empty
+file given to `write` is refused there too, while the offline route writes an
+empty key: the one input the two routes answer differently. `import` refuses
+stdin on both routes, because the config is named after the file. Offline,
 `import` commits a config the store already holds as a new active version
 (`storage.RestoreConfig`), because a raw write of its `file/active/<name>` key
 is shadowed by its active pointer (`storage.ReadActiveConfig` reads the
