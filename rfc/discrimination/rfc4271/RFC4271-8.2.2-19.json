@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC4271-8.2.2-19",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271EstablishedCollisionWaitsForOpen",
+    "unit-sha": "0964d1096c2a3698",
+    "claim-sha": "0bf11060637594c5",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/reactor_connection.go::acceptOrReject",
+    "producer-sha": "e71581c665e0d43c",
+    "break": "line 248: \"go r.handlePendingCollision(peer, conn)\" -\u003e \"closeConnQuietly(conn)\""
+  }
+]

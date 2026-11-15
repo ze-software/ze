@@ -592,6 +592,22 @@ loop or every Established-state event, and earns no new RFC-row credit.
 Retain the log through the campaign's final evidence audit; the committed
 test and this result then supersede the temporary console output.
 
+The separate `TestSessionRFC4271EstablishedCollisionWaitsForOpen` directly
+checks the lower bound in RFC4271-8.2.2-19: the second connection stays
+tracked while its OPEN is incomplete. Its positive native observation passed
+cleanly, then failed at the partial-OPEN write when the private producer
+overlay closed that pending socket immediately. The named assertion reported
+`io: read/write on closed pipe`, not a build failure or a test timeout.
+`rfc/discrimination/rfc4271/RFC4271-8.2.2-19.json` retains the native record;
+`tmp/session/2026-11-14-210034/scratch/job-pending-until-open-native-proof-c5344cfa.log`
+retains the clean and broken console output through the campaign audit.
+The completed-OPEN control checks collision Cease
+6/7 and pending cleanup, which Section 6.8 governs; neither a wrong
+notification code nor a stale internal pending slot independently violates
+the tracking-until-OPEN sentence. No negative discrimination record or
+whole-row enforcement is inferred from those controls. RFC6608's existing
+same-session unexpected-message proofs remain separate evidence.
+
 ## Owned journal rows
 
 | Class file | Date | Surface (short) |
