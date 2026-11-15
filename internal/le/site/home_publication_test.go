@@ -13,7 +13,7 @@ import (
 func TestHomepagePutsManagementBeforeEvidence(t *testing.T) {
 	page, _ := renderHomeFixture(t)
 	previous := -1
-	for _, marker := range []string{`class="hero"`, `id="try"`, `id="why-ze"`, `class="whats-new reveal"`, `id="proof"`, `id="features-summary"`} {
+	for _, marker := range []string{`class="hero"`, `id="try"`, `id="why-ze"`, `id="proof"`, `id="features-summary"`} {
 		at := strings.Index(page, marker)
 		if at < 0 {
 			t.Fatalf("homepage lacks %s", marker)
@@ -22,6 +22,9 @@ func TestHomepagePutsManagementBeforeEvidence(t *testing.T) {
 			t.Errorf("homepage puts %s before the preceding section", marker)
 		}
 		previous = at
+	}
+	if strings.Contains(page, `class="whats-new reveal"`) {
+		t.Error("the homepage restored the Latest news band the owner removed")
 	}
 }
 

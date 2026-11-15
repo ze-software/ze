@@ -58,6 +58,25 @@ func homeFixture(t *testing.T) Paths {
 	return Paths{Repository: root, Source: source, Output: output}
 }
 
+// changeHomeRunCard changes an authored input that the current homepage
+// actually renders, preserving its other fields and the remaining choices.
+func changeHomeRunCard(t *testing.T, paths Paths, change func(*audienceCard)) {
+	t.Helper()
+	var audience audienceData
+	if err := readSourceJSON(paths.Source, audienceDataFile, &audience); err != nil {
+		t.Fatal(err)
+	}
+	if len(audience.Run) == 0 {
+		t.Fatal("the homepage fixture has no Run card to change")
+	}
+	change(&audience.Run[0])
+	content, err := json.Marshal(audience)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeSourceData(t, paths, audienceDataFile, string(content))
+}
+
 // homeLongWeekIntro crosses the summary boundary before the eighteenth word.
 // The expected clipped text is stated independently at the rendered consumer.
 const homeLongWeekIntro = "One two three four five six seven eight nine ten eleven twelve " +
@@ -213,17 +232,21 @@ func renderHomeFixture(t *testing.T) (page, mirror string) {
 	return readArtifact(t, paths.Output, homeDest), readArtifact(t, paths.Output, pageMirrorFile)
 }
 
-// VALIDATES: the full homepage wires its generated article/week links into
-// both HTML and Markdown, without allowing editorial copy to become a golden.
+// VALIDATES: the homepage wires its generated week links into HTML and
+// Markdown. Articles remain available through the blog's actual renderer;
+// removing the homepage's news band does not remove their links or escaping.
 func TestTheHomepageLinksItsGeneratedNews(t *testing.T) {
-	page, mirror := renderHomeFixture(t)
+	paths := homeFixture(t)
+	if _, err := renderHome(paths); err != nil {
+		t.Fatal(err)
+	}
+	page, mirror := readArtifact(t, paths.Output, homeDest), readArtifact(t, paths.Output, pageMirrorFile)
 	body, err := extractMain(page)
 	if err != nil {
 		t.Fatal(err)
 	}
 	targets := linkTargets(body)
 	for _, route := range []string{
-		"blog/reference-from-the-system/",
 		"project/changes/2026-08-17/",
 		"project/changes/2026-08-10/",
 		"project/changes/2026-08-03/",
@@ -242,6 +265,20 @@ func TestTheHomepageLinksItsGeneratedNews(t *testing.T) {
 	}
 	if strings.Contains(body, "<renderer>") {
 		t.Error("the authored article title became homepage markup")
+	}
+	if _, err := renderBlog(paths); err != nil {
+		t.Fatal(err)
+	}
+	blog := readArtifact(t, paths.Output, blogIndexDest)
+	blogMirror := readArtifact(t, paths.Output, blogDirectory+"/"+pageMirrorFile)
+	if !slices.Contains(linkTargets(blog), "reference-from-the-system/") {
+		t.Error("the blog index lost the article removed from the homepage's news band")
+	}
+	if !strings.Contains(blogMirror, "](reference-from-the-system/index.md)") {
+		t.Error("the blog index mirror lost the article's Markdown destination")
+	}
+	if strings.Contains(blog, "<renderer>") {
+		t.Error("the authored article title became blog markup")
 	}
 }
 
@@ -472,31 +509,47 @@ func TestTheFeatureCategoryLinksFollowThePagesOwnOrder(t *testing.T) {
 	}
 }
 
-// VALIDATES: the Latest news band takes the newest article and the newest week,
-// and cuts each summary to one line on a word boundary.
-func TestTheLatestNewsBandTakesTheNewestArticleAndWeek(t *testing.T) {
-	page, mirror := renderHomeFixture(t)
-	band := sliceBetween(t, page, `<section class="whats-new reveal"`, "</section>")
+// VALIDATES: the homepage's current update cards take the newest weeks and
+// clip on a word boundary. The newest article remains first on the blog index,
+// with its escaped title and authored index description.
+func TestTheNewestArticleAndWeekReachTheirCurrentPages(t *testing.T) {
+	paths := homeFixture(t)
+	if _, err := renderHome(paths); err != nil {
+		t.Fatal(err)
+	}
+	page, mirror := readArtifact(t, paths.Output, homeDest), readArtifact(t, paths.Output, pageMirrorFile)
 	const clipped = "One two three four five six seven eight nine ten eleven twelve " +
 		"thirteen fourteen fifteen sixteen seventeen…"
 	for _, want := range []string{
-		`<span class="whats-new-label">Engineering note</span>`,
-		`<h3><a href="blog/reference-from-the-system/">A &lt;renderer&gt; &amp; its sources</a></h3>`,
-		`<span class="whats-new-label">Recently shipped</span>`,
-		`<h3><a href="project/changes/2026-08-17/">2026-08-17 – 2026-08-23 (1 week)</a></h3>`,
-		"<p>" + clipped + "</p>",
-		`<p>An index description, not the deck.</p>`,
-		`<span class="whats-new-label">RFC compliance progress</span>`,
+		`<p class="home-update-date">2026-08-17 – 2026-08-23 (1 week)</p>`,
+		`<h3><a href="project/changes/2026-08-17/">` + clipped + `</a></h3>`,
 	} {
-		if !strings.Contains(band, want) {
-			t.Errorf("the Latest news band does not carry %s", want)
+		if !strings.Contains(page, want) {
+			t.Errorf("the homepage's update cards do not carry %s", want)
 		}
 	}
-	if strings.Contains(band, homeLongWeekIntro) {
-		t.Error("the Latest news band published the unclipped weekly intro")
+	if strings.Contains(page, homeLongWeekIntro) {
+		t.Error("the homepage published the unclipped weekly intro")
 	}
 	if !strings.Contains(mirror, clipped) {
 		t.Error("the homepage mirror lost the clipped weekly summary")
+	}
+	if _, err := renderBlog(paths); err != nil {
+		t.Fatal(err)
+	}
+	blog := readArtifact(t, paths.Output, blogIndexDest)
+	for _, text := range []string{"A &lt;renderer&gt; &amp; its sources", "An index description, not the deck."} {
+		if !strings.Contains(blog, text) {
+			t.Errorf("the blog index lost %s", text)
+		}
+	}
+	newer := strings.Index(blog, `href="reference-from-the-system/"`)
+	older := strings.Index(blog, `href="older/"`)
+	if newer < 0 {
+		t.Fatal("the blog index lost its newest article")
+	}
+	if older < newer {
+		t.Error("the blog index does not put its newest article before the older article")
 	}
 }
 
@@ -606,8 +659,8 @@ func TestAHomepageInputNoPageCanBeMadeFromIsRefused(t *testing.T) {
 				`{"run":[{"title":"Run it","body":"B","link":{"href":"labs/"}}],
 				  "who":[{"title":"T","body":"B"}]}`)
 		}, "no label"},
-		{"a Latest news file with no heading", func(t *testing.T, paths Paths) {
-			writeFixtureFile(t, filepath.Join(paths.Source, "data", whatsNewDataFile), `{"note":null}`)
+		{"a run card with no title", func(t *testing.T, paths Paths) {
+			changeHomeRunCard(t, paths, func(card *audienceCard) { card.Title = "" })
 		}, "states no title"},
 		{"a hero recording the manifest does not name", func(t *testing.T, paths Paths) {
 			writeDemoJSON(t, filepath.Join(paths.Repository, "demos", "terminal", "manifest.json"), map[string]any{
@@ -658,15 +711,18 @@ func TestTheTemplateAndTheProducerAgreeAboutEverySlot(t *testing.T) {
 
 	// A reader's own braces are text, not a slot.
 	paths := homeFixture(t)
-	writeFixtureFile(t, filepath.Join(paths.Source, "data", whatsNewDataFile), `{"title":"Latest news",
-		"link":{"href":"project/changes/","label":"All updates"},
-		"note":{"label":"Note","title":"A {template} in prose","body":"Braces {like_this} are text."}}`)
+	changeHomeRunCard(t, paths, func(card *audienceCard) {
+		card.Title = "A {template} in prose"
+		card.Body = "Braces {like_this} are text."
+	})
 	if _, err := renderHome(paths); err != nil {
-		t.Errorf("a note carrying braces stopped the build: %v", err)
+		t.Errorf("a run card carrying braces stopped the build: %v", err)
 	}
 	page := readArtifact(t, paths.Output, homeDest)
-	if !strings.Contains(page, "A {template} in prose") {
-		t.Error("the note's braces did not reach the reader")
+	for _, text := range []string{"A {template} in prose", "Braces {like_this} are text."} {
+		if !strings.Contains(page, text) {
+			t.Errorf("the run card's braces did not reach the reader: %s", text)
+		}
 	}
 }
 
@@ -726,7 +782,12 @@ func TestTheHeroReplaysTheRecordingTheManifestNames(t *testing.T) {
 // `./le site check` refuses a published route with no mirror, so the homepage
 // was the one route the mirror contract never covered.
 func TestTheHomepageCarriesTheShellAndItsMirror(t *testing.T) {
-	page, mirror := renderHomeFixture(t)
+	paths := homeFixture(t)
+	changeHomeRunCard(t, paths, func(card *audienceCard) { card.Title = "A <renderer> & its sources" })
+	if _, err := renderHome(paths); err != nil {
+		t.Fatal(err)
+	}
+	page, mirror := readArtifact(t, paths.Output, homeDest), readArtifact(t, paths.Output, pageMirrorFile)
 	for _, want := range []string{
 		"<!doctype html>", `<script id="theme-bootstrap">`,
 		`<title>Ze - Configuration and Protocol Engine for Internet Infrastructure</title>`,

@@ -102,12 +102,12 @@ func TestCardCategoryRejectsUnknownValues(t *testing.T) {
 			t.Errorf("the refusal must name the invalid category: %v", err)
 		}
 	})
-	t.Run("news", func(t *testing.T) {
+	t.Run("homepage run card", func(t *testing.T) {
 		paths := homeFixture(t)
-		writeSourceData(t, paths, whatsNewDataFile, `{"title":"News","link":{"href":"project/changes/","label":"All"},"note":{"title":"Unknown","body":"Body","category":"telepathy"}}`)
+		changeHomeRunCard(t, paths, func(card *audienceCard) { card.Category = "telepathy" })
 		_, err := renderHome(paths)
 		if err == nil {
-			t.Fatal("the homepage producer accepted an unknown news category")
+			t.Fatal("the homepage producer accepted an unknown run-card category")
 		}
 		if !strings.Contains(err.Error(), "telepathy") {
 			t.Errorf("the refusal must name the invalid category: %v", err)

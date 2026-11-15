@@ -75,7 +75,7 @@ website/
                                               category, blurb, and the source report
     topics.json                           -- controlled tag vocabulary for Changes chips
     audience.json                         -- homepage audience cards
-    whats-new.json                        -- homepage editorial note
+    whats-new.json                        -- retired news-band input; the homepage no longer reads it
     dependencies.json                     -- direct Go dependency explanations
     command-equivalents.json              -- curated vendor equivalents keyed by Ze CLI paths
     page-links.json                       -- page navigation and external project links

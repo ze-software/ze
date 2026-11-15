@@ -122,25 +122,11 @@ func renderHome(paths Paths) ([]string, error) {
 	if len(audience.Run) == 0 {
 		return nil, fmt.Errorf("data/%s states no run path, so the homepage would show an empty grid", audienceDataFile)
 	}
-	var whatsNew whatsNewData
-	if err := readSourceJSON(paths.Source, whatsNewDataFile, &whatsNew); err != nil {
-		return nil, err
-	}
-	if whatsNew.Title == "" {
-		return nil, fmt.Errorf("data/%s states no title, so the Latest news band would have no heading", whatsNewDataFile)
-	}
-	if whatsNew.Link == nil {
-		return nil, fmt.Errorf("data/%s states no link, so the Latest news heading would lead nowhere", whatsNewDataFile)
-	}
 	features, err := loadFeatureData(paths)
 	if err != nil {
 		return nil, err
 	}
 	snapshot, err := loadSiteFactSnapshot(paths.Output)
-	if err != nil {
-		return nil, err
-	}
-	articles, err := loadBlogArticles(paths.Source)
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +143,7 @@ func renderHome(paths Paths) ([]string, error) {
 		return nil, err
 	}
 
-	body, err := homeBody(&audience, &whatsNew, features, articles, weeks, hero, snapshot)
+	body, err := homeBody(&audience, features, weeks, hero, snapshot)
 	if err != nil {
 		return nil, err
 	}
@@ -260,8 +246,8 @@ func homeHeroSlots(catalog *demoCatalog) ([]string, error) {
 
 // homeBody fills the template's slots from manifest media, authored data and
 // generated proof spans. The same body supplies the HTML and Markdown mirror.
-func homeBody(audience *audienceData, whatsNew *whatsNewData, features featureData,
-	articles []blogArticle, weeks []changeWeek, hero []string, snapshot siteFactSnapshot,
+func homeBody(audience *audienceData, features featureData,
+	weeks []changeWeek, hero []string, snapshot siteFactSnapshot,
 ) (string, error) {
 	if snapshot.facts == nil {
 		return "", fmt.Errorf("%s is not published yet, so the homepage proof strip has no figures: run ./le site build",
@@ -362,6 +348,9 @@ func homeRunCards(cards []audienceCard) (string, error) {
 		card := &cards[index]
 		if err := validateAudienceCard(card); err != nil {
 			return "", err
+		}
+		if _, err := cardCategory(card.Category); err != nil {
+			return "", fmt.Errorf("run card %q: %w", card.Title, err)
 		}
 		if card.Label == "" {
 			return "", fmt.Errorf("the run card %q states no label", card.Title)
