@@ -2,6 +2,28 @@
   {
     "rid": "RFC6811-4-1",
     "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/adj_rib_in/rfc6811_rib_validation_test.go::TestReValidationAppliesToInstalledRoutes",
+    "unit-sha": "9f3ace9f0f33a8ca",
+    "claim-sha": "6a7cf9fa6a29a5fe",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/adj_rib_in/rib_validation.go::applyToInstalled",
+    "producer-sha": "c2f526cc5d48f5e2",
+    "break": "line 83: \"route.ValidationState = d.ValState\" -\u003e \"route.ValidationState = ValidationNotFound\""
+  },
+  {
+    "rid": "RFC6811-4-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/adj_rib_in/rfc6811_rib_validation_test.go::TestReValidationAppliesToInstalledRoutes",
+    "unit-sha": "9f3ace9f0f33a8ca",
+    "claim-sha": "22c09d8aa097feb9",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/adj_rib_in/rib_validation.go::applyDecision",
+    "producer-sha": "5f7e0009305d0b80",
+    "break": "line 127: \"r.storeEarlyDecision(peer, key, d)\" -\u003e \"r.promoteToInstalled(\u0026pendingRoute{peerAddr: peer, routeKey: key, route: \u0026RawRoute{Family: key.Fam}}, d.ValState)\""
+  },
+  {
+    "rid": "RFC6811-4-1",
+    "polarity": "positive",
     "unit": "internal/component/bgp/plugins/rpki/rfc6811_origin_tracker_test.go::TestHandleROAChangeReValidates",
     "unit-sha": "77b7caad794ca467",
     "claim-sha": "c681dde09bfdd54c",
@@ -20,5 +42,29 @@
     "producer": "internal/component/bgp/plugins/rpki/origin_tracker.go::revalidate",
     "producer-sha": "a11624127d697039",
     "break": "line 109: \"reconsider := newState != rt.state\" -\u003e \"reconsider := true\""
+  },
+  {
+    "rid": "RFC6811-4-1",
+    "polarity": "positive",
+    "unit": "test/plugin/rpki-revalidate-late-sync.ci",
+    "unit-sha": "f392d8504724306b",
+    "claim-sha": "d00eec03d51c54c5",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rpki/rpki.go::handleROAChange",
+    "producer-sha": "42e2bb0e760f001d",
+    "break": "line 1334: \"if !c.decisionRequired {\" -\u003e \"if c.decisionRequired {\"",
+    "citation": "reject=stderr:pattern=ZE-OBSERVER-FAIL"
+  },
+  {
+    "rid": "RFC6811-4-1",
+    "polarity": "positive",
+    "unit": "test/plugin/rpki-revalidate-selected-route.ci",
+    "unit-sha": "c699f663c9005e35",
+    "claim-sha": "c088aad44ff0a47a",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange",
+    "producer-sha": "3f5dec7a9b9128da",
+    "break": "line 948: \"r.removeLocRIB(fam, pfx)\" -\u003e \"if false { r.removeLocRIB(fam, pfx) }\"",
+    "citation": "expect=stderr:contains=OK: VRP addition removes the retained Invalid route from BGP best and Loc-RIB while the Valid control stays selected"
   }
 ]

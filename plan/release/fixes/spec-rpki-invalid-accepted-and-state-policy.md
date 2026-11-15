@@ -594,6 +594,115 @@ the default-policy or RTR identity failures above, and do not prove policy
 state-setting or end-to-end cache-to-selection behavior. The new known-red
 tests receive no conformance credit while their clean baseline fails.
 
+### Selected-route revalidation probe
+
+The existing late-sync observer checks applied Adj-RIB-In eligibility, while
+the tagged unit checks the decision queue. Neither reads actual route selection.
+The new `test/plugin/rpki-revalidate-selected-route.ci`
+uses `internal/test/fixture/rpki_selected_revalidation.go` to close that evidence
+gap for a mapping addition. Its independently reviewed positive tag claims
+only deselection after addition, retained bytes and a selected Valid control.
+It does not claim that the subject's candidate disappears. No product repair
+or whole-RFC credit is claimed.
+
+The test runs on Ze's Linux kernel through the existing per-test namespace
+runner. Its declared dummy interface `zerpkisel` holds `10.0.0.254/24`.
+The daemon's real netlink interface and connected plugins must publish that
+connected path before a BGP next hop of `10.0.0.1` can be selected. The fixture
+never injects a constructor-created RIB path. It explicitly loads bgp-rpki,
+bgp-adj-rib-in, bgp-rib and the internal system RIB, with Invalid rejection and
+NotFound acceptance stated in the configuration.
+
+| Phase | Required observations |
+|-------|-----------------------|
+| Before release | Both real wire routes are retained as NotFound and eligible. The subject and control are selected in `show bgp rib best`, the authoritative `show rib candidates`, and the selected system view `show rib`; the connected candidate names the actual namespace device. The VRP cache is still empty. |
+| Mapping addition | Only the observer's existing mock-release file barrier changes. The fixed covering VRP authorizes the control's origin and makes the subject Invalid, without another source UPDATE. |
+| After release | The subject remains retained as Invalid and ineligible, with exact original nonempty attributes, next-hop and NLRI fields. It leaves BGP best and selected Loc-RIB state. The independently Valid control stays retained, eligible and selected through every queried view, with its original bytes. Failed, null or malformed inspection answers cannot satisfy absence. |
+
+The state polls and observer context bound each phase. Success is reported only
+after the final selection and peer End-of-RIB checks. Main observed one
+counted execution in
+`tmp/session/2026-11-14-210034/scratch/job-rpki-selected-own-system-0b89ec1c.log`
+and all 80 load iterations in
+`tmp/session/2026-11-14-210034/scratch/job-rpki-selected-counted80-c4318ee9.log`.
+Both runs report the exact requested, completed and executed counts,
+per-test namespaces, all phases passing and no skipped phase. The private
+guest runner was built after this fixture was frozen; its build receipt is
+`tmp/session/2026-11-14-210034/scratch/job-rpki-guest-fixture-le-ready-d7151f12.log`.
+Main then promoted the draft, changing only its reviewed claim comments.
+The native normal-return fault observation
+omits only `r.removeLocRIB(fam, pfx)` in the no-candidates branch of
+`rib/rib_bestchange.go::RIBManager.checkRouteBestChange`. That branch removes
+the BGP best record before the Loc-RIB call, so this cut must leave retained
+Invalid state and BGP deselection intact while the authoritative Loc-RIB still
+selects the subject. Suppressing the later `publishBestChanges` event is not
+this proof: the Loc-RIB mutation already happened before that event. A queue
+or received-table assertion is not a substitute for the selected-state red.
+
+The promoted test passed by name in the native clean run, with exactly one
+executed test and no skipped phase. Under that private compiler overlay it
+failed at the intended post-sync assertion: the authoritative Loc-RIB still
+selected `10.0.1.0/24`, while the Valid `10.0.2.0/24` control and the actual
+connected namespace path remained selected. The retained Invalid/ineligible
+verdict, immutable received bytes and BGP-best deselection checks passed
+before that failure. The broken run does not reach the selected-system-view
+check; the clean case does. This is an assertion failure, not a startup
+failure, panic or outer test timeout.
+
+`rfc/discrimination/rfc6811/RFC6811-4-1.json` retains the native positive
+observation. The clean and broken named results are in
+`tmp/session/2026-11-14-210034/scratch/job-rpki-selected-native-proof-cli-fixed-f115cdb9.log`.
+Both own-system VMs stopped after their runs, using Ze's 7.3.0 kernel with
+SHA-256 `db34b481243156f83adda0d83f6e878ac18e22f01bc18e2b05bc6711af1ca1d2`.
+Independent review accepted the observation and retained a weak whole-row
+verdict because mapping deletion remains unproven.
+
+Mapping deletion remains outside this addition-only probe. The existing
+`le mock rtr` serves a fixed VRP set on every query and has no state-driven
+VRP deletion input. This task adds no generic mock option. The Section 4 audit
+therefore remains bounded until deletion and the other missing proof are
+separately covered. The ignored draft was removed by promotion. Retain the
+two execution receipts and the private guest bundle under the existing
+campaign scratch ownership note through the native fault proof and commit;
+remove the compiled bundle after no owned VM uses it.
+
+The older retained-route carrier also passed exactly 80 requested, completed
+and executed iterations, with no skipped phase, in
+`tmp/session/2026-11-14-210034/scratch/job-rpki-late-sync-counted80-a1c7df8e.log`.
+Main promoted its three header comments to
+`test/plugin/rpki-revalidate-late-sync.ci`; its executable test is unchanged.
+Its native clean run then passed by name, and the normal-return
+`handleROAChange` fault left that synchronized route NotFound and eligible.
+The intended post-sync Invalid/ineligible assertion failed with
+`ZE-OBSERVER-FAIL` in
+`tmp/session/2026-11-14-210034/scratch/job-rpki-late-sync-native-proof-help-fixed-e5eaf04b.log`.
+The recorder wrote the functional positive observation to
+`rfc/discrimination/rfc6811/RFC6811-4-1.json`. This proves applied retained
+validation, not selected-route publication. Neither carrier exercises
+mapping deletion.
+
+Final reconciliation also completed both existing tags on
+`adj_rib_in.TestReValidationAppliesToInstalledRoutes`. Independent review
+first narrowed its positive claim: typed and text decisions rewrite stored
+state, the typed rewrite preserves replay sequence, and its explicit
+`Accept=false, Ineligible=false` discard removes the route. Normal
+Invalid-policy rejection instead carries `Ineligible=true` and retains the
+received bytes; this unit's discard subcase is not evidence of that policy.
+Its assertions and negative claim are unchanged.
+
+Both native clean runs passed all five subcases. Forcing stored state to
+remain NotFound failed exactly the three state-rewrite subcases, with discard
+and unknown-prefix controls passing. Replacing only the absent-route early
+buffer with promotion failed exactly the unknown-prefix subcase: it exposed
+an extra route the peer never sent and a missing early buffer; the four
+installed-route controls passed. These normal-return observations are in
+`tmp/session/2026-11-14-210034/scratch/job-rpki-installed-state-positive-proof-a04a0993.log`
+and
+`tmp/session/2026-11-14-210034/scratch/job-rpki-installed-unknown-negative-proof-979cc635.log`.
+Together with the two tracker and two functional entries, the canonical
+Section 4 record now holds six bounded observations. Mapping deletion still
+prevents a whole-requirement enforcement claim.
+
 ## Known Limitations
 
 - RFC 8097 stays unimplemented, so a validation state, set or derived, does not propagate

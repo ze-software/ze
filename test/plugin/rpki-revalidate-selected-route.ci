@@ -1,0 +1,77 @@
+# Question: does adding a VRP remove an already-selected Invalid route from the real Loc-RIB while a Valid control stays selected?
+# A unit over validateCh or the received table cannot prove daemon selection, Loc-RIB publication and the selected system view.
+# RFC requirement: RFC6811-4-1 positive -- after a covering VRP is added, an explicitly rejected Invalid route ceases to be selected in BGP best, authoritative Loc-RIB candidates and the selected system view; its received bytes remain intact and a Valid control stays selected.
+# Mapping deletion and whole-requirement conformance remain unproven by this addition-only tag.
+# Real connected reachability comes from the namespace's address and the daemon's connected plugin, never an injected RIB path.
+option=needs-linux:caps=net-admin
+option=netns-link:name=zerpkisel:address=10.0.0.254/24
+option=timeout:value=90s
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=80s
+option=linger:value=true
+option=update:value=send-route:prefix=10.0.1.0/24:origin-as=65999:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.0.2.0/24:origin-as=65001:next-hop=10.0.0.1
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	hub {
+		server local {
+			ip 127.0.0.1;
+			port 0;
+			secret rpki-test-secret-key-01234567890;
+		}
+	}
+	external rpki-selected-revalidation-test {
+		run "le test fixture plugin/rpki-revalidate-selected-route"
+		encoder json;
+	}
+	internal rpki { use bgp-rpki; }
+	internal adj-rib-in { use bgp-adj-rib-in; }
+	internal bgp-rib { use bgp-rib; }
+	internal sysrib-owner { use rib; }
+}
+interface { backend netlink; }
+connected { }
+bgp {
+	rpki {
+		cache-server 127.0.0.1 {
+			trusted-network true;
+			port $PORT2;
+		}
+		action {
+			invalid reject;
+			not-found accept;
+		}
+	}
+	filter { import { final accept; } export { final accept; } }
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 1; remote 1; }
+			router-id 1.2.3.4;
+			family { ipv4/unicast { prefix { maximum 100; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+		attach process rpki { receive [ update-received state ]; }
+		attach process adj-rib-in { receive [ update-received state ]; }
+		attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le mock rtr --port $PORT2 --sync-release rpki-selected-sync.release --vrp 10.0.0.0/8,24,65001:ready=le mock rtr: listening on
+cmd=background:seq=2:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=3:exec=ze -:stdin=ze-conf:timeout=90s
+expect=exit:code=0
+expect=stderr:contains=OK: VRP addition removes the retained Invalid route from BGP best and Loc-RIB while the Valid control stays selected
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

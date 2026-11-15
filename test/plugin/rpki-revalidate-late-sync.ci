@@ -1,3 +1,6 @@
+# Question: does a late RTR cache synchronization change the retained route validation and eligibility?
+# A unit over the dispatch queue cannot prove that the daemon delivers and applies the decision in Adj-RIB-In.
+# RFC requirement: RFC6811-4-1 positive -- an affected retained prefix changes from NotFound/eligible to Invalid/ineligible after the cache mapping arrives; received bytes remain intact.
 # Test: a route validated against an empty VRP set is re-validated when the cache syncs
 # VALIDATES: RFC 6811 Section 4 re-validation reaches the Adj-RIB-In -- a route installed as
 #            NotFound before the cache answered is retained as ineligible once the VRPs make it Invalid

@@ -372,9 +372,9 @@ func TestRejectRemovesInstalledRoute(t *testing.T) {
 // installed, because the routes arrived before the RTR cache synced and no later decision could
 // correct them.
 //
-// RFC requirement: RFC6811-4-1 positive -- a re-validation decision reaches the Adj-RIB-In: an
-// accept carrying a new state rewrites the installed route's state, and a reject removes the route,
-// so the RIB reflects the changed VRP set rather than the state the route arrived with.
+// RFC requirement: RFC6811-4-1 positive -- typed batch, text batch and accept-routes decisions
+// rewrite an installed route from NotFound to Valid; the typed rewrite preserves its replay
+// sequence, and an explicit discard (Accept=false, Ineligible=false) removes the stored route.
 // RFC requirement: RFC6811-4-1 negative -- re-validation acts only on routes the RIB holds: a
 // decision naming a prefix that is neither pending nor installed buffers as an early decision and
 // installs nothing, so a VRP change cannot conjure a route the peer never sent.
