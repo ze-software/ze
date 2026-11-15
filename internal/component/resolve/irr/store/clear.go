@@ -2,7 +2,9 @@
 // Related: store.go -- UseClients, where an IRR plugin replaces the clients
 //
 // The resolver-cache-clear answer of a plugin whose clients live in a
-// PrefixStore: bgp-filter-irr and firewall-irr.
+// PrefixStore. The irr plugin (internal/plugins/irr) is the only one: it alone
+// fetches, and its consumers bgp-filter-irr and firewall-irr hold no IRR or
+// PeeringDB client.
 
 package store
 

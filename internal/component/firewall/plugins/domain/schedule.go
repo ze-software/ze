@@ -1,8 +1,9 @@
 // Design: docs/architecture/firewall/firewall-domain-group.md -- per-name, per-family TTL schedule
 //
 // A TTL is a property of ONE answer, so the schedule is per name and per
-// family rather than a shared interval. firewall-irr refreshes every reference
-// on one `refresh-interval`, which is right for a whois database that has no
+// family rather than a shared interval. The irr plugin fetches each IRR dataset
+// again one `system irr refresh-interval` after that dataset's checked-at, an
+// interval the operator sets, which is right for a whois database that has no
 // TTL to offer; a DNS server states when its answer stops being true, and
 // asking again on somebody else's clock either wastes a query or serves an
 // address past its life.
