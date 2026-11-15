@@ -293,8 +293,9 @@ type espReload struct {
 }
 
 // espReloadWait bounds how long a reload waits for an owner loop to take its esp-group.
-// The loop takes it between two events, so the wait runs out only when the loop ended
-// after retargetESPGroup saw it, and the reload then restarts the session as before.
+// A responder SA can be attached before runEstablished publishes its owner. The same
+// deadline covers that handoff and a loop that stops taking requests; either timeout
+// restarts the session as before.
 const espReloadWait = 2 * time.Second
 
 // getESPGroup returns the esp-group the next Child SA is negotiated from. Safe for
@@ -311,7 +312,11 @@ func (ps *PeerSession) getESPGroup() ipsec.ESPGroup {
 // only for a reload that changed the esp-group and nothing else.
 func (ps *PeerSession) retargetESPGroup(group ipsec.ESPGroup) bool {
 	if ps.ownedSA.Load() == nil {
-		return false
+		// A cold session has no owner to adopt the group. An attached SA may still be
+		// entering runEstablished, so let the channel rendezvous wait for its owner.
+		if ps.getSA() == nil {
+			return false
+		}
 	}
 	reload := espReload{group: group, reply: make(chan bool, 1)}
 	wait := time.NewTimer(espReloadWait)

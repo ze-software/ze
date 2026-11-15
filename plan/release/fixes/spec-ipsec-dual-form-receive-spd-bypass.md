@@ -8,11 +8,11 @@
 | Release reason | Security defect in shipped IPsec: on a Child SA moved to UDP 4500 without a NAT, bare ESP from an authenticated peer is decrypted and delivered with no inbound SPD check, so the peer can inject traffic with any inner source and destination. |
 | RFC gaps | RFC4301-5.2-2 |
 | Depends | - |
-| Phase | 1 |
+| Phase | Final verification — limiter and reader-lifecycle corrections, then guest and interop proof |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
-| Updated | 2026-11-13 |
+| Updated | 2026-11-15 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -23,6 +23,23 @@ forms on one Child SA, for IPv4 outer headers. Serving both forms over an IPv6
 outer header is a gap owed after the first release (AC-8): Ze has no IPv6 IKE
 socket, so no IPv6 dual-form SA can be negotiated, and
 `plan/post-release/features/spec-ike-ipv6-transport.md` owns that work.
+
+The final-code audit also closes the full-second token-refill defect in AC-9,
+preserves a recorded reader-stop event across replacement (AC-19), and verifies
+that AC-14's TUN diagnosis becomes silent when no IPsec peer remains configured.
+These corrections keep the existing rate, recovery and diagnostic contracts.
+It also repairs the existing `ze plugin ike` engine entrypoint (AC-20). The
+registration advertised a runnable engine, while its CLI handler returned
+before starting it. The handler now uses the shared plugin runner. The
+actual-DUT doctor drafts passed with internal and forked IKE engines;
+both completed 80-run qualification, meaningful discrimination cuts, promotion
+and their promoted suite cases. That correction is committed in `66825526f2`.
+The limiter correction is committed in `d5459aae36`.
+
+Investigation of the affected functional suite reproduced a childless reload
+handoff race (AC-21). An ESP-group-only reload must let an attached IKE SA enter its owner
+loop before asking that loop to adopt the group. The existing bounded channel
+handoff keeps the same IKE SPI without publishing ownership early.
 
 **The defect, confirmed by an A/B interop run on 2026-11-10.**
 
@@ -603,6 +620,86 @@ coordinator's addition to the owner's choice, not a choice the owner made.
 | AC-16 | a peer whose last Child SA this node refused, until a Child SA installs | `ze doctor` answers one error per such peer, in name order, under `doctor-ipsec-child-install-refused` (`ipsec-child-install`, `doctor_child_install.go`), with the time, the cause and the fix; the refusal's Warn line carries the same code; an install clears it (`TestRecordChildRefusedClearsOnInstall`, `TestChildInstallFindings`, `TestChildCreateRefusalIsRecordedForTheDoctor`, `TestFirstChildSARefusalIsRecordedForTheDoctor`) | a peer the configuration removed has no finding, because its session and its refusal are gone |
 | AC-17 | a daemon that runs without a capability of `privilege.DaemonCapabilities` | the daemon logs one Warn line at start carrying `doctor-daemon-capability-missing`, the missing capabilities and what each serves, and the fix (`warnDaemonPrivileges`); the `daemon-capabilities` runtime check answers the same warning in `ze doctor` (`TestDaemonCapabilitiesCheck`) | a daemon running as root, or holding every capability of the set, reports nothing; the check runs in the runtime phase only, because the operator's own `ze doctor` process would measure itself |
 | AC-18 | traffic-usage attached by TCX on a link that also carries a TCX program behind it and a clsact filter | each trafficusage program answers `TCX_NEXT`, so the program behind it and the clsact filter still run, on ingress and egress (`TestProgram_ReturnsTCXNext`, `TestProgram_LetsAClsactFilterRun`); the L4 port is copied with `bpf_skb_load_bytes` at a scalar offset, so the programs load without `CAP_PERFMON` (AC-12), IP options move the port read, a truncated or out-of-packet L4 header keys port 0, and a frame that ends inside the IPv4 header passes uncounted (`TestProgram_IPOptionsMoveThePort`, `TestProgram_TruncatedL4HeaderKeysPortZero`, `TestProgram_L4OffsetBeyondThePacketKeysPortZero`, `TestProgram_IPv4HeaderEndingTheFrameCounts`, `TestProgram_TruncatedPass`, `program_test.go`) | every packet passes, because the programs only count and never drop |
+| AC-19 | A read failure races last Forget or reader replacement, including failure admission before retirement and intentional retirement before failure admission | failure admission and publication are serialized with retirement; every recorded failure is reported exactly once even when retirement precedes revive, and a retired worker neither reopens its life nor resets the replacement's backoff | intentional retirement that wins before failure admission records no failure and emits no reader-stop event, because the reader's close was requested |
+| AC-20 | An external IKE process starts through `ze plugin ike` and its loaded backend supplies the runtime doctor finding | the entrypoint reaches the registered engine over the plugin connection, and the daemon's doctor answer carries that process's cause, fix and severity; a metadata `--features` invocation also succeeds without a hub connection | declaration queries still return registration without starting an engine; the internal engine retains its runtime doctor path |
+| AC-21 | An ESP-group-only reload reaches an attached, established childless IKE SA before its owner is published | the existing channel handoff waits at most `espReloadWait` for the owner to take the request, and owner adoption keeps the session, both IKE SPIs and the responder's inactive creation schedule | a session with neither an owner nor an attached SA refuses immediately; an installed Child SA, pending responder handshake or own Child SA creation in flight still causes a restart |
+
+### AC-21 handoff proof
+
+`TestESPGroupReloadWaitsForChildlessOwnerHandoff` fixes the ordering through the
+real reload channel. The receiving worker publishes ownership only after it
+receives the request, then calls `adoptESPGroup`. The test checks that adoption
+keeps the attached SA, both IKE SPIs and the responder's inactive schedule.
+It changes no existing refusal expectation.
+
+The original guard produced the test's own RED in `job-unit-pkg-0903bb4a.log`.
+Main's race-enabled five-test run then passed without skips in
+`job-childless-handoff-green-552f98a4.log`, including the existing installed-Child,
+pending-handshake, in-flight-creation, missing-group and retry-schedule controls.
+The independent review was CLEAN. Main then ran
+`./le --name session test ipsec -p 1 -v ipsec-childless-ike-sa-recovers`
+without changing the CI file. It passed in 33.2 seconds with all 15 VERIFY STEP
+rows passing, including the same-SPI output and rejection of `RECONNECTED`.
+The deterministic RED proves the handoff defect separately from that functional
+result. The original failed runtime trace does not establish this attribution.
+The full affected engine package also passed: native `test unit pkg` reported
+one package OK in 162.552 seconds with `CGO_ENABLED=0`
+(`job-childless-engine-package-94d132fd.log`, native log
+`job-unit-pkg-93693a4c.log`). All other verification obligations remain owed.
+
+### AC-19 lifecycle proof
+
+AC-19 uses the controlled Go-test exception in `ai/rules/testing.md`,
+"Lifecycle Regressions". A daemon test cannot reliably delay the revive
+worker until after failure publication and Watch replacement. The Go tests
+control that schedule while calling the real `read`, `Watch`, `retireLocked`
+and `revive` transitions. They do not replace those transitions with a model.
+
+| Reader scenario | Proof and reason for the controlled seam |
+|---|---|
+| A failure is recorded before Watch replaces the reader, and revive starts afterward | `TestESPFormReceiverReportsFailureRetiredBeforeRevive` checks one event and a serving replacement with both channels ready. A daemon test cannot force this worker ordering. |
+| Retirement intentionally stops a reader before it records a failure | `TestESPFormReceiverIntentionalRetirementHasNoFailureEvent` checks no event and no reopen through the real retirement transition. |
+| Delayed recovery reaches a retired life | `TestESPFormReceiverRetiredLifeCannotReopen` checks no open, retry or backoff change. |
+| A mature failed reader reports after its replacement has a backoff | `TestESPFormReceiverMatureRetiredLifeKeepsBackoff` checks one event, a serving replacement and unchanged backoff. A daemon clock cannot force the reset boundary and worker ordering. |
+| Read failure and last Forget race with revive | `TestESPFormReceiverConcurrentFailureAndRetirementReportsEveryRecordedFailure` races the actual transitions and requires one event for every recorded failure after the workers join. It does not claim to force the original publication gap deterministically. |
+
+The concurrent test failed with zero events for a recorded failure on its
+first iteration under a scheduler-only yield between the old stop check and
+failure publication. That is a forced-scheduling RED, not a naturally observed
+baseline failure. Corrected source passed all six selected Linux tests without
+skips under the same controlled scheduling yield
+(`job-ipsec-reader-publication-green-guest-49f99f94.log`). Count coverage recorded
+67 intentional read returns and 1090 failure publications, 278 stale and 812
+current reader outcomes, and retirement of one absent and 1158 current readers.
+The guest used Ze's 7.3.0 kernel and stopped with check, command and lab exits
+zero. This is controlled-overlay evidence. The final unmodified-source Linux
+run remains owed. The ordered cases keep failure-before-retirement and
+retirement-before-publication distinct.
+
+These tests prove the receiver's event and recovery behavior, shared by both
+plugin modes. They do not claim an observed reader failure in the daemon's
+error ring. The unchanged `runEngine` registration and
+`espFormReaderStoppedSink` connect that event to SDK `RaiseIssue`.
+`TestESPFormReaderStoppedSinkRaisesEachStopOnce` checks the event's code,
+severity, cause and fix. The existing
+`test/plugin/doctor-plugin-report-raise-external.ci` tests the generic report
+transport across the process boundary. Those are separate layers of evidence.
+
+The standard plugin lifecycle scenarios below cannot be reached by the AC-19
+correction. AC-20's internal and external engine-start proof remains separate.
+
+| Standard scenario | Why AC-19 cannot change it |
+|---|---|
+| A plugin process ends after declaration, for restart, ignore or fatal policy | Reader failure ends a receiver worker, not the plugin process; failure-policy dispatch is unchanged. |
+| A plugin fails a startup stage after declaration | The corrected worker transitions run after receiver start; startup-stage handlers are unchanged. |
+| A restarting plugin exceeds its restart bound | Receiver reopen backoff is separate from plugin restart accounting, which is unchanged. |
+| An operator's respawn leaf conflicts with the declaration | No declaration or respawn validation changes. |
+| A plugin exits during stop drain or teardown | The correction joins or retires receiver workers; it does not change plugin-exit dispatch or the stop protocol. |
+| A signal arrives during the config fence, drain or teardown | No signal handler or daemon stop-state transition changes. |
+| A reload or commit arrives after shutdown begins | No configuration admission or shutdown fence changes. |
+| A plugin crashes during verify or apply, misses a deadline or reports broken | No transaction callback, deadline or broken-state handling changes. |
+| Reload context ends during startup handshake, or a sibling fails at the tier barrier | No handshake, tier barrier or reload cancellation changes. |
+| A plugin dispatches another plugin's command at startup | The receiver reports an issue after failure; startup command dispatch is unchanged. |
 
 ## End-to-End User Stories
 
@@ -623,6 +720,7 @@ Files under `internal/component/ike/dataplane/` unless a path is given.
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
+| `TestESPGroupReloadWaitsForChildlessOwnerHandoff` | `internal/component/ike/engine/reconcile_childless_handoff_test.go` | AC-21: attached childless SA reaches owner adoption before ownership publication and keeps both SPIs and the responder schedule | actual RED, then race-enabled PASS with four existing refusal/schedule tests and no skips; unchanged functional case PASS |
 | `TestESPFormRewriteProgram` | `espform_program_integration_linux_test.go` | AC-6, IPv4 and IPv6 program variants, through `BPF_PROG_TEST_RUN` (guest-root) | |
 | `TestWriteESPFormBuildsEncapsulatedDatagram` (updated) | `espform_test.go` | IPv4 header checksum now valid | |
 | `TestESPFormIPv4ChecksumKnownHeader`, `TestWriteESPFormChecksumOverReusedBuffer` | `espform_test.go` | the RFC 791 checksum, and no stale octet from a reused buffer | |
@@ -726,7 +824,7 @@ Feature code:
 - `internal/component/ike/engine/established.go` - the first Child SA's install, binding and build refusals keep the IKE SA on `childCreateSchedule` and record the refusal (AC-15, AC-16).
 - `internal/component/ike/engine/create_child.go` - `errChildBinding`, `errChildInstall`, `childInstallRefusedFix`; the creation response's refusal records itself for the doctor.
 - `internal/component/ike/engine/child.go` - the build failures wrap `errChildProposal`, `errChildKeying` and `errChildNoIKEKeys`, which `runEstablished` folds.
-- `internal/component/ike/engine/reconcile.go` - `PeerSession.childRefused`, read by the `ipsec-child-install` check.
+- `internal/component/ike/engine/reconcile.go` - `PeerSession.childRefused`, read by the `ipsec-child-install` check; `retargetESPGroup` waits for an attached SA's owner handoff under the existing deadline (AC-21).
 - `internal/component/ike/engine/application_override.go` - the guard's fix text names the older unit.
 - `internal/component/firewall/registry.go` - `ApplyAll` calls `Backend.Apply` through `applyObserved`.
 - `internal/component/firewall/reservation.go` - `TableControl` (`Plugin`, `Decides`, `Command`, each required), `MustReserveTableNames(owner, control, names...)`, which panics on an empty field, and `TableControlOf`, which answers the control of a reserved kernel table name; `reservation_test.go` adds `TestMustReserveTableNamesNeedsAControl`.
@@ -758,6 +856,7 @@ Tests:
 - `internal/le/interoplab/ipsec/privilege_test.go`, `internal/le/verify/evidence/evidence_test.go`, `internal/le/test/qemu/netns_alltests_test.go`.
 
 Docs and records:
+- `docs/architecture/ike/ipsec-7-ikev2-engine.md` - the bounded owner handoff for a childless ESP-group reload (AC-21), and the shared plugin CLI runner (AC-20).
 - `docs/guide/ipsec.md` (shared), `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` (shared), `docs/architecture/linux-limitations.md` (shared) - the two policy-checked paths, ECN, IPv6 as a gap.
 - `docs/architecture/system-architecture.md`, `docs/guide/operations.md`, `docs/guide/ze-install.md`, `docs/guide/command-reference.md` - the daemon's capability set.
 - `docs/guide/traffic-usage.md`, `docs/architecture/traffic/traffic-usage.md` - the `CAP_BPF` fix text.
@@ -770,6 +869,7 @@ Docs and records:
 - `plan/post-release/features/spec-ike-ipv6-transport.md` - receives AC-8.
 
 ## Files to Create
+- `internal/component/ike/engine/reconcile_childless_handoff_test.go` - channel-ordered regression for attached childless SA reload before ownership publication (AC-21).
 - `internal/component/ike/dataplane/espform_program_linux.go` - the rewrite program in `asm.Instructions`.
 - `internal/component/ike/dataplane/espform_fastpath_linux.go` - load, maps, TCX attach per link, link subscription.
 - `internal/component/ike/dataplane/espform_tun_linux.go` - the `ze-espform` TUN, its sysctls and its 192.0.0.8/32 address.
@@ -870,7 +970,7 @@ Docs and records:
 | Check | What to look for |
 |-------|-----------------|
 | Input validation | the program bounds every read through `bpf_skb_load_bytes`; source and destination must match the target before any rewrite |
-| Resource exhaustion | the complete path stays rate-bounded; the map has a fixed size and a full map refuses the install |
+| Resource exhaustion | the complete path stays rate-bounded; the fast-path map has a fixed size, and a full map leaves the unserved SA on the complete path with a diagnostic |
 | Authorization that could fail open | a failed fast path leaves the complete path, never the unchecked one |
 
 ### Failure Routing

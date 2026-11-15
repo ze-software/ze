@@ -236,8 +236,11 @@ One edit keeps the IKE SA. When only the esp-group differs and it resolves,
 installed Child SA, no CREATE_CHILD_SA creation of ours in flight and no
 parallel responder handshake pending takes the group as its own and stays up,
 so the next Child SA is negotiated from it. Any of the three refuses, and so
-does a loop that is not running or does not answer within `espReloadWait`; the
-peer then restarts as above. The decision is on the owner loop because only it
+does a session with no attached SA or a loop that does not take the request
+within `espReloadWait`; the peer then restarts as above. An attached responder
+SA may still be entering its owner loop, so reload waits for that handoff under
+the same deadline instead of restarting it before the owner can decide.
+The decision is on the owner loop because only it
 knows whether a creation from the old group is in flight. The other half of
 that decision is RFC 4301 Section 4.4.2: an installed Child SA runs ESP under
 the old policy, so it restarts; a childless IKE SA carries none
