@@ -67,7 +67,8 @@ Rename them back when you restore them.
 ### Test investigation (2026-11-15)
 
 The RFC test campaign adds
-`internal/component/bgp/reactor/rfc2545_neighbor_late_discovery_test.go`
+`internal/component/bgp/reactor/rfc2545_neighbor_late_discovery_test.go` and
+`internal/component/bgp/reactor/rfc2545_neighbor_transition_test.go`
 without advancing this skeleton's approval gates. The full RFC 2545 text was
 read for this investigation. Section 3 decides the next-hop field at each
 advertisement; the trigger remains the owner decision recorded above. A
@@ -96,10 +97,17 @@ The main thread observed that prerequisite red in its scoped campaign run:
 `TestRFC2545NeighborWatchUsesAddressSnapshot` received the host's connected
 prefixes instead of the modeled `2001:db8:1::/64`. The new package compiled;
 the failure was the explicit common-subnet-input assertion. That verdict
-does not establish the missing replay's socket behavior. The live IPv6
-fixture also leaves `LocalAddress` unset until `lowLiveStart` has opened its
-real listener, then assigns the modeled endpoints before the pipe sessions;
-`listenerSpecs` otherwise tries to bind the synthetic address on the host.
+does not establish the missing replay's socket behavior. An earlier fixture
+assigned the modeled `LocalAddress` after listener startup. The scoped race
+run `job-unit-pkg-334ed25d.log` exposed concurrent reads in `settingsSnapshot`
+and `NewSession`. The current helpers set the modeled address before startup,
+as the construction-only settings contract requires. Through the existing
+`SetListenerFactory` seam, `lateNeighborListenerFactory` maps only that modeled
+bind to a real `127.0.0.1:0` listener; other binds use the real factory unchanged.
+The reactor still owns and closes each returned listener, and the protocol
+sessions retain their original `net.Pipe` endpoints. An independent native
+`ze-test-judge` approval for `lateNeighborLive` records that this fixture repair
+preserves both rails, IPv6 negotiation, reachability, inputs and assertions.
 
 After the existing address-read seam correction, the main thread observed
 the snapshot prerequisite, explicit refreshed replay and queued-withdrawal
@@ -128,12 +136,31 @@ explicit replay and queued-withdrawal controls passed on their preceding
 scoped run; the ordering integration of a future actual watch-triggered
 pass still needs its own proof.
 
+The final scoped race run, `job-rfc-boundaries-final-race-cfc4586c.log`, emitted
+no data-race report. The known-neighbor control passed on both rails. All eight
+late-discovery cases still failed at the missing second advertisement. The new
+known-identity replacement and shared-subnet-loss probes each failed on both
+rails at the same missing re-advertisement boundary. Before failing, they
+proved initial paired socket output, retained source routes and refreshed
+callback facts. Subnet loss changed the watched address prefix from `/64` to
+`/128`, retained the known neighbor identity and independently resolved path,
+and made the joint-subnet condition false.
+
+The new callback-triggered concurrency probe also passed its initial output
+and retention prerequisites on both rails, then stopped because the watch
+dispatched no replay to the destination worker. It did not reach its later
+source-withdrawal, store-removal or final-wire assertions. The earlier explicit
+queued-replay control does not supply that missing callback integration.
+
 | New unit | Boundary and positive control | Evidence still owed |
 |----------|-------------------------------|---------------------|
 | `TestRFC2545NeighborKnownAtReceiptReachesSocket` | Real IPv6 OPEN and UPDATE sockets, registered RIB and route-server plugins; the known third-party identity produces exactly global plus its Link-Local on both general and native RS rails | Main-thread baseline passed on both rails; producing-code break owed |
 | `TestRFC2545LateNeighborDiscoveryReadvertisesRetainedRoute` | A real peer sends one native IPv6 route, both real stores retain it, and only the watched table changes from unknown, unresolved, ambiguous or unreadable to a unique valid binding. The callback publishes the new facts before the socket assertion; the test never calls the relay itself | All eight cases observed red at the absent new advertisement after their prerequisites passed; implementation, green baseline, producing-code break, daemon-level and peer-resolution interop proof remain owed |
 | `TestRFC2545RefreshedFactsReachStoredReplaySocket` | The actual relay writer first sends the retained global alone, then sends the same immutable received route after facts gain the third-party Link-Local | Main-thread baseline passed; producing-code break owed; this is not proof of a watch trigger |
 | `TestRFC2545QueuedNeighborReplayEndsWithdrawn` | After a successful real relay write, refreshed replay is held before the destination handler while the source withdraws on each live rail; the final native socket message must withdraw the route exactly once | Main-thread baseline passed on both rails; producing-code break and the owner's actual re-send hold/cut integration remain owed; this is not a substitute for the full callback-trigger ordering test |
+| `TestRFC2545KnownNeighborReplacementReadvertisesRetainedRoute` | A retained route first reaches the recipient with a known third-party pair; the real neighbor watch replaces that identity without new ingress | Both rails observed red at the missing second advertisement after initial output, both stores and replacement facts passed; implementation, green baseline and producing-code break remain owed |
+| `TestRFC2545SharedSubnetLossReadvertisesGlobalOnly` | The real address watch changes the local prefix from `/64` to `/128`; the route and known neighbor remain retained and resolved while the common-subnet condition becomes false | Both rails observed red at the missing global-only re-advertisement after the scope flip and controls passed; implementation, green baseline and producing-code break remain owed |
+| `TestRFC2545WatchReplayConcurrentWithdrawalEndsWithdrawn` | A watch-scheduled replay must enter the controlled destination worker before a real source withdrawal is sent; both stores and the final socket history are then checked | Both rails observed red because no watch-triggered replay entered the worker; later withdrawal assertions were not reached. Trigger implementation, actual ordering proof, green baseline and producing-code break remain owed |
 
 These units are deliberately untagged until they have a passing baseline and
 a recorded producing-code break. No new discovery protocol, neighbor
@@ -149,6 +176,7 @@ for this open investigation, not conformance discrimination records.
 |---------------|---------|-------------------|
 | `tmp/session/2026-11-14-210034/scratch/job-core-bgp-lifecycle-advertisement-bdcd2163.log` | Corrected known-neighbor positives and all eight missing-trigger socket reds; the file also carries other campaign findings | Remove when current tests plus the eventual repair's red/green evidence replace these diagnostics and the parent campaign no longer needs the shared log |
 | `tmp/session/2026-11-14-210034/scratch/job-rfc2545-neighbor-lifecycle-79449ba8.log` | Passing address-snapshot, explicit replay and queued-withdrawal controls; its earlier retention-prerequisite failures are superseded by the corrected run | Remove when those controls are covered by the repair's retained evidence and the parent campaign no longer needs the shared log |
+| `tmp/session/2026-11-14-210034/scratch/job-rfc-boundaries-final-race-cfc4586c.log` | Final race-enabled IPv6 controls and fourteen intended trigger reds after the construction-time fixture repair; the shared log also carries other campaign findings | Remove when the eventual repair's retained red/green and ordering evidence supersedes these diagnostics and the parent campaign no longer needs the shared log |
 
 An interface address event that flips RFC 2545 Section 3's shared-subnet
 condition must re-advertise the prefixes that condition governs. Today it does

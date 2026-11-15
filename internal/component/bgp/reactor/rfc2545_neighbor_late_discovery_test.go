@@ -64,6 +64,23 @@ func lateNeighborEntries(linkLocal string) []network.Neighbor {
 	}
 }
 
+// lateNeighborListenerFactory keeps the modeled session endpoint immutable
+// from construction while binding its otherwise-unused listener to loopback.
+// The live protocol sessions use net.Pipe, as before; the reactor still owns
+// and closes every real listener this factory returns.
+type lateNeighborListenerFactory struct{}
+
+func (lateNeighborListenerFactory) Listen(ctx context.Context, transport, address string) (net.Listener, error) {
+	host, _, err := net.SplitHostPort(address)
+	if err != nil {
+		return nil, err
+	}
+	if host == "2001:db8:1::1" {
+		return (network.RealListenerFactory{}).Listen(ctx, "tcp", "127.0.0.1:0")
+	}
+	return (network.RealListenerFactory{}).Listen(ctx, transport, address)
+}
+
 // TestRFC2545NeighborWatchUsesAddressSnapshot checks the prerequisite independently:
 // the registered neighbor callback must refresh against the same address-table
 // read seam as the address watch. It cannot silently substitute this test host's
@@ -131,21 +148,21 @@ func lateNeighborLive(t *testing.T, fast bool, table *lateNeighborTable) (*lowLi
 		lowLiveSettings("2001:db8:1::2", 65000, 65002),
 	}
 	for _, setting := range settings {
+		setting.LocalAddress = netip.MustParseAddr("2001:db8:1::1")
 		setting.RSClient, setting.RSFastPath = true, fast
 		setting.Capabilities = append(setting.Capabilities, &capability.Multiprotocol{AFI: family.AFIIPv6, SAFI: family.SAFIUnicast})
 	}
-	peers := lowLiveStart(t, lowLiveOptions{}, acceptingPolicies(t, settings...)...)
+	options := lowLiveOptions{api: func(adapter *reactorAPIAdapter) plugin.ReactorLifecycle {
+		adapter.r.SetListenerFactory(lateNeighborListenerFactory{})
+		return adapter
+	}}
+	peers := lowLiveStart(t, options, acceptingPolicies(t, settings...)...)
 	// The real in-process bgp-rib Run wires locrib.Default with SetLocRIB;
 	// Default is process-wide and startup must leave this instance intact.
 	require.Same(t, loc, locrib.Default())
 	loc.Insert(family.IPv6Unicast, connected, locrib.Path{Source: protocol})
 	require.True(t, igpcost.Resolve(loc, netip.MustParseAddr(thirdPartyGlobal)).Resolved,
 		"the actual selecting RIB must resolve the third-party next hop before ingress")
-	// Start with the fixture's real listener address. These endpoints describe
-	// the subsequent pipe sessions, rather than addresses to bind on the host.
-	for _, peer := range peers {
-		peer.settings.LocalAddress = netip.MustParseAddr("2001:db8:1::1")
-	}
 	source := lateNeighborConnect(t, peers[0], 0x0a000003)
 	destination := lateNeighborConnect(t, peers[1], 0x0a000002)
 	r := source.peer.reactor
