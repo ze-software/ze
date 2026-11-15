@@ -304,6 +304,7 @@ func TestStaleWriterRetainsNextHopAdmission(t *testing.T) {
 				}
 				peer.llScope.Store(newLinkScopeWith(connected, neighborView{}, peer.settings.Address))
 				peer.negotiated.Load().families[family.IPv6Unicast] = true
+				peer.session.negotiated = forwardFixtureNegotiation(peer)
 				batch := staleReadvertiseBatch(t)
 				batch.Family = family.IPv6Unicast
 				batch.NLRIs = []nlri.NLRI{nlri.NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8:7::/64"), 0, false)}

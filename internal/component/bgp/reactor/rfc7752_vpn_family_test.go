@@ -34,6 +34,7 @@ func TestRFC7752VPNFamilyReachesMPReach(t *testing.T) {
 		}
 		peer, conn := newGroupUpdatesPeer(t, "10.0.0.2", "absent")
 		peer.negotiated.Store(&NegotiatedCapabilities{families: map[family.Family]bool{fam: true}})
+		peer.session.negotiated = forwardFixtureNegotiation(peer)
 		api := groupUpdatesReactor([]*Peer{peer}, false)
 		batch := bgptypes.NLRIBatch{Family: fam, NLRIs: []nlri.NLRI{route}, NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("192.0.2.1"))}
 		if err := api.AnnounceNLRIBatch(t.Context(), selector.All(), batch, plugin.OperatorSender()); err != nil {

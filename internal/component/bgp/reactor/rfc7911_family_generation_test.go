@@ -40,6 +40,7 @@ func TestRFC7911GeneratedPathsAreScopedToTheNegotiatedFamily(t *testing.T) {
 			}
 			peer, conn := newGroupUpdatesPeer(t, "10.0.0.2", "absent")
 			peer.negotiated.Store(NewNegotiatedCapabilities(neg))
+			peer.session.negotiated = neg
 			peer.sendCtx.Store(ctx)
 			peer.sendCtxID, peer.session.sendCtxID = ctxID, ctxID
 			api := groupUpdatesReactor([]*Peer{peer}, false)

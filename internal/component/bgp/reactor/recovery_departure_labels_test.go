@@ -105,6 +105,7 @@ func TestRecoveryDepartureWithdrawsMultiLabelRouteWithCompatibility(t *testing.T
 				destination.testInitialSync().sendingInitialRoutes.Store(0)
 				destination.session.setSendCtxID(ctxID)
 				destination.negotiated.Load().families[fam] = true
+				destination.session.negotiated = forwardFixtureNegotiation(destination)
 				destination.refreshForwardFacts()
 				announced := departureMultiLabelNLRI(fam)
 				failed := recoveryAdvertiseFailed(t, r, destination, ownershipRailBody(fam, false, announced, 0))

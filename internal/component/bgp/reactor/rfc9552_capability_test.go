@@ -28,6 +28,7 @@ func rfc9552AnnounceToPeer(t *testing.T, families map[family.Family]bool) ([][]b
 	t.Helper()
 	peer, conn := newGroupUpdatesPeer(t, "10.0.0.2", "absent")
 	peer.negotiated.Store(&NegotiatedCapabilities{families: families})
+	peer.session.negotiated = forwardFixtureNegotiation(peer)
 	adapter := groupUpdatesReactor([]*Peer{peer}, false)
 
 	wn, err := nlri.NewWireNLRI(lsFam, lsNodeNLRI(65001), false)

@@ -3,22 +3,22 @@
     "rid": "RFC5575-4-2",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc5575_capability_wire_test.go::TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily",
-    "unit-sha": "6b2f3b18cca183c2",
+    "unit-sha": "34693ceb2c9c972c",
     "claim-sha": "1006ac1ed84aae8a",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/reactor_api_batch.go::AnnounceNLRIBatch",
-    "producer-sha": "28eb5e0025909f0d",
+    "producer-sha": "49a3b5da879a8337",
     "break": "body of AnnounceNLRIBatch replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5575-4-2",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc5575_capability_wire_test.go::TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily",
-    "unit-sha": "6b2f3b18cca183c2",
+    "unit-sha": "34693ceb2c9c972c",
     "claim-sha": "1ec9a1c0201344f0",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/reactor_api_batch.go::AnnounceNLRIBatch",
-    "producer-sha": "28eb5e0025909f0d",
+    "producer-sha": "49a3b5da879a8337",
     "break": "body of AnnounceNLRIBatch replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

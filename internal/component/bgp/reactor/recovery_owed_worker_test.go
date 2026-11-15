@@ -177,6 +177,7 @@ func TestOwedVPNWithdrawalAsksInAnnouncementFraming(t *testing.T) {
 	rail := newOwedRail(t)
 	vpn := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}
 	rail.destination.negotiated.Load().families[vpn] = true
+	rail.destination.session.negotiated = forwardFixtureNegotiation(rail.destination)
 	announce := ownershipRailNative(vpn, 0, 1, false, 0)[4:]
 	withdraw := ownershipRailNative(vpn, 0, 1, true, 0x80)[4:]
 

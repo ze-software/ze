@@ -44,6 +44,7 @@ func TestQueuedEVPNOriginRefusesInvalidRouteBeforeDraining(t *testing.T) {
 	peer.state.Store(int32(PeerStateActive))
 	fam := family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}
 	peer.negotiated.Store(&NegotiatedCapabilities{families: map[family.Family]bool{fam: true}})
+	peer.session.negotiated = forwardFixtureNegotiation(peer)
 	adapter := groupUpdatesReactor([]*Peer{peer}, false)
 	encoded := []byte{3, 17, 0, 0, 0xfd, 0xe8, 0, 0, 0, 7, 0, 0, 0, 0, 32, 192, 0, 2, 1}
 	route, err := nlri.NewWireNLRI(fam, encoded, false)
@@ -73,6 +74,7 @@ func TestQueuedEVPNType4PreservesESImportThroughDrain(t *testing.T) {
 	peer.state.Store(int32(PeerStateActive))
 	fam := family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}
 	peer.negotiated.Store(&NegotiatedCapabilities{families: map[family.Family]bool{fam: true}})
+	peer.session.negotiated = forwardFixtureNegotiation(peer)
 	adapter := groupUpdatesReactor([]*Peer{peer}, false)
 	encoded := []byte{
 		4, 23,

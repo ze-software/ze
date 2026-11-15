@@ -281,6 +281,7 @@ func TestRecoveryMixedPolicySectionsCompleteOnce(t *testing.T) {
 			destination.settings.NextHopMode = NextHopUnchanged
 			destination.settings.ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, "mixed-raw")
 			destination.negotiated.Load().families[family.IPv6Unicast] = true
+			destination.session.negotiated = forwardFixtureNegotiation(destination)
 			destination.refreshForwardFacts()
 			mpBody, wantMPWithdrawal := llnhLinkLocalOnlyPayload(t)
 			mpUpdate, err := message.UnpackUpdate(mpBody)
@@ -589,6 +590,7 @@ func recoveryAddPathRail(t *testing.T) (*Reactor, *Peer, *recordingConn) {
 	destination.sendCtx.Store(encoding)
 	destination.sendCtxID = ctxID
 	destination.session.setSendCtxID(ctxID)
+	destination.session.negotiated = forwardFixtureNegotiation(destination)
 	destination.session.onMessageReceived = r.notifyMessageReceiver
 	return r, destination, conn
 }

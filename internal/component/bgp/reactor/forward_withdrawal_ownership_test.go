@@ -217,6 +217,7 @@ func TestRSWithdrawalOwnershipNativeIdentity(t *testing.T) {
 				f.destination.sendCtxID = ctxID
 				f.destination.session.setSendCtxID(ctxID)
 				f.destination.negotiated.Load().families[fam] = true
+				f.destination.session.negotiated = forwardFixtureNegotiation(f.destination)
 				f.destination.refreshForwardFacts()
 				for _, id := range []uint32{0, 7, 17} {
 					// RFC 7911 Section 3 and RFC 8277 Section 2.4.
@@ -295,6 +296,7 @@ func TestRSWithdrawalOwnershipFamilyRDIsolation(t *testing.T) {
 			vpn := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}
 			f.destination.negotiated.Load().families[labeled] = true
 			f.destination.negotiated.Load().families[vpn] = true
+			f.destination.session.negotiated = forwardFixtureNegotiation(f.destination)
 			f.destination.refreshForwardFacts()
 			families := []family.Family{family.IPv4Unicast, labeled, vpn, vpn}
 			rds := []byte{1, 1, 1, 2}

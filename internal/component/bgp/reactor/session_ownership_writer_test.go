@@ -137,6 +137,8 @@ func TestFinalWriterLocalOwnership(t *testing.T) {
 // local advertisement evidence by sending two labels and repeating the second.
 func TestFinalWriterLabelOnlyChange(t *testing.T) {
 	peer, conn, _ := ownershipWriterPeer(t)
+	peer.negotiated.Load().families[family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIMPLSLabel}] = true
+	peer.session.negotiated = forwardFixtureNegotiation(peer)
 	first := []byte{48, 0, 6, 0x41, 192, 0, 2}
 	second := []byte{48, 0, 6, 0x51, 192, 0, 2}
 	for _, raw := range [][]byte{first, second, second} {

@@ -337,6 +337,7 @@ func TestAdjOutAnnouncementOwedWhenEntryExists(t *testing.T) {
 		rail.destination.sendCtx.Store(encoding)
 		rail.destination.sendCtxID = ctxID
 		rail.destination.session.setSendCtxID(ctxID)
+		rail.destination.session.negotiated = forwardFixtureNegotiation(rail.destination)
 		rail.source.recvCtxID, other.recvCtxID = ctxID, ctxID
 		send := func(source *Peer, path byte, message uint64) {
 			item := fwdItem{receivedPeer: source, receivedGeneration: source.forwardGeneration.Load(), sourcePolicyEpoch: source.sourcePolicyEpoch.Load(),
@@ -365,6 +366,7 @@ func TestAdjOutAnnouncementOwedWhenEntryExists(t *testing.T) {
 		rail.destination.sendCtx.Store(encoding)
 		rail.destination.sendCtxID = ctxID
 		rail.destination.session.setSendCtxID(ctxID)
+		rail.destination.session.negotiated = forwardFixtureNegotiation(rail.destination)
 		rail.source.recvCtxID = ctxID
 		// The path's identifier comes from the process-wide table
 		// (fwdPathIDs), so the test does not predict it: the first write

@@ -68,6 +68,7 @@ func flowSpecPeer(t *testing.T, addr string) (*Peer, *recordingConn) {
 			ipv4FlowSpec:       true,
 		},
 	})
+	peer.session.negotiated = forwardFixtureNegotiation(peer)
 	require.False(t, peer.hasAdvertised(), "the fixture must start with nothing advertised")
 	return peer, conn
 }
@@ -143,6 +144,7 @@ func TestWithheldUnicastWithdrawWritesNothing(t *testing.T) {
 	peer.negotiated.Store(&NegotiatedCapabilities{
 		families: map[family.Family]bool{family.IPv6Unicast: true},
 	})
+	peer.session.negotiated = forwardFixtureNegotiation(peer)
 	adapter := groupUpdatesReactor([]*Peer{peer}, false)
 
 	batch := bgptypes.NLRIBatch{

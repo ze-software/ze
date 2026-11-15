@@ -302,6 +302,7 @@ func TestRSWithdrawalOwnershipUnknownPathIDsDoNotAllocate(t *testing.T) {
 	f.destination.sendCtx.Store(ctx)
 	f.destination.sendCtxID = ctxID
 	f.destination.session.setSendCtxID(ctxID)
+	f.destination.session.negotiated = forwardFixtureNegotiation(f.destination)
 	f.destination.refreshForwardFacts()
 	for id := range uint32(32) {
 		body := ownershipRailBody(family.IPv4Unicast, true, pathsLimitNLRI(id, syncOrderPrefix), 0) // RFC 7911 Sections 3 and 5.

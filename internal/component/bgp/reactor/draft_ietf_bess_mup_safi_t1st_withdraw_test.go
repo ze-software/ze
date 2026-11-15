@@ -251,6 +251,7 @@ func TestMUPUnkeyableMalformedT1STDiscardedNotRelayed(t *testing.T) {
 			f.destination.negotiated.Store(&NegotiatedCapabilities{
 				families: map[family.Family]bool{family.IPv4Unicast: true, tc.fam: true},
 			})
+			f.destination.session.negotiated = forwardFixtureNegotiation(f.destination)
 			f.destination.refreshForwardFacts()
 			f.send(t, "pool", f.source, f.ctxID, ownershipRailBody(tc.fam, false, tc.l, 1))
 			f.awaitNative(t, tc.fam, 1, tc.l)

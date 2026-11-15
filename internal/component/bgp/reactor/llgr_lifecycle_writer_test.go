@@ -47,6 +47,7 @@ func TestLLGREORWriterKeepsRefreshedRoute(t *testing.T) {
 				f.destination.sendCtx.Store(ctx)
 				f.destination.sendCtxID = ctxID
 				f.destination.session.setSendCtxID(ctxID)
+				f.destination.session.negotiated = forwardFixtureNegotiation(f.destination)
 				f.destination.refreshForwardFacts()
 			}
 			f.destination.settings.ProcessBindings = []ProcessBinding{sendUpdateOnly(owner)}

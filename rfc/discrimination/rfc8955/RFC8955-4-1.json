@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8955-4-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/multiprotocol_application_code_test.go::TestMultiprotocolApplicationsAdvertiseLiteralCodeOne",
+    "unit-sha": "da05cdd19fa7050f",
+    "claim-sha": "a6a21f1fb36f7c93",
+    "route": "mutant",
+    "producer": "internal/core/bgp/capability/capability.go::Multiprotocol.WriteTo",
+    "producer-sha": "b40f2db2a92f1193",
+    "break": "line 320: \"CodeMultiprotocol\" -\u003e \"Code(250)\""
+  },
+  {
+    "rid": "RFC8955-4-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/multiprotocol_application_code_test.go::TestMultiprotocolApplicationsRejectUnrecognizedCapabilityCode",
+    "unit-sha": "ef3db1850cb71461",
+    "claim-sha": "43f1a57a98af08ca",
+    "route": "mutant",
+    "producer": "internal/core/bgp/capability/capability.go::parseCapability",
+    "producer-sha": "4a766c5bcced3ecc",
+    "break": "line 228: \"CodeMultiprotocol\" -\u003e \"Code(250)\""
+  }
+]

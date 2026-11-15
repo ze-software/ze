@@ -51,6 +51,8 @@ func TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily(t *testing.T) {
 			neg := capability.Negotiate(caps, peerOffering(peerFamily), testPeerIdentity)
 			peer, conn := newGroupUpdatesPeer(t, "10.0.0.2", "absent")
 			peer.negotiated.Store(NewNegotiatedCapabilities(neg))
+			peer.session.negotiated = neg
+			peer.setEncodingContexts(neg)
 			api := groupUpdatesReactor([]*Peer{peer}, false)
 			batch := bgptypes.NLRIBatch{Family: fam, NLRIs: []nlri.NLRI{n}}
 			err := api.AnnounceNLRIBatch(t.Context(), selector.All(), batch, plugin.OperatorSender())

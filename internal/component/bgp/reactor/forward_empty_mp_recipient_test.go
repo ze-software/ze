@@ -39,6 +39,7 @@ func TestForwardEmptyMPUnreachRecipient(t *testing.T) {
 			f.destination.sendCtx.Store(destinationContext)
 			f.destination.sendCtxID = destinationID
 			f.destination.session.setSendCtxID(destinationID)
+			f.destination.session.negotiated = forwardFixtureNegotiation(f.destination)
 			f.source.refreshForwardFacts()
 			f.destination.refreshForwardFacts()
 

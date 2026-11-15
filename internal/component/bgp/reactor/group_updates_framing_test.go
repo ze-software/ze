@@ -27,6 +27,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
@@ -34,6 +35,66 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// forwardFixtureNegotiation publishes the recording fixture's existing family
+// and encoding choices through the same capability negotiation as a live OPEN.
+// It leaves its contexts, registry IDs, family map and session state untouched.
+func forwardFixtureNegotiation(peer *Peer) *capability.Negotiated {
+	facts := peer.negotiated.Load()
+	families := facts.Families()
+	local, remote := peerOffering(families...), peerOffering(families...)
+	ctx := peer.sendCtx.Load()
+	asn4 := true // The encoder's nil-context default.
+	if ctx != nil {
+		asn4 = ctx.ASN4()
+	}
+	if asn4 {
+		local = append(local, &capability.ASN4{ASN: peer.settings.LocalAS})
+		remote = append(remote, &capability.ASN4{ASN: peer.settings.PeerAS})
+	}
+	if facts.ExtendedMessage {
+		remote = append(remote, &capability.ExtendedMessage{})
+	}
+	if ctx != nil && ctx.Encoding() != nil {
+		encoding := ctx.Encoding()
+		if encoding.ExtendedMessageRecv {
+			local = append(local, &capability.ExtendedMessage{})
+		}
+		if encoding.ExtendedMessageSend && !facts.ExtendedMessage {
+			remote = append(remote, &capability.ExtendedMessage{})
+		}
+		localPaths, remotePaths := &capability.AddPath{}, &capability.AddPath{}
+		for _, fam := range families {
+			mode := encoding.AddPathMode[fam]
+			if mode != capability.AddPathNone {
+				opposite := (mode&capability.AddPathSend)>>1 | (mode&capability.AddPathReceive)<<1
+				localPaths.Families = append(localPaths.Families, capability.AddPathFamily{AFI: fam.AFI, SAFI: fam.SAFI, Mode: mode})
+				remotePaths.Families = append(remotePaths.Families, capability.AddPathFamily{AFI: fam.AFI, SAFI: fam.SAFI, Mode: opposite})
+			}
+		}
+		local, remote = append(local, localPaths), append(remote, remotePaths)
+		extended := &capability.ExtendedNextHop{}
+		for fam, afi := range encoding.ExtendedNextHop {
+			extended.Families = append(extended.Families, capability.ExtendedNextHopFamily{NLRIAFI: fam.AFI, NLRISAFI: fam.SAFI, NextHopAFI: afi})
+		}
+		local, remote = append(local, extended), append(remote, extended)
+		localLimits, remoteLimits := &capability.PathsLimit{}, &capability.PathsLimit{}
+		for fam, limit := range encoding.PathsLimitRecv {
+			localLimits.Entries = append(localLimits.Entries, capability.PathsLimitEntry{AFI: fam.AFI, SAFI: fam.SAFI, Limit: limit})
+		}
+		for fam, limit := range encoding.PathsLimitSend {
+			remoteLimits.Entries = append(remoteLimits.Entries, capability.PathsLimitEntry{AFI: fam.AFI, SAFI: fam.SAFI, Limit: limit})
+		}
+		local, remote = append(local, localLimits), append(remote, remoteLimits)
+	}
+	neg := capability.Negotiate(local, remote, capability.PeerIdentity{
+		LocalASN: peer.settings.LocalAS,
+		PeerASN:  peer.settings.PeerAS,
+		Internal: peer.settings.IsIBGP(),
+	})
+	facts.ASN4 = neg.ASN4
+	return neg
+}
 
 // groupUpdatesPrefixes is the two-prefix batch every test below sends. Two is
 // the smallest batch whose framing differs between the two settings of the leaf.
@@ -70,6 +131,7 @@ func newGroupUpdatesPeer(t *testing.T, addr, leaf string) (*Peer, *recordingConn
 	})
 
 	session := NewSession(settings)
+	session.negotiated = forwardFixtureNegotiation(peer)
 	require.NoError(t, session.fsm.Event(fsm.EventManualStart))
 	require.NoError(t, session.fsm.Event(fsm.EventTCPConnectionConfirmed))
 	require.NoError(t, session.fsm.Event(fsm.EventBGPOpen))

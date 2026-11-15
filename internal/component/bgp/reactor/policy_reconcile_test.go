@@ -527,6 +527,7 @@ func testPolicyFinalReplayWithdrawnAddPath(t *testing.T, gapEviction bool) {
 	destination.sendCtx.Store(ctx)
 	destination.sendCtxID = ctxID
 	destination.session.setSendCtxID(ctxID)
+	destination.session.negotiated = forwardFixtureNegotiation(destination)
 	destination.refreshForwardFacts()
 	api := &reactorAPIAdapter{r: r}
 	// Consume any initial outgoing identifier zero on an unrelated path. The

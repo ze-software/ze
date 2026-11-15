@@ -435,6 +435,7 @@ func TestOwedKeyAnnouncementWithdrawFraming(t *testing.T) {
 			other := adjOutTestOtherSource(rail.r, rail.source)
 			attachRecoveryOwner(t, rail.r, rail.source, other)
 			rail.destination.negotiated.Load().families[fam] = true
+			rail.destination.session.negotiated = forwardFixtureNegotiation(rail.destination)
 			announce := ownershipRailNative(fam, 0, 1, false, 0)[4:]
 			withdraw := announce
 			if fam.SAFI != family.SAFIUnicast {

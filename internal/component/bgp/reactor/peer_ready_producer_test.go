@@ -445,6 +445,7 @@ func TestPeerReadyRIBNativeReconnect(t *testing.T) {
 				f.destination.sendCtxID = ctxID
 				f.destination.session.setSendCtxID(ctxID)
 				f.destination.negotiated.Load().families[fam] = true
+				f.destination.session.negotiated = forwardFixtureNegotiation(f.destination)
 				f.destination.settings.ProcessBindings = []ProcessBinding{sendUpdateOnly(owner)}
 				f.destination.refreshForwardFacts()
 				api, proc := readyProducerServer(t, f.r, owner)
@@ -501,6 +502,7 @@ func TestPeerReadyRIBNativeReconnect(t *testing.T) {
 
 				readyProducerState(t, proc, f.destination, rpc.SessionStateDown, 0)
 				replacement, conn := newSyncOrderDest(t, ctx, ctxID)
+				replacement.session.negotiated = forwardFixtureNegotiation(f.destination)
 				f.destination.mu.Lock()
 				f.destination.session = replacement.session
 				f.destination.mu.Unlock()
@@ -510,6 +512,7 @@ func TestPeerReadyRIBNativeReconnect(t *testing.T) {
 				token := f.destination.initialReplayToken()
 				if mode == "stale" {
 					next, nextConn := newSyncOrderDest(t, ctx, ctxID)
+					next.session.negotiated = forwardFixtureNegotiation(f.destination)
 					api.beforeInitial = func() {
 						f.destination.mu.Lock()
 						f.destination.session = next.session

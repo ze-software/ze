@@ -124,6 +124,7 @@ func newSyncOrderDest(t *testing.T, ctx *bgpctx.EncodingContext, ctxID bgpctx.Co
 	peer.refreshForwardFacts()
 
 	session := NewSession(settings)
+	session.negotiated = forwardFixtureNegotiation(peer)
 	session.adjOut = &peer.adjOut
 	session.SetSourceID(peer.SourceID())
 	session.setSendCtxID(ctxID)
