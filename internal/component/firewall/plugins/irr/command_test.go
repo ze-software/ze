@@ -1,28 +1,24 @@
 package irr
 
-// VALIDATES: AC-1 update firewall irr asn saves prefixes and reports counts
-// VALIDATES: AC-3 show firewall irr JSON output with cached entries
-// VALIDATES: AC-11 show firewall irr prefix lists cached prefixes
-// PREVENTS: CLI commands returning wrong status or malformed JSON
+// VALIDATES: show firewall irr answers a JSON object whose entry list is an
+// array, and an unknown command is refused.
+// PREVENTS: CLI commands returning wrong status or malformed JSON.
+// The stored copies the show reports are TestShowReportsTheStoredCopy
+// (stored_test.go); fetching and clearing moved to the irr plugin.
 
 import (
-	"context"
 	"encoding/json"
-	"net/netip"
 	"testing"
-
-	"github.com/ze-software/ze/internal/component/resolve/irr"
-	"github.com/ze-software/ze/internal/component/resolve/irr/store"
 )
 
+// VALIDATES: with no reference configured, show firewall irr answers done and
+// an empty entry array, never null and never an error.
+// METHOD: run the command on a plugin holding no reference and decode the raw
+// answer.
+// PREVENTS: a script reading `"entries":null` as a malformed answer.
 func TestShowIRRCommandEmpty(t *testing.T) {
-	plug := &irrPlugin{
-		config: &irrConfig{
-			Server:       defaultServer,
-			PeeringDBURL: defaultPeeringDBURL,
-		},
-	}
-	status, data, err := plug.handleCommand("show firewall irr", nil)
+	plug := &irrPlugin{refs: make(map[string]*refState)}
+	status, data, err := plug.handleCommand(cmdShowIRR, nil)
 	if err != nil {
 		t.Fatalf("show firewall irr error: %v", err)
 	}
@@ -33,12 +29,16 @@ func TestShowIRRCommandEmpty(t *testing.T) {
 	if !ok {
 		t.Fatalf("data type = %T, want json.RawMessage", data)
 	}
-	var result map[string]any
+	var result map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &result); err != nil {
-		t.Fatalf("unmarshal result: %v", err)
+		t.Fatalf("unmarshal result %s: %v", raw, err)
 	}
-	if result["server"] != defaultServer {
-		t.Errorf("server = %v, want %q", result["server"], defaultServer)
+	entries, present := result["entries"]
+	if !present {
+		t.Fatalf("answer %s carries no entries", raw)
+	}
+	if string(entries) != "[]" {
+		t.Errorf("entries = %s, want the empty array []", entries)
 	}
 }
 
@@ -71,90 +71,7 @@ func showEntries(t *testing.T, plug *irrPlugin) []map[string]any {
 		Entries []map[string]any `json:"entries"`
 	}
 	if err := json.Unmarshal(raw, &result); err != nil {
-		t.Fatalf("unmarshal: %v", err)
+		t.Fatalf("unmarshal %s: %v", raw, err)
 	}
 	return result.Entries
-}
-
-// VALIDATES: AC-5 -- after a refresh that learned nothing, the show command
-// reports the entry as stale and gives the age of the data being enforced.
-// PREVENTS: an operator reading "status ok" while the filter runs on prefixes
-// the IRR has stopped confirming.
-func TestShowIRRReportsStaleEntry(t *testing.T) {
-	addr := fakeIRRWhois(t, map[string]string{
-		"!a4AS-TEST": "A1\n10.0.0.0/24\nC\n",
-	})
-	plug := &irrPlugin{
-		prefixStore: store.New(irr.NewIRR(addr), nil, nil),
-		config: &irrConfig{
-			Server: addr,
-			refs:   []irrRef{{Name: "AS-TEST", IsASSet: true, TableName: "ze_wan"}},
-		},
-	}
-	if _, err := plug.prefixStore.Refresh(context.Background(), "AS-TEST", "AS-TEST"); err != nil {
-		t.Fatalf("seed refresh: %v", err)
-	}
-
-	entries := showEntries(t, plug)
-	if len(entries) != 1 {
-		t.Fatalf("got %d entries, want 1", len(entries))
-	}
-	if entries[0]["status"] != "ok" {
-		t.Errorf("fresh entry status = %v, want ok", entries[0]["status"])
-	}
-	if _, reported := entries[0]["stale-since"]; reported {
-		t.Error("a fresh entry must not report a stale-since time")
-	}
-	if _, reported := entries[0]["data-age-seconds"]; !reported {
-		t.Error("show must report the age of the data being enforced")
-	}
-
-	// A second refresh against a server that answers "key not found".
-	plug.prefixStore = store.New(irr.NewIRR(fakeIRRWhois(t, nil)), nil, nil)
-	plug.prefixStore.Put("AS-TEST", []netip.Prefix{netip.MustParsePrefix("10.0.0.0/24")}, nil)
-	if _, err := plug.prefixStore.Refresh(context.Background(), "AS-TEST", "AS-TEST"); err == nil {
-		t.Fatal("expected the empty answer to be reported")
-	}
-
-	entries = showEntries(t, plug)
-	if entries[0]["status"] != "stale" {
-		t.Errorf("status = %v, want stale", entries[0]["status"])
-	}
-	if _, reported := entries[0]["stale-since"]; !reported {
-		t.Error("a stale entry must report since when")
-	}
-	if count, _ := entries[0]["ipv4-count"].(float64); count != 1 {
-		t.Errorf("ipv4-count = %v, want 1: the prefixes must still be enforced", entries[0]["ipv4-count"])
-	}
-}
-
-// VALIDATES: AC-6 -- clear firewall irr removes the cached prefixes, and says so
-// when there is nothing to remove.
-// PREVENTS: a deregistered AS-SET being enforced forever, now that an empty
-// answer no longer clears it.
-func TestClearFirewallIRRPurgesEntry(t *testing.T) {
-	ps := store.New(nil, nil, nil)
-	ps.Put("AS-TEST", []netip.Prefix{netip.MustParsePrefix("10.0.0.0/24")}, nil)
-	plug := &irrPlugin{prefixStore: ps, config: &irrConfig{Server: defaultServer}}
-
-	status, _, err := plug.handleCommand("clear firewall irr as-set", []string{"AS-TEST"})
-	if err != nil {
-		t.Fatalf("clear firewall irr as-set: %v", err)
-	}
-	if status != statusDone {
-		t.Errorf("status = %q, want %q", status, statusDone)
-	}
-	if got := ps.Get("AS-TEST"); got != nil {
-		t.Fatalf("entry survived the clear: %+v", got)
-	}
-
-	if _, _, err := plug.handleCommand("clear firewall irr as-set", []string{"AS-TEST"}); err == nil {
-		t.Error("clearing an absent entry must report that there was nothing to clear")
-	}
-	if _, _, err := plug.handleCommand("clear firewall irr as-set", nil); err == nil {
-		t.Error("clear with no argument must report its usage")
-	}
-	if _, _, err := plug.handleCommand("clear firewall irr asn", []string{"0"}); err == nil {
-		t.Error("clear firewall irr asn must reject ASN 0")
-	}
 }

@@ -16,7 +16,7 @@ and is constructed explicitly at hub startup.
 | `resolve/cymru/` | Team Cymru ASN name resolution via TXT DNS | 1h via shared cache |
 | `resolve/peeringdb/` | PeeringDB HTTP client for prefix counts | 1h via shared cache + 1s rate limit |
 | `resolve/irr/` | IRR whois client for AS-SET expansion | 1h via shared cache |
-| `resolve/irr/store/` | Shared IRR prefix store (resolution, PeeringDB discovery and persistence) | Managed store `meta/irr/{name}` + in-memory map |
+| `resolve/irr/store/` | IRR prefix resolution and PeeringDB discovery (`PrefixStore`), and the stored dataset, pointer, binding and interest values with their reader | In-memory map; the `irr` plugin's keys under `meta/irr-*` |
 
 <!-- source: internal/component/resolve/dns/resolver.go -- DNS resolver -->
 <!-- source: internal/component/resolve/cymru/cymru.go -- Cymru resolver -->
@@ -96,7 +96,8 @@ it cannot import the reactor package.
 `resolve/irr/store` is a shared cache of IRR-resolved prefix lists keyed by name
 (an ASN like `AS13335` or an AS-SET like `AS-CLOUDFLARE`). It owns the full
 resolution pipeline: AS-SET discovery for bare ASNs via PeeringDB, the IRR
-prefix lookup, and persistence under per-entry keys `meta/irr/{name}`. Discovery
+prefix lookup, and the in-memory cache of the answers. It writes nothing
+durable. Discovery
 uses the literal `AS<asn>` name when PeeringDB answers with no AS-SET, when no
 PeeringDB client is configured, or when PeeringDB fails and nothing is cached.
 A PeeringDB failure for a cached name keeps the AS-SET the entry was resolved
@@ -109,24 +110,19 @@ bgp-filter-irr's default `refresh-interval` of 3600 seconds, and up to a day at
 86400. A reload resets the cache, because `handleConfigure` builds a new
 PeeringDB client.
 
-The BGP `filter_irr` and `firewall-irr` plugins each keep a `PrefixStore`.
-The BGP filter's is memory only: it is built with no persistence, so it writes
-nothing and a restart resolves every list again
-(`docs/architecture/bgp/filter-irr.md`). The firewall plugin's persistence
-handle sends state RPCs to the daemon, which owns the single writable store for
-its lifetime. Its cache loading and refresh workers begin after `OnStarted`,
-when those RPCs are available, and reload keeps using the same owner. Doctor
-supplies a read-only `Storage` handle and never creates a store.
+The `irr` plugin is the only user of a `PrefixStore`, one per configured
+server. It stores each answer itself as a dataset
+(`docs/architecture/irr-owner.md`), and `Seed` installs each stored dataset as
+the copy the next answer merges into, so the per-family rule below holds
+across a restart. `bgp-filter-irr` and `firewall-irr` keep no `PrefixStore`:
+they read the `irr` plugin's datasets through the reader in `consumer.go`
+(`irr-owner.md`, "What a consumer reads").
+<!-- source: internal/component/resolve/irr/store/store.go -- New, Seed, Refresh -->
 
-`Refresh` installs the answer in memory and returns only after the durable
-write, when the store has persistence. A write that fails stays pending, and
-the next `Refresh` retries it. A store built with no persistence writes nothing.
-<!-- source: internal/component/resolve/irr/store/store.go -- Refresh, refreshLive, persist -->
-
-On `Open`, a legacy cache (`meta/bgp/irr-cache`, keyed by ASN) is copied
-into per-entry keys. Its source key is removed only after every new key is
-written successfully. Read-only inspection loads legacy entries into memory
-without changing them.
+The firewall's old per-entry keys `meta/irr/{name}` are converted to datasets
+by the `irr` plugin at its first start (`irr-owner.md`, "Converting the
+firewall's stored lists"). The older single-blob key `meta/bgp/irr-cache` is no
+longer registered: nothing reads or converts it.
 
 ### An empty answer never replaces cached prefixes
 
@@ -394,10 +390,10 @@ cache through the `ze-plugin-callback:resolver-cache-clear` callback
 (`pluginserver.Server.ResolverCacheOwners`, `CallResolverCacheClear`). The
 callback runs over the plugin connection, so an external-process plugin is
 reached the same way as an internal one; no list of owners exists anywhere.
-`bgp-filter-irr` and `firewall-irr` declare `irr` and `peeringdb`, and answer
-from their prefix store (`store.PrefixStore.ClearResolverCache`), which holds
-the clients the last configure installed through `UseClients`. A client a reload
-replaced is not the store's any more, so it is neither cleared nor counted, and
+`irr` declares `irr` and `peeringdb`, and answers from its prefix store
+(`store.PrefixStore.ClearResolverCache`), which holds the clients
+the last configure installed through `UseClients`. A client a reload replaced is
+not the store's any more, so it is neither cleared nor counted, and
 the counts are exact. The client `bgp peer prefix update` builds lives for one
 command and is never consulted again, so it has no owner and no clear reaches
 it. Stage 1 refuses a cache name ze does not have, or one named twice.

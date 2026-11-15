@@ -1607,6 +1607,10 @@ their BGP settings. A Loc-RIB chain naming a `prefix-list`, `modify` or
 in and run inside the `policy` plugin (see [Route policy](route-policy.md)).
 `TestPolicyOnlyConfigLoadsNoBGP` derives the plugins a policy-only config
 selects from the registry and refuses one that depends on `bgp`.
+`bgp-filter-irr` also depends on the `irr` plugin, which fetches, schedules and
+stores the IRR prefix lists it enforces, so a config using the filter starts
+`irr` before it; the filter fetches nothing itself and reads the stored lists
+(see [IRR filtering](irr-filtering.md), "After a restart").
 <!-- source: internal/component/bgp/plugins/filter_family/register.go -- ConfigRoots, ConfigReads -->
 <!-- source: internal/component/plugin/all/policy_dependency_test.go -- TestPolicyOnlyConfigLoadsNoBGP -->
 <!-- source: internal/component/policy/rib_compile.go -- compileRIBEvaluator -->

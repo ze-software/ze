@@ -2,22 +2,43 @@
 
 Firewall rules match traffic by ASN or AS-SET using IRR-resolved prefix lists.
 The BGP component already had an IRR filter plugin. The firewall needs the same
-capability with different semantics: operator-controlled fetch with no auto
-refresh by default, fail-closed commit verification, and nftables interval sets
-instead of BGP prefix-list matching.
+lists with different semantics: fail-closed commit verification and nftables
+interval sets instead of BGP prefix-list matching.
 
 ## Decisions
 
-### The PrefixStore code is shared with BGP, the cache is not
+### The irr plugin fetches and stores, this plugin reads
 
-<!-- source: internal/component/firewall/plugins/irr/irr.go -- runFirewallIRR, configureStore -->
+<!-- source: internal/component/firewall/plugins/irr/stored.go -- storeReader, pass, passNow, readTarget -->
+<!-- source: internal/component/firewall/plugins/irr/irr.go -- runFirewallIRR, handshakeConfigure, configure -->
 
-This plugin and the BGP IRR filter build their caches from the same
-`PrefixStore` type. Only this plugin persists its cache: it reads and writes
-`meta/irr/{name}` through the daemon's owned store, while the BGP filter keeps
-its lists in memory only (`docs/architecture/bgp/filter-irr.md`). The plugin binds state RPCs after `OnStarted` and reloads persisted prefixes
-before it starts refresh workers.
-<!-- source: internal/component/resolve/irr/store/store.go -- Open, Refresh -->
+This plugin fetches nothing and holds no IRR or PeeringDB client. The `irr`
+plugin fetches, schedules and stores every list, and the BGP IRR filter
+enforces the same stored copy (`docs/architecture/irr-owner.md`). The plugin
+writes its interest key, `meta/irr-interest/firewall-irr` (every AS-SET and AS
+number its terms and interface bindings name), and reads through the shared
+reader: for an ASN reference the binding, then the set's pointer, then the
+dataset the pointer names ("What a consumer reads").
+
+The reads run on one worker, `storeReader`. The startup handshake delivers the
+config before any state RPC works, so `handshakeConfigure` records it and does
+nothing else: no table is registered and no reference is reported unstored
+there. Doing both in the handshake programmed every set from an empty cache and
+warned that every reference held no data, at every start, a moment before the
+`OnStarted` read programmed them again. The first pass after `OnStarted` reads
+every reference, programs the tables once, and writes the interest key. A
+reference with nothing stored is logged at INFO: on a cold start the `irr`
+plugin fetches it as soon as the interest key names it, and its notice programs
+it.
+
+A notice `irr/dataset-stored` queues the set it names; the pass reads the
+references to that set, and every ASN reference, because a binding that moved
+is announced only by the notice of the set it moved to. A notice whose
+generation skips one the plugin has not applied means a notice was lost, so the
+pass reads every reference again. A pointer equal to the one the enforced copy
+was read under needs no dataset read. `ErrNotStored` drops the list (the set was
+never fetched, or `clear irr` removed it), and any other read failure keeps the
+list enforced and logs a WARN under `doctor-firewall-irr-stored-copy-unreadable`.
 
 ### A separate plugin, not an engine extension
 
@@ -56,7 +77,7 @@ still has to name a set the table itself declares, so `source-address
 ### One table waits for a set nobody has registered yet
 
 <!-- source: internal/component/firewall/registry.go -- dropTablesMissingAProvidedSet -->
-<!-- source: internal/component/firewall/plugins/irr/irr.go -- refreshName -->
+<!-- source: internal/component/firewall/plugins/irr/stored.go -- pass -->
 
 The owners register in no fixed order. At startup the firewall engine configures
 before the plugin that supplies the set, because the plugin depends on it, and in
@@ -82,9 +103,9 @@ That is the choice `buildIfaceTables` already makes for a binding with no
 prefixes: a rule set with no data behind it is not a filter, and an unfiltered
 port beats a blackholed one.
 
-`update firewall irr asn|as-set` ends the wait, because `refreshName` applies the
-tables it built from what it fetched. Nothing else does on a cold cache:
-`refresh-interval` defaults to 0.
+The `irr` plugin's notice ends the wait: the pass that reads the stored set
+applies the tables it built. On a cold start the `irr` plugin fetches every set
+the interest key names at once; `update irr asn|as-set` fetches one by hand.
 
 ### A table term declares both families or neither
 
@@ -108,31 +129,28 @@ the same condition, so it never names a set it did not declare.
 
 ### A reload reconfigures the plugin
 
-<!-- source: internal/component/firewall/plugins/irr/irr.go -- configure, configureStore -->
-<!-- source: internal/component/resolve/irr/store/store.go -- UseClients -->
+<!-- source: internal/component/firewall/plugins/irr/irr.go -- configure, verify, verifyStored -->
+<!-- source: internal/component/firewall/plugins/irr/stored.go -- passNow -->
+
+`OnConfigVerify` reads the `irr` plugin's store and nothing else, so a commit
+sends no IRR query. It refuses a reference with nothing stored, a stored value
+it cannot read, a stored list with no prefixes, and a list too long for a set,
+each naming the reference, and the first two naming `update irr as-set <name>`
+or `update irr asn <n>` (Thomas, design gate: the refusal stays, verify does no
+network I/O).
 
 `OnConfigApply` receives a diff, not the configuration, so the plugin carries the
-config `OnConfigVerify` approved into it and calls the same `configure` that
-`OnConfigure` calls. Anything else leaves the plugin serving what the daemon
-started with: a term added by a commit would never reach the registry, and the
-firewall would wait for a set the plugin was never told to build.
+config `OnConfigVerify` approved into it, installs it with `configure`, and runs
+one pass on the commit's own goroutine (`passNow`): it reads every reference,
+applies the tables even when no copy changed (a commit can move a reference to
+another table or add an interface binding), and answers the apply's error, so
+the commit reports whether its tables reached the firewall.
 
-The prefix store survives that reload. It is created once and kept for the life
-of the plugin, and `configureStore` points it at the servers the new
-configuration names through `UseClients`. The cache is what the firewall
-enforces, so a configure that built a second store handed `applyTables` an empty
-one: the sets were registered with no prefixes, `ApplyAll` held back the
-operator's table for naming a set no owner supplied, and the commit that caused
-it reported success. `OnConfigVerify` had accepted that same commit by reading
-the store the apply then discarded, which made the verify-time refusal a
-statement about a store nothing would use. A table that was already filtering
-lost its rules the same way, on a commit that changed something else.
-
-`Open` still runs on each configure. It only adds: an entry held in both
-places is the same entry, because this plugin mutates its store only through
-`Refresh` and `Purge`, and both write the durable copy before they return. The
-BGP IRR filter writes nothing to `meta/irr/`, so this plugin never picks up a
-list that filter fetched: each consumer resolves the names it uses.
+A reference whose name the previous config also carried keeps its enforced copy
+across the reload, and its pointer unchanged costs no dataset read. A
+configure that rebuilt the lists empty handed `applyTables` nothing: the sets
+were registered with no prefixes, `ApplyAll` held back the operator's table for
+naming a set no owner supplied, and the commit that caused it reported success.
 
 ### A crash starts the plugin again
 
@@ -144,9 +162,9 @@ The plugin declares `failure-policy: restart`, so a process that ends is started
 again. Without that declaration a crash was permanent for the life of the
 daemon, and the registry then held back every table naming an IRR set.
 
-The restart costs nothing the plugin has to rebuild by hand: the prefix cache
-lives in the managed store, so the replacement reads the same store and
-programs its sets from what was already fetched. It is bounded at 5 restarts in
+The restart costs nothing the plugin has to rebuild by hand: the lists live in
+the `irr` plugin's stored copies, so the replacement reads them at `OnStarted`
+and programs its sets from what was already fetched. It is bounded at 5 restarts in
 60 seconds and 20 over the life of the daemon, which is what stops an answer
 that panics every time from cycling: past the bound the plugin is disabled and
 `show health` reports doctor-plugin-stopped.
@@ -169,10 +187,14 @@ nftables cannot match both IPv4 and IPv6 addresses in a single rule expression
 inside an `inet` table. `MatchInSet` is IPv4-only per term. IPv6 sets are created
 and need separate terms. A future change could split terms and hide this.
 
-### Auto-refresh is off by default
+### The refresh period is the irr plugin's
 
-`refresh-interval` defaults to 0. Invalid IRR data causing a firewall outage is
-the risk that makes auto-refresh opt-in.
+A firewall IRR set refreshes every 3600 seconds by default, the same dataset
+BGP refreshes, at `system irr refresh-interval`; `system irr refresh-interval 0`
+makes every consumer's refresh manual (Thomas, Q-6). The `firewall irr server`,
+`peeringdb-url` and `refresh-interval` leaves are no longer read. A refresh
+cannot empty a firewall set: an answer with nothing for a family keeps that
+family's stored prefixes (below), and a list too long for a set is refused.
 
 ### An empty answer is not data
 
@@ -203,34 +225,23 @@ nothing, and marks the entry stale. Replacing the entry wholesale cost the
 interface binding its IPv6 accept term while the drop term that closes the
 whitelist stayed, which drops every IPv6 packet arriving on the port.
 
-The IRR client caches an answer that carried prefixes for an hour, and refuses
-to cache an empty one. The cache serves the read-only lookups, `show firewall
-irr` and `ze resolve irr prefix`, so a show command costs one query per hour.
-A refresh does not read it: `PrefixStore.resolve` calls `RefreshPrefixes`, which
-always queries the server, because `update firewall irr as-set X` is the one
-command an operator has to correct data the server changed. It writes the cache
-it did not read, so the show commands see what the refresh learned.
+These rules run in the `irr` plugin, which holds the only IRR and PeeringDB
+clients; `clear irr cache` and `clear peeringdb cache` reach those clients and
+leave every stored list in place (`docs/architecture/irr-owner.md`, "Commands").
+`show firewall irr` reads no server: it answers the copy this plugin enforces.
 
-`clear irr cache` and `clear peeringdb cache` empty this plugin's client caches
-as well. `runFirewallIRR` declares both caches at Stage 1 through
-`OnResolverCacheClear`, and `PrefixStore.ClearResolverCache` clears the clients
-the last configure installed. The prefix entries under `meta/irr/` are not a
-client cache and stay: only `clear firewall irr` removes one.
-<!-- source: internal/component/firewall/plugins/irr/irr.go -- runFirewallIRR, clearResolverCache -->
-<!-- source: internal/component/resolve/irr/store/clear.go -- ResolverCaches, ClearResolverCache -->
-
-Removing prefixes is an operator action: `clear firewall irr asn|as-set` calls
-`PrefixStore.Purge`. Without it, an AS-SET deregistered upstream would be
-enforced forever.
+Removing prefixes is an operator action: `clear irr asn|as-set` removes the
+stored copy, and this plugin drops the list on the notice. Without it, an
+AS-SET deregistered upstream would be enforced forever.
 
 ### A list too long for a set is refused, and each family is bounded on its own
 
 <!-- source: internal/component/firewall/plugins/irr/sets.go -- maxPrefixesPerFamily, oversizedEntryError -->
-<!-- source: internal/component/firewall/plugins/irr/irr.go -- applyTables, verifyRefs -->
+<!-- source: internal/component/firewall/plugins/irr/irr.go -- applyTables, verifyStored -->
 
 One firewall set holds 500000 prefixes. The bound used to TRUNCATE: the builder
 stopped there, logged one WARN and returned the entries that fit, and
-`refreshName` and `refreshAllNow` read that short list as a refresh that worked
+the refresh read that short list as a refresh that worked
 and programmed it. Nothing downstream could see it. `Set.Validate`
 (`internal/component/firewall/model.go`) checks the name and the type, and the
 nftables backend loops over `Elements` whatever it holds.
@@ -244,7 +255,7 @@ partial set has no safe reading:
 | `drop` on this set | forwards the traffic the missing prefixes carry | blocks nothing |
 
 So the list that does not fit is an error. `oversizedEntryError` answers it,
-`verifyRefs` refuses the commit with it, and `applyTables` refuses the apply,
+`verifyStored` refuses the commit with it, and `applyTables` refuses the apply,
 which leaves the sets already registered exactly as they are. This is the answer
 the IRR client already gives its own read cap, where a reply cut short by the
 4 MB limit is an error rather than a shorter prefix list.
@@ -253,7 +264,7 @@ One oversized reference stops the whole apply rather than its own table. Leaving
 that entry's sets out instead makes `dropTablesMissingAProvidedSet` hold back
 its whole table, which takes a filter that was working out of the kernel.
 Registering nothing keeps every table as it is, and the operator is told:
-`update firewall irr` answers the error, `show firewall irr` reports the entry
+the apply logs it at WARN, `show firewall irr` reports the entry
 as `oversized`, and `ze doctor` reports
 `doctor-firewall-irr-oversized-data`.
 
@@ -262,20 +273,20 @@ families shared one budget until 2026-09-20: IPv4 took the whole 500000 and IPv6
 got what was left. A large IPv4 list therefore left the IPv6 set EMPTY rather
 than short, which matched no address, and the interface whitelist's drop term
 then took every IPv6 packet arriving on the port. That is the same outage the
-per-family guard in `PrefixStore.Refresh` exists to prevent, reached by another
+per-family guard in the irr plugin's `PrefixStore.Refresh` exists to prevent, reached by another
 route. A budget one list can spend on behalf of the other is not a budget.
 
 ### An interface binding with no prefixes produces no table
 
 <!-- source: internal/component/firewall/plugins/irr/sets.go -- buildIfaceTables -->
-<!-- source: internal/component/firewall/plugins/irr/irr.go -- verifyRefs -->
+<!-- source: internal/component/firewall/plugins/irr/irr.go -- verifyStored -->
 
 The interface ingress chain is a whitelist: accept terms for the AS-SET's
 prefixes, then one drop term closing it. Emitted on its own that drop term
 drops every packet arriving on the interface, and the apply succeeds, so a
 customer-facing port goes dark with no error anywhere. `buildIfaceTables`
 therefore emits nothing for a binding with no prefixes, and logs it. An
-unfiltered port beats a blackholed one, and `verifyRefs` refuses the commit
+unfiltered port beats a blackholed one, and `verifyStored` refuses the commit
 before it gets that far.
 
 ## Trap

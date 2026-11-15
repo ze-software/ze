@@ -17,8 +17,8 @@ import (
 // PREVENTS: one family's rejected prefix rejecting the UPDATE whole and its
 // valid routes with it, and a withdrawal dropped with a rejected announcement.
 func TestFilterIRRMultiBlockVerdict(t *testing.T) {
-	plug := readmitPlugin(t, fakeIRRv4(t, map[string]string{"AS-TEST": "10.0.0.0/24"}), newFakeReadmitEngine(), time.Hour)
-	plug.refreshASN(65001)
+	plug := readmitPlugin(t, "10.0.0.0/24", newFakeReadmitEngine(), time.Hour)
+	readStored(plug)
 
 	type nlri = map[string][]string
 	tests := []struct {
@@ -207,7 +207,7 @@ func TestPeersMissingRefreshGrant(t *testing.T) {
 // the withdrawn route stayed in the Adj-RIB-In.
 // METHOD: the plugin is enrolled for AS65001 and its list was never resolved.
 func TestFilterIRRNoListKeepsWithdrawals(t *testing.T) {
-	plug := readmitPlugin(t, fakeIRRv4(t, map[string]string{"AS-TEST": "10.0.0.0/24"}), newFakeReadmitEngine(), time.Hour)
+	plug := readmitPlugin(t, "10.0.0.0/24", newFakeReadmitEngine(), time.Hour)
 
 	type nlri = map[string][]string
 	tests := []struct {

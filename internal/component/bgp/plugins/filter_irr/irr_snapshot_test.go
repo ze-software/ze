@@ -45,28 +45,19 @@ func evaluateWithin(t *testing.T, plug *irrPlugin, fields []byte, bound time.Dur
 	}
 }
 
-// VALIDATES: AC-32 at the evaluator. An UPDATE that arrives while its ASN's
-// first lookup is still in flight is judged at once: the announced prefix
-// takes the filter's on-error reject, the withdrawal in the same UPDATE is
-// kept, and the prefix is held; once the lookup publishes the list, the
-// readmitter asks the peer for its routes again and the re-sent prefix is
-// accepted.
-// PREVENTS: the evaluator blocking an engine goroutine on unresolved data
+// VALIDATES: AC-32 at the evaluator. An UPDATE that arrives while its ASN has
+// no stored list yet is judged at once: the announced prefix takes the
+// filter's on-error reject, the withdrawal in the same UPDATE is kept, and the
+// prefix is held; once the irr plugin stores the list and its notice is read,
+// the readmitter asks the peer for its routes again and the re-sent prefix is
+// accepted (AC-5).
+// PREVENTS: the evaluator blocking an engine goroutine on data not stored yet
 // (R-8), the wait firstResolveWait bounded before D-12.
 func TestIRRUnresolvedTakesOnError(t *testing.T) {
-	release := make(chan struct{})
-	addr := fakeIRRv4Hook(t, map[string]string{"AS-TEST": "10.0.0.0/24"}, func(string) { <-release })
 	engine := newFakeReadmitEngine()
-	plug := readmitPlugin(t, addr, engine, time.Hour)
+	plug := readmitPlugin(t, "", engine, time.Hour)
+	readStored(plug)
 
-	resolved := make(chan struct{})
-	go func() {
-		plug.initialResolve()
-		close(resolved)
-	}()
-
-	// The lookup is held by the server until release, longer than the bound:
-	// the old evaluator waited on it, this one must not.
 	out := evaluateWithin(t, plug, routeFields(map[string][]string{"ipv4/unicast": {"10.0.0.0/24"}},
 		map[string][]string{"ipv4/unicast": {"198.51.100.0/24"}}), time.Second)
 	if out.Action != sdk.FilterModify {
@@ -79,12 +70,7 @@ func TestIRRUnresolvedTakesOnError(t *testing.T) {
 		t.Fatalf("held = %d, want the rejected announcement held", got)
 	}
 
-	close(release)
-	select {
-	case <-resolved:
-	case <-time.After(perASNRefreshTimeout + 10*time.Second):
-		t.Fatal("the first lookup did not complete within the product's refresh bound")
-	}
+	deliver(plug, testState(plug).storeList(t, "AS-TEST", "10.0.0.0/24"))
 	select {
 	case sent := <-engine.sent:
 		if sent.peer != netip.MustParseAddr(readmitTestPeer) || sent.family != "ipv4/unicast" {
@@ -122,7 +108,7 @@ func TestIRRSnapshotSwap(t *testing.T) {
 		if asSet != "AS-OLD" {
 			return
 		}
-		// AS-OLD resolves to both prefixes, published as refreshASNCtx does.
+		// AS-OLD resolves to both prefixes, published as the reader's apply does.
 		tx.plug.mu.Lock()
 		tx.plug.byASN[65001].list = both
 		tx.plug.publishLocked()

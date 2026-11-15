@@ -9,7 +9,6 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/resolve/irr/store"
 	"github.com/ze-software/ze/internal/core/diagnostic"
-	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/statestore"
 	"github.com/ze-software/ze/pkg/zefs"
 )
@@ -26,15 +25,15 @@ func init() {
 	// meta/irr-interest/firewall-irr tells the irr plugin what this plugin
 	// enforces, and it writes no other consumer's interest key; it reads the
 	// datasets, pointers, bindings and generation the irr plugin writes
-	// (docs/architecture/irr-owner.md).
-	statestore.RegisterPluginKeys("firewall-irr", zefs.KeyIRRPrefixCache, zefs.KeyIRRCache)
-	statestore.RegisterPluginKeyInstance("firewall-irr", zefs.KeyIRRInterest, "firewall-irr")
-	statestore.RegisterPluginReadKeys("firewall-irr",
+	// (docs/architecture/irr-owner.md). It holds no key of its own beyond the
+	// interest key: the lists it enforces are the irr plugin's.
+	statestore.RegisterPluginKeyInstance(pluginName, zefs.KeyIRRInterest, pluginName)
+	statestore.RegisterPluginReadKeys(pluginName,
 		zefs.KeyIRRDataset, zefs.KeyIRRSet, zefs.KeyIRRASN, zefs.KeyIRRGeneration)
 	registerIRRDoctor()
 
 	reg := registry.Registration{
-		Name:        "firewall-irr",
+		Name:        pluginName,
 		Description: "IRR-based prefix-list filtering for firewall rules",
 		Features:    "yang",
 		YANG:        irryang.ZeFirewallIrrYANG,
@@ -44,9 +43,6 @@ func init() {
 		Dependencies: []string{dependencyFirewall, store.OwnerPlugin},
 		RunEngine:    runFirewallIRR,
 		Commands:     commandDecls(),
-		ConfigureMetrics: func(reg metrics.Registry) {
-			setMetricsRegistry(reg)
-		},
 	}
 	reg.CLIHandler = func(args []string) int {
 		cfg := cli.BaseConfig(&reg)
@@ -76,7 +72,7 @@ func registerIRRDoctor() {
 		Component:    "firewall-irr",
 		Dependencies: []string{"config-tree"},
 		Platforms:    []string{diagnostic.DoctorPlatformAny},
-		Codes:        []string{codeIRRStaleData, codeIRRNoData},
+		Codes:        []string{codeIRRStaleData, codeIRRNoData, codeIRROversizedData},
 		Check:        checkIRRDataFreshness,
 	}
 	if err := diagnostic.RegisterDoctorCheck(check); err != nil {

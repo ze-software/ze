@@ -1,4 +1,6 @@
 // Design: docs/architecture/bgp/filter-irr.md -- IRR prefix-list filter plugin entry point
+// Related: stored.go -- the reader that feeds publishLocked from the irr plugin's store
+// Related: doctor.go -- the runtime doctor check over what the reader could not read
 
 package filter_irr
 
@@ -8,6 +10,7 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -15,84 +18,72 @@ import (
 	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/component/resolve/irr"
 	"github.com/ze-software/ze/internal/component/resolve/irr/store"
-	"github.com/ze-software/ze/internal/component/resolve/peeringdb"
-	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
-	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 var errFilterIrrInvalidBgpConfigJson = errors.New("filter-irr: invalid bgp config JSON")
 
-const (
-	// perASNRefreshTimeout bounds a single ASN's IRR resolution on the periodic
-	// and manual ("update bgp irr ...") refresh paths, where no startup barrier
-	// is waiting.
-	perASNRefreshTimeout = 30 * time.Second
-
-	configRootBGP = "bgp"
-)
+const configRootBGP = "bgp"
 
 var logger = slogutil.LazyLogger("bgp.filter.irr")
 
-type irrMetrics struct {
-	prefixesCached  metrics.Gauge
-	refreshOutcomes metrics.CounterVec
-	lastRefresh     metrics.Gauge
-}
-
-var irrMetricsPtr atomic.Pointer[irrMetrics]
-
-func SetMetricsRegistry(reg metrics.Registry) {
-	m := &irrMetrics{
-		prefixesCached:  reg.Gauge("ze_irr_prefixes_cached", "Total IRR-resolved prefixes cached across all ASNs."),
-		refreshOutcomes: reg.CounterVec("ze_irr_refresh_outcomes_total", "IRR refresh outcomes.", []string{"result"}),
-		lastRefresh:     reg.Gauge("ze_irr_last_refresh_timestamp", "Unix timestamp of last successful IRR refresh."),
-	}
-	irrMetricsPtr.Store(m)
-}
-
+// asnState is one enrolled ASN: the set it is filtered by and the stored copy
+// of that set the filter enforces. The irr plugin fetches and stores the
+// copy; the reader (stored.go) reads it in.
 type asnState struct {
 	asn uint32
-	// configured is the as-set the operator wrote for this ASN, empty when the
-	// config names none and PeeringDB chooses it. It changes only with config,
-	// and it is the only query hint: an empty one makes every lookup ask
-	// PeeringDB, so an upstream AS-SET change is followed on the next refresh.
+	// configured is the as-set the operator wrote for this ASN, in the one
+	// spelling every store key uses (store.ASSetName), empty when the config
+	// names none and PeeringDB chooses it through the irr plugin's binding.
 	configured string
-	// asSet is the as-set this ASN last resolved under: configured when the
-	// config names one, otherwise the one the last lookup used, empty before
-	// the first lookup. It is what `show bgp irr` reports, never the hint.
+	// keyErr is why the configured as-set cannot name a stored copy; the ASN
+	// then enforces no list. Empty for every name the YANG admits.
+	keyErr string
+	// asSet is the set whose stored copy is enforced: configured, or the one
+	// the binding names, empty before a binding is read. It is what
+	// `show bgp irr` reports.
 	asSet string
-	// lookups is canceled when a reload replaces this state with one that
-	// does not carry it over (the ASN dropped, its configured set changed or
-	// deleted), so a lookup still in flight for it commits nothing to the
-	// store (store.commit). A state carried over shares its predecessor's.
-	lookups       context.Context
-	cancelLookups context.CancelFunc
-	list          *irrPrefixList
-	lastOK        time.Time
-	lastErr       string
-	v4Count       int
-	v6Count       int
-	peerAddrs     []string
+	// list is the enforced copy, nil while nothing is stored. pointer names
+	// it; checkedAt and refreshedAt are the dataset's times.
+	list        *irrPrefixList
+	pointer     store.Pointer
+	checkedAt   time.Time
+	refreshedAt time.Time
+	// readErr is why the last read could not use a stored value: the list,
+	// if any, is the copy read before. Empty when the list is current.
+	readErr   string
+	v4Count   int
+	v6Count   int
+	peerAddrs []string
 }
 
-// newASNState builds an enrolled ASN's state, unresolved. Every ASN the
-// configure path enrolls goes through here, so each holds a lookups context a
-// reload can cancel.
+// newASNState builds an enrolled ASN's state, with no list yet.
 func newASNState(asn uint32, configured string) *asnState {
-	lookups, cancel := context.WithCancel(context.Background())
-	return &asnState{
-		asn: asn, configured: configured, asSet: configured,
-		lookups: lookups, cancelLookups: cancel,
+	st := &asnState{asn: asn}
+	st.configure(configured)
+	return st
+}
+
+// configure records the configured as-set in its key spelling.
+func (st *asnState) configure(configured string) {
+	if configured == "" {
+		st.configured, st.asSet, st.keyErr = "", "", ""
+		return
 	}
+	name, err := store.ASSetName(configured)
+	if err != nil {
+		st.configured, st.asSet, st.keyErr = configured, configured, err.Error()
+		return
+	}
+	st.configured, st.asSet, st.keyErr = name, name, ""
 }
 
 // carriedOverBy reports whether next, the state a reload built for this ASN,
-// keeps this state's resolution: it does only while the configured as-set is
-// the same, including both being empty. A changed or deleted set answers a
-// question the operator no longer asks.
+// keeps this state's list: it does only while the configured as-set is the
+// same, including both being empty. A changed or deleted set answers a
+// question the operator no longer asks, so next starts from no list and the
+// reader reads the new set's stored copy.
 func (st *asnState) carriedOverBy(next *asnState) bool {
 	if next == nil {
 		return false
@@ -100,18 +91,10 @@ func (st *asnState) carriedOverBy(next *asnState) bool {
 	return next.configured == st.configured
 }
 
-// supersede cancels this state's in-flight lookups. Safe on a test literal
-// that carries no lookups context.
-func (st *asnState) supersede() {
-	if st.cancelLookups != nil {
-		st.cancelLookups()
-	}
-}
-
 // irrSnapshot is what the filter evaluator reads: one immutable value per
 // publish, swapped whole, so a route is judged wholly by one config and one
 // set of lists (AC-34). It holds every enrolled ASN, mapped to its list, nil
-// while unresolved. The goroutines that write byASN under mu publish it
+// while nothing is stored. The writers of byASN publish it under mu
 // (publishLocked); the evaluator takes no lock and never waits.
 type irrSnapshot struct {
 	asns map[uint32]irrSnapshotEntry
@@ -119,8 +102,8 @@ type irrSnapshot struct {
 
 // irrSnapshotEntry is one enrolled ASN in a snapshot.
 type irrSnapshotEntry struct {
-	list   *irrPrefixList // nil while the ASN has no list: unresolved
-	failed bool           // the last lookup failed (the list, if any, is the last good one)
+	list   *irrPrefixList // nil while the ASN has no stored copy
+	failed bool           // the last read could not use a stored value (the list, if any, is the one read before)
 }
 
 // lookup answers asn's entry and whether this config enrolls it. Safe on a
@@ -133,31 +116,33 @@ func (snap *irrSnapshot) lookup(asn uint32) (irrSnapshotEntry, bool) {
 	return entry, ok
 }
 
+// interestFailure is the last refused write of the interest key.
+type interestFailure struct {
+	err   string
+	since time.Time
+}
+
 type irrPlugin struct {
 	plugin *sdk.Plugin
-	// prefixStore holds the resolved lists in memory only, and lives as long as
-	// the plugin: the first configure creates it and every later one points it
-	// at the configured servers (UseClients). It is never written to disk, so a
-	// restart starts with no list and resolves every enrolled ASN again.
-	prefixStore *store.PrefixStore
 	// started is set by OnStarted, after the startup handshake. Configure runs
-	// inside that handshake, so the first configure leaves resolution to
-	// OnStarted, and only a reload configure, which arrives after it, starts
-	// resolution itself. Guarded by mu.
+	// inside that handshake, where no state RPC is served, so the first
+	// configure leaves the store read to OnStarted, and only a reload
+	// configure, which arrives after it, asks the reader itself. Guarded by mu.
 	started bool
 
 	mu    sync.RWMutex
 	byASN map[uint32]*asnState
 	// snapshot is byASN as the evaluator reads it, republished by every
 	// writer of byASN or of a state's list (publishLocked).
-	snapshot    atomic.Pointer[irrSnapshot]
-	config      *irrConfig
-	nextRefresh time.Time
-	lastRefresh time.Time
+	snapshot atomic.Pointer[irrSnapshot]
+	config   *irrConfig
 
-	stopCh      chan struct{}
-	refreshStop chan struct{}
-	refreshing  atomic.Bool
+	// reader reads the irr plugin's stored lists and writes the filter's
+	// interest key (stored.go). Nil in tests that build the plugin as a
+	// literal and publish lists themselves.
+	reader *storeReader
+	// interestErr is the last refused interest write, nil once one succeeds.
+	interestErr atomic.Pointer[interestFailure]
 
 	// readmit holds the prefixes the filter rejected because the list did not
 	// authorize them yet (readmit.go). Nil in tests that build the plugin as a
@@ -166,15 +151,15 @@ type irrPlugin struct {
 }
 
 func runFilterIRR(conn net.Conn) int {
-	p := sdk.NewWithConn("bgp-filter-irr", conn)
+	p := sdk.NewWithConn(pluginName, conn)
 	defer func() { _ = p.Close() }()
 
 	plug := &irrPlugin{
 		plugin: p,
 		byASN:  make(map[uint32]*asnState),
-		stopCh: make(chan struct{}),
 	}
-	plug.readmit = newReadmitter(dispatchEngine{plugin: p}, plug, readmitRetryInterval)
+	plug.reader = newStoreReader(plug, p)
+	plug.readmit = newReadmitter(dispatchEngine{plugin: p}, plug, readmitInterval)
 
 	// A plugin holding OnConfigure alone answers every config-apply OK and
 	// changes nothing, so a live IRR edit was accepted and ignored. The reload
@@ -188,39 +173,30 @@ func runFilterIRR(conn net.Conn) int {
 	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
 		return plug.handleCommand(command, args)
 	})
+	p.OnDoctorCheck(plug.answerDoctorCheck)
 
-	ctx, cancel := sdk.SignalContext()
-	defer cancel()
-	defer close(plug.stopCh)
-	p.OnStarted(func(_ context.Context) error {
-		plug.mu.Lock()
-		plug.started = true
-		ps := plug.prefixStore
-		cfg := plug.config
-		refreshStop := plug.refreshStop
-		plug.mu.Unlock()
-		// The re-admission worker lives as long as the plugin, across every
-		// configure cycle, and stops with stopCh.
-		go plug.readmit.run(plug.stopCh)
-		if ps == nil {
-			return nil
-		}
-		go plug.initialResolve()
-		go plug.refreshLoop(cfg.RefreshInterval, refreshStop)
+	// The irr plugin's notice of a stored or removed dataset. Subscribed at
+	// stage 5, before any event flows, so a notice sent between the
+	// subscription and the OnStarted read is delivered and queued.
+	p.AddStartupSubscriptionsIn(store.NoticeNamespace, []string{store.EventDatasetStored})
+	p.OnEvent(func(event string) error {
+		plug.reader.notice(event)
 		return nil
 	})
 
-	// The IRR and PeeringDB clients this plugin uses live in its prefix
-	// store, so the store answers clear irr cache and clear peeringdb cache.
-	p.OnResolverCacheClear(store.ResolverCaches(), plug.clearResolverCache)
-
-	// The irr plugin's notice of a stored dataset. Subscribed at stage 5,
-	// before any event flows, so a notice sent between the subscription and
-	// the OnStarted read is delivered. The handler only acknowledges it: the
-	// filter does not read the stored dataset yet and still fetches for itself.
-	p.AddStartupSubscriptionsIn(store.NoticeNamespace, []string{store.EventDatasetStored})
-	p.OnEvent(func(event string) error {
-		logger().Debug("irr dataset notice received, not read yet", "event", event)
+	ctx, cancel := sdk.SignalContext()
+	defer cancel()
+	stop := make(chan struct{})
+	defer close(stop)
+	p.OnStarted(func(_ context.Context) error {
+		plug.mu.Lock()
+		plug.started = true
+		plug.mu.Unlock()
+		// Both workers live as long as the plugin, across every configure
+		// cycle: the readmitter stops with stop, the reader with ctx.
+		go plug.readmit.run(stop)
+		go plug.reader.run(ctx)
+		plug.reader.readAll()
 		return nil
 	})
 
@@ -228,8 +204,9 @@ func runFilterIRR(conn net.Conn) int {
 		Commands: commandDecls(),
 		// A forked program has no registry row to supply ConfigReads, so its
 		// Stage 1 declaration must request the policy settings as well as peers.
-		WantsConfig: []string{configRootBGP, policy.RootName},
-		Filters:     filterDecls(),
+		WantsConfig:  []string{configRootBGP, policy.RootName},
+		Filters:      filterDecls(),
+		DoctorChecks: []sdk.DoctorCheckDecl{storedCopyCheckDecl},
 	}); err != nil {
 		logger().Error("filter-irr plugin failed", "error", err)
 		return 1
@@ -237,59 +214,24 @@ func runFilterIRR(conn net.Conn) int {
 	return 0
 }
 
-// clearResolverCache answers clear irr cache and clear peeringdb cache for the
-// clients the prefix store uses now. Before the first configure the plugin
-// holds no client, so it holds no entry and zero is the true count.
-func (plug *irrPlugin) clearResolverCache(input rpc.ResolverCacheClearInput) (int, error) {
-	plug.mu.RLock()
-	ps := plug.prefixStore
-	plug.mu.RUnlock()
-	if ps == nil {
-		return 0, nil
-	}
-	return ps.ClearResolverCache(input)
-}
-
 // handleConfigure makes cfg the filter's config, at boot and on every
 // applied or rolled-back reload. The new per-ASN state is published under
 // plug.mu in one swap, so a concurrent filter UPDATE reads the old state or
-// the new one, never a mix.
+// the new one, never a mix. It reads and writes no store: the reader does,
+// on its own worker, once the plugin has started.
 func (plug *irrPlugin) handleConfigure(delivery irrDelivery) {
 	cfg := parseIRRConfig(delivery.policy, delivery.bgp)
-
-	irrClient := irr.NewIRR(cfg.Server)
-	if cfg.SourceAddress != "" {
-		irrClient.SetSourceAddress(cfg.SourceAddress)
-	}
-	pdb := peeringdb.NewPeeringDB(cfg.PeeringDBURL)
-	plug.mu.RLock()
-	ps := plug.prefixStore
-	started := plug.started
-	plug.mu.RUnlock()
-	// One store for the plugin's life, never one per configure: the store's
-	// per-family last-known-good (store.commit) merges a refresh into the entry
-	// it already holds, and a fresh store would hold none after every reload.
-	if ps == nil {
-		ps = store.New(irrClient, pdb, nil)
-	} else {
-		ps.UseClients(irrClient, pdb)
-	}
 
 	newByASN := make(map[uint32]*asnState)
 	for _, peer := range cfg.Peers {
 		if peer.Disabled {
 			continue
 		}
-		// Enroll ONLY peers that asked for IRR filtering. Enrolling on the mere
-		// presence of a remote ASN made every BGP config -- including one with
-		// no IRR filter anywhere -- issue a PeeringDB HTTPS lookup and a whois
-		// query to the IRR server (default RADB) per peer at every startup, on
-		// the operator's behalf and without being asked. That also contradicted
-		// the documented behavior (docs/guide/irr-filtering.md: a peer with no
-		// "import { filters [ bgp-filter-irr:<asn> ]; final accept; }" reference has no `show bgp irr`
-		// entry) and this plugin's own vocabulary ("no IRR-filtered peer with
-		// ASN %d", command.go). An unenrolled peer's filter chain never reaches
-		// handleFilterUpdate, so nothing else observes the difference.
+		// Enroll ONLY peers that asked for IRR filtering: a peer with no
+		// "import { filters [ bgp-filter-irr:<asn> ]; final accept; }"
+		// reference has no `show bgp irr` entry (docs/guide/irr-filtering.md),
+		// and its AS number is no interest the irr plugin fetches for. An
+		// unenrolled peer's filter chain never reaches handleFilterUpdate.
 		if !peer.UsesIRR {
 			continue
 		}
@@ -300,51 +242,36 @@ func (plug *irrPlugin) handleConfigure(delivery irrDelivery) {
 		}
 		st.peerAddrs = append(st.peerAddrs, peer.PeerAddr)
 		if peer.ASSet != "" && st.configured == "" {
-			st.configured = peer.ASSet
-			st.asSet = peer.ASSet
+			st.configure(peer.ASSet)
 		}
 	}
 
 	// All mutable plugin fields are published under plug.mu so a concurrent
-	// `show bgp irr` / refresh never reads a half-updated configure.
+	// `show bgp irr` or reader pass never reads a half-updated configure.
 	plug.mu.Lock()
-	oldByASN := plug.byASN
-	for asn, oldSt := range oldByASN {
+	for asn, oldSt := range plug.byASN {
 		newSt := newByASN[asn]
-		// A list resolved for another AS-SET answers a question the operator
-		// no longer asks. Carrying it over would filter against the old set,
-		// until the next refresh: the edit
-		// would be accepted and not enforced. Deleting the configured set is
-		// a change too, because PeeringDB chooses the set again. The old
-		// state's lookups are canceled, so one in flight commits nothing
-		// that store.discoverASSet could later hand back as its fallback.
+		// A list stored for another AS-SET answers a question the operator no
+		// longer asks: carrying it over would filter against the old set until
+		// the reader read the new one, so the edit would be accepted and not
+		// enforced. Deleting the configured set is a change too, because the
+		// binding chooses the set again.
 		if !oldSt.carriedOverBy(newSt) {
-			oldSt.supersede()
 			continue
 		}
-		newSt.supersede() // its own context is replaced by the one it inherits
-		newSt.lookups, newSt.cancelLookups = oldSt.lookups, oldSt.cancelLookups
 		newSt.asSet = oldSt.asSet
 		newSt.list = oldSt.list
-		newSt.lastOK = oldSt.lastOK
-		newSt.lastErr = oldSt.lastErr
+		newSt.pointer = oldSt.pointer
+		newSt.checkedAt = oldSt.checkedAt
+		newSt.refreshedAt = oldSt.refreshedAt
+		newSt.readErr = oldSt.readErr
 		newSt.v4Count = oldSt.v4Count
 		newSt.v6Count = oldSt.v6Count
 	}
-	// The purge runs before the new states are published: a refresh that reads
-	// a new state must find the store already without the entries it drops, or
-	// with PeeringDB down discoverASSet hands a deleted set back. The store
-	// takes only its own lock and never calls back, so holding plug.mu is safe.
-	forgetUnconfigured(ps, oldByASN, newByASN)
 	plug.byASN = newByASN
-	plug.publishLocked() // a changed as-set publishes its ASN unresolved
-	plug.prefixStore = ps
+	plug.publishLocked() // a changed as-set publishes its ASN with no list
 	plug.config = cfg
-	if plug.refreshStop != nil {
-		close(plug.refreshStop)
-	}
-	plug.refreshStop = make(chan struct{})
-	refreshStop := plug.refreshStop
+	started := plug.started
 	plug.mu.Unlock()
 
 	// A prefix held for a peer this config no longer filters under that ASN
@@ -370,83 +297,134 @@ func (plug *irrPlugin) handleConfigure(delivery irrDelivery) {
 			"action", "add `session { capability { route-refresh enable } }` to this peer, or to its group, and enable Route Refresh on the peer's side too; the capability is negotiated when the session next comes up")
 	}
 
-	// Resolve every enrolled ASN ONCE in the background, NOT inline. configure
-	// runs inside the plugin startup handshake, gated by the engine's stage
-	// barrier. A synchronous first resolution here would make ze's startup
-	// depend on reaching the IRR server (default RADB), so an unreachable or slow
-	// server would fail the configure stage and bring the whole BGP plugin set
-	// down -- even for a config that has BGP peers but no IRR import filter.
-	// Startup must never depend on external IRR reachability, so the first
-	// resolution is detached. An UPDATE arriving for an IRR-filtered peer before
-	// it finishes is judged at once against the unresolved list: its announced
-	// prefixes take the filter's on-error reject, are held, and the readmitter
-	// asks the peer for them again once the list is published (AC-32). The
-	// periodic refreshLoop keeps the list fresh thereafter.
-	if started {
-		go plug.initialResolve()
-		go plug.refreshLoop(cfg.RefreshInterval, refreshStop)
+	// A reload reads the stored copies of the sets it newly names and tells
+	// the irr plugin, which fetches at once a set it holds nothing for. An
+	// UPDATE arriving for such a peer meanwhile is judged at once against no
+	// list: its announced prefixes take the filter's on-error reject, are
+	// held, and the readmitter asks the peer for them again once the list is
+	// published (AC-5, AC-32). The first configure leaves this to OnStarted.
+	if started && plug.reader != nil {
+		plug.reader.readAll()
 	}
 
-	// "peers" counts the peers ENROLLED for IRR resolution, not every BGP peer:
-	// an operator reading this line is asking how much IRR work was set up, and
-	// the config's total peer count would answer a different question.
+	// "peers" counts the peers ENROLLED for IRR filtering, not every BGP peer:
+	// an operator reading this line is asking how much IRR work was set up.
 	enrolledPeers := 0
 	for _, st := range newByASN {
 		enrolledPeers += len(st.peerAddrs)
 	}
-	logger().Debug("configured", "peers", enrolledPeers, "asns", len(newByASN), "server", cfg.Server)
+	logger().Debug("configured", "peers", enrolledPeers, "asns", len(newByASN))
 }
 
-// forgetUnconfigured drops from the store every entry the new config no longer
-// asks for: an ASN no longer enrolled, an ASN whose configured as-set is not
-// the one its entry was resolved for, and an ASN whose configured as-set the
-// new config deleted. store.commit keeps a cached family only for the same
-// AS-SET, so an old-set entry cannot hand its prefixes to the new set; purging
-// it keeps the store to the sets the config names. The deleted set's entry
-// must go too, because store.discoverASSet keeps a cached entry's AS-SET when
-// PeeringDB fails, and it would hand the deleted set back.
-// This is the store's half of "a changed as-set starts from no list";
-// handleConfigure's carry-over rule is the plugin's half. The caller MUST hold
-// plug.mu, so no refresh reads a new state before the purge.
-func forgetUnconfigured(ps *store.PrefixStore, oldByASN, newByASN map[uint32]*asnState) {
-	for asn := range oldByASN {
-		if _, kept := newByASN[asn]; !kept {
-			ps.Purge(asnName(asn))
-		}
-	}
-	for asn, st := range newByASN {
-		if st.configured == "" {
-			if old := oldByASN[asn]; old != nil && old.configured != "" {
-				ps.Purge(asnName(asn))
-			}
-			continue // the as-set is discovered, so no configured one to differ from
-		}
-		entry := ps.Get(asnName(asn))
-		if entry == nil {
+// readTargets captures, under mu, what the reader needs of every enrolled ASN
+// wanted selects. An ASN whose configured as-set cannot name a stored copy is
+// left out: it enforces no list.
+func (plug *irrPlugin) readTargets(wanted func(readTarget) bool) []readTarget {
+	plug.mu.RLock()
+	defer plug.mu.RUnlock()
+	targets := make([]readTarget, 0, len(plug.byASN))
+	for asn, st := range plug.byASN {
+		if st.keyErr != "" {
 			continue
 		}
-		if entry.ASSet != st.configured {
-			ps.Purge(asnName(asn))
+		target := readTarget{asn: asn, configured: st.configured, pointer: st.pointer, asSet: st.asSet}
+		if wanted(target) {
+			targets = append(targets, target)
 		}
+	}
+	return targets
+}
+
+// apply installs what the reader read and publishes it, in one swap under
+// mu. An ASN a reload replaced or re-pointed while the reader read is left
+// alone: the reload asked for its own read. It reports whether a list changed,
+// so the readmitter checks what it holds.
+func (plug *irrPlugin) apply(targets []readTarget, outcomes map[uint32]readOutcome) bool {
+	plug.mu.Lock()
+	changed := false
+	var failures []readFailure
+	for _, target := range targets {
+		st := plug.byASN[target.asn]
+		if st == nil || st.configured != target.configured {
+			continue
+		}
+		outcome := outcomes[target.asn]
+		switch {
+		case outcome.err != nil:
+			// A stored value exists and cannot be used: keep what is enforced
+			// (AC-22) and say so.
+			st.readErr = outcome.err.Error()
+			failures = append(failures, readFailure{asn: target.asn, asSet: outcome.asSet, err: outcome.err})
+		case outcome.notStored:
+			// Nothing is stored: not fetched yet, or `clear irr` removed it.
+			changed = changed || st.list != nil
+			st.asSet = outcome.asSet
+			if st.configured != "" {
+				st.asSet = st.configured
+			}
+			st.list, st.pointer = nil, store.Pointer{}
+			st.checkedAt, st.refreshedAt = time.Time{}, time.Time{}
+			st.readErr, st.v4Count, st.v6Count = "", 0, 0
+		case outcome.unchanged:
+			st.readErr = ""
+		default:
+			changed = true
+			dataset := outcome.stored.Dataset
+			st.asSet = outcome.asSet
+			st.list = outcome.list
+			st.pointer = outcome.stored.Pointer
+			st.checkedAt, st.refreshedAt = dataset.CheckedAt(), dataset.RefreshedAt()
+			st.readErr = ""
+			st.v4Count, st.v6Count = len(dataset.IPv4()), len(dataset.IPv6())
+		}
+	}
+	plug.publishLocked()
+	plug.mu.Unlock()
+	for _, failure := range failures {
+		logger().Warn("irr: a stored IRR list cannot be read, the list read before stays enforced",
+			"asn", failure.asn, "as-set", failure.asSet, "error", failure.err,
+			"code", codeIRRStoredCopyUnreadable, "fix", fixFetchAgain(failure.asSet))
+	}
+	return changed
+}
+
+// readFailure is one ASN whose stored value apply could not use.
+type readFailure struct {
+	asn   uint32
+	asSet string
+	err   error
+}
+
+// readmitAfterPublish wakes the readmitter: a list that arrived or changed may
+// now authorize a prefix the filter rejected.
+func (plug *irrPlugin) readmitAfterPublish() {
+	if plug.readmit != nil {
+		plug.readmit.notify()
 	}
 }
 
-// initialResolve performs the first background resolution of every enrolled
-// ASN. It runs detached from the configure path (so startup never blocks on IRR
-// network I/O) and, unlike refreshAll, does NOT honor the refreshing CAS guard:
-// it must always do the work, because until it does every enrolled ASN is
-// unresolved and its announced prefixes are rejected and held.
-func (plug *irrPlugin) initialResolve() {
+// interest is what the filter tells the irr plugin it enforces: every
+// configured as-set, and every AS number whose set PeeringDB chooses.
+func (plug *irrPlugin) interest() store.Interest {
 	plug.mu.RLock()
-	asns := make([]uint32, 0, len(plug.byASN))
-	for asn := range plug.byASN {
-		asns = append(asns, asn)
+	defer plug.mu.RUnlock()
+	in := store.Interest{ASSets: []string{}, ASNs: []uint32{}}
+	sets := make(map[string]struct{}, len(plug.byASN))
+	for asn, st := range plug.byASN {
+		switch {
+		case st.keyErr != "":
+		case st.configured == "":
+			in.ASNs = append(in.ASNs, asn)
+		default:
+			if _, dup := sets[st.configured]; !dup {
+				sets[st.configured] = struct{}{}
+				in.ASSets = append(in.ASSets, st.configured)
+			}
+		}
 	}
-	plug.mu.RUnlock()
-
-	for _, asn := range asns {
-		plug.refreshASN(asn)
-	}
+	slices.Sort(in.ASSets)
+	slices.Sort(in.ASNs)
+	return in
 }
 
 // evaluate is the plugin's filter evaluator, on both transports (OnFilter).
@@ -464,7 +442,7 @@ func (plug *irrPlugin) evaluate(route *sdk.FilterRoute) (*sdk.FilterUpdateOutput
 // its filter name carries, from the prefix and withdrawn fields. It never
 // waits: an ASN with no list yet rejects its announced prefixes, the filter's
 // on-error verdict, keeps the withdrawals, and holds the prefixes for the
-// readmitter, which asks the peer for them again once refreshASNCtx publishes
+// readmitter, which asks the peer for them again once the reader publishes
 // the list (FR-10, AC-32). A rejected prefix beside an admitted one, or beside
 // a withdrawal, is dropped alone by a prefix remove, which the engine applies
 // to the body NLRI and to MP_REACH_NLRI (spec D-5).
@@ -564,8 +542,8 @@ func keepWithdrawals(judged *routeNLRI) (*sdk.FilterUpdateOutput, bool) {
 // trackVerdict tells the re-admission worker what one UPDATE's verdict did to
 // the prefixes it holds. A withdrawal drops them, an accepted prefix is no
 // longer held, and a rejected one is held until its ASN's list authorizes it.
-// Only an ASN this config enrolls holds anything: no refresh of any other ASN
-// ever runs, so its hold could only leak.
+// Only an ASN this config enrolls holds anything: no list of any other ASN is
+// ever read, so its hold could only leak.
 func (plug *irrPlugin) trackVerdict(peerAddr string, asn uint32, enrolled bool, judged *routeNLRI) {
 	if plug.readmit == nil {
 		return
@@ -588,21 +566,15 @@ func (plug *irrPlugin) trackVerdict(peerAddr string, asn uint32, enrolled bool, 
 	}
 }
 
-// heldList serves the re-admission worker the ASN's current list
-// (readmitSource).
-func (plug *irrPlugin) heldList(asn uint32) (*irrPrefixList, bool) {
+// heldList serves the re-admission worker the ASN's current list, nil when it
+// has none (readmitSource).
+func (plug *irrPlugin) heldList(asn uint32) *irrPrefixList {
 	plug.mu.RLock()
 	defer plug.mu.RUnlock()
-	st := plug.byASN[asn]
-	if st == nil {
-		return nil, false
+	if st := plug.byASN[asn]; st != nil {
+		return st.list
 	}
-	return st.list, st.list == nil || st.lastErr != ""
-}
-
-// resolveHeld resolves the ASN for the re-admission worker (readmitSource).
-func (plug *irrPlugin) resolveHeld(asn uint32) {
-	plug.refreshASN(asn)
+	return nil
 }
 
 func extractASNFromFilter(filter string) uint32 {
@@ -624,193 +596,17 @@ func extractASNFromFilter(filter string) uint32 {
 	return 0
 }
 
-func (plug *irrPlugin) refreshLoop(intervalSec uint32, stop chan struct{}) {
-	interval := time.Duration(intervalSec) * time.Second
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-
-	plug.mu.Lock()
-	plug.nextRefresh = time.Now().Add(interval)
-	plug.mu.Unlock()
-
-	for {
-		select {
-		case <-ticker.C:
-			plug.refreshAll()
-			plug.mu.Lock()
-			plug.nextRefresh = time.Now().Add(interval)
-			plug.mu.Unlock()
-		case <-stop:
-			return
-		case <-plug.stopCh:
-			return
-		}
-	}
-}
-
-// refreshAll is the background entry point (configure + periodic timer). The
-// CAS guard collapses overlapping background refreshes into one.
-func (plug *irrPlugin) refreshAll() {
-	if !plug.refreshing.CompareAndSwap(false, true) {
-		return
-	}
-	defer plug.refreshing.Store(false)
-	plug.refreshAllNow()
-}
-
-// refreshAllNow refreshes every enrolled ASN synchronously, without the
-// concurrent-refresh guard. The manual `update bgp irr all` command uses this so
-// it always does the work and reports honest success/failure, rather than
-// skipping (and falsely reporting "done") when a periodic refresh is in flight.
-func (plug *irrPlugin) refreshAllNow() {
-	plug.mu.RLock()
-	asns := make([]uint32, 0, len(plug.byASN))
-	for asn := range plug.byASN {
-		asns = append(asns, asn)
-	}
-	plug.mu.RUnlock()
-
-	for _, asn := range asns {
-		plug.refreshASN(asn)
-	}
-}
-
-func (plug *irrPlugin) refreshASN(asn uint32) {
-	ctx, cancel := context.WithTimeout(context.Background(), perASNRefreshTimeout)
-	defer cancel()
-	plug.refreshASNCtx(ctx, asn)
-}
-
-// refreshASNCtx is refreshASN with a caller-supplied deadline. The success and
-// failure arms publish the snapshot under the same lock that writes the
-// state, so the evaluator sees the new list, or the failed lookup, at once.
-// Periodic and manual refreshes use the per-ASN timeout via refreshASN. The
-// list lives in memory only.
-func (plug *irrPlugin) refreshASNCtx(ctx context.Context, asn uint32) {
-	plug.mu.RLock()
-	st := plug.byASN[asn]
-	captured := st
-	ps := plug.prefixStore
-	asSet := ""
-	if st != nil {
-		asSet = st.configured
-	}
-	plug.mu.RUnlock()
-	if st == nil || ps == nil {
-		// No live state, or no store to resolve against: nothing to resolve,
-		// and the ASN stays unresolved (it fails closed).
-		return
-	}
-
-	// The store owns AS-SET discovery (PeeringDB), the IRR query, and the
-	// in-memory last-known-good. The ASN is the stable identity/key; the
-	// configured AS-SET is passed as a hint, and an empty one makes the store
-	// ask PeeringDB on every refresh, keeping its cached set on an outage.
-	// A reload that supersedes this state cancels the lookup, and the store
-	// then commits nothing. A test literal carries no lookups context.
-	// The lookup's context descends from the state's, so the reload's cancel
-	// reaches it synchronously, before the reload purges the store; an
-	// AfterFunc would cancel later, on its own goroutine, and the commit could
-	// slip in between. The caller's ctx contributes its deadline only:
-	// refreshASN, the one caller, derives it from Background.
-	if captured.lookups != nil {
-		var cancel context.CancelFunc
-		if deadline, ok := ctx.Deadline(); ok {
-			ctx, cancel = context.WithDeadline(captured.lookups, deadline)
-		} else {
-			ctx, cancel = context.WithCancel(captured.lookups)
-		}
-		defer cancel()
-	}
-	// The store was built with no persistence (handleConfigure), so Refresh
-	// writes nothing durable and nothing between the IRR answer and the
-	// published list waits on a disk.
-	entry, err := ps.Refresh(ctx, asnName(asn), asSet)
-	now := time.Now()
-
-	plug.mu.Lock()
-	// Re-fetch under the write lock: a reconfigure between the RLock above and
-	// here may have replaced byASN, orphaning the captured st. Apply the result
-	// to the live entry, or drop it if the ASN is no longer enrolled.
-	st = plug.byASN[asn]
-	if st == nil {
-		plug.mu.Unlock()
-		return
-	}
-	if st != captured && st.lookups != captured.lookups {
-		// A reload changed or deleted this ASN's as-set while the lookup ran,
-		// so the answer is for a set the config no longer names. Applying it
-		// would filter against the old set, so drop it. The reload's own
-		// resolution answers for the new config. A reload that kept the as-set
-		// also replaces st, but carries the lookups context over, and its
-		// answer is still the right one, so the context decides, not the
-		// pointer alone. The reload canceled this lookup, so if it had not
-		// committed by then it committed nothing; one that committed first
-		// was purged by the reload, under the same lock order.
-		liveASSet := st.asSet
-		plug.mu.Unlock()
-		logger().Debug("irr: dropped a lookup a reload superseded", "asn", asn, "as-set", asSet, "live-as-set", liveASSet)
-		return
-	}
-	if entry != nil {
-		// Record the resolved AS-SET even on a failed lookup, so `show bgp irr`
-		// reflects the fallback name.
-		st.asSet = entry.ASSet
-	}
-	var pl irr.PrefixList
-	var entries []prefixEntry
-	if err == nil {
-		pl = entry.PrefixList()
-		entries, err = prefixListFromIRR(pl)
-	}
-	if err != nil {
-		st.lastErr = err.Error()
-		queried := st.asSet
-		plug.publishLocked()
-		plug.mu.Unlock()
-		logger().Warn("irr: lookup failed", "asn", asn, "as-set", queried, "error", err)
-		incRefreshOutcome("error")
-		return
-	}
-
-	st.list = &irrPrefixList{entries: entries}
-	st.lastOK = now
-	st.lastErr = ""
-	st.v4Count = len(pl.IPv4)
-	st.v6Count = len(pl.IPv6)
-	plug.publishLocked()
-	plug.lastRefresh = now
-	plug.mu.Unlock()
-
-	// A list that arrived or changed may now authorize a prefix the filter
-	// rejected, so the re-admission worker checks what it holds.
-	if plug.readmit != nil {
-		plug.readmit.notify()
-	}
-
-	logger().Info("irr: refreshed", "asn", asn, "as-set", entry.ASSet, "v4", len(pl.IPv4), "v6", len(pl.IPv6))
-	incRefreshOutcome("success")
-	updateMetricsGauges(plug)
-}
-
 // publishLocked publishes byASN as the snapshot the evaluator reads. Every
-// writer of byASN, or of a state's list or lastErr, calls it before releasing
+// writer of byASN, or of a state's list or readErr, calls it before releasing
 // mu, so the snapshot never lags the state show bgp irr reports. A list is
 // never written after it is stored in a state, so the snapshot shares it.
 // The caller MUST hold plug.mu for writing.
 func (plug *irrPlugin) publishLocked() {
 	snap := &irrSnapshot{asns: make(map[uint32]irrSnapshotEntry, len(plug.byASN))}
 	for asn, st := range plug.byASN {
-		snap.asns[asn] = irrSnapshotEntry{list: st.list, failed: st.lastErr != ""}
+		snap.asns[asn] = irrSnapshotEntry{list: st.list, failed: st.readErr != ""}
 	}
 	plug.snapshot.Store(snap)
-}
-
-// asnName renders an ASN as its canonical "AS<n>" name, the PrefixStore key the
-// BGP filter uses as a stable per-ASN identity.
-func asnName(asn uint32) string {
-	var tb textbuf.Buffer
-	return tb.Str("AS").Uint32(asn).String()
 }
 
 const maxPrefixEntries = 500_000
@@ -843,27 +639,6 @@ func prefixListFromIRR(pl irr.PrefixList) ([]prefixEntry, error) {
 	return entries, nil
 }
 
-func incRefreshOutcome(result string) {
-	if m := irrMetricsPtr.Load(); m != nil {
-		m.refreshOutcomes.With(result).Inc()
-	}
-}
-
-func updateMetricsGauges(plug *irrPlugin) {
-	m := irrMetricsPtr.Load()
-	if m == nil {
-		return
-	}
-	plug.mu.RLock()
-	total := 0
-	for _, st := range plug.byASN {
-		total += st.v4Count + st.v6Count
-	}
-	plug.mu.RUnlock()
-	m.prefixesCached.Set(float64(total))
-	m.lastRefresh.Set(float64(time.Now().Unix()))
-}
-
 // commandDecls names the commands this plugin serves and states what each
 // answer holds (pkg/plugin/rpc/types.go, CommandDecl).
 //
@@ -876,9 +651,6 @@ func commandDecls() []sdk.CommandDecl {
 		{Name: "show bgp irr", ShortHelp: "Show IRR filter status per ASN"},
 		{Name: "show bgp irr prefix", ShortHelp: "Show IRR-resolved prefixes for a peer", Args: []string{"<peer>"}},
 		{Name: "show bgp irr check", ShortHelp: "Check if a prefix is accepted by IRR filter", Args: []string{"<peer>", "<prefix>"}},
-		{Name: "update bgp irr all", ShortHelp: "Refresh all IRR prefix-lists immediately"},
-		{Name: "update bgp irr asn", ShortHelp: "Refresh IRR prefix-list for a specific ASN", Args: []string{"<asn>"}},
-		{Name: "update bgp irr as-set", ShortHelp: "Refresh IRR prefix-list for a specific AS-SET", Args: []string{"<as-set>"}},
 	}
 }
 

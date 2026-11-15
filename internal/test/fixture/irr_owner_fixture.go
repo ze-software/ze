@@ -39,12 +39,14 @@ const (
 	// irrQueryV4 is the query a fetch of AS-TEST's IPv4 prefixes sends: one
 	// line of it in the log is one fetch of the dataset.
 	irrQueryV4 = "!a4" + irrTestASSet
+	// irrListedPrefix is a prefix `le mock irr` lists for AS-TEST, the one the
+	// BGP restart test's peer announces.
+	irrListedPrefix = "10.0.0.0/24"
 )
 
 func init() {
 	observers := map[string]ObserverScenario{
 		"plugin/irr-cold-start-stores":           irrRestartScenario("show bgp irr", true),
-		"plugin/irr-restart-keeps-bgp-list":      irrRestartScenario("show bgp irr", false),
 		"plugin/irr-restart-keeps-firewall-sets": irrRestartScenario("show firewall irr", false),
 		"plugin/irr-shared-dataset":              irrSharedDataset,
 		"plugin/irr-update-then-firewall-commit": irrUpdateThenFirewallCommit,
@@ -72,18 +74,84 @@ type irrFirstRun struct {
 // cold start fetched the dataset exactly once.
 func irrRestartScenario(consumerShow string, exactlyOnce bool) ObserverScenario {
 	return func(ctx context.Context, p *sdk.Plugin) error {
-		raw, err := os.ReadFile(irrFirstRunMarker)
-		if errors.Is(err, os.ErrNotExist) {
+		first, restart, err := irrReadFirstRun()
+		if err != nil {
+			return err
+		}
+		if !restart {
 			return irrFirstRunScenario(ctx, p, consumerShow, exactlyOnce)
 		}
-		if err != nil {
-			return fmt.Errorf("read %s: %w", irrFirstRunMarker, err)
-		}
-		var first irrFirstRun
-		if err := json.Unmarshal(raw, &first); err != nil {
-			return fmt.Errorf("decode %s: %w", irrFirstRunMarker, err)
-		}
 		return irrSecondRunScenario(ctx, p, consumerShow, first)
+	}
+}
+
+// irrReadFirstRun reads what the first run of a restart test left for the
+// second, and reports whether this run is the restart.
+func irrReadFirstRun() (irrFirstRun, bool, error) {
+	raw, err := os.ReadFile(irrFirstRunMarker)
+	if errors.Is(err, os.ErrNotExist) {
+		return irrFirstRun{}, false, nil
+	}
+	if err != nil {
+		return irrFirstRun{}, false, fmt.Errorf("read %s: %w", irrFirstRunMarker, err)
+	}
+	var first irrFirstRun
+	if err := json.Unmarshal(raw, &first); err != nil {
+		return irrFirstRun{}, false, fmt.Errorf("decode %s: %w", irrFirstRunMarker, err)
+	}
+	return first, true, nil
+}
+
+// irrBGPEnforcesStored requires `show bgp irr` to report AS-TEST as an
+// enforced stored copy: status ok and the IPv4 count the mock answers.
+func irrBGPEnforcesStored(ctx context.Context, p *sdk.Plugin) error {
+	var entry map[string]any
+	result := until07(ctx, p, "show bgp irr", 10, 100*time.Millisecond, func(r commandResult07) bool {
+		entry = irrBGPEntry(r)
+		return entry != nil && entry["status"] == "ok"
+	})
+	if result.status != statusDone {
+		return fmt.Errorf("show bgp irr: status=%s error=%w", result.status, result.err)
+	}
+	if entry == nil {
+		return fmt.Errorf("show bgp irr names no %s: %s", irrTestASSet, text07(result.data))
+	}
+	if entry["status"] != "ok" || number07(entry["ipv4-count"]) != irrTestIPv4 {
+		return fmt.Errorf("show bgp irr reports %s, want status ok and ipv4-count %d", text07(entry), irrTestIPv4)
+	}
+	return nil
+}
+
+// irrBGPEntry is the `show bgp irr` entry of AS-TEST, nil when there is none.
+func irrBGPEntry(result commandResult07) map[string]any {
+	if result.status != statusDone {
+		return nil
+	}
+	entries, _ := object07(result.data)["entries"].([]any)
+	for _, raw := range entries {
+		if entry := object07(raw); entry["as-set"] == irrTestASSet {
+			return entry
+		}
+	}
+	return nil
+}
+
+// irrListedUpdateAccepted waits for the peer's UPDATE announcing the listed
+// prefix to reach the observer. The reactor delivers a received UPDATE only
+// after the import chain accepted it (reactor_notify.go), so its arrival is
+// the filter's accept.
+func irrListedUpdateAccepted(ctx context.Context, updates <-chan string) error {
+	wait := WaitBudget(50, 10*time.Second)
+	select {
+	case update := <-updates:
+		if !strings.Contains(update, irrListedPrefix) {
+			return fmt.Errorf("the accepted UPDATE does not announce %s: update=%s", irrListedPrefix, update)
+		}
+		return nil
+	case <-time.After(wait):
+		return fmt.Errorf("no UPDATE announcing %s reached the observer within %s: the IRR filter rejected it, and holds it", irrListedPrefix, wait)
+	case <-ctx.Done():
+		return ctx.Err()
 	}
 }
 

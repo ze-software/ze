@@ -2,10 +2,14 @@
 
 Ze had IRR whois and PeeringDB clients and no way to reach the BGP filter chain
 with them. An operator ran bgpq4 outside ze, generated config and pasted it in.
-`bgp-filter-irr` queries IRR for AS-SET prefixes, applies them as live import
-filters, and refreshes on its own.
+`bgp-filter-irr` applies the AS-SET prefix lists the `irr` plugin fetched and
+stored as live import filters. It fetches nothing itself: the `irr` plugin
+(`docs/architecture/irr-owner.md`) queries the IRR server and PeeringDB on the
+schedule `system irr` sets, stores each list, and tells the filter when one
+changed.
 
-<!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- plugin entry point, refreshASN -->
+<!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- plugin entry point, handleConfigure, apply -->
+<!-- source: internal/component/bgp/plugins/filter_irr/stored.go -- storeReader, the stored-list reader -->
 <!-- source: internal/component/bgp/plugins/filter_irr/config.go -- config parsing from OnConfigure JSON -->
 <!-- source: internal/component/bgp/plugins/filter_irr/match.go -- prefix matching -->
 <!-- source: internal/component/bgp/plugins/filter_irr/readmit.go -- re-evaluating a route rejected for a list reason -->
@@ -16,9 +20,16 @@ filters, and refreshes on its own.
 lists and dynamic external data are separate concerns, which is the same split
 RPKI and RIB already make.
 
-**`resolve/irr` is imported directly, not reached over RPC.** BGP plugins run in
-process, so RPC adds latency and isolates nothing. There is no import cycle:
-`irr` imports only cache, textbuf and the standard library.
+**The filter reads the `irr` plugin's store; it holds no IRR or PeeringDB
+client.** Until 2026-11-15 the filter imported `resolve/irr` and fetched on its
+own schedule, from `OnStarted`, every reload and a ticker. Thomas ruled that
+data fetched from the internet must survive a restart unchanged and refresh only
+at the frequency the configuration sets, with one fetcher for every consumer
+(`plan/release/fixes/spec-fetched-data-survives-restart.md`). The filter now
+names what it enforces in its interest key and reads the stored copies through
+the shared reader in `internal/component/resolve/irr/store` (`consumer.go`).
+It reaches the owner only through stored keys and notices, so it works the same
+run internal or forked.
 
 **About 30 lines of prefix matching are duplicated from `filter_prefix`.** Every
 `filter_prefix` type is unexported, so sharing would mean exporting them or
@@ -68,8 +79,11 @@ auto-injected.** The reactor has no dynamic filter injection API, and
 which serves a dynamic group's members only: a static peer naming a variable is
 refused at load (`docs/guide/bgp-peering.md`, dynamic groups).
 
-**`refresh-interval` is `uint32`.** The YANG range is 60 to 86400, which exceeds
-the `uint16` maximum of 65535.
+**The `policy irr` leaves are no longer read for fetching.** `server`,
+`source-address`, `peeringdb-url` and `refresh-interval` are still in
+`ze-filter-irr.yang` and still parsed by `parseIRRConfig`, and nothing the
+filter does uses them: the `irr` plugin's `system irr` and `system peeringdb
+url` decide where and when. The config conversion removes them.
 
 **A commit reaches the filter through the reload pair, not through
 `OnConfigure`.** `OnConfigure` fires once, at boot. A live commit is delivered
@@ -82,69 +96,95 @@ apply OK and called nothing, so a changed as-set was accepted and ignored.
 transaction is the SDK's `ConfigTx`, which keeps the verified candidate and
 the replaced config; the filter parses both the `bgp` and `policy` roots and
 uses `handleConfigure` as the install. Its Stage 1 `WantsConfig` requests both:
-`bgp` supplies peers and AS-SETs, while `policy` supplies the IRR server and
-refresh settings. An external program has no compiled-in registry row, so it
+`bgp` supplies peers and AS-SETs, while `policy` still carries the unread IRR
+leaves until the config conversion removes them. An external program has no compiled-in registry row, so it
 cannot rely on that row's `ConfigReads` to receive `policy`. The same settings
 therefore reach the internal and forked evaluator.
 <!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- runFilterIRR -->
 <!-- source: internal/component/bgp/plugins/filter_irr/config_tx.go -- newIRRConfigTx -->
 <!-- source: pkg/plugin/sdk/config_tx.go -- ConfigTx -->
 
-**A changed as-set starts from no list.** `handleConfigure` carries a resolved
-list over a reconfigure only while the ASN's as-set is the same, and
-`forgetUnconfigured` purges the store's entry for it, so the store holds only
-the sets the config names (`store.commit` already refuses to merge another
-AS-SET's family into an answer). The reload publishes the ASN unresolved, so
-an UPDATE after the edit is rejected and held until the new set resolves,
-never judged against the old one.
-The same pass purges the entry of an ASN the new config no longer enrolls.
+**A changed as-set starts from no list.** `handleConfigure` carries a list over
+a reconfigure only while the ASN's configured as-set is the same, including
+both empty (`carriedOverBy`). The reload publishes a changed ASN with no list,
+so an UPDATE after the edit is rejected and held until the reader has read the
+new set's stored copy, never judged against the old one. A configured as-set
+is kept in the one spelling every store key uses (`store.ASSetName`, upper
+case). With no configured set, the set is the one the `irr` plugin's binding
+for the AS number names (`meta/irr-asn/{asn}`), which PeeringDB chose.
 
-**Deleting the configured as-set is a change.** `asnState` keeps two fields:
-`configured`, the as-set the operator wrote and the only query hint, and
-`asSet`, the set the ASN last resolved under, which `show bgp irr` reports.
-With no configured set every refresh passes an empty hint, so the store asks
-PeeringDB each time and keeps its cached set during an outage: neither the
-first answer nor the `AS<asn>` literal an outage produced is pinned. A reload
-carries a state over only while `configured` is the same, including both
-empty. It cancels every state it does not carry over, so a lookup still in
-flight for it commits nothing (`store.commit`), and `forgetUnconfigured`
-purges a deleted or changed set's store entry under `plug.mu`, before the new
-states are published. Without both, `store.discoverASSet`, which keeps a
-cached entry's AS-SET when PeeringDB fails, would hand the deleted set back.
-<!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- asnState, handleConfigure, forgetUnconfigured -->
+**The prefix-lists survive a restart.** This reverses the owner decision of
+2026-10-17 that kept the lists in memory only. Its recorded reason was a state
+write that took the SDK's full 5 s under disk load and expired the
+first-resolution wait the filter then had
+(`plan/journal/startup-wait-expires-under-load.md`); that wait was replaced by
+reject, hold and re-admit, and the filter writes no list at all now. Before and
+after, as an operator sees it:
 
-**The prefix-lists live in memory only.** The owner decided it on 2026-10-17.
-The plugin builds its `PrefixStore` with no persistence, never asks the SDK for
-its state store, and writes nothing to disk. The disk copy it used to keep cost
-more than it gave: the daemon state write took the SDK's full 5 s under disk
-load, which made the first-resolution wait the filter then had expire
-(`plan/journal/startup-wait-expires-under-load.md`). The store is created by the
-first configure and kept for the plugin's life; a later configure points it at
-the configured servers with `UseClients`, so a reload loses no resolved entry
-and the per-family last-known-good still has the entry to merge into.
+| Situation | Before (until 2026-11-15) | After |
+|-----------|---------------------------|-------|
+| Router reboots, IRR server reachable | `show bgp irr` shows every ASN pending; announcements are rejected and held until each whois answers; the lists can differ from the ones before the reboot | `show bgp irr` shows the same AS-SETs, counts, generation and `refreshed-at` as before; no query is sent at start; announcements are judged against the stored lists at once |
+| Router reboots, IRR server unreachable | Every IRR-filtered peer's announcements stay rejected until the server answers | The stored lists are enforced |
+| Reload that changes nothing IRR | Every ASN is resolved again | No query; the pointers are read, and a dataset only when its pointer moved |
 
-A restart therefore starts from no list. `OnStarted` sets `started` and runs
-`initialResolve`, which resolves every enrolled ASN from the IRR server. An
-UPDATE that arrives before an ASN's first resolution is judged at once, with
-no wait: its announcements take the filter's on-error verdict, reject, its
+**How the filter reads.** One worker, `storeReader.run`, started by
+`OnStarted`, does every store read and write, never the configure path and
+never under `plug.mu`:
+
+1. `OnStarted` asks it for a full pass. The pass reads the generation counter
+   (`meta/irr-generation`), then for each enrolled ASN the binding (only when
+   no as-set is configured), the pointer (`meta/irr-set/{as-set}`) and, when
+   the pointer names a copy the ASN does not already enforce, the dataset it
+   names. What it found is installed and published in one swap under
+   `plug.mu` (`apply`, then `publishLocked`), and the readmitter is woken.
+2. The pass then writes the interest key `meta/irr-interest/bgp-filter-irr`
+   (the configured sets, and the AS numbers whose set PeeringDB chooses) and
+   emits `irr/interest-changed`, when the interest changed. A refused write is
+   retried every minute and reported (`doctor-bgp-irr-interest-unsaved`). The
+   write comes after the publish, so a slow store never delays a list.
+3. Each `irr/dataset-stored` notice, subscribed at stage 5 so none is lost
+   before the first read, queues its AS-SET and generation. The next pass reads
+   the ASNs on that set and every ASN whose set PeeringDB chooses, because a
+   binding that moved is announced only by the new set's notice. A notice whose
+   generation skips one the reader has not seen means a notice was lost: the
+   pass reads every pointer again.
+4. A reload after the start asks for a full pass, so a newly named set is read
+   at once if stored, and the interest notice makes the `irr` plugin fetch it
+   if not.
+
+A read answers one of three ways, and `apply` treats each differently: nothing
+stored (`store.ErrNotStored`: not fetched yet, or `clear irr` removed it) drops
+the list, so the peer's announcements are rejected and held; a stored value
+that cannot be used (a failed digest or decode, a store error, a list over the
+500,000-prefix cap) keeps the list enforced before, logs a WARN and reports
+`doctor-bgp-irr-stored-copy-unreadable`; a copy read is installed.
+
+An UPDATE that arrives before an ASN has a list is judged at once, with no
+wait: its announcements take the filter's on-error verdict, reject, its
 withdrawals still apply (`keepWithdrawals`), and the announced prefixes are
-held. The re-admission path below asks the peer for them by ROUTE-REFRESH
-once the list arrives. An IRR server unreachable at
-startup has no cached list to fall back to: the announcements stay rejected,
-and the worker retries the lookup every `readmitRetryInterval`.
+held. The re-admission path below asks the peer for them by ROUTE-REFRESH once
+the list is published. A configure that runs before `OnStarted`, inside the
+startup handshake, where no state RPC is served, asks the reader for nothing.
 
-A configure that runs before `OnStarted`, inside the startup handshake, starts
-no resolution, because startup must not depend on the IRR server; only a
-reload configure, after `started` is set, starts it itself.
+**What the filter reports.** A runtime doctor check, `bgp-filter-irr-stored-copies`,
+answered by `answerDoctorCheck` in the filter's own process, reports
+`doctor-bgp-irr-stored-copy-unreadable` per ASN whose stored copy could not be
+used, `doctor-bgp-irr-interest-unsaved` while the interest key is unsaved, and
+`doctor-bgp-irr-stored-copy-behind` when the generation the `irr` plugin last
+raised is above the one the reader applied. The refresh metrics
+(`ze_irr_refresh_outcomes_total`, `ze_irr_data_age_seconds`) are the `irr`
+plugin's; the filter registers none.
+<!-- source: internal/component/bgp/plugins/filter_irr/doctor.go -- storedCopyCheckDecl, answerDoctorCheck -->
+
 **The evaluator reads a snapshot.** The plugin registers one evaluator with
 `sdk.OnFilter` (`evaluate`), called through the typed bridge slot when the
 plugin runs internal and once per route of a `filter-update` batch when it
 runs forked, concurrently on the engine's goroutines. It takes no lock and
 never waits: it reads `irrSnapshot`, one immutable value holding every
-enrolled ASN's list (nil while unresolved) and whether its last lookup
-failed, swapped whole through an atomic pointer. `publishLocked` builds it
+enrolled ASN's list (nil while nothing is stored) and whether its last read
+could not use a stored value, swapped whole through an atomic pointer. `publishLocked` builds it
 under `plug.mu` wherever `byASN` or a state's list changes: the end of
-`handleConfigure` and the success and failure arms of `refreshASNCtx`. A
+`handleConfigure` and the reader's `apply`. A
 route is therefore judged wholly by one config and one set of lists, and
 `show bgp irr` and the re-admission worker keep reading `byASN` under the
 lock. The evaluator reads only the `prefix` and `withdrawn` fields it
@@ -156,7 +196,7 @@ name pattern, `asnFilterNamePattern`, covering a decimal AS number from 1 to
 `bgp-filter-irr:<asn>` reference against it, so a reference whose suffix is
 not an AS number fails the load instead of rejecting every route at run time;
 `extractASNFromFilter` still reads the number from the name of each call.
-<!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- irrSnapshot, publishLocked, evaluate, handleFilterUpdate, filterDecls, asnFilterNamePattern, handleConfigure, forgetUnconfigured, refreshASNCtx -->
+<!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- irrSnapshot, publishLocked, evaluate, handleFilterUpdate, filterDecls, asnFilterNamePattern, handleConfigure, apply -->
 
 A resolved prefix list over the entry cap is refused whole, never cut: the
 refresh fails with an error naming the IPv4 and IPv6 counts and the cap, and
@@ -174,17 +214,17 @@ policy", in an introduction. `handleFilterUpdate` hands every verdict to the
 the list did not hold it, is held under (peer, family, prefix); an accepted or
 withdrawn one is dropped. An UPDATE rejected whole holds every prefix it
 announced, the ones the list admits too, because the engine dropped them all.
-Only an ASN the config enrolls holds anything, since no refresh of any other
-ASN ever runs. The held count is an atomic beside the map, so an UPDATE with
-nothing to hold and nothing held takes no lock. `refreshASNCtx` wakes the
-worker whenever it publishes a list, and the worker sends `request peer <peer>
+Only an ASN the config enrolls holds anything, since no list of any other
+ASN is ever read. The held count is an atomic beside the map, so an UPDATE with
+nothing to hold and nothing held takes no lock. The reader's `apply` wakes the
+worker whenever it publishes a changed list, and the worker sends `request peer <peer>
 refresh <family>` for each peer and family with a held prefix the new list
 admits, then drops those prefixes: the peer sends them again and the filter
 holds again any it still rejects.
 
 A whole reject is the one verdict that can make that a loop. The admitted
 prefixes it holds are due on every pass, the peer resends the same UPDATE, and
-the filter rejects it whole again, once a minute (`readmitRetryInterval`) for
+the filter rejects it whole again, once a minute (`readmitInterval`) for
 as long as the peer keeps announcing it. A refused prefix in an MP_REACH_NLRI
 of a CIDR family no longer causes one: the UPDATE is a modify, so only the refused prefix is held, and a
 pass asks for nothing until the list admits it. The case that remains is a
@@ -221,10 +261,11 @@ otherwise, because `send` is not cumulative across levels
 decides the capability the same way (`configjson.GetCapability`).
 
 The worker is one goroutine for the plugin's life, started in `OnStarted` and
-stopped by `stopCh`. Its wake channel has depth one, so a burst of refreshes is
-one pass. Its timer, `readmitRetryInterval` (one minute, the shortest
-`refresh-interval`), retries the lookup of every ASN that holds a prefix and has
-no list or a failed one, and drops what a peer that went down holds. The held
+stopped when the plugin returns. Its wake channel has depth one, so a burst of
+publishes is one pass. Its timer, `readmitInterval` (one minute), drops what a
+peer that went down holds and asks again for what the published lists admit.
+It fetches nothing: a failed fetch is retried by the `irr` plugin's schedule,
+and the list it then stores reaches the worker through the reader's publish. The held
 set is capped at `heldPrefixMax`; a prefix refused by the cap is evaluated again
 only when its peer sends it again. A reconfigure drops what a peer holds once
 the config no longer filters that peer under that ASN, keyed on the peer's
@@ -234,10 +275,6 @@ another peer. `test/plugin/filter-irr-readmit.ci` proves the path end to end.
 <!-- source: internal/component/bgp/plugins/filter_irr/readmit.go -- readmitter, run, pass, readmit -->
 <!-- source: internal/component/bgp/plugins/filter_irr/readmit_engine.go -- dispatchEngine -->
 
-**Each configure cycle gets its own `refreshStop` channel.** `handleConfigure`
-runs at boot and on every applied or rolled-back reload, and without a stop
-channel per cycle the refresh goroutines accumulate.
-
 Removing the `filter_irr/` directory removes every IRR filter feature. The
 plugin self-containment test proves it.
 
@@ -246,33 +283,19 @@ plugin self-containment test proves it.
 **The per-peer `irr { as-set }` YANG augment must cover three paths**: a
 standalone peer, a grouped peer, and the group-level session.
 
-**`handleConfigure` publishes every mutable plugin field under `plug.mu`
-together**: `byASN`, `prefixStore`, `config` and `refreshStop`, and `started`
-is read and written under the same lock. A worker that
-captured `st := byASN[asn]` under an RLock must re-read `st = byASN[asn]` under
-the later write lock before it mutates. A reconfigure can swap `byASN` in
-between, which orphans the captured pointer and loses the refresh result in
-silence. This is one bug class, not four separate races. `refreshASNCtx` also
-drops a result when the live state is not the one it captured and does not
-share its lookups context: a lookup a reload superseded is dropped. The reload
-cancelled it, through a context derived from the state's so the cancel lands
-before the purge, so it either committed nothing or committed before the
-purge removed it. A reload that kept the as-set shares the context, and its
-answer is applied.
+**`handleConfigure` and `apply` write every mutable plugin field under
+`plug.mu`**: `byASN`, `config` and each state's list, and `started` is read and
+written under the same lock. The reader captures what it needs of each ASN
+under a read lock (`readTargets`), reads with no lock held, and `apply`
+re-reads `byASN[asn]` under the write lock: a state a reload replaced with
+another configured set is left alone, because the reload asked for its own
+read.
 
-**The prefix store is this plugin's own**, in memory, and holds only entries
-for ASNs it enrolled: nothing else writes to it, and `forgetUnconfigured` drops
-an ASN the config no longer enrolls. The firewall IRR plugin builds its own
-store and persists it. See `docs/architecture/resolve.md` for the store itself.
-
-**On a lookup error, `Refresh` returns a non-nil `CachedEntry` alongside the
-error**, carrying the resolved AS-SET and no prefixes, so this plugin can still
-record the fallback AS-SET. It must not update its in-memory map or the store on
-that path.
-
-**The IRR client caches lookups for one hour in memory**, so a `Refresh` inside
-the TTL is a silent no-op. A test that must see a lookup failure needs a fresh
-client pointed at an unreachable server.
+**The filter writes one key, its own.** It holds a read-only grant on the
+datasets, pointers, bindings and generation, and a write grant on
+`meta/irr-interest/bgp-filter-irr` alone (`register.go`,
+`statestore.RegisterPluginKeyInstance`). See `docs/architecture/irr-owner.md`
+for the keys and `docs/architecture/resolve.md` for the store the owner runs.
 
 **A test feeds the route fields, never the text form.** The evaluator reads
 only `prefix` and `withdrawn`, so an input carrying the old `update` text and no

@@ -154,11 +154,12 @@ resolved prefixes → dynamic nftables interval sets, i.e. "address groups").
     ("firewall-irr", tables)` + `ApplyAll` (`irr.go`) merge into the same shared nftables
     state. `verifyRefs` (`irr.go`) refuses a commit whose referenced entry is absent or
     holds no prefixes, and `checkIRRDataFreshness` (`plugins/irr/doctor.go`) reports the
-    same condition to `ze doctor`. An empty IRR answer never reaches any of this: the guard
-    is `Refresh` in `internal/component/resolve/irr/store/store.go`, which keeps the cached
-    prefixes and returns `store.ErrNoPrefixes`, counted as the `empty` refresh outcome and
-    shown as `status: stale`. `clear firewall irr asn|as-set` (`command.go`, `PrefixStore.
-    Purge`) is the only path that removes prefixes.
+    same condition to `ze doctor`. `firewall-irr` fetches nothing: the `irr` plugin
+    (`internal/plugins/irr`) fetches and stores, and the reader (`plugins/irr/stored.go`
+    `storeReader`) reads the stored copy and applies it. An empty IRR answer never reaches
+    any of this: the owner's `refreshSet` keeps the stored prefixes, marks them stale and
+    counts the `empty` outcome, shown as `status: stale`. `clear irr asn|as-set` on the
+    owner is the only path that removes prefixes.
 15. **Readback, show, audit.** CLI text formatting: `FormatTables`
     (`internal/component/firewall/cmd/show.go`). The live `show firewall ruleset
     <name>`/`show firewall group <name>` RPCs are served by the nft backend itself

@@ -37,8 +37,7 @@ var (
 	KeyConfigLastKnownGood      = MustRegister(KeyEntry{Pattern: "meta/config/last-known-good", Description: "SHA-256 hash of validated seed config"})
 	KeyMachineID                = MustRegister(KeyEntry{Pattern: "meta/instance/machine-id", Description: "Stable machine identity (hex string)"})
 	KeyDebugProfile             = MustRegister(KeyEntry{Pattern: "debug/profile/{name}", Description: "Named debug profile (JSON)"})
-	KeyIRRCache                 = MustRegister(KeyEntry{Pattern: "meta/bgp/irr-cache", Description: "IRR-resolved prefix cache (JSON, all ASNs; legacy, migrated to meta/irr/{name})"})
-	KeyIRRPrefixCache           = MustRegister(KeyEntry{Pattern: "meta/irr/{name}", Description: "IRR-resolved prefix cache, per ASN/AS-SET (JSON)"})
+	KeyIRRPrefixCache           = MustRegister(KeyEntry{Pattern: "meta/irr/{name}", Description: "Legacy firewall IRR prefix list, per ASN/AS-SET (JSON); the irr plugin converts each to a dataset and removes it"})
 	KeyFirewallDomainGroup      = MustRegister(KeyEntry{Pattern: "meta/firewall/domain-group/{group}/{name}/{family}", Description: "Firewall domain-group last-good addresses, per DNS name and family (JSON)"})
 
 	// Persisted runtime state (see ai/rules/architecture.md). These live in

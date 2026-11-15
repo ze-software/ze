@@ -6,6 +6,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/statestore"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // TestIRROwnerRegistered proves the owner is discoverable the way the engine
@@ -35,11 +36,12 @@ func TestIRROwnerRegistered(t *testing.T) {
 }
 
 // TestIRROwnerGrantsItsKeysOnly proves the owner holds the write grant on the
-// dataset, pointer, binding and generation keys, a read grant and no write
-// grant on a consumer's interest key (the consumer is that key's only writer),
-// and nothing on any other key. Method: ask the predicates the daemon's state
-// dispatch asks (statestore.PluginKeyWritable for put, remove and increment,
-// statestore.PluginKeyReadable for get).
+// dataset, pointer, binding and generation keys and on the legacy
+// meta/irr/{name} keys it converts and removes (AC-17), a read grant and no
+// write grant on a consumer's interest key (the consumer is that key's only
+// writer), and nothing on any other key. Method: ask the predicates the
+// daemon's state dispatch asks (statestore.PluginKeyWritable for put, remove
+// and increment, statestore.PluginKeyReadable for get).
 func TestIRROwnerGrantsItsKeysOnly(t *testing.T) {
 	for _, key := range []string{
 		"meta/irr-data/whois.radb.net/AS-TEST",
@@ -47,6 +49,7 @@ func TestIRROwnerGrantsItsKeysOnly(t *testing.T) {
 		"meta/irr-set/AS-TEST",
 		"meta/irr-asn/65001",
 		"meta/irr-generation",
+		"meta/irr/AS-TEST",
 	} {
 		if !statestore.PluginKeyWritable(pluginName, key) {
 			t.Errorf("owner has no write grant on %s", key)
@@ -59,8 +62,13 @@ func TestIRROwnerGrantsItsKeysOnly(t *testing.T) {
 	if statestore.PluginKeyWritable(pluginName, interest) {
 		t.Errorf("owner can write %s, which only its consumer writes", interest)
 	}
+	// The refusals name a key a live plugin owns, firewall-domain's stored DNS
+	// answer: meta/bgp/irr-cache, which firewall-irr owned, is now owned by
+	// nobody, so it alone would no longer show the owner refused another
+	// plugin's key.
 	for _, key := range []string{
-		"meta/irr/AS-TEST",
+		zefs.KeyFirewallDomainGroup.Key("office", "www.example.com", "ipv4"),
+		"meta/bgp/irr-cache",
 		"meta/irr-data/whois.radb.net",
 	} {
 		if statestore.PluginKeyReadable(pluginName, key) {

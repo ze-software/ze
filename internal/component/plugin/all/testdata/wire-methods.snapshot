@@ -71,9 +71,6 @@ ze-bgp:show-reject-asn-name
 ze-bgp:show-rr-peers
 ze-bgp:show-rr-status
 ze-bgp:update-delay
-ze-bgp:update-irr-all
-ze-bgp:update-irr-as-set
-ze-bgp:update-irr-asn
 ze-bgp:update-peer-prefix
 ze-bgp:watchdog-announce
 ze-bgp:watchdog-forget
@@ -132,8 +129,6 @@ ze-dnsresolver:clear-dns-resolver-cache
 ze-dnsresolver:show-dns-resolver
 ze-doctor:show-doctor
 ze-firewall:clear-domain-group
-ze-firewall:clear-irr-as-set
-ze-firewall:clear-irr-asn
 ze-firewall:show-domain-group-status
 ze-firewall:show-group
 ze-firewall:show-irr-prefix
@@ -141,9 +136,6 @@ ze-firewall:show-irr-status
 ze-firewall:show-ruleset
 ze-firewall:show-system-conntrack
 ze-firewall:update-domain-group
-ze-firewall:update-irr-all
-ze-firewall:update-irr-as-set
-ze-firewall:update-irr-asn
 ze-flowexport:show-flow-export
 ze-flowexport:show-flow-recent
 ze-geodns:show-geodns
@@ -347,6 +339,7 @@ ze-plugin:system-daemon-shutdown
 ze-plugin:system-daemon-status
 ze-plugin:system-dispatch
 ze-plugin:system-help
+ze-plugin:system-plugin-restart
 ze-plugin:system-quiesce
 ze-plugin:system-subsystem-list
 ze-plugin:system-version-api
@@ -380,6 +373,10 @@ ze-rsvpte:show-rsvp-te-fast-reroute
 ze-rsvpte:show-rsvp-te-interface
 ze-rsvpte:show-rsvp-te-lsp
 ze-rsvpte:show-rsvp-te-tunnel
+ze-skills:create-agent-skill
+ze-skills:delete-agent-skill
+ze-skills:show-agent-context
+ze-skills:show-agent-skill
 ze-static:show-static
 ze-storage:show-smart
 ze-system-dns:show-system-dns

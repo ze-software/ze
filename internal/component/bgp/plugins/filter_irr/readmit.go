@@ -1,5 +1,5 @@
 // Design: docs/architecture/bgp/filter-irr.md -- re-admitting a route the list did not yet authorize
-// Overview: filter_irr.go -- handleFilterUpdate holds a rejected prefix, refreshASNCtx wakes the worker
+// Overview: filter_irr.go -- handleFilterUpdate holds a rejected prefix, apply wakes the worker after a publish
 // Related: readmit_engine.go -- the engine commands the worker sends
 // RFC: rfc/short/rfc2918.md -- ROUTE-REFRESH as the way to re-examine a peer's prefixes
 
@@ -23,12 +23,12 @@ const (
 	// existed, and the first refusal logs a warning.
 	heldPrefixMax = 100_000
 
-	// readmitRetryInterval is the worker's timer. Each tick retries the IRR
-	// resolution of every ASN that holds a prefix and has no list or whose last
-	// lookup failed, and drops what a peer that is no longer established holds.
-	// It is one minute, the shortest refresh-interval the YANG accepts, so a
-	// failed lookup is retried at least as often as a working one is refreshed.
-	readmitRetryInterval = time.Minute
+	// readmitInterval is the worker's timer. Each tick drops what a peer that
+	// is no longer established holds, and asks again for what the published
+	// lists now admit. It fetches nothing: retrying a fetch that failed is the
+	// irr plugin's schedule, and a list it stores reaches the worker through
+	// the reader's publish (AC-14).
+	readmitInterval = time.Minute
 
 	// readmitCommandTimeout bounds each engine command the worker sends.
 	readmitCommandTimeout = 10 * time.Second
@@ -69,14 +69,11 @@ type readmitEngine interface {
 	refresh(ctx context.Context, peer netip.Addr, family string) error
 }
 
-// readmitSource is the part of the filter the worker reads: the current list
-// of an ASN, and a resolution of it.
+// readmitSource is the part of the filter the worker reads: the list of an
+// ASN as last published. The worker has no way to fetch one.
 type readmitSource interface {
-	// heldList returns the ASN's current list, nil when it has none, and
-	// whether its resolution should be retried: no list, or a failed lookup.
-	heldList(asn uint32) (list *irrPrefixList, retry bool)
-	// resolveHeld resolves the ASN once, synchronously.
-	resolveHeld(asn uint32)
+	// heldList returns the ASN's current list, nil when it has none.
+	heldList(asn uint32) *irrPrefixList
 }
 
 // readmitter holds the prefixes the IRR filter rejected because the list did
@@ -239,7 +236,6 @@ func (r *readmitter) run(stop <-chan struct{}) {
 		case <-r.wake:
 			r.pass(stop)
 		case <-ticker.C:
-			r.retryResolution(stop)
 			r.dropIdlePeers(stop)
 			r.pass(stop)
 		}
@@ -270,7 +266,7 @@ func (r *readmitter) due() map[peerFamily][]heldKey {
 	for key, asn := range snapshot {
 		list, seen := lists[asn]
 		if !seen {
-			list, _ = r.source.heldList(asn)
+			list = r.source.heldList(asn)
 			lists[asn] = list
 		}
 		if list == nil {
@@ -368,20 +364,6 @@ func (r *readmitter) readmit(pf peerFamily, keys []heldKey) {
 		"peer", pf.peer, "family", pf.family, "prefixes", len(keys))
 }
 
-// retryResolution resolves again every ASN that holds a prefix and has no list
-// or a failed last lookup. A successful resolution wakes the worker through
-// refreshASNCtx, and the pass that follows the retry handles it in any case.
-func (r *readmitter) retryResolution(stop <-chan struct{}) {
-	for _, asn := range r.heldASNs() {
-		if isStopped(stop) {
-			return
-		}
-		if _, retry := r.source.heldList(asn); retry {
-			r.source.resolveHeld(asn)
-		}
-	}
-}
-
 // dropIdlePeers drops what a peer that is no longer established holds.
 func (r *readmitter) dropIdlePeers(stop <-chan struct{}) {
 	for _, peer := range r.heldPeers() {
@@ -402,21 +384,6 @@ func (r *readmitter) dropIdlePeers(stop <-chan struct{}) {
 			r.dropPeer(peer)
 		}
 	}
-}
-
-func (r *readmitter) heldASNs() []uint32 {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	seen := make(map[uint32]struct{})
-	asns := make([]uint32, 0, 4)
-	for _, asn := range r.held {
-		if _, ok := seen[asn]; ok {
-			continue
-		}
-		seen[asn] = struct{}{}
-		asns = append(asns, asn)
-	}
-	return asns
 }
 
 func (r *readmitter) heldPeers() []netip.Addr {

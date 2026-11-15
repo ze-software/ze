@@ -1414,37 +1414,64 @@ raw elements.
 <!-- source: internal/component/firewall/engine.go -- runEngine; OnConfigApply stores LastApplied -->
 <!-- source: internal/plugins/firewall/nft/backend_linux.go -- addChainRules (UserData + auto Counter), readRuleCounter -->
 
-### show, update and clear firewall irr
+### show, update and clear irr
 
-IRR prefix-list data behind firewall rules and interface bindings. Provided by
-the `firewall-irr` plugin.
+The IRR datasets the `irr` plugin fetches, schedules and stores for every IRR
+consumer. One stored dataset serves every consumer that names its AS-SET, and a
+restart enforces the stored copy without asking the server.
 
 ```
-ze show firewall irr                    # Cached entries: counts, freshness, data age
-ze show firewall irr prefix <name>      # Prefixes cached for an ASN or AS-SET
-ze update firewall irr all              # Refresh every cached entry
-ze update firewall irr asn <asn>        # Fetch or refresh one ASN
-ze update firewall irr as-set <as-set>  # Fetch or refresh one AS-SET
-ze clear firewall irr asn <asn>         # Remove one ASN's cached prefixes
-ze clear firewall irr as-set <as-set>   # Remove one AS-SET's cached prefixes
+ze show irr                       # Stored datasets, their schedule and consumers
+ze update irr all                 # Fetch every referenced AS-SET now
+ze update irr asn <asn>           # Ask PeeringDB for the AS-SET, then fetch it now
+ze update irr as-set <as-set>     # Fetch one AS-SET now, referenced or not
+ze clear irr asn <asn>            # Remove the AS number's binding and its dataset
+ze clear irr as-set <as-set>      # Remove one stored dataset
 ```
 
-**`show firewall irr`** reports one entry per configured reference. `status`
-takes one of three values. It is `ok` when the prefixes are what the IRR last
-answered. It is `stale` when a later refresh returned nothing and the previous
-prefixes stay in force. It is `missing` when nothing is cached. A stale entry also carries `stale-since`, and every
-cached entry carries `data-age-seconds`.
+**`show irr`** answers `server`, `refresh-interval`, `schedule` (`automatic`, or
+`manual` with `system irr refresh-interval 0`) and one `datasets` row per
+stored or referenced AS-SET: `as-set`, `server`, `status` (`stored`, `stale`,
+`pending`, `failing` or `cleared`), `ipv4-count`, `ipv6-count`,
+`refreshed-at`, `checked-at` (the last time the server answered), `stale-since`,
+`next-refresh` (a time, `manual`, or `none`), `generation` and `consumers`.
+AS-SET names are stored in upper case, whatever case a consumer or the operator
+wrote.
 
-**`update firewall irr ...`** reports an error when the server returns no
-prefixes. The cached prefixes are kept rather than replaced with an empty list,
-which would drop every packet the filter was written to accept.
+**`update irr ...`** answers the dataset's row, or an error when the server gave
+nothing Ze can store; the stored list stays enforced then. An answer that names
+no prefix keeps the stored list and marks it `stale`.
 
-**`clear firewall irr ...`** is how prefixes are removed. It drops the entry from
-memory and from ZeFS and re-applies the tables. Use it when an AS-SET is
-deregistered upstream: no IRR answer removes prefixes on its own.
+**`clear irr ...`** removes the stored copy and answers `removed` and the
+`consumers` whose configuration still references it. Those consumers stop
+enforcing it, and it is not fetched again until `update irr` runs or a commit
+newly names it.
 
-<!-- source: internal/component/firewall/plugins/irr/command.go -- handleCommand, showIRR, showIRRPrefix, updateASN, updateASSet, clearASN, clearASSet -->
-<!-- source: internal/component/resolve/irr/store/store.go -- Refresh keeps last-known-good, Purge removes -->
+<!-- source: internal/plugins/irr/command.go -- handleCommand, showIRR, updateASSet, updateASN, updateAll, clearASSet, clearASN, rowOf -->
+
+### show firewall irr
+
+The IRR lists firewall rules and interface bindings enforce. Provided by the
+`firewall-irr` plugin, which fetches nothing: `update irr` and `clear irr`
+above fetch, store and remove the lists it reads.
+
+```
+ze show firewall irr                    # One entry per reference: what is enforced, and from which stored copy
+ze show firewall irr prefix <name>      # Prefixes enforced for an ASN or AS-SET
+```
+
+**`show firewall irr`** answers `{"entries":[...]}`, one entry per configured
+reference, in name order (an empty array with no reference). `status` is `ok`
+when the stored copy is what the IRR last answered, `stale` when a later refresh
+returned nothing and the stored prefixes stay in force, `oversized` when one
+family holds more prefixes than a firewall set takes, `unreadable` when a
+stored value exists and cannot be used (its `error` says why; the copy read
+before stays enforced), and `missing` when nothing is stored. An enforced
+entry carries `as-set`, `server`, `generation`, `ipv4-count`, `ipv6-count`,
+`checked-at`, `refreshed-at` and `data-age-seconds`, and a stale one
+`stale-since`.
+
+<!-- source: internal/component/firewall/plugins/irr/command.go -- handleCommand, showIRR, writeShowEntry, showIRRPrefix -->
 
 ### show, update and clear firewall domain-group
 
@@ -3573,12 +3600,9 @@ authority returns an error, rather than an empty candidate table.
 
 | Command | Access | Purpose |
 |---------|--------|---------|
-| `show bgp irr` | read-only | Per-ASN IRR filter status: AS-SET, prefix count, server, last/next refresh |
+| `show bgp irr` | read-only | Per-ASN IRR filter status: AS-SET, prefix count, and the stored copy enforced (server, generation, checked-at, refreshed-at); `show irr` gives the refresh schedule |
 | `show bgp irr prefix <peer>` | read-only | List all IRR-resolved prefixes for a peer |
-| `show bgp irr check <peer> <prefix>` | read-only | Test whether a prefix would be accepted by the IRR filter |
-| `update bgp irr all` | write | Refresh all IRR prefix-lists immediately |
-| `update bgp irr asn <asn>` | write | Refresh IRR prefix-list for a specific ASN |
-| `update bgp irr as-set <as-set>` | write | Refresh IRR prefix-list for a specific AS-SET <!-- source: internal/component/bgp/plugins/filter_irr/command.go -- handleCommand, showIRR, showIRRPrefix, showIRRCheck, updateASN, updateASSet --> |
+| `show bgp irr check <peer> <prefix>` | read-only | Test whether a prefix would be accepted by the IRR filter. The IRR fetch commands are the `irr` plugin's (`update irr ...`, "show, update and clear irr") <!-- source: internal/component/bgp/plugins/filter_irr/command.go -- handleCommand, showIRR, showIRRPrefix, showIRRCheck --> |
 | `update bgp peer <sel> prefix` | write | Refresh max-prefix limits from PeeringDB (saves to draft; run `config commit` to apply) <!-- source: internal/component/bgp/plugins/cmd/peer/prefix_update.go -- handleBgpPeerPrefixUpdate --> |
 | `update bgp config` | write | Write the running peer set to the configuration file: a peer `create bgp peer` built is added, and a peer `delete bgp peer` removed is taken out. Takes no selector <!-- source: internal/component/bgp/plugins/cmd/peer/save.go -- handleBgpPeerSave --> |
 

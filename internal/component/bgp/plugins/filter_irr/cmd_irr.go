@@ -10,13 +10,10 @@ import (
 )
 
 const (
-	cmdShowIRR        = "show bgp irr"
-	cmdShowIRRPrefix  = "show bgp irr prefix"
-	cmdShowIRRCheck   = "show bgp irr check"
-	cmdUpdateIRRAll   = "update bgp irr all"
-	cmdUpdateIRRAsn   = "update bgp irr asn"
-	cmdUpdateIRRAsSet = "update bgp irr as-set"
-	columnASN         = "asn"
+	cmdShowIRR       = "show bgp irr"
+	cmdShowIRRPrefix = "show bgp irr prefix"
+	cmdShowIRRCheck  = "show bgp irr check"
+	columnASN        = "asn"
 )
 
 func init() {
@@ -38,21 +35,6 @@ func init() {
 			Handler:       forwardShowIRRCheck,
 			PluginCommand: cmdShowIRRCheck,
 		},
-		pluginserver.RPCRegistration{
-			WireMethod:    "ze-bgp:update-irr-all",
-			Handler:       forwardUpdateIRRAll,
-			PluginCommand: cmdUpdateIRRAll,
-		},
-		pluginserver.RPCRegistration{
-			WireMethod:    "ze-bgp:update-irr-asn",
-			Handler:       forwardUpdateIRRAsn,
-			PluginCommand: cmdUpdateIRRAsn,
-		},
-		pluginserver.RPCRegistration{
-			WireMethod:    "ze-bgp:update-irr-as-set",
-			Handler:       forwardUpdateIRRAsSet,
-			PluginCommand: cmdUpdateIRRAsSet,
-		},
 	)
 }
 
@@ -70,27 +52,22 @@ func init() {
 // the two agree whatever order the packages initialize in
 // (declarationRegistry.declare, internal/component/command/column_order.go).
 func registerIRRShapes() {
-	// `show bgp irr` answers one row for each configured ASN, under "entries",
-	// beside the server and the two refresh times (showIRR, command.go).
+	// `show bgp irr` answers one row for each configured ASN, under "entries"
+	// (showIRR, command.go). The refresh schedule is the irr plugin's, and
+	// `show irr` answers it.
 	command.RegisterShape([]string{cmdShowIRR}, command.ShapeTab)
 
-	// Two orders, for the same reason `show bgp` declares two: the answer
-	// renders two record shapes and both carry a "last-refresh" key. The
-	// renderer applies the one naming the most keys of the record in hand
-	// (bestColumnOrder, internal/component/command/pipe_table.go), so the
-	// entry's last-refresh sits with the counts and the envelope's sits with
-	// the next refresh.
-	//
 	// An entry reads as the answer to one question: whose prefixes, from which
-	// set, did the fetch work, how many came back, when, and which peers it
-	// filters. "error" follows "status" because it is the reason for it, and it
-	// is written only when the status is "error".
+	// set, is a stored copy enforced, how many prefixes it holds, which stored
+	// copy it is (the server it came from, the generation the irr plugin gave
+	// it, when the server last answered and how old its oldest prefixes are),
+	// and which peers it filters. "error" follows "status" because it is the
+	// reason for it, and it is written only when the status is "error".
 	command.RegisterColumns([]string{cmdShowIRR},
 		command.ColumnOrder{
 			columnASN, "as-set", "status", "error",
-			"ipv4-count", "ipv6-count", "last-refresh", "peers",
+			"ipv4-count", "ipv6-count", "server", "generation", "checked-at", "refreshed-at", "peers",
 		},
-		command.ColumnOrder{"server", "last-refresh", "next-refresh", "entries"},
 	)
 
 	// `show bgp irr prefix` answers the prefixes one peer's ASN resolves to,
@@ -139,30 +116,4 @@ func forwardShowIRRPrefix(ctx *pluginserver.CommandContext, validated command.Va
 func forwardShowIRRCheck(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
 	args := validated.Tokens()
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdShowIRRCheck, args, ctx.PeerSelector())
-}
-
-func forwardUpdateIRRAll(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
-	args := validated.Tokens()
-	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdUpdateIRRAll, args, ctx.PeerSelector())
-}
-
-// The YANG leaves of `update bgp irr asn <asn>` and `update bgp irr as-set
-// <as-set>` (ze-filter-irr-cmd.yang). Each is spelled like the command's last
-// keyword, so matchCommandTokens binds the value as a typed selector and hands
-// the forwarder empty args (internal/component/plugin/server/command.go). A
-// forwarder reading args alone sent the plugin nothing, and it answered every
-// such command with its usage line.
-const (
-	leafASN   = "asn"
-	leafASSet = "as-set"
-)
-
-func forwardUpdateIRRAsn(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
-	args := validated.Tokens()
-	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdUpdateIRRAsn, ctx.ArgsOrSelector(args, leafASN), ctx.PeerSelector())
-}
-
-func forwardUpdateIRRAsSet(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
-	args := validated.Tokens()
-	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdUpdateIRRAsSet, ctx.ArgsOrSelector(args, leafASSet), ctx.PeerSelector())
 }

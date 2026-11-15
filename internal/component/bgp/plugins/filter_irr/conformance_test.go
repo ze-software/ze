@@ -20,8 +20,8 @@ import (
 // PREVENTS: an evaluator correct only while the bridge loop serialized it, or
 // one whose answer depends on the readmitter state its own earlier calls left.
 func TestIRRPassesConformance(t *testing.T) {
-	plug := readmitPlugin(t, fakeIRRv4(t, map[string]string{"AS-TEST": "10.0.0.0/24"}), newFakeReadmitEngine(), time.Hour)
-	plug.refreshASN(65001)
+	plug := readmitPlugin(t, "10.0.0.0/24", newFakeReadmitEngine(), time.Hour)
+	readStored(plug)
 	route := func(filter string, fields []byte) sdk.ConformanceRoute {
 		return sdk.ConformanceRoute{Input: rpc.FilterUpdateInput{
 			Filter: filter, Direction: "import", Peer: readmitTestPeer, PeerAS: 65001, Fields: fields,

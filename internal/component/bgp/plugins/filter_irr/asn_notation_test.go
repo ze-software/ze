@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/ze-software/ze/internal/core/bgp/asn"
 )
@@ -21,8 +20,6 @@ func TestIRRRowsFollowTheConfiguredNotation(t *testing.T) {
 	t.Cleanup(func() { configureNotation(t, restore) })
 
 	plug := &irrPlugin{
-		config:      &irrConfig{Server: "whois.example.net"},
-		lastRefresh: time.Date(2026, 8, 24, 0, 0, 0, 0, time.UTC),
 		byASN: map[uint32]*asnState{
 			65546: {asn: 65546, configured: "AS-EXAMPLE", asSet: "AS-EXAMPLE", peerAddrs: []string{"192.0.2.1"}},
 		},

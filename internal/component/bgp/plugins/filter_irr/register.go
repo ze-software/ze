@@ -9,7 +9,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/component/resolve/irr/store"
-	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/statestore"
 	"github.com/ze-software/ze/pkg/zefs"
 )
@@ -22,6 +22,13 @@ func init() {
 	statestore.RegisterPluginKeyInstance(pluginName, zefs.KeyIRRInterest, pluginName)
 	statestore.RegisterPluginReadKeys(pluginName,
 		zefs.KeyIRRDataset, zefs.KeyIRRSet, zefs.KeyIRRASN, zefs.KeyIRRGeneration)
+	for _, meta := range irrDiagnosticCodes {
+		if err := diagnostic.Register(meta); err != nil {
+			slog.Error("bgp-filter-irr: diagnostic code registration failed", "diagnostic", meta.Code, "error", err,
+				"code", diagnostic.CodeDoctorInternalDefect)
+			os.Exit(1)
+		}
+	}
 
 	reg := registry.Registration{
 		Name:        pluginName,
@@ -36,9 +43,6 @@ func init() {
 		RunEngine:    runFilterIRR,
 		Commands:     commandDecls(),
 		Filters:      filterDecls(), // the Stage 1 declaration: config load knows irr serves filters
-		ConfigureMetrics: func(reg metrics.Registry) {
-			SetMetricsRegistry(reg)
-		},
 	}
 	reg.CLIHandler = func(args []string) int {
 		cfg := cli.BaseConfig(&reg)

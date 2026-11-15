@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/resolve/irr/store"
 )
 
 // TestIRRCommandsDeclareTheirShape holds the three `show bgp irr` commands to
@@ -91,15 +92,15 @@ func TestIRRStatusDisplaysDeclaredFields(t *testing.T) {
 // carries orders nothing and publishes a field that does not exist.
 //
 // The answers come from the REAL producers, run over an irrPlugin holding one
-// resolved ASN and one whose lookup failed, so the keys compared against are
+// ASN enforcing a stored copy and one whose stored copy could not be read, so the keys compared against are
 // the keys showIRR, renderPrefixes and showIRRCheck write rather than a fixture
 // kept in step by hand.
 //
 // A name is compared against EVERY record the producer can write, not against
 // one of them. A declaration names the union of the branches: "error" is
-// written only for a failed lookup and "last-refresh" only for one that
-// succeeded, and an order never hides or invents a key, so naming both is
-// correct for both branches.
+// written only for an unreadable copy and "server", "generation",
+// "checked-at" and "refreshed-at" only for an enforced one, and an order never
+// hides or invents a key, so naming both is correct for both branches.
 func TestDeclaredColumnsExistInPayload(t *testing.T) {
 	cases := []struct {
 		path    string
@@ -164,22 +165,22 @@ func TestIRRDeclaresNoAddressField(t *testing.T) {
 	}
 }
 
-// resolvedIRRPlugin is one plugin holding one ASN that resolved and one whose
-// lookup failed, so both branches showIRR can take are in its answer: the
-// resolved entry carries "last-refresh" and the failed one carries "error".
+// resolvedIRRPlugin is one plugin holding one ASN that enforces a stored copy
+// and one whose stored copy could not be read, so both branches showIRR can
+// take are in its answer: the enforced entry carries the copy's server,
+// generation and times, and the unreadable one carries "error".
 func resolvedIRRPlugin() *irrPlugin {
 	return &irrPlugin{
-		config:      &irrConfig{Server: "whois.example.net"},
-		lastRefresh: time.Date(2026, 8, 24, 0, 0, 0, 0, time.UTC),
-		nextRefresh: time.Date(2026, 8, 24, 1, 0, 0, 0, time.UTC),
 		byASN: map[uint32]*asnState{
 			65001: {
-				asn:       65001,
-				asSet:     "AS-EXAMPLE",
-				lastOK:    time.Date(2026, 8, 24, 0, 0, 0, 0, time.UTC),
-				v4Count:   1,
-				v6Count:   0,
-				peerAddrs: []string{"192.0.2.1"},
+				asn:         65001,
+				asSet:       "AS-EXAMPLE",
+				pointer:     store.Pointer{Server: "whois.example.net", Generation: 7},
+				checkedAt:   time.Date(2026, 8, 24, 1, 0, 0, 0, time.UTC),
+				refreshedAt: time.Date(2026, 8, 24, 0, 0, 0, 0, time.UTC),
+				v4Count:     1,
+				v6Count:     0,
+				peerAddrs:   []string{"192.0.2.1"},
 				list: &irrPrefixList{entries: []prefixEntry{
 					{prefix: netip.MustParsePrefix("198.51.100.0/24"), ge: 24, le: 24},
 				}},
@@ -187,7 +188,7 @@ func resolvedIRRPlugin() *irrPlugin {
 			65002: {
 				asn:       65002,
 				asSet:     "AS-BROKEN",
-				lastErr:   "irr: lookup prefixes AS65002 (IPv4): connection refused",
+				readErr:   "irr dataset: digest does not match the content",
 				peerAddrs: []string{"192.0.2.2"},
 			},
 		},

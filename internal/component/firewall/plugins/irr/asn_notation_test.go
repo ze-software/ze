@@ -7,11 +7,9 @@ package irr
 
 import (
 	"encoding/json"
-	"net/netip"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/firewall"
-	"github.com/ze-software/ze/internal/component/resolve/irr/store"
 )
 
 // asnConfig returns a one-term firewall config whose source-asn is spelled as
@@ -112,43 +110,5 @@ func TestASNWhoisKeyIsDecimal(t *testing.T) {
 	}
 }
 
-// TestClearASNReadsEveryNotation proves `clear firewall irr asn` reaches the
-// entry cached under the decimal name whichever RFC 5396 spelling the
-// operator types. The method caches the entry, clears it by each spelling,
-// and reads the store back.
-//
-// VALIDATES: the clear command word reads asplain, asdot and asdot+.
-// PREVENTS: "no cached data for AS1.10" for an entry that is cached.
-func TestClearASNReadsEveryNotation(t *testing.T) {
-	for _, tc := range []struct {
-		spelling string
-		cached   string
-	}{
-		{"65546", "AS65546"}, // asplain
-		{"1.10", "AS65546"},  // asdot
-		{"0.100", "AS100"},   // asdot+, which asdot writes as plain 100
-	} {
-		ps := store.New(nil, nil, nil)
-		ps.Put(tc.cached, []netip.Prefix{netip.MustParsePrefix("10.0.0.0/24")}, nil)
-		plug := &irrPlugin{prefixStore: ps, config: &irrConfig{Server: defaultServer}}
-
-		status, _, err := plug.handleCommand("clear firewall irr asn", []string{tc.spelling})
-		if err != nil {
-			t.Errorf("clear firewall irr asn %q: %v", tc.spelling, err)
-			continue
-		}
-		if status != statusDone {
-			t.Errorf("clear firewall irr asn %q: status = %q, want %q", tc.spelling, status, statusDone)
-		}
-		if got := ps.Get(tc.cached); got != nil {
-			t.Errorf("clear firewall irr asn %q left %s in place: %+v", tc.spelling, tc.cached, got)
-		}
-	}
-
-	// A dotted token whose low field overflows names no AS number, so the
-	// command still refuses it.
-	plug := &irrPlugin{prefixStore: store.New(nil, nil, nil), config: &irrConfig{Server: defaultServer}}
-	if _, _, err := plug.handleCommand("clear firewall irr asn", []string{"0.65546"}); err == nil {
-		t.Error("clear firewall irr asn accepted 0.65546, which names no AS number")
-	}
-}
+// The clear of an AS number in every RFC 5396 spelling moved to the irr
+// plugin with the command: internal/plugins/irr TestClearIRRAsnReadsEveryNotation.

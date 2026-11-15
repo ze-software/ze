@@ -1,17 +1,19 @@
-// Design: docs/architecture/firewall/firewall-irr.md -- CLI command handlers (show/update firewall irr)
+// Design: docs/architecture/firewall/firewall-irr.md -- CLI command handlers (show firewall irr)
+//
+// The two show verbs answer what the firewall enforces: the copy of each
+// reference the reader read from the irr plugin's store. Fetching and removing
+// a stored list are the irr plugin's `update irr` and `clear irr`.
 
 package irr
 
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
+	"slices"
+	"strings"
 	"time"
 
-	"github.com/ze-software/ze/internal/core/bgp/asn"
-
-	"github.com/ze-software/ze/internal/component/firewall"
-	"github.com/ze-software/ze/internal/component/resolve/irr"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -24,116 +26,118 @@ func (plug *irrPlugin) handleCommand(command string, args []string) (string, any
 	switch command {
 	case cmdShowIRR:
 		return plug.showIRR()
-	case "show firewall irr prefix":
+	case cmdShowIRRPrefix:
 		return plug.showIRRPrefix(args)
-	case "update firewall irr all":
-		if err := plug.refreshAllNow(); err != nil {
-			return statusError, nil, err
-		}
-		return statusDone, json.RawMessage(`{"refreshed":"all"}`), nil
-	case "update firewall irr asn":
-		return plug.updateASN(args)
-	case "update firewall irr as-set":
-		return plug.updateASSet(args)
-	case "clear firewall irr asn":
-		return plug.clearASN(args)
-	case "clear firewall irr as-set":
-		return plug.clearASSet(args)
 	}
 	return statusError, nil, errors.New("unknown command")
 }
 
+// showIRR answers one entry per configured reference, in name order: what is
+// enforced for it, and where that copy came from.
 func (plug *irrPlugin) showIRR() (string, any, error) {
-	ps := plug.getPrefixStore()
-
 	plug.mu.RLock()
-	cfg := plug.config
-	lastRefresh := plug.lastRefresh
-	plug.mu.RUnlock()
-
-	server := defaultServer
-	if cfg != nil {
-		server = cfg.Server
+	defer plug.mu.RUnlock()
+	names := make([]string, 0, len(plug.refs))
+	for name := range plug.refs {
+		names = append(names, name)
 	}
+	slices.Sort(names)
 
 	b := textbuf.Get()
 	defer b.Release()
-	b.Str(`{"server":`).Quoted(server)
-	if !lastRefresh.IsZero() {
-		b.Str(`,"last-refresh":"`).Str(lastRefresh.Format(time.RFC3339)).Byte('"')
-	}
-
-	b.Str(`,"entries":[`)
+	b.Str(`{"entries":[`)
 	now := time.Now()
-	first := true
-	if cfg != nil && ps != nil {
-		for _, ref := range cfg.allRefs() {
-			entry := ps.Get(ref.Name)
-			if !first {
-				b.Byte(',')
-			}
-			first = false
-			b.Str(`{"name":`).Quoted(ref.Name)
-			if ref.IsASSet {
-				b.Str(`,"type":"as-set"`)
-			} else {
-				b.Str(`,"type":"asn"`)
-			}
-			if entry != nil {
-				// "stale" is the operator's answer to "is what I am enforcing
-				// what the IRR last said?". An entry goes stale when a refresh
-				// learns nothing and the previous prefixes stay in force.
-				//
-				// "oversized" outranks it, because that entry is enforcing
-				// nothing at all: one family holds more prefixes than a
-				// firewall set takes, so the apply is refused and the rules
-				// naming it are not in the kernel (oversizedEntryError,
-				// sets.go).
-				switch {
-				case oversizedEntryError(ref.Name, entry) != nil:
-					b.Str(`,"status":"oversized"`)
-				case entry.Stale():
-					b.Str(`,"status":"stale"`)
-				default:
-					b.Str(`,"status":"ok"`)
-				}
-				b.Str(`,"ipv4-count":`).Int(int64(len(entry.IPv4)))
-				b.Str(`,"ipv6-count":`).Int(int64(len(entry.IPv6)))
-				if !entry.RefreshedAt.IsZero() {
-					b.Str(`,"last-refresh":"`).Str(entry.RefreshedAt.Format(time.RFC3339)).Byte('"')
-					b.Str(`,"data-age-seconds":`).Int(int64(now.Sub(entry.RefreshedAt).Seconds()))
-				}
-				if entry.Stale() {
-					b.Str(`,"stale-since":"`).Str(entry.StaleSince.Format(time.RFC3339)).Byte('"')
-				}
-			} else {
-				b.Str(`,"status":"missing"`)
-				b.Str(`,"ipv4-count":0,"ipv6-count":0`)
-			}
-			b.Byte('}')
+	for i, name := range names {
+		if i > 0 {
+			b.Byte(',')
 		}
+		writeShowEntry(b, plug.refs[name], now)
 	}
 	b.Str(`]}`)
 	return statusDone, json.RawMessage(b.String()), nil
 }
 
+// writeShowEntry writes one reference's entry. "status" is the operator's
+// answer to "what does this rule enforce": ok, stale (the last refresh learned
+// nothing and the stored prefixes stay in force), oversized (one family holds
+// more prefixes than a firewall set takes, so the rules naming it are not in
+// the kernel), unreadable (a stored value exists and cannot be used; the copy
+// read before stays enforced) or missing (nothing is stored, so the rules
+// naming it are held back).
+func writeShowEntry(b *textbuf.Buffer, st *refState, now time.Time) {
+	b.Str(`{"name":`).Quoted(st.ref.Name)
+	if st.ref.IsASSet {
+		b.Str(`,"type":"as-set"`)
+	} else {
+		b.Str(`,"type":"asn"`)
+	}
+	copied := st.copy
+	switch {
+	case st.keyErr != "":
+		b.Str(`,"status":"unreadable","error":`).Quoted(st.keyErr)
+	case st.readErr != "":
+		b.Str(`,"status":"unreadable","error":`).Quoted(st.readErr)
+	case copied == nil:
+		b.Str(`,"status":"missing"`)
+	case oversizedEntryError(st.ref.Name, copied.entry) != nil:
+		b.Str(`,"status":"oversized"`)
+	case copied.entry.Stale():
+		b.Str(`,"status":"stale"`)
+	default:
+		b.Str(`,"status":"ok"`)
+	}
+	if copied == nil {
+		b.Str(`,"ipv4-count":0,"ipv6-count":0}`)
+		return
+	}
+	entry := copied.entry
+	b.Str(`,"as-set":`).Quoted(copied.asSet)
+	b.Str(`,"server":`).Quoted(copied.pointer.Server)
+	b.Str(`,"generation":`).Uint32(copied.pointer.Generation)
+	b.Str(`,"ipv4-count":`).Int(int64(len(entry.IPv4)))
+	b.Str(`,"ipv6-count":`).Int(int64(len(entry.IPv6)))
+	if !copied.checkedAt.IsZero() {
+		b.Str(`,"checked-at":"`).Str(copied.checkedAt.UTC().Format(time.RFC3339)).Byte('"')
+	}
+	if !entry.RefreshedAt.IsZero() {
+		b.Str(`,"refreshed-at":"`).Str(entry.RefreshedAt.UTC().Format(time.RFC3339)).Byte('"')
+		b.Str(`,"data-age-seconds":`).Int(int64(now.Sub(entry.RefreshedAt).Seconds()))
+	}
+	if entry.Stale() {
+		b.Str(`,"stale-since":"`).Str(entry.StaleSince.UTC().Format(time.RFC3339)).Byte('"')
+	}
+	b.Byte('}')
+}
+
+// showIRRPrefix answers the prefixes enforced for one configured reference.
+// The name is the one the config spells; an AS-SET matches in any case.
 func (plug *irrPlugin) showIRRPrefix(args []string) (string, any, error) {
 	if len(args) == 0 || args[0] == "" {
-		return statusError, nil, errors.New("usage: show firewall irr prefix <asn-or-as-set>")
+		return statusError, nil, opererr.New("show firewall irr prefix needs a reference name",
+			"it shows the prefixes enforced for one ASN or AS-SET", "show firewall irr prefix <asn-or-as-set>")
 	}
 	name := args[0]
-	ps := plug.getPrefixStore()
-	if ps == nil {
-		return statusError, nil, errors.New("no prefix store available")
+	plug.mu.RLock()
+	defer plug.mu.RUnlock()
+	st := plug.refs[name]
+	if st == nil {
+		for refName, candidate := range plug.refs {
+			if strings.EqualFold(refName, name) {
+				st = candidate
+				break
+			}
+		}
 	}
-	entry := ps.Get(name)
-	if entry == nil {
-		return statusError, nil, fmt.Errorf("no cached data for %v", name)
+	if st == nil || st.copy == nil {
+		return statusError, nil, opererr.New("firewall irr: no list is enforced for "+name,
+			"no firewall rule names it, or nothing is stored for it", "show firewall irr")
 	}
+	entry := st.copy.entry
 
 	b := textbuf.Get()
 	defer b.Release()
-	b.Str(`{"name":`).Quoted(name)
+	b.Str(`{"name":`).Quoted(st.ref.Name)
+	b.Str(`,"as-set":`).Quoted(st.copy.asSet)
 	b.Str(`,"ipv4":[`)
 	for i, p := range entry.IPv4 {
 		if i > 0 {
@@ -150,118 +154,4 @@ func (plug *irrPlugin) showIRRPrefix(args []string) (string, any, error) {
 	}
 	b.Str(`]}`)
 	return statusDone, json.RawMessage(b.String()), nil
-}
-
-func (plug *irrPlugin) updateASN(args []string) (string, any, error) {
-	if len(args) == 0 || args[0] == "" {
-		return statusError, nil, errors.New("usage: update firewall irr asn <asn>")
-	}
-	// asn.Parse reads the asdot spellings beside the decimal one, and the
-	// range is RFC 7607 (AS 0 is reserved) plus the 4-byte maximum.
-	number, err := asn.Parse(args[0])
-	if err != nil || number == 0 || number > 4294967294 {
-		return statusError, nil, errors.New("invalid ASN: must be 1-4294967294")
-	}
-	// The whois key is the decimal spelling, because a server asked for AS1.10
-	// answers nothing. firewall.IRRASNName is the one declaration of that
-	// name, shared with the rule parser that MATCHES the set it feeds.
-	name := firewall.IRRASNName(args[0])
-
-	if err := plug.refreshName(name); err != nil {
-		return statusError, nil, err
-	}
-
-	ps := plug.getPrefixStore()
-	entry := ps.Get(name)
-	var tb textbuf.Buffer
-	if entry != nil {
-		tb.Str(`{"refreshed":"`).Str(name).Str(`","ipv4-count":`).Int(int64(len(entry.IPv4)))
-		tb.Str(`,"ipv6-count":`).Int(int64(len(entry.IPv6))).Byte('}')
-	} else {
-		tb.Str(`{"refreshed":"`).Str(name).Str(`"}`)
-	}
-	return statusDone, json.RawMessage(tb.String()), nil
-}
-
-func (plug *irrPlugin) updateASSet(args []string) (string, any, error) {
-	if len(args) == 0 || args[0] == "" {
-		return statusError, nil, errors.New("usage: update firewall irr as-set <as-set>")
-	}
-	name := args[0]
-	if err := irr.ValidateASSetName(name); err != nil {
-		return statusError, nil, errors.New("invalid AS-SET name")
-	}
-
-	if err := plug.refreshName(name); err != nil {
-		return statusError, nil, err
-	}
-
-	ps := plug.getPrefixStore()
-	entry := ps.Get(name)
-	var tb textbuf.Buffer
-	if entry != nil {
-		tb.Str(`{"refreshed":"`).Str(name).Str(`","ipv4-count":`).Int(int64(len(entry.IPv4)))
-		tb.Str(`,"ipv6-count":`).Int(int64(len(entry.IPv6))).Byte('}')
-	} else {
-		tb.Str(`{"refreshed":"`).Str(name).Str(`"}`)
-	}
-	return statusDone, json.RawMessage(tb.String()), nil
-}
-
-// clearASN removes an ASN's cached prefixes. See purge for why the command
-// exists.
-func (plug *irrPlugin) clearASN(args []string) (string, any, error) {
-	if len(args) == 0 || args[0] == "" {
-		return statusError, nil, errors.New("usage: clear firewall irr asn <asn>")
-	}
-	number, err := asn.Parse(args[0])
-	if err != nil || number == 0 || number > 4294967294 {
-		return statusError, nil, errors.New("invalid ASN: must be 1-4294967294")
-	}
-	return plug.purge(firewall.IRRASNName(args[0]))
-}
-
-// clearASSet removes an AS-SET's cached prefixes. See purge.
-func (plug *irrPlugin) clearASSet(args []string) (string, any, error) {
-	if len(args) == 0 || args[0] == "" {
-		return statusError, nil, errors.New("usage: clear firewall irr as-set <as-set>")
-	}
-	if err := irr.ValidateASSetName(args[0]); err != nil {
-		return statusError, nil, errors.New("invalid AS-SET name")
-	}
-	return plug.purge(args[0])
-}
-
-// purge drops name's cached prefixes from memory and from the persisted cache,
-// then re-applies the firewall tables so the change takes effect at once.
-//
-// It is the deliberate exit from last-known-good. A refresh that learns nothing
-// keeps the previous prefixes rather than emptying a live filter, so an AS-SET
-// that was deregistered upstream stops being enforced when an operator says so.
-func (plug *irrPlugin) purge(name string) (string, any, error) {
-	ps := plug.getPrefixStore()
-	if ps == nil {
-		return statusError, nil, errors.New("no prefix store available")
-	}
-	if !ps.Purge(name) {
-		return statusError, nil, fmt.Errorf("no cached data for %v", name)
-	}
-	logger().Warn("firewall-irr: cached prefixes purged by operator", "name", name)
-
-	// The entry is gone either way, so the apply outcome is reported rather
-	// than returned bare: a config that still references the name now has a
-	// term with no set behind it, and the operator needs both facts.
-	if err := plug.applyTables(); err != nil {
-		logger().Warn("firewall-irr: apply after purge failed", "name", name, "error", err)
-		var tb textbuf.Buffer
-		tb.Str("firewall irr: cleared the cached prefixes for ").Str(name)
-		tb.Str(", but the firewall tables could not be re-applied: ").Str(err.Error())
-		tb.Str("; remove the config references to ").Str(name)
-		tb.Str(" or fetch it again with 'update firewall irr'")
-		return statusError, nil, errors.New(tb.String())
-	}
-
-	var tb textbuf.Buffer
-	tb.Str(`{"cleared":`).Quoted(name).Byte('}')
-	return statusDone, json.RawMessage(tb.String()), nil
 }

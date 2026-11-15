@@ -345,6 +345,7 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 | `bgp-filter-irr` | IRR-based prefix-list filter for eBGP peers |
 | `bgp-filter-path-asn` | Named reject-asn list: rejects a route whose AS_PATH carries a listed ASN at a listed position (RFC 7454 Section 9) |
 | `firewall-irr` | IRR-based prefix-list filtering for firewall rules |
+| `irr` | Owner of the IRR and PeeringDB data: fetches each referenced AS-SET on its schedule and stores the datasets the filters read across a restart |
 | `bgp-filter-modify` | Attribute modification filter (set LP, prepend, communities) |
 | `bgp-filter-community-match` | Community match filter |
 | `bgp-filter-family` | Per-address-family filter: remove an AFI/SAFI on import/export, or tear down the session on a received family |

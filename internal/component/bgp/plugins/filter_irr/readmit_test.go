@@ -9,8 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/internal/component/resolve/irr"
-	"github.com/ze-software/ze/internal/component/resolve/irr/store"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -87,20 +85,17 @@ func (e *fakeReadmitEngine) setSession(sess peerSession) {
 const readmitTestPeer = "127.0.0.1"
 
 // readmitPlugin builds a plugin enrolled for AS65001 / AS-TEST, published to
-// the snapshot the evaluator reads, unresolved until a refresh runs.
-func readmitPlugin(t *testing.T, irrAddr string, engine readmitEngine, interval time.Duration) *irrPlugin {
+// the snapshot the evaluator reads, with no list until readStored runs. The
+// store holds AS-TEST with stored (space-separated prefixes), or nothing for
+// an empty one.
+func readmitPlugin(t *testing.T, stored string, engine readmitEngine, interval time.Duration) *irrPlugin {
 	t.Helper()
-	st := newASNState(65001, "AS-TEST")
-	plug := &irrPlugin{
-		byASN:       map[uint32]*asnState{65001: st},
-		prefixStore: store.New(irr.NewIRR(irrAddr), nil, nil),
-		stopCh:      make(chan struct{}),
+	state := newFakeConsumerState()
+	if stored != "" {
+		state.storeList(t, "AS-TEST", stored)
 	}
-	plug.mu.Lock()
-	plug.publishLocked()
-	plug.mu.Unlock()
+	plug := storedPlugin(state, map[uint32]string{65001: "AS-TEST"})
 	plug.readmit = newReadmitter(engine, plug, interval)
-	t.Cleanup(func() { close(plug.stopCh) })
 	stop := make(chan struct{})
 	done := make(chan struct{})
 	go func() {
@@ -157,11 +152,11 @@ func expectNoRefresh(t *testing.T, engine *fakeReadmitEngine, during time.Durati
 // VALIDATES: a prefix rejected because its ASN's list was not resolved yet is
 // asked for again once the list arrives, without the peer sending anything.
 // METHOD: the UPDATE is rejected as no-prefix-list and held; the list then
-// arrives through the real refresh path (refreshASN against a fake IRR); the
+// arrives through the real read path (the reader over a fake store); the
 // worker must ask the peer for ipv4/unicast, and the peer's answer is accepted.
 func TestReadmitWhenListArrives(t *testing.T) {
 	engine := newFakeReadmitEngine()
-	plug := readmitPlugin(t, fakeIRRv4(t, map[string]string{"AS-TEST": "10.0.0.0/24"}), engine, time.Hour)
+	plug := readmitPlugin(t, "10.0.0.0/24", engine, time.Hour)
 
 	if got := announce(plug, "10.0.0.0/24"); got != sdk.FilterReject {
 		t.Fatalf("action before the list = %v, want reject", got)
@@ -171,7 +166,7 @@ func TestReadmitWhenListArrives(t *testing.T) {
 	}
 	expectNoRefresh(t, engine, 50*time.Millisecond)
 
-	plug.refreshASN(65001)
+	readStored(plug)
 
 	pf := waitRefresh(t, engine)
 	if pf.peer != netip.MustParseAddr(readmitTestPeer) || pf.family != "ipv4/unicast" {
@@ -189,43 +184,69 @@ func TestReadmitWhenListArrives(t *testing.T) {
 // refresh grows the list to include it, and not before.
 func TestReadmitWhenListGrows(t *testing.T) {
 	engine := newFakeReadmitEngine()
-	plug := readmitPlugin(t, fakeIRRv4(t, map[string]string{"AS-TEST": "10.0.0.0/24"}), engine, time.Hour)
-	plug.refreshASN(65001)
+	plug := readmitPlugin(t, "10.0.0.0/24", engine, time.Hour)
+	readStored(plug)
 
 	if got := announce(plug, "192.0.2.0/24"); got != sdk.FilterReject {
 		t.Fatalf("out-of-list action = %v, want reject", got)
 	}
 	// A refresh that does not change the verdict asks for nothing.
-	plug.refreshASN(65001)
+	readStored(plug)
 	expectNoRefresh(t, engine, 100*time.Millisecond)
 
-	plug.mu.Lock()
-	plug.prefixStore = store.New(irr.NewIRR(fakeIRRv4(t, map[string]string{"AS-TEST": "10.0.0.0/24 192.0.2.0/24"})), nil, nil)
-	plug.mu.Unlock()
-	plug.refreshASN(65001)
+	testState(plug).storeList(t, "AS-TEST", "10.0.0.0/24 192.0.2.0/24")
+	readStored(plug)
 
 	waitRefresh(t, engine)
 }
 
-// VALIDATES: the worker's timer retries a failed IRR lookup for an ASN that
-// holds a prefix, and asks for the prefix once the lookup succeeds.
-func TestReadmitTimerRetriesFailedLookup(t *testing.T) {
+// countingSource is a readmitSource that counts what the worker asks of it.
+type countingSource struct {
+	mu    sync.Mutex
+	asked int
+}
+
+func (c *countingSource) heldList(uint32) *irrPrefixList {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.asked++
+	return nil
+}
+
+func (c *countingSource) count() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.asked
+}
+
+// VALIDATES: TestReadmitterNoLookup -- the worker's timer, with prefixes held
+// for an ASN that has no list, reads the published list and nothing else: the
+// filter never fetches (AC-14), and nothing is asked of the peer while no list
+// admits the prefix.
+// METHOD: a source with no fetch method answers heldList; the timer ticks
+// with a held prefix; the source must be asked and the peer must not.
+func TestReadmitterNoLookup(t *testing.T) {
 	engine := newFakeReadmitEngine()
-	plug := readmitPlugin(t, fakeIRRv4(t, nil), engine, 20*time.Millisecond)
-	plug.refreshASN(65001)
-	if plug.byASN[65001].lastErr == "" {
-		t.Fatal("the seed lookup did not fail")
+	source := &countingSource{}
+	r := newReadmitter(engine, source, 10*time.Millisecond)
+	holdPrefixes(r, netip.MustParseAddr(readmitTestPeer), "ipv4/unicast", []netip.Prefix{netip.MustParsePrefix("10.0.0.0/24")})
+	stop := make(chan struct{})
+	done := make(chan struct{})
+	go func() {
+		r.run(stop)
+		close(done)
+	}()
+	deadline := time.Now().Add(5 * time.Second)
+	for source.count() < 3 && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond) // sleep(poll): the source has no change notification
 	}
-	if got := announce(plug, "10.0.0.0/24"); got != sdk.FilterReject {
-		t.Fatalf("action = %v, want reject", got)
+	close(stop)
+	<-done
+	if source.count() < 3 {
+		t.Fatalf("the timer asked the source %d times, want at least 3 ticks", source.count())
 	}
-
-	// The IRR server recovers. Nothing but the worker's timer refreshes.
-	plug.mu.Lock()
-	plug.prefixStore = store.New(irr.NewIRR(fakeIRRv4(t, map[string]string{"AS-TEST": "10.0.0.0/24"})), nil, nil)
-	plug.mu.Unlock()
-
-	waitRefresh(t, engine)
+	expectNoRefresh(t, engine, 20*time.Millisecond)
+	var _ readmitSource = source // the worker's whole view of the filter: one list read
 }
 
 // VALIDATES: the held set never grows past heldPrefixMax.
@@ -252,8 +273,8 @@ func TestReadmitHeldSetCapped(t *testing.T) {
 // ASN each drop the held prefix.
 func TestReadmitHeldPrefixDropped(t *testing.T) {
 	engine := newFakeReadmitEngine()
-	plug := readmitPlugin(t, fakeIRRv4(t, map[string]string{"AS-TEST": "10.0.0.0/24"}), engine, time.Hour)
-	plug.refreshASN(65001)
+	plug := readmitPlugin(t, "10.0.0.0/24", engine, time.Hour)
+	readStored(plug)
 
 	announce(plug, "192.0.2.0/24")
 	plug.handleFilterUpdate(&sdk.FilterUpdateInput{
@@ -286,8 +307,8 @@ func TestReadmitHeldPrefixDropped(t *testing.T) {
 func TestReadmitPeerDownDropsHeld(t *testing.T) {
 	engine := newFakeReadmitEngine()
 	engine.setSession(peerSession{established: false, routeRefresh: true})
-	plug := readmitPlugin(t, fakeIRRv4(t, map[string]string{"AS-TEST": "10.0.0.0/24"}), engine, 20*time.Millisecond)
-	plug.refreshASN(65001)
+	plug := readmitPlugin(t, "10.0.0.0/24", engine, 20*time.Millisecond)
+	readStored(plug)
 
 	announce(plug, "192.0.2.0/24")
 	deadline := time.Now().Add(5 * time.Second)
@@ -315,9 +336,9 @@ func TestReadmitCannotAskDrops(t *testing.T) {
 			engine := newFakeReadmitEngine()
 			engine.setSession(tc.sess)
 			engine.refreshErr = tc.err
-			plug := readmitPlugin(t, fakeIRRv4(t, map[string]string{"AS-TEST": "10.0.0.0/24"}), engine, time.Hour)
+			plug := readmitPlugin(t, "10.0.0.0/24", engine, time.Hour)
 			announce(plug, "10.0.0.0/24")
-			plug.refreshASN(65001)
+			readStored(plug)
 			deadline := time.Now().Add(5 * time.Second)
 			for plug.readmit.heldCount() != 0 {
 				if time.Now().After(deadline) {
@@ -365,9 +386,9 @@ func waitHeld(t *testing.T, plug *irrPlugin, want int, why string) {
 // METHOD: 127.0.0.1 holds a prefix for AS65001; the new config enrolls AS65001
 // for 127.0.0.2 only. Keyed on the ASN alone, the stale prefix stayed held.
 func TestReadmitRetainDropsRemovedPeer(t *testing.T) {
-	irrAddr := fakeIRRv4(t, map[string]string{"AS-TEST": "10.0.0.0/24"})
+	irrAddr := "10.0.0.0/24"
 	plug := readmitPlugin(t, irrAddr, newFakeReadmitEngine(), time.Hour)
-	plug.refreshASN(65001)
+	readStored(plug)
 	announce(plug, "192.0.2.0/24")
 	if got := plug.readmit.heldCount(); got != 1 {
 		t.Fatalf("held = %d, want 1", got)
@@ -392,7 +413,7 @@ func TestReadmitRetainDropsRemovedPeer(t *testing.T) {
 // VALIDATES: an UPDATE for an ASN this config does not enroll holds nothing: no
 // refresh of that ASN ever runs, so the hold could only leak.
 func TestReadmitUnenrolledASNHoldsNothing(t *testing.T) {
-	plug := readmitPlugin(t, fakeIRRv4(t, nil), newFakeReadmitEngine(), time.Hour)
+	plug := readmitPlugin(t, "", newFakeReadmitEngine(), time.Hour)
 	out := plug.handleFilterUpdate(&sdk.FilterUpdateInput{
 		Filter: "bgp-filter-irr:65099",
 		Peer:   readmitTestPeer,
@@ -410,8 +431,8 @@ func TestReadmitUnenrolledASNHoldsNothing(t *testing.T) {
 func TestReadmitAbsentPeerDropsHeld(t *testing.T) {
 	engine := newFakeReadmitEngine()
 	engine.sessErr = errReadmitPeerAbsent
-	plug := readmitPlugin(t, fakeIRRv4(t, map[string]string{"AS-TEST": "10.0.0.0/24"}), engine, 20*time.Millisecond)
-	plug.refreshASN(65001)
+	plug := readmitPlugin(t, "10.0.0.0/24", engine, 20*time.Millisecond)
+	readStored(plug)
 	announce(plug, "192.0.2.0/24")
 	waitHeld(t, plug, 0, "a peer absent from the engine")
 	expectNoRefresh(t, engine, 50*time.Millisecond)
@@ -423,9 +444,9 @@ func TestReadmitAbsentPeerDropsHeld(t *testing.T) {
 func TestReadmitRefreshFailureRetries(t *testing.T) {
 	engine := newFakeReadmitEngine()
 	engine.setRefreshErr(context.DeadlineExceeded)
-	plug := readmitPlugin(t, fakeIRRv4(t, map[string]string{"AS-TEST": "10.0.0.0/24"}), engine, time.Hour)
+	plug := readmitPlugin(t, "10.0.0.0/24", engine, time.Hour)
 	announce(plug, "10.0.0.0/24")
-	plug.refreshASN(65001)
+	readStored(plug)
 	expectNoRefresh(t, engine, 100*time.Millisecond)
 	if got := plug.readmit.heldCount(); got != 1 {
 		t.Fatalf("held after a timed-out refresh = %d, want 1", got)
@@ -445,11 +466,11 @@ func TestReadmitRefreshFailureRetries(t *testing.T) {
 func TestReadmitPeerDownDuringRefresh(t *testing.T) {
 	engine := newFakeReadmitEngine()
 	engine.afterRefresh = &peerSession{established: false, routeRefresh: true}
-	plug := readmitPlugin(t, fakeIRRv4(t, map[string]string{"AS-TEST": "10.0.0.0/24"}), engine, time.Hour)
+	plug := readmitPlugin(t, "10.0.0.0/24", engine, time.Hour)
 	peer := netip.MustParseAddr(readmitTestPeer)
 	holdPrefixes(plug.readmit, peer, "ipv6/unicast", []netip.Prefix{netip.MustParsePrefix("2001:db8::/32")})
 	announce(plug, "10.0.0.0/24")
-	plug.refreshASN(65001)
+	readStored(plug)
 	waitRefresh(t, engine)
 	waitHeld(t, plug, 0, "a peer that went down during the refresh")
 }
@@ -458,8 +479,8 @@ func TestReadmitPeerDownDuringRefresh(t *testing.T) {
 // family: the withdrawal forgets what it names, the announced prefix the list
 // rejects is removed by the answer and held.
 func TestReadmitMultiBlockUpdate(t *testing.T) {
-	plug := readmitPlugin(t, fakeIRRv4(t, map[string]string{"AS-TEST": "10.0.0.0/24"}), newFakeReadmitEngine(), time.Hour)
-	plug.refreshASN(65001)
+	plug := readmitPlugin(t, "10.0.0.0/24", newFakeReadmitEngine(), time.Hour)
+	readStored(plug)
 	peer := netip.MustParseAddr(readmitTestPeer)
 	withdrawn := heldKey{peer: peer, family: "ipv4/unicast", prefix: netip.MustParsePrefix("198.51.100.0/24")}
 	rejected := heldKey{peer: peer, family: "ipv4/unicast", prefix: netip.MustParsePrefix("192.0.2.0/24")}
@@ -496,7 +517,7 @@ func TestReadmitMultiBlockUpdate(t *testing.T) {
 // tracks an accept of the prefix inside refresh and then answers a timeout.
 func TestReadmitRestoreSkipsAcceptedDuringRefresh(t *testing.T) {
 	engine := newFakeReadmitEngine()
-	plug := readmitPlugin(t, fakeIRRv4(t, map[string]string{"AS-TEST": "10.0.0.0/24"}), engine, time.Hour)
+	plug := readmitPlugin(t, "10.0.0.0/24", engine, time.Hour)
 	peer := netip.MustParseAddr(readmitTestPeer)
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
 	holdPrefixes(plug.readmit, peer, "ipv4/unicast", []netip.Prefix{prefix})
@@ -530,7 +551,7 @@ func TestReadmitConfirmReadFailureKeepsHeld(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			engine := newFakeReadmitEngine()
 			engine.afterRefreshErr = tc.err
-			plug := readmitPlugin(t, fakeIRRv4(t, map[string]string{"AS-TEST": "10.0.0.0/24"}), engine, time.Hour)
+			plug := readmitPlugin(t, "10.0.0.0/24", engine, time.Hour)
 			peer := netip.MustParseAddr(readmitTestPeer)
 			holdPrefixes(plug.readmit, peer, "ipv6/unicast", []netip.Prefix{netip.MustParsePrefix("2001:db8::/32")})
 			prefix := netip.MustParsePrefix("10.0.0.0/24")
@@ -554,7 +575,7 @@ func TestReadmitConfirmReadFailureKeepsHeld(t *testing.T) {
 // 10.0.0.0/24 and 192.0.2.0/24 and withdraws nothing, so the answer is the
 // on-error reject.
 func TestReadmitWholeRejectHoldsEveryAnnounced(t *testing.T) {
-	plug := readmitPlugin(t, fakeIRRv4(t, map[string]string{"AS-TEST": "10.0.0.0/24"}), newFakeReadmitEngine(), time.Hour)
+	plug := readmitPlugin(t, "10.0.0.0/24", newFakeReadmitEngine(), time.Hour)
 	out := plug.handleFilterUpdate(&sdk.FilterUpdateInput{
 		Filter: "bgp-filter-irr:65001",
 		Peer:   readmitTestPeer,
@@ -580,8 +601,8 @@ func TestReadmitWholeRejectHoldsEveryAnnounced(t *testing.T) {
 // PREVENTS: a FlowSpec rule's destination judged as if it were an announced
 // prefix, which rejected the UPDATE and its admitted routes with it.
 func TestReadmitNonCIDRFamilyPassesUnjudged(t *testing.T) {
-	plug := readmitPlugin(t, fakeIRRv4(t, map[string]string{"AS-TEST": "10.0.0.0/24"}), newFakeReadmitEngine(), time.Hour)
-	plug.refreshASN(65001)
+	plug := readmitPlugin(t, "10.0.0.0/24", newFakeReadmitEngine(), time.Hour)
+	readStored(plug)
 	out := plug.handleFilterUpdate(&sdk.FilterUpdateInput{
 		Filter: "bgp-filter-irr:65001",
 		Peer:   readmitTestPeer,
@@ -610,8 +631,8 @@ func TestReadmitNonCIDRFamilyPassesUnjudged(t *testing.T) {
 // those and 192.0.2.0/24; a pass is forced and no ROUTE-REFRESH may follow.
 func TestReadmitMixedMPModifyHoldsOnlyRefused(t *testing.T) {
 	engine := newFakeReadmitEngine()
-	plug := readmitPlugin(t, fakeIRRv4(t, map[string]string{"AS-TEST": "10.0.0.0/24 10.1.0.0/24"}), engine, time.Hour)
-	plug.refreshASN(65001)
+	plug := readmitPlugin(t, "10.0.0.0/24 10.1.0.0/24", engine, time.Hour)
+	readStored(plug)
 	out := plug.handleFilterUpdate(&sdk.FilterUpdateInput{
 		Filter: "bgp-filter-irr:65001",
 		Peer:   readmitTestPeer,

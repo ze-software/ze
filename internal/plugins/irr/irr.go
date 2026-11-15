@@ -1,6 +1,8 @@
 // Design: docs/architecture/irr-owner.md -- the IRR owner plugin entry point
 // Related: register.go -- the registration, the state grants and the YANG
 // Related: register_commands.go -- the daemon forwarders of the irr commands
+// Related: owner.go -- the worker that schedules, fetches and stores
+// Related: config.go -- system irr and system peeringdb url
 //
 // Package irr is the one owner of the IRR data Ze enforces. It fetches the
 // prefix list of every AS-SET a consumer (bgp-filter-irr, firewall-irr)
@@ -9,22 +11,23 @@
 // enforced before. The consumers never fetch: they read what this plugin
 // stored and learn of a new copy from its irr/dataset-stored notice.
 //
-// The registration, the YANG (`system irr`, `show irr`, `update irr`,
-// `clear irr asn|as-set`), the state grants and the startup subscription are
-// in place. Reading `system irr`, the schedule, the fetch and the store are
-// not: every irr command answers that it is not available yet, and the
-// consumers still fetch for themselves.
+// runIRR wires the owner to the SDK: the config transaction installs
+// system irr, the stage-5 subscription delivers interest notices, OnStarted
+// starts the worker (state RPCs work only after the handshake, so nothing is
+// read or fetched inside it), and the commands, the doctor callback and the
+// resolver-cache clear reach the worker.
 package irr
 
 import (
+	"context"
 	"errors"
 	"net"
 
 	"github.com/ze-software/ze/internal/core/diagnostic"
 
 	"github.com/ze-software/ze/internal/component/resolve/irr/store"
-	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -77,55 +80,59 @@ func runIRR(conn net.Conn) int {
 	p := sdk.NewWithConn(pluginName, conn)
 	defer func() { _ = p.Close() }()
 
-	// The config is delivered and not read yet: nothing here parses system irr,
-	// so a reload has nothing for this plugin to apply.
-	p.OnConfigure(func(_ []sdk.ConfigSection) error { return nil })
-	p.DeclareAppliesNothing("the irr plugin does not read system irr yet, so a reload has nothing for it to apply")
+	plug := newOwner(p, p, newStoreResolver)
+	sdk.NewConfigTx(defaultOwnerConfig(), parseOwnerConfig, plug.configure).Register(p)
 
-	// A consumer's interest notice tells the owner what to fetch. Subscribed at
-	// stage 5, before any event flows, so a notice a consumer sends from its
-	// own OnStarted is delivered.
+	// A consumer's interest notice tells the owner to read the interest keys
+	// again. Subscribed at stage 5, before any event flows, so a notice a
+	// consumer sends from its own OnStarted is delivered.
 	p.AddStartupSubscriptionsIn(store.NoticeNamespace, []string{store.EventInterestChanged})
-	p.OnEvent(func(event string) error {
-		logger().Debug("irr: interest notice received, not acted on yet", "event", event)
+	p.OnEvent(func(_ string) error {
+		plug.interestChanged()
 		return nil
-	})
-
-	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, any, error) {
-		return handleCommand(command)
 	})
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
+	p.OnStarted(func(_ context.Context) error {
+		plug.start(ctx)
+		return nil
+	})
+	defer plug.stopped()
+
+	p.OnExecuteCommand(func(_, command string, args []string, _ string) (string, any, error) {
+		return plug.handleCommand(command, args)
+	})
+	p.OnDoctorCheck(plug.answerDoctorCheck)
+	// Only the owner holds IRR and PeeringDB clients for enforced data, so
+	// clear irr cache and clear peeringdb cache reach it.
+	p.OnResolverCacheClear(store.ResolverCaches(), plug.clearResolverCache)
+
 	if err := p.Run(ctx, &sdk.Registration{
-		Commands:    commandDecls(),
-		WantsConfig: []string{configRootSystem},
+		Commands:     commandDecls(),
+		WantsConfig:  []string{configRootSystem},
+		DoctorChecks: []sdk.DoctorCheckDecl{datasetCheckDecl},
 		// The stored datasets outlive this process, so a crashed owner comes
 		// back and resumes the schedule; the consumers keep enforcing the
 		// stored copies meanwhile.
 		FailurePolicy: sdk.FailureRestart,
 	}); err != nil {
 		logger().Error("irr plugin failed", "error", err, "code", diagnostic.CodeDoctorPluginStopped)
+		cancel()
 		return 1
 	}
+	cancel()
 	return 0
 }
 
-// handleCommand answers every declared command with an operator error: the
-// registration is wired and the fetch, store and removal behind it are not.
-func handleCommand(command string) (string, any, error) {
-	switch command {
-	case cmdShowIRR, cmdUpdateIRRAll, cmdUpdateIRRAsn, cmdUpdateIRRAsSet, cmdClearIRRAsn, cmdClearIRRAsSet:
-		return statusError, nil, errNotAvailable(command)
-	}
-	return statusError, nil, errUnknownCommand
-}
-
-// errNotAvailable is the refusal of a command whose behavior the irr plugin
-// does not hold yet. The consumers still fetch for themselves, so the fix
-// names their own commands.
-func errNotAvailable(command string) *opererr.Error {
-	return opererr.New(command+" is not available yet",
-		"The irr plugin is registered, but it does not fetch, store or remove IRR datasets yet; bgp-filter-irr and firewall-irr still fetch for themselves.",
-		"update bgp irr as-set <name>, or update firewall irr as-set <name>")
+// clearResolverCache empties one client cache on the worker, which owns the
+// resolver.
+func (o *owner) clearResolverCache(input rpc.ResolverCacheClearInput) (int, error) {
+	var removed int
+	answer := o.do(func(_ context.Context) commandAnswer {
+		count, err := o.res.clearCache(input)
+		removed = count
+		return commandAnswer{err: err}
+	})
+	return removed, answer.err
 }

@@ -4,6 +4,10 @@
 // plugin process via ForwardToPlugin, where command.go's handleCommand serves it.
 // Owned by firewall-irr so removing the plugin removes the command nodes, these
 // handlers, and the config schema together. See ai/rules/plugins.md.
+//
+// Fetching and removing a stored list are the irr plugin's `update irr` and
+// `clear irr` (internal/plugins/irr/register_commands.go); this plugin answers
+// only what it enforces.
 
 package irr
 
@@ -16,13 +20,8 @@ import (
 // Plugin command names -- shared with the plugin-side CommandDecl/handleCommand
 // (irr.go, command.go) so the server forwarders and plugin handlers cannot diverge.
 const (
-	cmdShowIRR        = "show firewall irr"
-	cmdShowIRRPrefix  = "show firewall irr prefix"
-	cmdUpdateIRRAll   = "update firewall irr all"
-	cmdUpdateIRRAsn   = "update firewall irr asn"
-	cmdUpdateIRRAsSet = "update firewall irr as-set"
-	cmdClearIRRAsn    = "clear firewall irr asn"
-	cmdClearIRRAsSet  = "clear firewall irr as-set"
+	cmdShowIRR       = "show firewall irr"
+	cmdShowIRRPrefix = "show firewall irr prefix"
 )
 
 func init() {
@@ -37,31 +36,6 @@ func init() {
 			Handler:       forwardShowIRRPrefix,
 			PluginCommand: cmdShowIRRPrefix,
 		},
-		pluginserver.RPCRegistration{
-			WireMethod:    "ze-firewall:update-irr-all",
-			Handler:       forwardUpdateIRRAll,
-			PluginCommand: cmdUpdateIRRAll,
-		},
-		pluginserver.RPCRegistration{
-			WireMethod:    "ze-firewall:update-irr-asn",
-			Handler:       forwardUpdateIRRAsn,
-			PluginCommand: cmdUpdateIRRAsn,
-		},
-		pluginserver.RPCRegistration{
-			WireMethod:    "ze-firewall:update-irr-as-set",
-			Handler:       forwardUpdateIRRAsSet,
-			PluginCommand: cmdUpdateIRRAsSet,
-		},
-		pluginserver.RPCRegistration{
-			WireMethod:    "ze-firewall:clear-irr-asn",
-			Handler:       forwardClearIRRAsn,
-			PluginCommand: cmdClearIRRAsn,
-		},
-		pluginserver.RPCRegistration{
-			WireMethod:    "ze-firewall:clear-irr-as-set",
-			Handler:       forwardClearIRRAsSet,
-			PluginCommand: cmdClearIRRAsSet,
-		},
 	)
 }
 
@@ -70,44 +44,9 @@ func forwardShowIRR(ctx *pluginserver.CommandContext, validated command.Validate
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdShowIRR, args, ctx.PeerSelector())
 }
 
+// forwardShowIRRPrefix forwards `show firewall irr prefix <name>`; its leaf is
+// `name`, which no key token spells, so the value stays in args.
 func forwardShowIRRPrefix(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
 	args := validated.Tokens()
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdShowIRRPrefix, args, ctx.PeerSelector())
 }
-
-func forwardUpdateIRRAll(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
-	args := validated.Tokens()
-	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdUpdateIRRAll, args, ctx.PeerSelector())
-}
-
-func forwardUpdateIRRAsn(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
-	args := validated.Tokens()
-	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdUpdateIRRAsn, ctx.ArgsOrSelector(args, leafASN), ctx.PeerSelector())
-}
-
-func forwardUpdateIRRAsSet(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
-	args := validated.Tokens()
-	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdUpdateIRRAsSet, ctx.ArgsOrSelector(args, leafASSet), ctx.PeerSelector())
-}
-
-func forwardClearIRRAsn(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
-	args := validated.Tokens()
-	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdClearIRRAsn, ctx.ArgsOrSelector(args, leafASN), ctx.PeerSelector())
-}
-
-func forwardClearIRRAsSet(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
-	args := validated.Tokens()
-	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdClearIRRAsSet, ctx.ArgsOrSelector(args, leafASSet), ctx.PeerSelector())
-}
-
-// The four commands above end in the same word as the YANG leaf that carries
-// their value: `update firewall irr asn <asn>` reads leaf `asn` under container
-// `asn`. matchCommandTokens treats a key token that names an ArgDef as a typed
-// selector keyword, so it binds the value into ctx.Selectors and leaves args
-// empty (internal/component/plugin/server/command.go, matchCommandTokens).
-// `show firewall irr prefix <name>` is unaffected: its leaf is `name`, which no
-// key token spells, so its value stays in args.
-const (
-	leafASN   = "asn"
-	leafASSet = "as-set"
-)

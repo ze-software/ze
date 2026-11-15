@@ -23,6 +23,16 @@ func init() {
 	statestore.RegisterPluginKeys(pluginName,
 		zefs.KeyIRRDataset, zefs.KeyIRRSet, zefs.KeyIRRASN, zefs.KeyIRRGeneration)
 	statestore.RegisterPluginReadKeys(pluginName, zefs.KeyIRRInterest)
+	// The owner converts each list firewall-irr stored before it existed, and
+	// removes the old key once converted (legacy.go).
+	statestore.RegisterPluginKeys(pluginName, zefs.KeyIRRPrefixCache)
+	for _, meta := range irrDiagnosticCodes {
+		if err := diagnostic.Register(meta); err != nil {
+			slog.Error("irr: diagnostic code registration failed", "diagnostic", meta.Code, "error", err,
+				"code", diagnostic.CodeDoctorInternalDefect)
+			os.Exit(1)
+		}
+	}
 
 	reg := registry.Registration{
 		Name:        pluginName,
@@ -32,6 +42,9 @@ func init() {
 		ConfigRoots: []string{configPathIRR},
 		RunEngine:   runIRR,
 		Commands:    commandDecls(),
+		// The owner is the only IRR fetcher, so it registers the IRR refresh
+		// metrics (metrics.go).
+		ConfigureMetrics: setMetricsRegistry,
 	}
 	reg.CLIHandler = func(args []string) int {
 		cfg := cli.BaseConfig(&reg)

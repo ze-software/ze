@@ -1,9 +1,7 @@
 package store
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -11,14 +9,11 @@ import (
 	"net/http/httptest"
 	"net/netip"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/resolve/irr"
 	"github.com/ze-software/ze/internal/component/resolve/peeringdb"
-	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // whoisServer starts a TCP whois server that answers each query with what
@@ -97,29 +92,15 @@ func fakePeeringDB(t *testing.T, asSetByASN map[string]string) string {
 	return srv.URL
 }
 
-func tempStore(t *testing.T) storage.Storage {
-	t.Helper()
-	bs, err := storage.Create(t.TempDir())
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		if err := bs.Close(); err != nil {
-			t.Fatal(err)
-		}
-	})
-	return bs
-}
-
-// VALIDATES: AC-1, AC-2 -- Refresh resolves an AS-SET via IRR, persists to zefs,
-// and updates the in-memory cache.
+// VALIDATES: AC-1, AC-2 -- Refresh resolves an AS-SET via IRR and updates the
+// in-memory cache. The store writes nothing durable: the irr plugin stores
+// what Refresh returns (internal/plugins/irr TestPointerFlipsAfterWrite).
 func TestPrefixStoreRefresh(t *testing.T) {
 	addr := fakeIRR(t,
 		map[string]string{"AS-TEST": "10.0.0.0/24"},
 		map[string]string{"AS-TEST": "2001:db8::/32"},
 	)
-	path := tempStore(t)
-	s := New(irr.NewIRR(addr), nil, path)
+	s := New(irr.NewIRR(addr), nil)
 
 	entry, err := s.Refresh(context.Background(), "AS-TEST", "")
 	if err != nil {
@@ -131,109 +112,12 @@ func TestPrefixStoreRefresh(t *testing.T) {
 	if s.Get("AS-TEST") == nil {
 		t.Fatal("Get returned nil after Refresh")
 	}
-
-	// Persisted under meta/irr/AS-TEST.
-	if !path.Exists(zefs.KeyIRRPrefixCache.Key("AS-TEST")) {
-		t.Error("entry not persisted under meta/irr/AS-TEST")
-	}
-}
-
-// failingWrites is a KeyStore over a real storage whose WriteKey fails while
-// failing is set, the shape of a state write that hit its RPC deadline.
-type failingWrites struct {
-	storage.Storage
-	failing atomic.Bool
-}
-
-func (f *failingWrites) WriteKey(key string, data []byte) error {
-	if f.failing.Load() {
-		return context.DeadlineExceeded
-	}
-	return f.Storage.WriteKey(key, data)
-}
-
-// VALIDATES: refreshLive installs the answer in memory and writes nothing
-// durable; persist writes it; a failed write stays pending and the next persist
-// writes it.
-// PREVENTS: a consumer that enforces the answer before persisting (the BGP IRR
-// filter's first resolution) losing the durable copy, and a write that failed
-// once never being retried.
-func TestRefreshLivePersistsOnPersist(t *testing.T) {
-	addr := fakeIRR(t, map[string]string{"AS-TEST": "10.0.0.0/24"}, nil)
-	keys := &failingWrites{Storage: tempStore(t)}
-	s := New(irr.NewIRR(addr), nil, keys)
-	key := zefs.KeyIRRPrefixCache.Key("AS-TEST")
-
-	if _, err := s.refreshLive(context.Background(), "AS-TEST", ""); err != nil {
-		t.Fatalf("refreshLive: %v", err)
-	}
-	if s.Get("AS-TEST") == nil {
-		t.Fatal("refreshLive did not install the entry in memory")
-	}
-	if keys.Exists(key) {
-		t.Fatal("refreshLive wrote the durable copy; it must leave that to persist")
-	}
-
-	keys.failing.Store(true)
-	s.persist()
-	if keys.Exists(key) {
-		t.Fatal("a failed write left a durable copy")
-	}
-
-	keys.failing.Store(false)
-	s.persist()
-	if !keys.Exists(key) {
-		t.Fatal("persist did not retry the write that failed")
-	}
-}
-
-// VALIDATES: an entry whose write failed and was then purged is not written by
-// the next persist, and that persist neither panics nor resurrects it.
-// PREVENTS: retryPersist re-marking an entry Purge removed.
-func TestPurgeAfterFailedPersist(t *testing.T) {
-	addr := fakeIRR(t, map[string]string{"AS-TEST": "10.0.0.0/24"}, nil)
-	keys := &failingWrites{Storage: tempStore(t)}
-	s := New(irr.NewIRR(addr), nil, keys)
-
-	if _, err := s.refreshLive(context.Background(), "AS-TEST", ""); err != nil {
-		t.Fatalf("refreshLive: %v", err)
-	}
-	keys.failing.Store(true)
-	s.persist()
-	if !s.Purge("AS-TEST") {
-		t.Fatal("Purge found no entry")
-	}
-	keys.failing.Store(false)
-	s.persist()
-	if keys.Exists(zefs.KeyIRRPrefixCache.Key("AS-TEST")) {
-		t.Error("persist wrote an entry Purge had removed after its write failed")
-	}
-}
-
-// VALIDATES: an entry purged while its durable write is pending is not written
-// by the next persist.
-// PREVENTS: Purge being undone by a persist that ran after it.
-func TestPurgeDropsPendingPersist(t *testing.T) {
-	addr := fakeIRR(t, map[string]string{"AS-TEST": "10.0.0.0/24"}, nil)
-	path := tempStore(t)
-	s := New(irr.NewIRR(addr), nil, path)
-
-	if _, err := s.refreshLive(context.Background(), "AS-TEST", ""); err != nil {
-		t.Fatalf("refreshLive: %v", err)
-	}
-	if !s.Purge("AS-TEST") {
-		t.Fatal("Purge found no entry")
-	}
-	s.persist()
-	if path.Exists(zefs.KeyIRRPrefixCache.Key("AS-TEST")) {
-		t.Error("persist wrote an entry Purge had removed")
-	}
 }
 
 // VALIDATES: AC-4, AC-5 -- Get returns the cached entry, or nil when absent.
 func TestPrefixStoreGet(t *testing.T) {
 	addr := fakeIRR(t, map[string]string{"AS-TEST": "10.0.0.0/24"}, nil)
-	s := New(irr.NewIRR(addr), nil, nil)
+	s := New(irr.NewIRR(addr), nil)
 
 	if s.Get("AS-TEST") != nil {
 		t.Fatal("Get before Refresh should be nil")
@@ -255,43 +139,21 @@ func TestPrefixStoreGet(t *testing.T) {
 // moved to spec-firewall-irr, which will re-add them with their consumer and
 // tests. No coverage lost for delivered code.
 
-// VALIDATES: data survives store close and reopen via zefs persistence.
-func TestPrefixStorePersistence(t *testing.T) {
-	addr := fakeIRR(t, map[string]string{"AS-TEST": "10.0.0.0/24"}, nil)
-	path := tempStore(t)
-
-	s1 := New(irr.NewIRR(addr), nil, path)
-	if _, err := s1.Refresh(context.Background(), "AS-TEST", ""); err != nil {
-		t.Fatalf("Refresh: %v", err)
-	}
-
-	s2 := New(irr.NewIRR(addr), nil, path)
-	if err := s2.Open(); err != nil {
-		t.Fatalf("Open: %v", err)
-	}
-	got := s2.Get("AS-TEST")
-	if got == nil || len(got.IPv4) != 1 {
-		t.Fatalf("reopened entry = %+v, want IPv4 len 1", got)
-	}
-}
-
 // VALIDATES: AC-7 -- a failed refresh preserves existing cached data.
-// Uses a fresh client pointed at an unreachable server so the IRR client's 1h
-// in-memory cache cannot mask the failure (see spec Review Gate note #5).
+// Uses a fresh client pointed at an unreachable server, seeded with the entry
+// a good refresh learned, the way the irr plugin seeds a stored dataset at
+// start (PrefixStore.Seed).
 func TestPrefixStoreRefreshError(t *testing.T) {
 	addr := fakeIRR(t, map[string]string{"AS-TEST": "10.0.0.0/24"}, nil)
-	path := tempStore(t)
 
-	good := New(irr.NewIRR(addr), nil, path)
-	if _, err := good.Refresh(context.Background(), "AS-TEST", ""); err != nil {
+	good := New(irr.NewIRR(addr), nil)
+	seeded, err := good.Refresh(context.Background(), "AS-TEST", "")
+	if err != nil {
 		t.Fatalf("seed Refresh: %v", err)
 	}
 
-	// Fresh store, unreachable IRR, loading the seeded data from disk.
-	bad := New(irr.NewIRR("127.0.0.1:1"), nil, path)
-	if err := bad.Open(); err != nil {
-		t.Fatalf("Open: %v", err)
-	}
+	// Fresh store, unreachable IRR, seeded with the good entry.
+	bad := seededStore(t, irr.NewIRR("127.0.0.1:1"), *seeded)
 	if _, err := bad.Refresh(context.Background(), "AS-TEST", "AS-TEST"); err == nil {
 		t.Fatal("Refresh against unreachable IRR should error")
 	}
@@ -305,7 +167,7 @@ func TestPrefixStoreRefreshError(t *testing.T) {
 func TestPrefixStorePeeringDBFallback(t *testing.T) {
 	addr := fakeIRR(t, map[string]string{"AS-CLOUDFLARE": "1.1.1.0/24"}, nil)
 	pdbURL := fakePeeringDB(t, map[string]string{"13335": "AS-CLOUDFLARE"})
-	s := New(irr.NewIRR(addr), peeringdb.NewPeeringDB(pdbURL), nil)
+	s := New(irr.NewIRR(addr), peeringdb.NewPeeringDB(pdbURL))
 
 	entry, err := s.Refresh(context.Background(), "AS13335", "")
 	if err != nil {
@@ -323,7 +185,7 @@ func TestPrefixStorePeeringDBFallback(t *testing.T) {
 // back to querying IRR with the literal "AS<asn>" name.
 func TestPrefixStoreLiteralFallback(t *testing.T) {
 	addr := fakeIRR(t, map[string]string{"AS65001": "65.0.0.0/24"}, nil)
-	s := New(irr.NewIRR(addr), nil, nil) // no PeeringDB
+	s := New(irr.NewIRR(addr), nil) // no PeeringDB
 
 	entry, err := s.Refresh(context.Background(), "AS65001", "")
 	if err != nil {
@@ -337,107 +199,19 @@ func TestPrefixStoreLiteralFallback(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-10 -- the legacy single-blob cache is migrated to per-entry
-// keys and the legacy key is removed.
-func TestMigrateOldCache(t *testing.T) {
-	path := tempStore(t)
-
-	legacy := []legacyEntry{{
-		ASN:   13335,
-		ASSet: "AS-CLOUDFLARE",
-		IPv4:  []string{"1.1.1.0/24"},
-		IPv6:  []string{"2606:4700::/32"},
-	}}
-	blob, err := json.Marshal(legacy)
-	if err != nil {
-		t.Fatalf("marshal legacy: %v", err)
-	}
-	if err := path.WriteFile(zefs.KeyIRRCache.Pattern, blob, 0); err != nil {
-		t.Fatalf("write legacy: %v", err)
-	}
-
-	s := New(irr.NewIRR("127.0.0.1:1"), nil, path)
-	if err := s.Open(); err != nil {
-		t.Fatalf("Open: %v", err)
-	}
-
-	got := s.Get("AS13335")
-	if got == nil {
-		t.Fatal("migrated entry AS13335 not found")
-	}
-	if got.ASSet != "AS-CLOUDFLARE" || len(got.IPv4) != 1 || len(got.IPv6) != 1 {
-		t.Fatalf("migrated entry = %+v, want AS-CLOUDFLARE with 1 v4 + 1 v6", got)
-	}
-
-	if path.Exists(zefs.KeyIRRCache.Pattern) {
-		t.Error("legacy key not removed after migration")
-	}
-	if !path.Exists(zefs.KeyIRRPrefixCache.Key("AS13335")) {
-		t.Error("per-entry key meta/irr/AS13335 not written")
-	}
-}
-
-// Doctor can inspect legacy cache data beside the owner without migrating it.
-func TestLegacyReadOnlyInspection(t *testing.T) {
-	dir := t.TempDir()
-	owner, err := storage.Create(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = owner.Close() })
-	legacy, err := json.Marshal([]legacyEntry{{ASN: 13335, ASSet: "AS-CF", IPv4: []string{"1.1.1.0/24"}}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := owner.WriteKey(zefs.KeyIRRCache.Pattern, legacy); err != nil {
-		t.Fatal(err)
-	}
-	inspection, err := storage.OpenReadOnly(dir, dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = inspection.Close() })
-	cache := New(nil, nil, inspection)
-	if err := cache.Open(); err != nil {
-		t.Fatal(err)
-	}
-	got := cache.Get("AS13335")
-	if got == nil {
-		t.Fatal("legacy prefixes unavailable to read-only inspection")
-	}
-	if got.ASSet != "AS-CF" || len(got.IPv4) != 1 || got.IPv4[0] != netip.MustParsePrefix("1.1.1.0/24") {
-		t.Fatalf("read-only prefixes: %+v", got)
-	}
-	after, err := owner.ReadKey(zefs.KeyIRRCache.Pattern)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(after, legacy) {
-		t.Fatal("read-only inspection changed legacy data")
-	}
-	if owner.Exists(zefs.KeyIRRPrefixCache.Key("AS13335")) {
-		t.Fatal("read-only inspection migrated legacy data")
-	}
-}
-
-// VALIDATES: A-5 -- AS-SET names containing ':' are valid zefs keys and survive
-// persistence (hierarchical IRR names like RIPE::AS-FOO).
+// VALIDATES: A-5 -- AS-SET names containing ':' resolve and are cached
+// (hierarchical IRR names like RIPE::AS-FOO). That the owner's state keys hold
+// such a name across a reopen is TestStoredKeysHoldColonNames.
 func TestPrefixStoreColonKey(t *testing.T) {
 	const name = "AS-FOO:AS-BAR"
 	addr := fakeIRR(t, map[string]string{name: "203.0.113.0/24"}, nil)
-	path := tempStore(t)
 
-	s1 := New(irr.NewIRR(addr), nil, path)
-	if _, err := s1.Refresh(context.Background(), name, ""); err != nil {
+	s := New(irr.NewIRR(addr), nil)
+	if _, err := s.Refresh(context.Background(), name, ""); err != nil {
 		t.Fatalf("Refresh: %v", err)
 	}
-
-	s2 := New(irr.NewIRR(addr), nil, path)
-	if err := s2.Open(); err != nil {
-		t.Fatalf("Open: %v", err)
-	}
-	if s2.Get(name) == nil {
-		t.Fatalf("entry %q with ':' not persisted/reloaded", name)
+	if s.Get(name) == nil {
+		t.Fatalf("entry %q with ':' not cached", name)
 	}
 }
 
@@ -471,12 +245,12 @@ func TestParseBareASNBoundaries(t *testing.T) {
 }
 
 // VALIDATES: names that are not valid zefs path segments (".", "..", "a..b") are
-// rejected, so they can never poison the shared store file -- a "meta/irr/."
-// key fails fs.ValidPath at decode and would make the whole file unreadable.
+// rejected, so they can never reach a state key -- a "meta/irr-set/." key fails
+// fs.ValidPath at decode and would make the whole store file unreadable. That
+// no key constructor forms one is TestBadNamesFormNoKey.
 func TestPrefixStoreRejectsBadName(t *testing.T) {
 	addr := fakeIRR(t, map[string]string{"AS-OK": "10.0.0.0/24"}, nil)
-	path := tempStore(t)
-	s := New(irr.NewIRR(addr), nil, path)
+	s := New(irr.NewIRR(addr), nil)
 
 	for _, bad := range []string{".", "..", "a..b"} {
 		if _, err := s.Refresh(context.Background(), bad, ""); err == nil {
@@ -484,124 +258,12 @@ func TestPrefixStoreRejectsBadName(t *testing.T) {
 		}
 	}
 
-	// A good entry still persists and the store reopens cleanly afterwards.
+	// A good entry still resolves and is cached afterwards.
 	if _, err := s.Refresh(context.Background(), "AS-OK", ""); err != nil {
 		t.Fatalf("Refresh(AS-OK): %v", err)
 	}
-	s2 := New(irr.NewIRR(addr), nil, path)
-	if err := s2.Open(); err != nil {
-		t.Fatalf("Open after bad-name attempts: %v", err)
-	}
-	if s2.Get("AS-OK") == nil {
-		t.Error("store unreadable or AS-OK missing after bad-name attempts")
-	}
-}
-
-// VALIDATES: concurrent in-process Refreshes on distinct names do not lose each
-// other's persisted entry. Each persist opens the file, adds its key, and
-// atomic-renames the whole file; without fileMu serialization a racing writer's
-// flush would clobber a key. Run with -race.
-func TestPrefixStoreConcurrentPersist(t *testing.T) {
-	names := []string{"AS-A", "AS-B", "AS-C", "AS-D", "AS-E", "AS-F"}
-	v4 := make(map[string]string, len(names))
-	for i, n := range names {
-		v4[n] = fmt.Sprintf("10.%d.0.0/24", i)
-	}
-	addr := fakeIRR(t, v4, nil)
-	path := tempStore(t)
-	s := New(irr.NewIRR(addr), nil, path)
-
-	var wg sync.WaitGroup
-	for _, n := range names {
-		wg.Add(1)
-		go func(name string) {
-			defer wg.Done()
-			if _, err := s.Refresh(context.Background(), name, ""); err != nil {
-				t.Errorf("Refresh(%s): %v", name, err)
-			}
-		}(n)
-	}
-	wg.Wait()
-
-	// Every entry must have survived to disk (reopen from a fresh store).
-	s2 := New(irr.NewIRR(addr), nil, path)
-	if err := s2.Open(); err != nil {
-		t.Fatalf("Open: %v", err)
-	}
-	for _, n := range names {
-		if s2.Get(n) == nil {
-			t.Errorf("entry %s lost on disk after concurrent Refresh", n)
-		}
-	}
-}
-
-// VALIDATES: migration of a legacy entry with multiple prefixes per family
-// preserves every valid prefix and silently drops unparseable ones.
-func TestMigrateMultiPrefix(t *testing.T) {
-	path := tempStore(t)
-	legacy := []legacyEntry{{
-		ASN:   13335,
-		ASSet: "AS-CF",
-		IPv4:  []string{"1.1.1.0/24", "JUNK", "1.0.0.0/24", "1.2.3.0/24"},
-		IPv6:  []string{"2606:4700::/32", "2400:cb00::/32"},
-	}}
-	blob, err := json.Marshal(legacy)
-	if err != nil {
-		t.Fatalf("marshal legacy: %v", err)
-	}
-	if err := path.WriteFile(zefs.KeyIRRCache.Pattern, blob, 0); err != nil {
-		t.Fatalf("write legacy: %v", err)
-	}
-
-	s := New(irr.NewIRR("127.0.0.1:1"), nil, path)
-	if err := s.Open(); err != nil {
-		t.Fatalf("Open: %v", err)
-	}
-	got := s.Get("AS13335")
-	if got == nil {
-		t.Fatal("migrated entry missing")
-	}
-	if len(got.IPv4) != 3 { // "JUNK" dropped, three valid kept
-		t.Errorf("IPv4 = %d, want 3 (one malformed dropped)", len(got.IPv4))
-	}
-	if len(got.IPv6) != 2 {
-		t.Errorf("IPv6 = %d, want 2", len(got.IPv6))
-	}
-}
-
-// VALIDATES: Open skips an entry whose JSON Name does not match its zefs key
-// segment, so a corrupt/tampered blob cannot poison another name's slot.
-func TestPrefixStoreOpenNameKeyMismatch(t *testing.T) {
-	path := tempStore(t)
-	// Blob under key meta/irr/AS13335 whose Name falsely claims AS99999.
-	mb, err := json.Marshal(&CachedEntry{Name: "AS99999", ASSet: "AS-X", IPv4: []netip.Prefix{netip.MustParsePrefix("10.0.0.0/24")}})
-	if err != nil {
-		t.Fatalf("marshal: %v", err)
-	}
-	if err := path.WriteFile(zefs.KeyIRRPrefixCache.Key("AS13335"), mb, 0); err != nil {
-		t.Fatalf("write mismatch: %v", err)
-	}
-	// A correctly-named entry to prove valid ones still load.
-	ob, err := json.Marshal(&CachedEntry{Name: "AS64500", IPv4: []netip.Prefix{netip.MustParsePrefix("10.1.0.0/24")}})
-	if err != nil {
-		t.Fatalf("marshal: %v", err)
-	}
-	if err := path.WriteFile(zefs.KeyIRRPrefixCache.Key("AS64500"), ob, 0); err != nil {
-		t.Fatalf("write ok: %v", err)
-	}
-
-	s := New(irr.NewIRR("127.0.0.1:1"), nil, path)
-	if err := s.Open(); err != nil {
-		t.Fatalf("Open: %v", err)
-	}
-	if s.Get("AS99999") != nil {
-		t.Error("tampered entry (name != key) loaded under its claimed name")
-	}
-	if s.Get("AS13335") != nil {
-		t.Error("tampered entry loaded under its key segment")
-	}
-	if s.Get("AS64500") == nil {
-		t.Error("correctly-named entry should still load")
+	if s.Get("AS-OK") == nil {
+		t.Error("AS-OK missing after bad-name attempts")
 	}
 }
 
@@ -618,21 +280,34 @@ func fakeIRRReply(t *testing.T, replies map[string]string) string {
 	})
 }
 
-// seedStore refreshes name from a server holding v4Prefix and returns the zefs
-// path the entry was persisted to.
-func seedStore(t *testing.T, name, v4Prefix string) storage.Storage {
+// seedEntry refreshes name from a server holding v4Prefix and returns the
+// entry learned. A restart hands a new store this copy: the irr plugin reads
+// the stored dataset and seeds it (PrefixStore.Seed).
+func seedEntry(t *testing.T, name, v4Prefix string) CachedEntry {
 	t.Helper()
 	addr := fakeIRR(t, map[string]string{name: v4Prefix}, nil)
-	path := tempStore(t)
-	good := New(irr.NewIRR(addr), nil, path)
-	if _, err := good.Refresh(context.Background(), name, ""); err != nil {
+	good := New(irr.NewIRR(addr), nil)
+	entry, err := good.Refresh(context.Background(), name, "")
+	if err != nil {
 		t.Fatalf("seed Refresh: %v", err)
 	}
-	return path
+	return *entry
+}
+
+// seededStore returns a store over irrClient holding entry as its
+// last-known-good copy, the state a restart leaves it in.
+func seededStore(t *testing.T, irrClient *irr.IRR, entry CachedEntry) *PrefixStore {
+	t.Helper()
+	s := New(irrClient, nil)
+	if err := s.Seed(entry); err != nil {
+		t.Fatalf("Seed: %v", err)
+	}
+	return s
 }
 
 // VALIDATES: AC-1 -- an IRR answer carrying no prefixes never overwrites a
-// populated entry, in memory or in the persisted cache.
+// populated entry in memory. That the kept list is stored stale is
+// internal/plugins/irr TestEmptyAnswerAdvancesCheckedAt.
 // PREVENTS: a bad minute upstream emptying a live prefix filter for an hour.
 func TestRefreshKeepsLastGoodOnEmptyAnswer(t *testing.T) {
 	for _, tc := range []struct {
@@ -644,16 +319,13 @@ func TestRefreshKeepsLastGoodOnEmptyAnswer(t *testing.T) {
 		{"server-error", "F query failed\n"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			path := seedStore(t, "AS-TEST", "10.0.0.0/24")
+			seeded := seedEntry(t, "AS-TEST", "10.0.0.0/24")
 			addr := fakeIRRReply(t, map[string]string{
 				"!a4AS-TEST": tc.reply,
 				"!a6AS-TEST": tc.reply,
 			})
 
-			s := New(irr.NewIRR(addr), nil, path)
-			if err := s.Open(); err != nil {
-				t.Fatalf("Open: %v", err)
-			}
+			s := seededStore(t, irr.NewIRR(addr), seeded)
 			if _, err := s.Refresh(context.Background(), "AS-TEST", "AS-TEST"); err == nil {
 				t.Fatal("an answer carrying no prefixes must not report success")
 			}
@@ -665,42 +337,33 @@ func TestRefreshKeepsLastGoodOnEmptyAnswer(t *testing.T) {
 			if !got.Stale() {
 				t.Error("an entry enforced after a refresh learned nothing must report itself stale")
 			}
-
-			reopened := New(irr.NewIRR(addr), nil, path)
-			if err := reopened.Open(); err != nil {
-				t.Fatalf("reopen: %v", err)
-			}
-			persisted := reopened.Get("AS-TEST")
-			if persisted == nil || len(persisted.IPv4) != 1 {
-				t.Fatalf("persisted entry not preserved: %+v", persisted)
-			}
-			if !persisted.Stale() {
-				t.Error("staleness must survive a restart")
-			}
 		})
 	}
 }
 
-// seedBothFamilies caches one IPv4 and one IPv6 prefix for name and returns
-// their owned store. seedStore above seeds IPv4 alone, so it cannot show a
+// seedBothFamilies resolves one IPv4 and one IPv6 prefix for name and returns
+// the entry learned. seedEntry above seeds IPv4 alone, so it cannot show a
 // family being lost.
-func seedBothFamilies(t *testing.T, name string) storage.Storage {
+func seedBothFamilies(t *testing.T, name string) CachedEntry {
 	t.Helper()
 	addr := fakeIRR(t,
 		map[string]string{name: "10.0.0.0/24"},
 		map[string]string{name: "2001:db8::/32"},
 	)
-	path := tempStore(t)
-	seed := New(irr.NewIRR(addr), nil, path)
-	if _, err := seed.Refresh(context.Background(), name, name); err != nil {
+	seed := New(irr.NewIRR(addr), nil)
+	entry, err := seed.Refresh(context.Background(), name, name)
+	if err != nil {
 		t.Fatalf("seed Refresh: %v", err)
 	}
-	return path
+	return *entry
 }
 
 // VALIDATES: AC-1 -- last-known-good is decided per FAMILY. An answer that
 // carries one family and nothing for the other keeps the cached prefixes of the
-// silent family, dates the entry by them, and marks it stale.
+// silent family, dates the entry by them, and marks it stale. That the owner
+// stores the merged entry with both families and its staleness, and seeds it
+// back after a restart, is internal/plugins/irr
+// TestOneFamilyAnswerStoredStaleAcrossRestart.
 // PREVENTS: the interface binding losing one family's accept term while the
 // drop term that closes the whitelist stays, which drops every packet of that
 // family (internal/component/firewall/plugins/irr/sets.go, buildIfaceTables).
@@ -727,13 +390,9 @@ func TestRefreshKeepsLastGoodPerFamily(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			path := seedBothFamilies(t, "AS-TEST")
 			addr := fakeIRRReply(t, tc.replies) // every unmapped query answers "D"
 
-			s := New(irr.NewIRR(addr), nil, path)
-			if err := s.Open(); err != nil {
-				t.Fatalf("Open: %v", err)
-			}
+			s := seededStore(t, irr.NewIRR(addr), seedBothFamilies(t, "AS-TEST"))
 			seeded := s.Get("AS-TEST")
 			if seeded == nil {
 				t.Fatal("seeded entry not loaded")
@@ -753,18 +412,6 @@ func TestRefreshKeepsLastGoodPerFamily(t *testing.T) {
 				t.Errorf("RefreshedAt = %v, want the kept family's date %v: the age of the oldest data is what an operator reads",
 					entry.RefreshedAt, seeded.RefreshedAt)
 			}
-
-			reopened := New(irr.NewIRR(addr), nil, path)
-			if err := reopened.Open(); err != nil {
-				t.Fatalf("reopen: %v", err)
-			}
-			persisted := reopened.Get("AS-TEST")
-			if persisted == nil || len(persisted.IPv4) != tc.wantV4 || len(persisted.IPv6) != tc.wantV6 {
-				t.Fatalf("persisted entry not preserved: %+v", persisted)
-			}
-			if !persisted.Stale() {
-				t.Error("staleness must survive a restart")
-			}
 		})
 	}
 }
@@ -783,7 +430,7 @@ func TestRefreshNeverMergesAnotherASSet(t *testing.T) {
 		map[string]string{"AS-OLD": "10.0.0.0/24", "AS-NEW": "192.0.2.0/24"},
 		map[string]string{"AS-OLD": "2001:db8::/32"},
 	)
-	s := New(irr.NewIRR(addr), nil, nil)
+	s := New(irr.NewIRR(addr), nil)
 	if _, err := s.Refresh(context.Background(), "AS65001", "AS-OLD"); err != nil {
 		t.Fatalf("seed Refresh: %v", err)
 	}
@@ -828,7 +475,7 @@ func failingPeeringDB(t *testing.T) string {
 func seedDiscovered(t *testing.T) *PrefixStore {
 	t.Helper()
 	addr := fakeIRR(t, map[string]string{"AS-X": "10.0.0.0/24"}, map[string]string{"AS-X": "2001:db8::/32"})
-	s := New(irr.NewIRR(addr), peeringdb.NewPeeringDB(fakePeeringDB(t, map[string]string{"65001": "AS-X"})), nil)
+	s := New(irr.NewIRR(addr), peeringdb.NewPeeringDB(fakePeeringDB(t, map[string]string{"65001": "AS-X"})))
 	seeded, err := s.Refresh(context.Background(), "AS65001", "")
 	if err != nil {
 		t.Fatalf("seed Refresh: %v", err)
@@ -902,7 +549,7 @@ func TestRefreshFollowsPeeringDBASSetChange(t *testing.T) {
 // IPv4 only.
 func TestFailedRefreshNeverRelabelsTheEntry(t *testing.T) {
 	addr := fakeIRR(t, map[string]string{"AS-ONE": "10.0.0.0/24"}, map[string]string{"AS-ONE": "2001:db8::/32"})
-	s := New(irr.NewIRR(addr), nil, nil)
+	s := New(irr.NewIRR(addr), nil)
 	if _, err := s.Refresh(context.Background(), "AS65001", "AS-ONE"); err != nil {
 		t.Fatalf("seed Refresh: %v", err)
 	}
@@ -934,7 +581,7 @@ func TestFailedRefreshNeverRelabelsTheEntry(t *testing.T) {
 // PREVENTS: a zero-prefix entry reading as a valid answer (ai/rules/evidence.md).
 func TestRefreshStoresNothingOnFirstEmptyAnswer(t *testing.T) {
 	addr := fakeIRRReply(t, nil) // every query answers "D"
-	s := New(irr.NewIRR(addr), nil, tempStore(t))
+	s := New(irr.NewIRR(addr), nil)
 
 	if _, err := s.Refresh(context.Background(), "AS-TEST", "AS-TEST"); !errors.Is(err, ErrNoPrefixes) {
 		t.Fatalf("Refresh error = %v, want ErrNoPrefixes", err)
@@ -961,7 +608,7 @@ func TestRefreshQueriesServerWithinCacheTTL(t *testing.T) {
 		return "D\n" // the server now answers that it holds nothing
 	})
 
-	s := New(irr.NewIRR(addr), nil, tempStore(t))
+	s := New(irr.NewIRR(addr), nil)
 	learned, err := s.Refresh(context.Background(), "AS-TEST", "AS-TEST")
 	if err != nil {
 		t.Fatalf("first Refresh: %v", err)
@@ -986,25 +633,23 @@ func TestRefreshQueriesServerWithinCacheTTL(t *testing.T) {
 }
 
 // VALIDATES: AC-1 -- a successful refresh clears the staleness a previous empty
-// answer recorded.
+// answer recorded, including staleness a restart seeded back.
 // PREVENTS: an entry reporting stale data forever after one bad answer.
 func TestRefreshClearsStaleness(t *testing.T) {
-	path := seedStore(t, "AS-TEST", "10.0.0.0/24")
+	seeded := seedEntry(t, "AS-TEST", "10.0.0.0/24")
 
-	empty := New(irr.NewIRR(fakeIRRReply(t, nil)), nil, path)
-	if err := empty.Open(); err != nil {
-		t.Fatalf("Open: %v", err)
-	}
+	empty := seededStore(t, irr.NewIRR(fakeIRRReply(t, nil)), seeded)
 	if _, err := empty.Refresh(context.Background(), "AS-TEST", "AS-TEST"); err == nil {
 		t.Fatal("expected an error for an empty answer")
 	}
-	if got := empty.Get("AS-TEST"); got == nil || !got.Stale() {
-		t.Fatalf("entry should be stale: %+v", got)
+	stale := empty.Get("AS-TEST")
+	if stale == nil || !stale.Stale() {
+		t.Fatalf("entry should be stale: %+v", stale)
 	}
 
-	good := New(irr.NewIRR(fakeIRR(t, map[string]string{"AS-TEST": "10.0.0.0/24"}, nil)), nil, path)
-	if err := good.Open(); err != nil {
-		t.Fatalf("Open: %v", err)
+	good := seededStore(t, irr.NewIRR(fakeIRR(t, map[string]string{"AS-TEST": "10.0.0.0/24"}, nil)), *stale)
+	if got := good.Get("AS-TEST"); got == nil || !got.Stale() {
+		t.Fatalf("the seeded copy lost its staleness, so the test proves nothing: %+v", got)
 	}
 	if _, err := good.Refresh(context.Background(), "AS-TEST", "AS-TEST"); err != nil {
 		t.Fatalf("Refresh: %v", err)
@@ -1015,16 +660,12 @@ func TestRefreshClearsStaleness(t *testing.T) {
 }
 
 // VALIDATES: AC-6 -- Purge is the deliberate exit from last-known-good, removing
-// the entry from memory and from the persisted cache.
+// the entry from memory. The stored copy is removed by `clear irr as-set`,
+// which purges this store too (internal/plugins/irr TestClearNamesConsumers).
 // PREVENTS: a deregistered AS-SET being enforced forever because empty answers
 // no longer clear it.
 func TestPurgeRemovesEntry(t *testing.T) {
-	path := seedStore(t, "AS-TEST", "10.0.0.0/24")
-
-	s := New(irr.NewIRR(fakeIRRReply(t, nil)), nil, path)
-	if err := s.Open(); err != nil {
-		t.Fatalf("Open: %v", err)
-	}
+	s := seededStore(t, irr.NewIRR(fakeIRRReply(t, nil)), seedEntry(t, "AS-TEST", "10.0.0.0/24"))
 	if s.Get("AS-TEST") == nil {
 		t.Fatal("seeded entry not loaded")
 	}
@@ -1043,14 +684,6 @@ func TestPurgeRemovesEntry(t *testing.T) {
 		if s.Purge(bad) {
 			t.Errorf("Purge(%q) reported a removal", bad)
 		}
-	}
-
-	reopened := New(irr.NewIRR(fakeIRRReply(t, nil)), nil, path)
-	if err := reopened.Open(); err != nil {
-		t.Fatalf("reopen: %v", err)
-	}
-	if got := reopened.Get("AS-TEST"); got != nil {
-		t.Fatalf("entry still persisted after Purge: %+v", got)
 	}
 }
 
@@ -1075,7 +708,7 @@ func TestRefreshCancelledBeforeCommitStoresNothing(t *testing.T) {
 		}
 		return "D\n"
 	})
-	s := New(irr.NewIRR(addr), nil, nil)
+	s := New(irr.NewIRR(addr), nil)
 	s.Put("AS65001", []netip.Prefix{netip.MustParsePrefix("10.0.0.0/24")}, nil)
 	before := s.Get("AS65001")
 

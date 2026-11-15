@@ -1,19 +1,16 @@
-// Design: docs/architecture/bgp/filter-irr.md -- IRR plugin command handlers (show/update bgp irr)
+// Design: docs/architecture/bgp/filter-irr.md -- IRR plugin command handlers (show bgp irr)
 
 package filter_irr
 
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
-	"math"
 	"net/netip"
 	"slices"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/bgp/asn"
 
-	"github.com/ze-software/ze/internal/component/resolve/irr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -22,28 +19,26 @@ const (
 	statusError = "error"
 )
 
+// handleCommand answers the three show commands. The filter fetches nothing,
+// so it serves no update or clear verb: `update irr ...` and `clear irr ...`
+// belong to the irr plugin, which owns the stored copies.
 func (plug *irrPlugin) handleCommand(command string, args []string) (string, any, error) {
 	switch command {
-	case "show bgp irr":
+	case cmdShowIRR:
 		return plug.showIRR()
-	case "show bgp irr prefix":
+	case cmdShowIRRPrefix:
 		return plug.showIRRPrefix(args)
-	case "show bgp irr check":
+	case cmdShowIRRCheck:
 		return plug.showIRRCheck(args)
-	case "update bgp irr all":
-		plug.refreshAllNow()
-		if err := plug.anyRefreshError(); err != nil {
-			return statusError, nil, err
-		}
-		return statusDone, json.RawMessage(`{"refreshed":"all"}`), nil
-	case "update bgp irr asn":
-		return plug.updateASN(args)
-	case "update bgp irr as-set":
-		return plug.updateASSet(args)
 	}
 	return statusError, nil, errors.New("unknown command")
 }
 
+// showIRR answers one row per enrolled ASN: the set it is filtered by, whether
+// a stored copy is enforced, and which one. "ok" is a stored copy holding
+// prefixes, "error" a stored value the filter could not read (it keeps the
+// copy it enforced before, if any), and "pending" nothing stored yet: the irr
+// plugin has not fetched the set, or `clear irr` removed it.
 func (plug *irrPlugin) showIRR() (string, any, error) {
 	plug.mu.RLock()
 	defer plug.mu.RUnlock()
@@ -51,39 +46,26 @@ func (plug *irrPlugin) showIRR() (string, any, error) {
 	b := textbuf.Get()
 	defer b.Release()
 
-	server := defaultServer
-	if plug.config != nil {
-		server = plug.config.Server
-	}
-	b.Str(`{"server":`).Quoted(server)
-	if !plug.lastRefresh.IsZero() {
-		b.Str(`,"last-refresh":"`).Str(plug.lastRefresh.Format(time.RFC3339)).Byte('"')
-	}
-	if !plug.nextRefresh.IsZero() {
-		b.Str(`,"next-refresh":"`).Str(plug.nextRefresh.Format(time.RFC3339)).Byte('"')
-	}
 	sortedASNs := make([]uint32, 0, len(plug.byASN))
 	for number := range plug.byASN {
 		sortedASNs = append(sortedASNs, number)
 	}
 	slices.Sort(sortedASNs)
 
-	b.Str(`,"entries":[`)
-	first := true
-	for _, number := range sortedASNs {
+	b.Str(`{"entries":[`)
+	for i, number := range sortedASNs {
 		st := plug.byASN[number]
-		if !first {
+		if i > 0 {
 			b.Byte(',')
 		}
-		first = false
 		// The AS number is a row an operator reads, so it carries the notation
 		// bgp/as-notation selected (asn.AppendJSON states the rule).
 		b.Str(`{"asn":`).Str(asn.JSONValue(st.asn))
 		b.Str(`,"as-set":`).Quoted(st.asSet)
 		switch {
-		case st.lastErr != "":
+		case st.readErr != "":
 			b.Str(`,"status":"error"`)
-			b.Str(`,"error":`).Quoted(st.lastErr)
+			b.Str(`,"error":`).Quoted(st.readErr)
 		case st.list != nil && len(st.list.entries) > 0:
 			b.Str(`,"status":"ok"`)
 		default:
@@ -91,8 +73,11 @@ func (plug *irrPlugin) showIRR() (string, any, error) {
 		}
 		b.Str(`,"ipv4-count":`).Int(int64(st.v4Count))
 		b.Str(`,"ipv6-count":`).Int(int64(st.v6Count))
-		if !st.lastOK.IsZero() {
-			b.Str(`,"last-refresh":"`).Str(st.lastOK.Format(time.RFC3339)).Byte('"')
+		if st.list != nil {
+			b.Str(`,"server":`).Quoted(st.pointer.Server)
+			b.Str(`,"generation":`).Uint32(st.pointer.Generation)
+			writeShowTime(b, "checked-at", st.checkedAt)
+			writeShowTime(b, "refreshed-at", st.refreshedAt)
 		}
 		b.Str(`,"peers":[`)
 		for j, addr := range st.peerAddrs {
@@ -105,6 +90,14 @@ func (plug *irrPlugin) showIRR() (string, any, error) {
 	}
 	b.Str(`]}`)
 	return statusDone, json.RawMessage(b.String()), nil
+}
+
+// writeShowTime writes one RFC 3339 time field, or nothing for an unset time.
+func writeShowTime(b *textbuf.Buffer, key string, at time.Time) {
+	if at.IsZero() {
+		return
+	}
+	b.Str(`,"`).Str(key).Str(`":"`).Str(at.UTC().Format(time.RFC3339)).Byte('"')
 }
 
 func (plug *irrPlugin) showIRRPrefix(args []string) (string, any, error) {
@@ -186,87 +179,4 @@ func (plug *irrPlugin) showIRRCheck(args []string) (string, any, error) {
 	}
 	b.Byte('}')
 	return statusDone, json.RawMessage(b.String()), nil
-}
-
-func (plug *irrPlugin) anyRefreshError() error {
-	plug.mu.RLock()
-	defer plug.mu.RUnlock()
-	asns := make([]uint32, 0, len(plug.byASN))
-	for number := range plug.byASN {
-		asns = append(asns, number)
-	}
-	slices.Sort(asns)
-	for _, number := range asns {
-		if st := plug.byASN[number]; st != nil && st.lastErr != "" {
-			return fmt.Errorf("ASN %s: %s", asn.Text(number, asn.Configured()), st.lastErr)
-		}
-	}
-	return nil
-}
-
-func (plug *irrPlugin) asnRefreshError(number uint32) string {
-	plug.mu.RLock()
-	defer plug.mu.RUnlock()
-	if st := plug.byASN[number]; st != nil {
-		return st.lastErr
-	}
-	return ""
-}
-
-func (plug *irrPlugin) updateASN(args []string) (string, any, error) {
-	if len(args) == 0 || args[0] == "" {
-		return statusError, nil, errors.New("usage: update bgp irr asn <asn>")
-	}
-	// readUint parses the full 64-bit range, so bound it here: narrowing an
-	// out-of-range value would look up a different ASN than the operator typed.
-	v, ok := readUint(args[0])
-	if !ok || v > math.MaxUint32 {
-		return statusError, nil, errors.New("invalid ASN (expected 0..4294967295)")
-	}
-	asn := uint32(v)
-	plug.mu.RLock()
-	_, known := plug.byASN[asn]
-	plug.mu.RUnlock()
-	if !known {
-		return statusError, nil, fmt.Errorf("no IRR-filtered peer with ASN %d", asn)
-	}
-	plug.refreshASN(asn)
-	if msg := plug.asnRefreshError(asn); msg != "" {
-		return statusError, nil, fmt.Errorf("ASN %d refresh failed: %s", asn, msg)
-	}
-	var tb textbuf.Buffer
-	return statusDone, json.RawMessage(tb.Str(`{"refreshed":"asn `).Uint32(asn).Str(`"}`).String()), nil
-}
-
-func (plug *irrPlugin) updateASSet(args []string) (string, any, error) {
-	if len(args) == 0 || args[0] == "" {
-		return statusError, nil, errors.New("usage: update bgp irr as-set <as-set>")
-	}
-	target := args[0]
-	if err := irr.ValidateASSetName(target); err != nil {
-		return statusError, nil, errors.New("invalid AS-SET name")
-	}
-	plug.mu.RLock()
-	var toRefresh []uint32
-	for asn, st := range plug.byASN {
-		if st.asSet == target {
-			toRefresh = append(toRefresh, asn)
-		}
-	}
-	plug.mu.RUnlock()
-
-	if len(toRefresh) == 0 {
-		return statusError, nil, fmt.Errorf("no IRR-filtered peer uses AS-SET %s", target)
-	}
-	for _, asn := range toRefresh {
-		plug.refreshASN(asn)
-	}
-	for _, asn := range toRefresh {
-		if msg := plug.asnRefreshError(asn); msg != "" {
-			return statusError, nil, fmt.Errorf("AS-SET %s refresh failed for ASN %d: %s", target, asn, msg)
-		}
-	}
-	var tb textbuf.Buffer
-	tb.Str(`{"refreshed":"as-set `).Str(target).Str(`"}`)
-	return statusDone, json.RawMessage(tb.String()), nil
 }

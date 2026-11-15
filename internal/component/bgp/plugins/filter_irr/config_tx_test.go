@@ -26,8 +26,7 @@ type irrTestTx struct {
 
 func newTestTx(t *testing.T) irrTestTx {
 	t.Helper()
-	plug := &irrPlugin{byASN: make(map[uint32]*asnState), stopCh: make(chan struct{})}
-	t.Cleanup(func() { close(plug.stopCh) })
+	plug := &irrPlugin{byASN: make(map[uint32]*asnState)}
 	return irrTestTx{ConfigTx: newIRRConfigTx(plug), plug: plug}
 }
 

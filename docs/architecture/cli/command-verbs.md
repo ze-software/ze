@@ -533,7 +533,7 @@ not costs them a lookup on every use, so the divergence has to buy something.
 | `create` | Neither FRR nor BIRD has it. VyOS and JunOS create through config | No | Earned. It names a LIVE kernel resource, which config-mode verbs cannot express |
 | `debug` | FRR declares `debug` commands, BIRD declares `CF_CLI(DEBUG, ...)` | Partly | Earned. Both use `debug` for log verbosity, Ze uses it for a deliberate perturbation, and Ze's is the narrower promise |
 | `resolve` | Nobody. VyOS spells it `force dns update`, JunOS `request dns resolve` | No | See divergence L-1 |
-| `update` | Nobody uses it as a root verb | No | Merely different, and unresolved. `update bgp irr as-set` refetches an external set, which JunOS would spell `request` |
+| `update` | Nobody uses it as a root verb | No | Merely different, and unresolved. `update irr as-set` refetches an external set, which JunOS would spell `request` |
 <!-- source: /Users/thomas/Code/github.com/FRRouting/frr -- bgpd/bgp_vty.c clear command strings, `show` command strings -->
 <!-- source: /Users/thomas/Code/gitlab.nic.cz/labs/bird -- nest/config.Y CF_CLI declarations -->
 <!-- source: docs/guide/command-catalogue.md -- the VyOS, JunOS, Nokia and Arista columns -->
@@ -572,7 +572,7 @@ system, and the 13 rows below hold them. The other 237 keep the promise.
 | T-32 | `resolve ping`, `resolve traceroute` | They emit packets. L-1 already records them as undefended, and the axis settles the read half of that question | `request` | The same producers as T-25 and T-26 |
 
 Three commands look like changers and are not. `show bgp irr check` reads the
-cached IRR state and refetching is `update bgp irr asn`. `show system update`
+stored IRR state and refetching is `update irr asn`. `show system update`
 reads a stored status and the fetch is `update system firmware check`. `show
 policy test peer` runs the peer's filter chain over an operator-supplied UPDATE
 and installs nothing.

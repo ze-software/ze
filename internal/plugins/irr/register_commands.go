@@ -40,8 +40,8 @@ func registerIRRShapes() {
 	command.RegisterShape([]string{cmdShowIRR}, command.ShapeTab)
 	command.RegisterColumns([]string{cmdShowIRR},
 		command.ColumnOrder{
-			"as-set", "server", "ipv4-count", "ipv6-count",
-			"refreshed-at", "checked-at", "next-refresh", "consumers",
+			"as-set", "server", "status", "ipv4-count", "ipv6-count",
+			"refreshed-at", "checked-at", "stale-since", "next-refresh", "generation", "consumers",
 		},
 	)
 	command.RegisterAddressFields([]string{cmdShowIRR})

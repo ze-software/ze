@@ -2,12 +2,15 @@ module ze-firewall-irr-cmd {
     namespace "urn:ze:firewall-irr:cmd";
     prefix fwirrcmd;
     import ze-extensions { prefix ze; }
-    description "show firewall irr ... and update firewall irr ... command tree.
+    description "show firewall irr ... command tree.
                  Owned by the firewall-irr plugin so that removing the plugin
                  directory removes these command nodes together with the handlers
-                 and config schema. See ai/rules/plugin-self-containment.md.";
+                 and config schema. See ai/rules/plugin-self-containment.md.
+                 Fetching and removing a stored list are the irr plugin's
+                 update irr and clear irr.";
     revision 2026-06-17 { description "Initial revision."; }
     revision 2026-08-18 { description "Add clear firewall irr asn/as-set: the deliberate way to drop cached prefixes, now that a refresh which learns nothing keeps them."; }
+    revision 2026-11-15 { description "Remove update firewall irr and clear firewall irr: the irr plugin fetches and stores every list, through update irr and clear irr."; }
 
     container show {
         config false;
@@ -25,140 +28,25 @@ module ze-firewall-irr-cmd {
             container irr {
                 config false;
                 ze:command "ze-firewall:show-irr-status";
-                description "Lists each cached entry with prefix counts, last
-refresh time, and error status. Use this to confirm that IRR prefix-lists are
-loaded and current before committing firewall config.";
-                ze:help "Show IRR filter status for all cached ASN/AS-SET entries.";
+                description "Lists each configured reference with the stored
+copy the firewall enforces for it: its status, prefix counts, server,
+generation, check and refresh times. Use this to confirm that IRR prefix-lists
+are stored and current before committing firewall config.";
+                ze:help "Show the IRR lists the firewall enforces.";
 
                 container prefix {
                     config false;
                     ze:command "ze-firewall:show-irr-prefix";
-                    description "Lists all IPv4 and IPv6 prefixes in the cached
-prefix-list for the given ASN or AS-SET.";
-                    ze:help "Show IRR-resolved prefixes for a cached entry.";
+                    description "Lists all IPv4 and IPv6 prefixes the firewall
+enforces for the given ASN or AS-SET.";
+                    ze:help "Show the prefixes the firewall enforces for a reference.";
                     leaf name {
                         type string;
                         mandatory true;
-                        description "The cache key, as the update command stored it: an ASN
-in the form AS64500, or an AS-SET name. A key with no cached data is an error.";
+                        description "The reference as the firewall config names it: an ASN
+in the form AS64500, or an AS-SET name. A name no rule references, or one with
+nothing stored, is an error.";
                         ze:help "ASN or AS-SET name";
-                    }
-                }
-            }
-        }
-    }
-
-    container update {
-        config false;
-
-        container firewall {
-            config false;
-            description "These refresh data the firewall uses and do not edit a rule. A rule an operator
-                         wrote stays as written.";
-            ze:help "Firewall operational updates.";
-
-            container irr {
-                config false;
-                description "The fetch reaches an external IRR database over the network, so it can fail for a
-                             reason that has nothing to do with the firewall. A failed refresh leaves the
-                             previous prefix list in place rather than emptying it.";
-                ze:help "IRR prefix-list fetch and refresh commands.";
-
-                container all {
-                    config false;
-                    ze:command "ze-firewall:update-irr-all";
-                    description "Re-queries the IRR server for every cached
-ASN/AS-SET entry and updates the zefs cache on success. A failed refresh
-preserves the existing cache and reports an error.";
-                    ze:help "Refresh all cached IRR prefix-lists.";
-                }
-
-                container asn {
-                    config false;
-                    ze:command "ze-firewall:update-irr-asn";
-                    description "Queries the IRR server and saves resolved prefixes
-to the zefs cache. Creates the cache entry if it does not exist.";
-                    ze:help "Fetch or refresh IRR prefix-list for an ASN.";
-                    leaf asn {
-                        type string;
-                        mandatory true;
-                        description "The AS number, 1 to 4294967294, in plain or dotted form.
-The cache key is the decimal spelling with an AS prefix, so 1.10 and 65546 name one entry.";
-                        ze:help "ASN number";
-                    }
-                }
-
-                container as-set {
-                    config false;
-                    ze:command "ze-firewall:update-irr-as-set";
-                    description "Queries the IRR server and saves resolved prefixes
-to the zefs cache.";
-                    ze:help "Fetch or refresh IRR prefix-list for an AS-SET.";
-                    leaf as-set {
-                        type string;
-                        mandatory true;
-                        description "The RPSL set name, for example AS-EXAMPLE or RIPE::AS-EXAMPLE.
-Letters, digits, hyphen, underscore, colon and period are accepted, and the name is the cache key.";
-                        ze:help "AS-SET name";
-                    }
-                }
-            }
-        }
-    }
-
-    container clear {
-        config false;
-
-        container firewall {
-            config false;
-            // Repeat the canonical description owned by ze-firewall-cmd.yang
-            // verbatim so the command-tree merge does not warn on a mismatch.
-            description "Clearing removes cached firewall state Ze installed and leaves the configured
-                         rules alone, so the next refresh reinstalls them. A rule added outside Ze is
-                         untouched.";
-            // Shared with every plugin that hangs a subtree under `clear firewall`
-            // (firewall-domain is the second). The command-tree merge warns on a
-            // mismatch, so the text stays generic: it described only IRR until
-            // 2026-09, which no longer matched the node it sits on.
-            ze:help "Firewall rules and groups (nftables).";
-
-            container irr {
-                config false;
-                description "A refresh that learns nothing keeps the prefixes it
-already has, so that one bad answer from an IRR server cannot empty a live
-filter. These commands are how an operator removes prefixes on purpose, for an
-ASN or AS-SET that no longer exists upstream.";
-                ze:help "Remove cached IRR prefix-lists.";
-
-                container asn {
-                    config false;
-                    ze:command "ze-firewall:clear-irr-asn";
-                    description "Drops the entry from memory and from the persisted
-cache, then re-applies the firewall tables. Config that still references the
-ASN fails to verify until it is fetched again with
-'update firewall irr asn <asn>'.";
-                    ze:help "Remove the cached IRR prefix-list for an ASN.";
-                    leaf asn {
-                        type string;
-                        mandatory true;
-                        description "The AS number, 1 to 4294967294, in plain or dotted form.
-The entry purged is the one the update command stored under the decimal spelling.";
-                        ze:help "ASN number";
-                    }
-                }
-
-                container as-set {
-                    config false;
-                    ze:command "ze-firewall:clear-irr-as-set";
-                    description "Drops the entry from memory and from the persisted
-cache, then re-applies the firewall tables.";
-                    ze:help "Remove the cached IRR prefix-list for an AS-SET.";
-                    leaf as-set {
-                        type string;
-                        mandatory true;
-                        description "The RPSL set name the update command stored, for example
-AS-EXAMPLE. The entry under that exact name is purged.";
-                        ze:help "AS-SET name";
                     }
                 }
             }

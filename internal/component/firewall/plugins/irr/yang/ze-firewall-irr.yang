@@ -7,11 +7,12 @@ module ze-firewall-irr {
     import ze-firewall-conf { prefix fw; }
 
     description "IRR-based source/destination address filtering for the firewall.
-                 Resolves ASN or AS-SET references to prefix lists via the IRR whois
-                 client and populates nftables interval sets. Augments the firewall
-                 from-block with source-asn, source-as-set, destination-asn, and
-                 destination-as-set leaves, and adds a firewall irr policy container
-                 for server, refresh-interval, and peeringdb-url settings.";
+                 Reads the prefix lists the irr plugin stored for ASN or AS-SET
+                 references and populates nftables interval sets. Augments the
+                 firewall from-block with source-asn, source-as-set, destination-asn,
+                 and destination-as-set leaves, and adds a firewall irr container
+                 for interface bindings. Its server, refresh-interval and
+                 peeringdb-url leaves are no longer read: system irr holds them.";
 
     revision 2026-06-17 {
         description "Initial revision";
@@ -19,11 +20,12 @@ module ze-firewall-irr {
 
     augment "/fw:firewall" {
         container irr {
-            description "The settings under it reach every IRR reference of the firewall, in a
-                         term and on an interface alike. Ze keeps the resolved prefixes in a
-                         zefs prefix store that the BGP IRR filter shares, so one query serves
-                         both. A commit that names a reference with no cached prefixes is
-                         refused.";
+            description "The irr plugin fetches, schedules and stores every IRR list the firewall
+                         enforces, from the server and at the interval system irr names; the
+                         BGP IRR filter enforces the same stored copy, so one query serves
+                         both. A commit that names a reference with nothing stored is refused
+                         with the update irr command that fetches it. The server,
+                         peeringdb-url and refresh-interval leaves below are no longer read.";
             ze:help "IRR policy settings for firewall prefix-list resolution.";
 
             leaf server {
@@ -54,10 +56,9 @@ module ze-firewall-irr {
                 }
                 default "0";
                 units "seconds";
-                description "The default 0 disables the automatic refresh, and the
-                             operator then runs 'update firewall irr' by hand. A value
-                             in 60..86400 starts the periodic refresh. That refresh
-                             fails closed: a failed query keeps the last-good cache.";
+                description "No longer read: the irr plugin refreshes every stored list at
+                             system irr refresh-interval, and 'update irr' fetches one by
+                             hand.";
                 ze:help "Seconds between automatic IRR re-queries.";
             }
 
@@ -90,8 +91,8 @@ module ze-firewall-irr {
                     mandatory true;
                     description "The prefixes the IRR resolves for this AS-SET form the
                                  allowed source-address set of the interface. The match
-                                 needs cached prefix data. A config commit is refused
-                                 when no cached data exists.";
+                                 needs a stored prefix list. A config commit is refused
+                                 when nothing is stored.";
                     ze:help "AS-SET whose IRR-resolved prefixes are the allowed source addresses.";
                 }
             }
@@ -103,9 +104,9 @@ module ze-firewall-irr {
             type zt:asn {
                 range "1..4294967294";
             }
-            description "The match needs cached prefix data, so run 'update firewall
-                         irr asn <N>' first. A config commit is refused when no cached
-                         data exists.";
+            description "The match needs a prefix list the irr plugin stored, so run
+                         'update irr asn <N>' first. A config commit is refused when
+                         nothing is stored.";
             ze:help "Match the source address against the IRR-resolved prefixes of this ASN.";
         }
 
@@ -114,9 +115,9 @@ module ze-firewall-irr {
                 length "1..255";
                 pattern '[A-Za-z0-9:._-]+';
             }
-            description "The match needs cached prefix data, so run 'update firewall
-                         irr as-set <name>' first. A config commit is refused when no
-                         cached data exists.";
+            description "The match needs a prefix list the irr plugin stored, so run
+                         'update irr as-set <name>' first. A config commit is refused
+                         when nothing is stored.";
             ze:help "Match the source address against the IRR-resolved prefixes of this AS-SET.";
         }
 
@@ -124,10 +125,10 @@ module ze-firewall-irr {
             type zt:asn {
                 range "1..4294967294";
             }
-            description "The cache rule is the one source-asn states. The match needs
-                         cached prefix data, so run 'update firewall irr asn <N>'
-                         first. A config commit is refused when no cached data
-                         exists.";
+            description "The stored-list rule is the one source-asn states. The match
+                         needs a prefix list the irr plugin stored, so run 'update irr
+                         asn <N>' first. A config commit is refused when nothing is
+                         stored.";
             ze:help "Match the destination address against the IRR-resolved prefixes of this ASN.";
         }
 
@@ -136,10 +137,10 @@ module ze-firewall-irr {
                 length "1..255";
                 pattern '[A-Za-z0-9:._-]+';
             }
-            description "The cache rule is the one source-as-set states. The match
-                         needs cached prefix data, so run 'update firewall irr as-set
-                         <name>' first. A config commit is refused when no cached data
-                         exists.";
+            description "The stored-list rule is the one source-as-set states. The
+                         match needs a prefix list the irr plugin stored, so run
+                         'update irr as-set <name>' first. A config commit is refused
+                         when nothing is stored.";
             ze:help "Match the destination address against the IRR-resolved prefixes of this AS-SET.";
 
         }

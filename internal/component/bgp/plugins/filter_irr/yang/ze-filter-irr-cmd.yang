@@ -2,7 +2,7 @@ module ze-filter-irr-cmd {
     namespace "urn:ze:filter-irr:cmd";
     prefix firrcmd;
     import ze-extensions { prefix ze; }
-    description "show bgp irr ... and update bgp irr ... command tree. Owned by the bgp-filter-irr plugin so that removing the IRR filter surface removes these command nodes together with the handlers and config schema. See ai/rules/plugin-self-containment.md.";
+    description "show bgp irr ... command tree. The IRR fetch commands, update irr and clear irr, belong to the irr plugin (ze-irr-cmd). Owned by the bgp-filter-irr plugin so that removing the IRR filter surface removes these command nodes together with the handlers and config schema. See ai/rules/plugin-self-containment.md.";
     revision 2026-06-14 { description "Initial revision."; }
 
     container show {
@@ -19,9 +19,10 @@ or l2vpn.";
             container irr {
                 config false;
                 ze:command "ze-bgp:show-irr-status";
-                description "Lists each enrolled ASN with its resolved AS-SET, prefix counts,
-last refresh time, and error status. Use this to confirm that IRR
-prefix-lists are loaded and current.";
+                description "Lists each enrolled ASN with the AS-SET it is filtered by, the prefix
+counts of the stored copy the filter enforces, which copy that is (server,
+generation, checked-at, refreshed-at), and whether it could be read. The irr
+plugin fetches and stores the copies; show irr answers when each is due.";
                 ze:help "Show IRR filter status per ASN.";
 
                 container prefix {
@@ -61,64 +62,6 @@ under. An address no enrolled ASN carries is refused.";
 check. The answer echoes it and reports accepted true or false, with the entry that
 matched when one did.";
                         ze:help "Prefix to check (CIDR).";
-                    }
-                }
-            }
-        }
-    }
-
-    container update {
-        config false;
-
-        container bgp {
-            config false;
-            ze:help "BGP operational updates.";
-
-            container irr {
-                config false;
-                description "The fetch reaches an external IRR database over the network, so it can fail for a
-                             reason unrelated to BGP. A failed refresh keeps the previous prefix list rather
-                             than emptying it, so no route is accidentally accepted.";
-                ze:help "IRR prefix-list refresh commands.";
-
-                container all {
-                    config false;
-                    ze:command "ze-bgp:update-irr-all";
-                    description "Re-queries the IRR server for every enrolled ASN and atomically
-swaps prefix-lists on success. Failed refreshes preserve the
-existing prefix-list and report an error.";
-                    ze:help "Refresh all IRR prefix-lists immediately.";
-                }
-
-                container asn {
-                    config false;
-                    ze:command "ze-bgp:update-irr-asn";
-                    description "Re-queries the IRR server for
-the given ASN only.";
-                    ze:help "Refresh IRR prefix-list for a specific ASN.";
-                    leaf asn {
-                        type string;
-                        mandatory true;
-                        description "The AS number as a plain decimal from 0 to 4294967295. An ASN with
-no IRR-filtered peer is refused, and a refresh the IRR server fails is reported with the
-server's error.";
-                        ze:help "ASN number.";
-                    }
-                }
-
-                container as-set {
-                    config false;
-                    ze:command "ze-bgp:update-irr-as-set";
-                    description "Re-queries the IRR server
-for all peers using the given AS-SET name.";
-                    ze:help "Refresh IRR prefix-list for a specific AS-SET.";
-                    leaf as-set {
-                        type string;
-                        mandatory true;
-                        description "The AS-SET name as the peer configuration spells it, compared as an
-exact string. Every enrolled ASN that resolves through this AS-SET is refreshed, and a
-name no enrolled ASN uses is refused.";
-                        ze:help "AS-SET name.";
                     }
                 }
             }

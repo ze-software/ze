@@ -8,6 +8,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/firewall"
 	"github.com/ze-software/ze/internal/component/resolve/irr/store"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -58,9 +59,9 @@ func familySet(name string, setType firewall.SetType, prefixes []netip.Prefix) f
 // family than a firewall set takes, and answers nil for an entry that fits.
 //
 // It is a refusal because the bound used to TRUNCATE. The builder stopped at
-// the cap, logged one WARN and returned the short list, so refreshName and
-// refreshAllNow programmed part of the operator's rule and reported a refresh
-// that worked. A firewall set is read in two directions and nothing here can
+// the cap, logged one WARN and returned the short list, so a refresh
+// programmed part of the operator's rule and reported a refresh that worked.
+// A firewall set is read in two directions and nothing here can
 // see which one applies: a set a term accepts from drops the traffic the
 // missing prefixes carry, and a set a term drops on forwards that traffic.
 // Neither may be reached in silence, so an entry that does not fit keeps the
@@ -69,10 +70,12 @@ func familySet(name string, setType firewall.SetType, prefixes []netip.Prefix) f
 // rather than a shorter prefix list (parseReply,
 // internal/component/resolve/irr/client.go).
 //
-// Two paths carry the check. verifyRefs refuses the commit, and applyTables
-// refuses the apply for data that reached the cache another way: a refresh, a
-// restart reading the persisted store, or the BGP IRR filter writing the same
-// shared entry.
+// Two paths carry the check. verifyStored refuses the commit, and applyTables
+// refuses the apply for a copy the reader read after the commit: the irr
+// plugin's refresh of a set already committed, or a restart reading the
+// stored copy. The irr plugin bounds a family at the same 500,000
+// (store.DatasetFamilyMax); this bound is the firewall set's own, and a test
+// lowers it.
 func oversizedEntryError(name string, entry *store.CachedEntry) error {
 	if entry == nil {
 		return nil
@@ -93,14 +96,19 @@ func oversizedMessage(name, family string, count int) error {
 	var tb textbuf.Buffer
 	tb.Str("firewall irr: ").Str(name).Str(" holds ").Int(int64(count)).Byte(' ').Str(family)
 	tb.Str(" prefixes and a firewall set holds ").Int(int64(maxPrefixesPerFamily))
-	tb.Str(", so the rules naming it are not programmed; narrow the reference, or run 'clear firewall irr ")
-	if isASSetName(name) {
-		tb.Str("as-set ").Str(name)
-	} else {
-		tb.Str("asn ").Str(bareASN(name))
-	}
-	tb.Str("' to remove it")
-	return errors.New(tb.String())
+	ref := irrRef{Name: name, IsASSet: isASSetName(name)}
+	return opererr.Wrap(errOversized, tb.String(),
+		"the rules naming it are not programmed; narrow the reference, or remove its stored list", clearCommand(ref))
+}
+
+// errOversized marks a list too long for a firewall set, so the reader logs
+// the refusal under the oversized doctor code.
+var errOversized = errors.New("over the prefixes one firewall set holds")
+
+// prefixLists answers the prefixes enforced for a reference name, or nil for
+// none. The plugin's enforcedLists is the one the daemon uses.
+type prefixLists interface {
+	Get(name string) *store.CachedEntry
 }
 
 // refuseOversizedRefs answers the first reference whose cached prefix list does
@@ -109,7 +117,7 @@ func oversizedMessage(name, family string, count int) error {
 // (internal/component/firewall/registry.go) then holds back its whole table,
 // which takes a filter that was working out of the kernel. Registering nothing
 // keeps every table exactly as it is.
-func refuseOversizedRefs(ps *store.PrefixStore, refs []irrRef) error {
+func refuseOversizedRefs(ps prefixLists, refs []irrRef) error {
 	for _, ref := range refs {
 		if err := oversizedEntryError(ref.Name, ps.Get(ref.Name)); err != nil {
 			return err
@@ -225,7 +233,7 @@ func prefixRange(p netip.Prefix) (start, exclusiveEnd netip.Addr) {
 	return start, netip.AddrFrom16(a)
 }
 
-func buildIfaceTables(ps *store.PrefixStore, bindings []ifaceBinding) []firewall.Table {
+func buildIfaceTables(ps prefixLists, bindings []ifaceBinding) []firewall.Table {
 	if len(bindings) == 0 {
 		return nil
 	}
@@ -312,7 +320,7 @@ func ifaceTermName(iface, suffix string) string {
 	return tb.Str("iface_").Str(iface).Byte('_').Str(suffix).String()
 }
 
-func buildIRRTables(ps *store.PrefixStore, refs []irrRef) []firewall.Table {
+func buildIRRTables(ps prefixLists, refs []irrRef) []firewall.Table {
 	byTable := make(map[string]*firewall.Table)
 	var order []string
 	for _, ref := range refs {

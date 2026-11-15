@@ -34,7 +34,7 @@ func TestClearResolverCache_CurrentClientsOnly(t *testing.T) {
 	whois := fakeIRR(t, map[string]string{"AS-X": "192.0.2.0/24"}, nil)
 	pdbURL := fakePeeringDB(t, map[string]string{"65001": "AS-X"})
 	oldIRR, oldPDB := irr.NewIRR(whois), peeringdb.NewPeeringDB(pdbURL)
-	s := New(oldIRR, oldPDB, nil)
+	s := New(oldIRR, oldPDB)
 
 	if _, err := oldIRR.LookupPrefixes(ctx, "AS-X"); err != nil {
 		t.Fatalf("LookupPrefixes: %v", err)
@@ -63,7 +63,7 @@ func TestClearResolverCache_CurrentClientsOnly(t *testing.T) {
 // and a store with no PeeringDB client holds no PeeringDB entry.
 // PREVENTS: a malformed request answered as removed 0.
 func TestClearResolverCache_Refusals(t *testing.T) {
-	s := New(irr.NewIRR("127.0.0.1:1"), nil, nil)
+	s := New(irr.NewIRR("127.0.0.1:1"), nil)
 	mustClear(t, s, clearInput(rpc.ResolverCachePeeringDB, rpc.ResolverCacheClearAll, ""), 0)
 	for _, input := range []rpc.ResolverCacheClearInput{
 		clearInput(rpc.ResolverCachePeeringDB, rpc.ResolverCacheDeleteEntry, "AS-FOO"),
@@ -82,7 +82,7 @@ func TestClearResolverCache_Refusals(t *testing.T) {
 func TestClearResolverCache_PeeringDBKeyASDot(t *testing.T) {
 	ctx := context.Background()
 	pdb := peeringdb.NewPeeringDB(fakePeeringDB(t, map[string]string{"196618": "AS-Y"}))
-	s := New(irr.NewIRR("127.0.0.1:1"), pdb, nil)
+	s := New(irr.NewIRR("127.0.0.1:1"), pdb)
 
 	if _, err := pdb.LookupASSet(ctx, 196618); err != nil {
 		t.Fatalf("LookupASSet: %v", err)

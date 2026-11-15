@@ -51,7 +51,8 @@ binding, then fetches and stores the AS-SET's prefixes.";
                     type zt:asn-notated;
                     mandatory true;
                     description "The AS number in plain decimal or in asdot notation, which Ze parses to
-one 32-bit value. A spelling that parses to no AS number is refused.";
+one 32-bit value: 0 to 4294967295 in plain decimal, 0.0 to 65535.65535 in asdot.
+A spelling that parses to no AS number is refused.";
                     ze:help "AS number.";
                 }
             }
@@ -101,7 +102,8 @@ commit that newly names it.";
                     type zt:asn-notated;
                     mandatory true;
                     description "The AS number in plain decimal or in asdot notation, which Ze parses to
-one 32-bit value. A spelling that parses to no AS number is refused.";
+one 32-bit value: 0 to 4294967295 in plain decimal, 0.0 to 65535.65535 in asdot.
+A spelling that parses to no AS number is refused.";
                     ze:help "AS number.";
                 }
             }

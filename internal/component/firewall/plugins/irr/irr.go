@@ -1,19 +1,19 @@
 // Design: docs/architecture/firewall/firewall-irr.md -- firewall IRR plugin entry point
-// Related: doctor.go -- the ze doctor check over the same references verifyRefs guards
+// Related: stored.go -- the reader that reads the irr plugin's stored lists
+// Related: doctor.go -- the ze doctor checks over the same references verifyStored guards
 //
 // Package irr implements IRR-based prefix-list filtering for firewall rules.
-// It resolves ASN and AS-SET references to prefix lists via the shared
-// PrefixStore, populates nftables interval sets, and registers them through
-// the firewall table registry for merged apply.
+// It fetches nothing. The irr plugin (internal/plugins/irr) fetches, schedules
+// and stores every AS-SET a consumer enforces; this plugin tells it which ones
+// through its interest key, reads what it stored (stored.go), populates
+// nftables interval sets, and registers them through the firewall table
+// registry for merged apply.
 //
-// A refresh that learns nothing never replaces cached prefixes: the guard is
-// PrefixStore.Refresh in internal/component/resolve/irr/store, which returns
-// store.ErrNoPrefixes and keeps the last known good data. This package counts
-// that outcome apart from a success, logs it, and reports it as a stale entry.
-// The guard also holds per family, so an answer carrying IPv4 and nothing for
-// IPv6 is a success here, with the entry marked stale and its IPv6 prefixes
-// kept. Without that, the interface binding would lose its IPv6 accept term
-// and its drop term would take every IPv6 packet on the port (sets.go).
+// A refresh that learns nothing never replaces stored prefixes: the irr plugin
+// keeps the last known good copy per family, marks it stale, and this plugin
+// reports the stale copy. An answer carrying IPv4 and nothing for IPv6 keeps
+// the stored IPv6 prefixes, so the interface binding keeps its IPv6 accept term
+// and its drop term never takes every IPv6 packet on the port (sets.go).
 package irr
 
 import (
@@ -21,96 +21,104 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"runtime/debug"
 	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/firewall"
-	"github.com/ze-software/ze/internal/component/resolve/irr"
 	"github.com/ze-software/ze/internal/component/resolve/irr/store"
-	"github.com/ze-software/ze/internal/component/resolve/peeringdb"
-	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 var logger = slogutil.LazyLogger("firewall.irr")
 
-type irrMetrics struct {
-	prefixesCached  metrics.Gauge
-	refreshOutcomes metrics.CounterVec
-	lastRefresh     metrics.Gauge
-	dataAge         metrics.Gauge
+// pluginName is the plugin's registered name, its table registry owner and the
+// consumer name its interest key carries.
+const pluginName = "firewall-irr"
+
+// verifyReadTimeout bounds the store reads one commit verify makes.
+const verifyReadTimeout = 30 * time.Second
+
+// enforcedCopy is the stored copy of one reference this plugin enforces: the
+// AS-SET it holds (the set bound to an AS number for an ASN reference), the
+// pointer it was read under, and its prefixes in the form the set builders
+// take (sets.go).
+type enforcedCopy struct {
+	asSet     string
+	pointer   store.Pointer
+	entry     *store.CachedEntry
+	checkedAt time.Time
 }
 
-var irrMetricsPtr atomic.Pointer[irrMetrics]
+// refState is one configured reference and the copy enforced for it. The
+// reference name is the identity: it names the nftables sets, so a reload
+// keeping the name keeps the copy, and a new name starts from no list.
+type refState struct {
+	ref irrRef
+	// configured is the AS-SET in key form for an AS-SET reference, and empty
+	// for an ASN reference, whose set is the stored binding of asn.
+	configured string
+	asn        uint32
+	// keyErr says why the reference names no key; such a reference is never
+	// read.
+	keyErr string
+	copy   *enforcedCopy // nil: no list is enforced
+	// readErr is the last read of a stored value that failed; the copy above
+	// stays enforced meanwhile.
+	readErr string
+}
 
-func setMetricsRegistry(reg metrics.Registry) {
-	m := &irrMetrics{
-		prefixesCached:  reg.Gauge("ze_firewall_irr_prefixes_cached", "Total IRR-resolved prefixes cached for firewall filtering."),
-		refreshOutcomes: reg.CounterVec("ze_firewall_irr_refresh_outcomes_total", "Firewall IRR refresh outcomes.", []string{"result"}),
-		lastRefresh:     reg.Gauge("ze_firewall_irr_last_refresh_timestamp", "Unix timestamp of last firewall IRR refresh that learned prefixes."),
-		dataAge:         reg.Gauge("ze_firewall_irr_data_age_seconds", "Age in seconds of the oldest IRR prefix data the firewall is enforcing."),
-	}
-	irrMetricsPtr.Store(m)
+// interestFailure is the last refusal of the interest key write.
+type interestFailure struct {
+	err   string
+	since time.Time
+}
+
+// applyFailure is the last apply of the firewall tables that failed.
+type applyFailure struct {
+	err   string
+	since time.Time
 }
 
 type irrPlugin struct {
-	plugin      *sdk.Plugin
-	prefixStore *store.PrefixStore
-	state       store.KeyStore // Bound only after the startup handshake.
+	plugin *sdk.Plugin
+	reader *storeReader
 
-	mu          sync.RWMutex
-	config      *irrConfig
-	lastRefresh time.Time
+	mu      sync.RWMutex
+	config  *irrConfig
+	refs    map[string]*refState // by reference name
+	started bool
 
-	stopCh      chan struct{}
-	refreshStop chan struct{}
-	refreshing  atomic.Bool
+	interestErr atomic.Pointer[interestFailure]
+	applyErr    atomic.Pointer[applyFailure]
 }
 
 func runFirewallIRR(conn net.Conn) int {
-	p := sdk.NewWithConn("firewall-irr", conn)
+	p := sdk.NewWithConn(pluginName, conn)
 	defer func() { _ = p.Close() }()
 
-	plug := &irrPlugin{
-		plugin: p,
-		stopCh: make(chan struct{}),
-	}
+	plug := &irrPlugin{plugin: p, refs: make(map[string]*refState)}
+	plug.reader = newStoreReader(plug, p)
 
 	// pendingCfg carries the config verified by OnConfigVerify into
 	// OnConfigApply, which receives only a diff. Without it a reload would
-	// apply the config the daemon started with: the refs, the interface
-	// bindings, the server and the refresh interval all live here.
+	// apply the config the daemon started with: the refs and the interface
+	// bindings live here.
 	var pendingCfg *irrConfig
 
-	p.OnConfigure(func(sections []sdk.ConfigSection) error {
-		return plug.configure(parseIRRConfig(sections))
-	})
+	// The startup handshake delivers the config before any state RPC works,
+	// so OnConfigure records it and nothing more. It registers no table and
+	// reports no reference as unstored: the OnStarted read does both from
+	// what is stored, once (AC-21).
+	p.OnConfigure(plug.handshakeConfigure)
 
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
 		cfg := parseIRRConfig(sections)
-		refs := cfg.allRefs()
-		if len(refs) == 0 {
-			pendingCfg = cfg
-			return nil
-		}
-		ps := plug.getPrefixStore()
-		if ps == nil {
-			ps = store.New(
-				irr.NewIRR(defaultServer),
-				nil,
-				plug.state,
-			)
-			if err := ps.Open(); err != nil {
-				return fmt.Errorf("firewall-irr: cache not available: %w", err)
-			}
-		}
-		if err := verifyRefs(ps, refs); err != nil {
+		if err := plug.verify(cfg); err != nil {
 			return err
 		}
 		pendingCfg = cfg
@@ -120,55 +128,49 @@ func runFirewallIRR(conn net.Conn) int {
 	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
 		cfg := pendingCfg
 		pendingCfg = nil
-		if cfg == nil {
-			// No verify ran for this transaction, so nothing new was
-			// approved: reconcile what is already configured.
-			return plug.applyTables()
+		if cfg != nil {
+			plug.configure(cfg)
 		}
-		return plug.configure(cfg)
+		// No verify ran when cfg is nil, so nothing new was approved: the
+		// pass reconciles what is configured.
+		return plug.reader.passNow(context.Background())
 	})
 
 	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
 		return plug.handleCommand(command, args)
 	})
+	p.OnDoctorCheck(plug.answerDoctorCheck)
+
+	// The irr plugin's notice of a stored or removed dataset. Subscribed at
+	// stage 5, before any event flows, so a notice sent between the
+	// subscription and the OnStarted read is delivered and queued.
+	p.AddStartupSubscriptionsIn(store.NoticeNamespace, []string{store.EventDatasetStored})
+	p.OnEvent(func(event string) error {
+		plug.reader.notice(event)
+		return nil
+	})
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
-	defer close(plug.stopCh)
-	p.OnStarted(func(ctx context.Context) error {
+	p.OnStarted(func(_ context.Context) error {
 		plug.mu.Lock()
-		plug.state = p.StateKeys(ctx)
-		ps := plug.prefixStore
-		cfg := plug.config
+		plug.started = true
 		plug.mu.Unlock()
-		if ps == nil {
-			return nil
-		}
-		ps.UsePersistence(plug.state)
-		return plug.configure(cfg)
-	})
-
-	// The IRR and PeeringDB clients this plugin uses live in its prefix
-	// store, so the store answers clear irr cache and clear peeringdb cache.
-	p.OnResolverCacheClear(store.ResolverCaches(), plug.clearResolverCache)
-
-	// The irr plugin's notice of a stored dataset. Subscribed at stage 5,
-	// before any event flows, so a notice sent between the subscription and
-	// the OnStarted read is delivered. The handler only acknowledges it: this
-	// plugin does not read the stored dataset yet and still fetches for itself.
-	p.AddStartupSubscriptionsIn(store.NoticeNamespace, []string{store.EventDatasetStored})
-	p.OnEvent(func(event string) error {
-		logger().Debug("irr dataset notice received, not read yet", "event", event)
+		// The reader lives as long as the plugin, across every configure
+		// cycle, and stops with ctx.
+		go plug.reader.run(ctx)
+		plug.reader.readAll()
 		return nil
 	})
 
 	if err := p.Run(ctx, &sdk.Registration{
-		Commands:    commandDecls(),
-		WantsConfig: []string{configRoot},
-		// The cache this plugin serves the firewall from survives a restart in
-		// the owned store, so a crashed process comes back and programs its sets
-		// again from what it had. Without the restart the registry holds back
-		// every table naming an IRR set for the life of the daemon.
+		Commands:     commandDecls(),
+		WantsConfig:  []string{configRoot},
+		DoctorChecks: []sdk.DoctorCheckDecl{storedCopyCheckDecl},
+		// The lists this plugin enforces survive its crash in the irr plugin's
+		// store, so a restarted process reads them again and programs its sets.
+		// Without the restart the registry holds back every table naming an IRR
+		// set for the life of the daemon.
 		FailurePolicy: sdk.FailureRestart,
 	}); err != nil {
 		logger().Error("firewall-irr plugin failed", "error", err)
@@ -177,167 +179,212 @@ func runFirewallIRR(conn net.Conn) int {
 	return 0
 }
 
-// configure installs cfg as the plugin's running configuration: it points the
-// prefix store at the configured IRR server, replaces the refresh loop, and
-// reconciles the tables the config asks for. Both OnConfigure and
-// OnConfigApply call it, so a reload changes what a restart would have changed.
-// An apply that skipped it left the plugin serving the config the daemon
-// started with, and a term added by a commit never reached the registry.
-func (plug *irrPlugin) configure(cfg *irrConfig) error {
-	ps := plug.configureStore(cfg)
-
-	plug.mu.Lock()
-	plug.config = cfg
-	if plug.refreshStop != nil {
-		close(plug.refreshStop)
-	}
-	plug.refreshStop = make(chan struct{})
-	refreshStop := plug.refreshStop
-	plug.mu.Unlock()
-
-	// A reference with no prefixes is refused at verify, and a commit is the
-	// only path that runs verify: a daemon start reads its config through
-	// OnConfigure alone. Report each one here so the operator sees the same
-	// entry name and the same fetch command at startup that a commit would
-	// have refused with, rather than a firewall that quietly enforces nothing.
-	warnUncachedRefs(ps, cfg.allRefs())
-
-	if err := plug.applyTables(); err != nil {
-		logger().Warn("firewall-irr: apply failed", "error", err)
-	}
-
-	if plug.state != nil {
-		if cfg.RefreshInterval > 0 {
-			go plug.refreshLoop(cfg.RefreshInterval, refreshStop)
-		}
-	}
-
-	logger().Debug("configured", "server", cfg.Server, "refresh-interval", cfg.RefreshInterval)
+// handshakeConfigure is the OnConfigure callback: the config the daemon starts
+// with, delivered inside the startup handshake, where no state RPC works yet.
+// It records the config and does nothing else. Applying the tables here
+// programmed them from an empty cache and warned that every reference held no
+// data, at every start, before the OnStarted read programmed them again.
+func (plug *irrPlugin) handshakeConfigure(sections []sdk.ConfigSection) error {
+	plug.configure(parseIRRConfig(sections))
 	return nil
 }
 
-// configureStore returns the plugin's prefix store, pointed at the servers cfg
-// names. The store is created once and then kept for the life of the plugin.
-//
-// The cache is what the firewall enforces, and it MUST survive a reload. A
-// configure that built a second store handed applyTables an empty cache: every
-// IRR set was then registered with no prefixes, ApplyAll held back the
-// operator's table for naming a set no owner supplied, and the commit that
-// caused it reported success. Verify had already accepted that commit by
-// reading the store this function now keeps, so the reload removed from the
-// kernel a table that was filtering a minute earlier.
-//
-// Open rereads the daemon's shared key space on each runtime configure, so the
-// BGP IRR filter's successful refreshes are available here too. During the
-// initial handshake persistence is unbound; OnStarted binds it and configures
-// again before starting refresh workers.
-func (plug *irrPlugin) configureStore(cfg *irrConfig) *store.PrefixStore {
-	irrClient := irr.NewIRR(cfg.Server)
-	pdb := peeringdb.NewPeeringDB(cfg.PeeringDBURL)
-
-	plug.mu.Lock()
-	ps := plug.prefixStore
-	if ps == nil {
-		ps = store.New(irrClient, pdb, plug.state)
-		plug.prefixStore = ps
-	} else {
-		ps.UseClients(irrClient, pdb)
-	}
-	plug.mu.Unlock()
-
-	if err := ps.Open(); err != nil {
-		logger().Warn("firewall-irr: prefix store open failed", "error", err)
-	}
-	return ps
-}
-
-// warnUncachedRefs logs the refusal message verifyRefs would have produced for
-// every reference holding no prefixes. It reports all of them, where verifyRefs
-// stops at the first: a commit needs one reason to refuse, and an operator
-// reading a startup log needs the whole list.
-func warnUncachedRefs(ps *store.PrefixStore, refs []irrRef) {
-	for _, ref := range refs {
-		entry := ps.Get(ref.Name)
-		if entry != nil && !entry.PrefixList().Empty() {
+// configure installs cfg as the plugin's running configuration. A reference
+// whose name the previous config also carried keeps its enforced copy; every
+// other one starts from no list until the reader reads it. It reads and
+// writes no store and programs nothing: the reader does, on its pass.
+func (plug *irrPlugin) configure(cfg *irrConfig) {
+	refs := make(map[string]*refState)
+	for _, ref := range cfg.allRefs() {
+		if _, done := refs[ref.Name]; done {
 			continue
 		}
-		logger().Warn(uncachedRefMessage(ref, entry == nil),
-			"effect", "the rules naming it filter nothing until its prefixes are fetched")
+		refs[ref.Name] = newRefState(ref)
 	}
+	plug.mu.Lock()
+	for name, st := range refs {
+		if previous, ok := plug.refs[name]; ok && previous.configured == st.configured && previous.asn == st.asn {
+			st.copy = previous.copy
+		}
+	}
+	plug.config = cfg
+	plug.refs = refs
+	plug.mu.Unlock()
+	logger().Debug("configured", "references", len(refs))
 }
 
-// verifyRefs refuses a config whose IRR references cannot be enforced as
-// written. An absent entry and an entry holding zero prefixes are both
-// refused: neither can filter anything, and committing either leaves the
-// operator believing a filter is in place. An entry too long for a firewall
-// set is refused for the same reason, because applyTables will not program a
-// part of it. The message names the command that repairs each case.
-func verifyRefs(ps *store.PrefixStore, refs []irrRef) error {
-	for _, ref := range refs {
-		entry := ps.Get(ref.Name)
-		if entry == nil || entry.PrefixList().Empty() {
-			return errors.New(uncachedRefMessage(ref, entry == nil))
+// newRefState keys ref: an AS-SET reference by its name in key form, an ASN
+// reference by its AS number.
+func newRefState(ref irrRef) *refState {
+	st := &refState{ref: ref}
+	if ref.IsASSet {
+		name, err := store.ASSetName(ref.Name)
+		if err != nil {
+			st.keyErr = err.Error()
+			return st
 		}
-		if err := oversizedEntryError(ref.Name, entry); err != nil {
+		st.configured = name
+		return st
+	}
+	number, err := strconv.ParseUint(bareASN(ref.Name), 10, 32)
+	if err != nil || number == 0 {
+		st.keyErr = "not an AS number"
+		return st
+	}
+	st.asn = uint32(number) //nolint:gosec // ParseUint bounded it to 32 bits
+	return st
+}
+
+// verify refuses a config whose IRR references cannot be enforced as written.
+// It reads the irr plugin's store and nothing else: a commit sends no IRR
+// query, so a reference with nothing stored is refused with the command that
+// fetches it (Thomas, design gate).
+func (plug *irrPlugin) verify(cfg *irrConfig) error {
+	refs := cfg.allRefs()
+	if len(refs) == 0 {
+		return nil
+	}
+	plug.mu.RLock()
+	started := plug.started
+	plug.mu.RUnlock()
+	if !started {
+		return opererr.New("firewall irr: the stored IRR lists cannot be read before the plugin has started",
+			"a firewall rule naming an ASN or AS-SET is checked against the stored list",
+			"commit")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), verifyReadTimeout)
+	defer cancel()
+	return verifyStored(ctx, plug.reader.state, refs)
+}
+
+// verifyStored refuses the first reference whose stored copy cannot be
+// enforced as written: nothing stored, a stored value that cannot be read, a
+// list holding no prefixes, or a list too long for a firewall set. Each
+// message names the reference and the command that repairs it.
+func verifyStored(ctx context.Context, state store.StateReader, refs []irrRef) error {
+	seen := make(map[string]bool, len(refs))
+	for _, ref := range refs {
+		if seen[ref.Name] {
+			continue
+		}
+		seen[ref.Name] = true
+		st := newRefState(ref)
+		if st.keyErr != "" {
+			return opererr.New("firewall irr: "+ref.Name+" names no IRR list ("+st.keyErr+")",
+				"the rules naming it could filter nothing", "show firewall irr")
+		}
+		stored, err := readStoredCopy(ctx, state, st)
+		if errors.Is(err, store.ErrNotStored) {
+			return notStoredError(ref)
+		}
+		if err != nil {
+			return opererr.Wrap(err, "firewall irr: the stored list for "+ref.Name+" cannot be read",
+				"the rules naming it cannot be checked", fetchCommand(ref))
+		}
+		if stored.entry.PrefixList().Empty() {
+			return opererr.New("firewall irr: the stored list for "+ref.Name+" holds no prefixes",
+				"the rules naming it would filter nothing", fetchCommand(ref))
+		}
+		if err := oversizedEntryError(ref.Name, stored.entry); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// uncachedRefMessage names the entry that has no prefixes and the command that
-// fetches it. absent separates "nothing is cached under this name" from "the
-// cached entry is empty", because the two send an operator to different places.
-func uncachedRefMessage(ref irrRef, absent bool) string {
+// readStoredCopy reads the copy st enforces: the binding of an ASN reference,
+// then the pointer of the set, then the dataset it names. ErrNotStored means
+// the irr plugin holds nothing for it.
+func readStoredCopy(ctx context.Context, state store.StateReader, st *refState) (*enforcedCopy, error) {
+	asSet := st.configured
+	if asSet == "" {
+		binding, err := store.ReadBinding(ctx, state, st.asn)
+		if err != nil {
+			return nil, err
+		}
+		asSet = binding.ASSet
+	}
+	stored, err := store.ReadSet(ctx, state, asSet)
+	if err != nil {
+		return nil, err
+	}
+	return copyOf(st.ref.Name, asSet, stored), nil
+}
+
+// copyOf turns a stored set into the copy enforced under the reference name.
+func copyOf(name, asSet string, stored store.StoredSet) *enforcedCopy {
+	return &enforcedCopy{
+		asSet:   asSet,
+		pointer: stored.Pointer,
+		entry: &store.CachedEntry{
+			Name: name, ASSet: asSet,
+			IPv4: stored.Dataset.IPv4(), IPv6: stored.Dataset.IPv6(),
+			RefreshedAt: stored.Dataset.RefreshedAt(), StaleSince: stored.Dataset.StaleSince(),
+		},
+		checkedAt: stored.Dataset.CheckedAt(),
+	}
+}
+
+// notStoredError is the refusal of a reference the irr plugin holds nothing
+// for, naming the command that fetches and stores it.
+func notStoredError(ref irrRef) error {
 	var tb textbuf.Buffer
-	if absent {
-		tb.Str("firewall irr: no cached prefix data for ")
-	} else {
-		tb.Str("firewall irr: cached entry holds no prefixes for ")
-	}
+	tb.Str("firewall irr: nothing is stored for ")
 	if ref.IsASSet {
-		tb.Str("as-set ").Str(ref.Name)
-		tb.Str("; run 'update firewall irr as-set ").Str(ref.Name).Str("' first")
-	} else {
-		tb.Str(ref.Name)
-		tb.Str("; run 'update firewall irr asn ").Str(bareASN(ref.Name)).Str("' first")
+		tb.Str("as-set ")
 	}
-	return tb.String()
+	tb.Str(ref.Name)
+	return opererr.New(tb.String(), "the rules naming it would filter nothing", fetchCommand(ref))
 }
 
-// clearResolverCache answers clear irr cache and clear peeringdb cache for the
-// clients the prefix store uses now. Before the first configure the plugin
-// holds no client, so it holds no entry and zero is the true count.
-func (plug *irrPlugin) clearResolverCache(input rpc.ResolverCacheClearInput) (int, error) {
-	ps := plug.getPrefixStore()
-	if ps == nil {
-		return 0, nil
+// fetchCommand is the irr plugin command that fetches and stores ref's list.
+func fetchCommand(ref irrRef) string {
+	if ref.IsASSet {
+		return "update irr as-set " + ref.Name
 	}
-	return ps.ClearResolverCache(input)
+	return "update irr asn " + bareASN(ref.Name)
 }
 
-func (plug *irrPlugin) getPrefixStore() *store.PrefixStore {
+// clearCommand is the irr plugin command that removes ref's stored list.
+func clearCommand(ref irrRef) string {
+	if ref.IsASSet {
+		return "clear irr as-set " + ref.Name
+	}
+	return "clear irr asn " + bareASN(ref.Name)
+}
+
+// enforcedLists is the copy enforced for each reference name, as the set
+// builders read it.
+type enforcedLists map[string]*store.CachedEntry
+
+// Get answers the prefixes enforced for name, or nil for none.
+func (l enforcedLists) Get(name string) *store.CachedEntry { return l[name] }
+
+// snapshot returns the config and the enforced lists in one read of plug.mu.
+func (plug *irrPlugin) snapshot() (*irrConfig, enforcedLists) {
 	plug.mu.RLock()
 	defer plug.mu.RUnlock()
-	return plug.prefixStore
+	lists := make(enforcedLists, len(plug.refs))
+	for name, st := range plug.refs {
+		if st.copy != nil {
+			lists[name] = st.copy.entry
+		}
+	}
+	return plug.config, lists
 }
 
+// applyTables registers the sets and tables the config and the enforced
+// copies ask for, and applies the merged ruleset. The reader is its only
+// caller, after a read.
 func (plug *irrPlugin) applyTables() error {
-	ps := plug.getPrefixStore()
-	if ps == nil {
-		_ = firewall.RegisterTables("firewall-irr", nil) // a withdraw registers no name, so it cannot be refused
-		return nil
-	}
-
-	plug.mu.RLock()
-	cfg := plug.config
-	plug.mu.RUnlock()
-
+	cfg, lists := plug.snapshot()
 	termRefs := cfg.termRefs()
-	ifaceBindings := cfg.ifaceBindings
-
+	var ifaceBindings []ifaceBinding
+	if cfg != nil {
+		ifaceBindings = cfg.ifaceBindings
+	}
 	if len(termRefs) == 0 && len(ifaceBindings) == 0 {
-		_ = firewall.RegisterTables("firewall-irr", nil) // a withdraw registers no name, so it cannot be refused
+		_ = firewall.RegisterTables(pluginName, nil) // a withdraw registers no name, so it cannot be refused
 		return nil
 	}
 
@@ -345,240 +392,23 @@ func (plug *irrPlugin) applyTables() error {
 	// sets already registered stay in force. Programming what fits would put
 	// part of the operator's rule in the kernel and report a success
 	// (oversizedEntryError, sets.go).
-	if err := refuseOversizedRefs(ps, cfg.allRefs()); err != nil {
+	if err := refuseOversizedRefs(lists, cfg.allRefs()); err != nil {
 		return err
 	}
 
-	tables := buildIRRTables(ps, termRefs)
-	tables = append(tables, buildIfaceTables(ps, ifaceBindings)...)
-	if err := firewall.RegisterTables("firewall-irr", tables); err != nil {
+	tables := buildIRRTables(lists, termRefs)
+	tables = append(tables, buildIfaceTables(lists, ifaceBindings)...)
+	if err := firewall.RegisterTables(pluginName, tables); err != nil {
 		return fmt.Errorf("firewall-irr: register: %w", err)
 	}
 	if err := firewall.ApplyAll(); err != nil {
 		return fmt.Errorf("firewall-irr: apply: %w", err)
 	}
-	updateMetricsGauges(ps, cfg.allRefs())
 	return nil
-}
-
-func (plug *irrPlugin) refreshLoop(intervalSec uint32, stop chan struct{}) {
-	interval := time.Duration(intervalSec) * time.Second
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			plug.refreshAll()
-		case <-stop:
-			return
-		case <-plug.stopCh:
-			return
-		}
-	}
-}
-
-// refreshAll runs one tick of refreshLoop, and is its only caller. Both ways a
-// scheduled refresh can fail end here, because a tick has nowhere to report to
-// and the loop must outlive every fetch.
-//
-// The returned error is dropped on purpose. refreshAllNow has already logged
-// each reference that failed and kept its cached prefixes, and no operator is
-// waiting on this tick. Returning it would only end the loop that is meant to
-// retry.
-//
-// The recover covers the same tick. Refresh parses whatever the IRR whois
-// server and PeeringDB return (internal/component/resolve/irr), so a malformed
-// answer is upstream input reaching a parser. Unguarded, such a panic unwinds a
-// goroutine this plugin started itself, which the SDK's dispatch recovery does
-// not cover (pkg/plugin/sdk/sdk_dispatch.go), and takes the whole firewall-irr
-// process with it. The process manager respawns it, but an answer that panics
-// every time crash-loops into the respawn limit, and the registry then holds
-// back every table naming an IRR set. One lost tick costs nothing by
-// comparison: the cache is what the firewall enforces, and it is still there on
-// the next one.
-func (plug *irrPlugin) refreshAll() {
-	if !plug.refreshing.CompareAndSwap(false, true) {
-		return
-	}
-	defer plug.refreshing.Store(false)
-	defer func() {
-		if r := recover(); r != nil {
-			// Count it as well as log it. The per-reference outcomes above are
-			// recorded as each reference completes, so a panic in the fetch of the
-			// first one leaves the counter flat, which reads exactly like
-			// refresh-interval 0. Unrecovered, that same condition crash-looped the
-			// plugin and showed up in ze_plugin_restarts_total; recovering it must
-			// not trade a loud signal for a silent one.
-			incRefreshOutcome("panic")
-			logger().Error("firewall-irr: panic during scheduled refresh, keeping the cached prefixes",
-				"panic", r, "stack", string(debug.Stack()))
-		}
-	}()
-	_ = plug.refreshAllNow()
-}
-
-func (plug *irrPlugin) refreshAllNow() error {
-	ps := plug.getPrefixStore()
-	if ps == nil {
-		return nil
-	}
-
-	plug.mu.RLock()
-	cfg := plug.config
-	plug.mu.RUnlock()
-	if cfg == nil {
-		return nil
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
-
-	var firstErr error
-	var learned bool
-	for _, ref := range cfg.allRefs() {
-		entry, err := ps.Refresh(ctx, ref.Name, "")
-		switch {
-		case errors.Is(err, store.ErrNoPrefixes):
-			logEmptyRefresh(ref.Name, entry)
-			incRefreshOutcome("empty")
-		case err != nil:
-			logger().Warn("firewall-irr: refresh failed, keeping the cached prefixes", "name", ref.Name, "error", err)
-			incRefreshOutcome("error")
-		default:
-			incRefreshOutcome("success")
-			logRefreshLearned(ref.Name, entry)
-			learned = true
-			continue
-		}
-		if firstErr == nil {
-			firstErr = err
-		}
-	}
-
-	if learned {
-		markRefreshLearned()
-	}
-
-	// The apply decides the outcome of a tick as much as the fetches do. A
-	// reference that outgrew a firewall set fetches cleanly and programs
-	// nothing (refuseOversizedRefs), so an apply that failed must not leave a
-	// lastRefresh an operator reads as a tick that took effect.
-	if err := plug.applyTables(); err != nil {
-		logger().Warn("firewall-irr: apply after refresh failed", "error", err)
-		incRefreshOutcome("apply-failed")
-		if firstErr == nil {
-			firstErr = err
-		}
-	}
-
-	if firstErr == nil {
-		plug.mu.Lock()
-		plug.lastRefresh = time.Now()
-		plug.mu.Unlock()
-	}
-	return firstErr
-}
-
-// refreshName fetches one entry and programs what it learned.
-//
-// The apply is half the command: the prefixes reach the kernel through the
-// table registry, and a rule naming a set this plugin has not registered holds
-// its whole table back (internal/component/firewall/registry.go). On a cold
-// cache -- a fresh install, a wiped store, an unreadable cache file -- nothing
-// is registered at startup, so `update firewall irr asn|as-set` is the only
-// path back. refresh-interval defaults to 0, so no loop runs behind it.
-func (plug *irrPlugin) refreshName(name string) error {
-	ps := plug.getPrefixStore()
-	if ps == nil {
-		return fmt.Errorf("firewall-irr: no prefix store")
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	entry, err := ps.Refresh(ctx, name, "")
-	if errors.Is(err, store.ErrNoPrefixes) {
-		logEmptyRefresh(name, entry)
-		incRefreshOutcome("empty")
-		updateMetricsGauges(ps, plug.configRefs())
-		return keptDataError(name, entry)
-	}
-	if err != nil {
-		incRefreshOutcome("error")
-		return err
-	}
-	incRefreshOutcome("success")
-	logRefreshLearned(name, entry)
-	markRefreshLearned()
-
-	updateMetricsGauges(ps, plug.configRefs())
-
-	// Both facts go to the operator, as they do after a purge: the prefixes are
-	// cached, and the rules that use them are not in the kernel. An entry that
-	// outgrew a firewall set ends here as well, with the count and the bound
-	// in the message (oversizedEntryError, sets.go).
-	if applyErr := plug.applyTables(); applyErr != nil {
-		var tb textbuf.Buffer
-		tb.Str("firewall irr: ").Str(name).Str(" refreshed, but the rules naming it are not programmed: ")
-		tb.Str(applyErr.Error())
-		return errors.New(tb.String())
-	}
-
-	// The stamp comes last, after the apply. It answers "when did a refresh
-	// take effect", and a fetch whose data never reached the kernel did not.
-	plug.mu.Lock()
-	plug.lastRefresh = time.Now()
-	plug.mu.Unlock()
-	return nil
-}
-
-// logRefreshLearned records a refresh that learned prefixes, with the counts it
-// now enforces. Its counterpart logEmptyRefresh reports the opposite outcome, so
-// a log carrying one and not the other says which refreshes worked.
-func logRefreshLearned(name string, entry *store.CachedEntry) {
-	v4, v6 := 0, 0
-	if entry != nil {
-		v4, v6 = len(entry.IPv4), len(entry.IPv6)
-	}
-	logger().Debug("firewall-irr: refreshed", "name", name, "ipv4", v4, "ipv6", v6)
-}
-
-// logEmptyRefresh names the AS-SET whose refresh learned nothing and says what
-// is still being enforced in its place.
-func logEmptyRefresh(name string, entry *store.CachedEntry) {
-	kept := 0
-	if entry != nil {
-		kept = len(entry.IPv4) + len(entry.IPv6)
-	}
-	logger().Warn("firewall-irr: refresh learned no prefixes, keeping the cached ones",
-		"name", name, "kept-prefixes", kept)
-}
-
-// keptDataError tells the operator what the refresh did instead of what it
-// failed to do: which prefixes stay enforced, how old they are, and how to
-// remove them when the AS-SET is gone upstream for good.
-func keptDataError(name string, entry *store.CachedEntry) error {
-	var tb textbuf.Buffer
-	tb.Str("firewall irr: ").Str(name).Str(" returned no prefixes; ")
-	if entry == nil || entry.PrefixList().Empty() {
-		tb.Str("nothing is cached for it")
-		return errors.New(tb.String())
-	}
-	tb.Str("keeping ").Int(int64(len(entry.IPv4) + len(entry.IPv6))).Str(" cached prefixes")
-	if !entry.RefreshedAt.IsZero() {
-		tb.Str(" learned ").Str(entry.RefreshedAt.Format(time.RFC3339))
-	}
-	tb.Str("; run 'clear firewall irr ")
-	if isASSetName(name) {
-		tb.Str("as-set ").Str(name)
-	} else {
-		tb.Str("asn ").Str(bareASN(name))
-	}
-	tb.Str("' to remove them")
-	return errors.New(tb.String())
 }
 
 // isASSetName reports whether name is an AS-SET reference rather than a bare
-// "AS<n>" identity. The store keys both, and the two take different verbs.
+// "AS<n>" identity. The two take different verbs.
 func isASSetName(name string) bool {
 	return bareASN(name) == name
 }
@@ -594,65 +424,6 @@ func bareASN(name string) string {
 		return name
 	}
 	return num
-}
-
-func (plug *irrPlugin) configRefs() []irrRef {
-	plug.mu.RLock()
-	defer plug.mu.RUnlock()
-	if plug.config == nil {
-		return nil
-	}
-	return plug.config.allRefs()
-}
-
-func incRefreshOutcome(result string) {
-	if m := irrMetricsPtr.Load(); m != nil {
-		m.refreshOutcomes.With(result).Inc()
-	}
-}
-
-// updateMetricsGauges publishes how much data is enforced and how old the
-// oldest of it is. It does NOT stamp lastRefresh: that gauge answers "when did
-// a refresh last learn prefixes", and it runs after refreshes that learned
-// nothing as well as after ones that did.
-func updateMetricsGauges(ps *store.PrefixStore, refs []irrRef) {
-	m := irrMetricsPtr.Load()
-	if m == nil {
-		return
-	}
-	total := 0
-	var oldest time.Duration
-	now := time.Now()
-	for _, ref := range refs {
-		entry := ps.Get(ref.Name)
-		if entry == nil {
-			continue
-		}
-		total += len(entry.IPv4) + len(entry.IPv6)
-		if age := entryAge(entry, now); age > oldest {
-			oldest = age
-		}
-	}
-	m.prefixesCached.Set(float64(total))
-	m.dataAge.Set(oldest.Seconds())
-}
-
-// entryAge is how long ago the entry's prefixes were learned. An entry with no
-// learn timestamp (seeded, or migrated from the legacy cache) reports zero.
-func entryAge(entry *store.CachedEntry, now time.Time) time.Duration {
-	if entry.RefreshedAt.IsZero() {
-		return 0
-	}
-	return now.Sub(entry.RefreshedAt)
-}
-
-// markRefreshLearned stamps the last-refresh gauge. Only a refresh that learned
-// prefixes calls it: an answer carrying nothing must not read as a refresh that
-// worked.
-func markRefreshLearned() {
-	if m := irrMetricsPtr.Load(); m != nil {
-		m.lastRefresh.Set(float64(time.Now().Unix()))
-	}
 }
 
 func extractIfaceRefs(root map[string]any) []irrRef {
@@ -684,7 +455,8 @@ func extractIfaceRefs(root map[string]any) []irrRef {
 }
 
 // commandDecls names the commands this plugin serves and states what each
-// answer holds (pkg/plugin/rpc/types.go, CommandDecl).
+// answer holds (pkg/plugin/rpc/types.go, CommandDecl). Fetching and removing
+// a stored list are the irr plugin's `update irr` and `clear irr`.
 //
 // It has two readers and MUST stay one function. init() puts it on the
 // registry.Registration, which anything linking the composition root reads
@@ -692,12 +464,7 @@ func extractIfaceRefs(root map[string]any) []irrRef {
 // registration message, which a running daemon reads.
 func commandDecls() []sdk.CommandDecl {
 	return []sdk.CommandDecl{
-		{Name: cmdShowIRR, ShortHelp: "Show IRR filter status for all cached entries"},
-		{Name: "show firewall irr prefix", ShortHelp: "Show IRR-resolved prefixes for a cached entry", Args: []string{"<asn-or-as-set>"}},
-		{Name: "update firewall irr all", ShortHelp: "Refresh all cached IRR prefix-lists"},
-		{Name: "update firewall irr asn", ShortHelp: "Fetch/refresh IRR prefix-list for an ASN", Args: []string{"<asn>"}},
-		{Name: "update firewall irr as-set", ShortHelp: "Fetch/refresh IRR prefix-list for an AS-SET", Args: []string{"<as-set>"}},
-		{Name: "clear firewall irr asn", ShortHelp: "Remove the cached IRR prefix-list for an ASN", Args: []string{"<asn>"}},
-		{Name: "clear firewall irr as-set", ShortHelp: "Remove the cached IRR prefix-list for an AS-SET", Args: []string{"<as-set>"}},
+		{Name: cmdShowIRR, ShortHelp: "Show the IRR lists the firewall enforces"},
+		{Name: cmdShowIRRPrefix, ShortHelp: "Show the prefixes the firewall enforces for an ASN or AS-SET", Args: []string{"<asn-or-as-set>"}},
 	}
 }

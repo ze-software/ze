@@ -1890,18 +1890,19 @@ Set `irr { enable disable; }` to opt a peer out of IRR filtering entirely.
 For a complete configuration, verification workflow, troubleshooting table,
 and local recording, see [Filter BGP Imports with IRR](irr-filtering.md).
 
-The plugin refreshes prefix-lists automatically at the configured interval and
-on demand via `update bgp irr all`. Resolved prefixes are stored as operational
-data in zefs (not in the config tree) and survive restarts.
+The `irr` plugin fetches the prefix-lists, refreshes each when
+`system irr refresh-interval` says it is due, and on demand via `update irr all`.
+It stores them as operational data in zefs (not in the config tree), so they
+survive restarts and the filter enforces the stored lists with no query at start.
 
 | Command | Purpose |
 |---------|---------|
-| `show bgp irr` | Per-ASN status: AS-SET, prefix count, last/next refresh |
+| `show bgp irr` | Per-ASN status: AS-SET, prefix count, the stored copy enforced (server, generation, checked-at, refreshed-at) |
 | `show bgp irr prefix <peer>` | List all prefixes for a peer |
 | `show bgp irr check <peer> <prefix>` | Test if a prefix would be accepted |
-| `update bgp irr all` | Refresh all peers immediately |
-| `update bgp irr asn <asn>` | Refresh a specific ASN |
-| `update bgp irr as-set <as-set>` | Refresh peers using a specific AS-SET |
+| `update irr all` | Fetch and store every AS-SET a consumer names, now |
+| `update irr asn <asn>` | Fetch and store the AS-SET of one AS number |
+| `update irr as-set <as-set>` | Fetch and store one AS-SET |
 
 A route that the filter rejected before its list arrived, or that the old list did not hold, is evaluated again when a new list authorizes it. The filter asks the peer for the route with a ROUTE-REFRESH, so each IRR-filtered peer needs this line in its block:
 

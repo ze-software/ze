@@ -39,3 +39,20 @@ func TestFirewallIRRGrantsReadOwnerWriteOwnInterest(t *testing.T) {
 		t.Errorf("%s reaches another consumer's %s", consumer, other)
 	}
 }
+
+// TestFirewallIRRHoldsNoLegacyKey proves the plugin no longer keeps lists of
+// its own: it holds no grant on the per-name keys it once wrote, which the irr
+// plugin converts and removes (AC-17), nor on the old BGP cache blob.
+//
+// Method: ask the same predicates about one key of each legacy pattern.
+func TestFirewallIRRHoldsNoLegacyKey(t *testing.T) {
+	const consumer = "firewall-irr"
+	for _, key := range []string{
+		zefs.KeyIRRPrefixCache.Key("AS-TEST"),
+		"meta/bgp/irr-cache",
+	} {
+		if statestore.PluginKeyReadable(consumer, key) {
+			t.Errorf("%s still holds a grant on the legacy %s", consumer, key)
+		}
+	}
+}

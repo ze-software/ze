@@ -1950,6 +1950,7 @@ The dispatcher picks the grant by the operation: `state-get` and `state-list`
 need a read or a write grant (`statestore.PluginKeyReadable`), and
 `state-put`, `state-remove` and `state-increment` need a write grant
 (`statestore.PluginKeyWritable`). Requests use the daemon's configured process
+name as identity. A request cannot choose another owner or grant itself access
 to credentials. Template parameters match one path segment
 (`zefs.KeyEntry.Matches`), and a list returns only keys that the caller can
 read. The daemon's key commands `delete data key` and `update data key` read
@@ -2005,6 +2006,7 @@ a lost reply leaves the caller without an acknowledgement, even if the mutation
 committed; callers cannot infer that an increment is safe to retry.
 
 <!-- source: pkg/plugin/rpc/state.go -- StateInput, StateOutput, StateError, StateDataMaxFor, StateDataLargest -->
+<!-- source: pkg/plugin/sdk/sdk_state.go -- stateCall, StateIncrement -->
 <!-- source: internal/component/plugin/server/dispatch_state.go -- stateInput, stateAccess, opStateGet, opStatePut -->
 <!-- source: internal/core/statestore/permissions.go -- RegisterPluginKeys, RegisterPluginReadKeys, RegisterPluginKeyInstance, PluginKeyReadable, PluginKeyWritable, PluginKeyOwners -->
 <!-- source: internal/core/statestore/permissions.go -- RegisterPluginKeys, PluginList, PluginKeyOwners -->
