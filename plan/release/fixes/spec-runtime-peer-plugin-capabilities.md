@@ -8,7 +8,7 @@
 | Release reason | Shipped-behaviour defect: a reload adding a peer that carries a plugin capability (`role`, `software-version`, `hostname`, `graceful-restart`, `link-local-next-hop`, the ExaBGP bridge's codes) is refused, against the owner rule that a peer with any of its settings joins the running config without a restart |
 | RFC gaps | - |
 | Depends | - |
-| Phase | interop proof and SDK documentation repair |
+| Phase | closure |
 | Handoff | - |
 | Updated | 2026-11-15 |
 
@@ -16,8 +16,9 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Implementation Status
 
-The runtime implementation is committed. The implementation follow-up adds
-reload interoperability proof and repairs the SDK guidance before closure.
+The implementation and scoped proofs are committed. Independent source and
+documentation review found no remaining blocker or issue. Closure records
+the evidence and its limits below.
 
 | Commit | What landed |
 |--------|-------------|
@@ -25,17 +26,14 @@ reload interoperability proof and repairs the SDK guidance before closure.
 | f3b68fe48f | Test peer: each session writes its own established-file marker |
 | 93bd019e2d | Reactor: a capability-block edit restarts only when the plugin capability did, `TestReloadCapabilityBlockEdit` |
 | bb50677cb4 | SDK verify answer carries the candidate declaration, refusal deleted, per-plugin tests, docs (AC-7), seven reload `.ci` (five refused files replaced), judge-approved |
+| 4dbbd6fd62 | One raw-declaration/wire snapshot per OPEN proposal, deterministic rollback regression, refreshed native proof records and independently rejudged audits |
+| 9ea1d7aaeb | Internal and forked native Role reload scenarios against FRR, checker controls and SDK documentation repair |
 
-The closure review on 2026-11-15 found missing reload interoperability proof
-and stale SDK instructions. The implementation phase must supply those before
-the independent Review Gate can finish. See Remaining Verification and the closure sections.
-
-## Remaining Verification
-
-| Blocker | Producing surface | What clears it |
-|---------|-------------------|----------------|
-| Independent closure review remains pending | Both Role reload scenarios have observed candidate-withholding reds followed by unmodified greens. The snapshot regression and affected/direct-builder selected unit runs exited 0. Nine proof records were refreshed natively, scoped freshness found no stale entries, and four audits were rejudged independently | Finish the independent Review Gate using the scoped results and their limits |
-| AC-7 focused documentation review remains active | The obsolete refusal and two-argument example in `docs/plugin-development/handlers.md` are repaired against `composeCapabilityVerify` and the one-argument `DeclareCapabilitiesFrom`; the matching SDK godoc is corrected. Required `doc check all` exited 1 with 136 drift findings, including concurrent IRR and baseline changes | Record the focused independent review of this change's documentation; do not claim the all-doc check passed |
+The closure review found missing interop proof, stale SDK instructions and a
+snapshot pairing defect. The two follow-up commits resolve those findings.
+The Review Gate covers the committed implementation while preserving other
+sessions' uncommitted changes. Global documentation drift and interrupted lint
+planning remain validation limits, not passing checks.
 
 ## Task
 
@@ -96,7 +94,7 @@ that publishes B and restores A cannot hide an OPEN that actually carried B.
 
 | Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
 |-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
-| Capability extractor registry | `pkg/plugin/sdk/capability_declaration.go` `DeclareCapabilitiesFrom`, `CapabilityExtractor`; six registrants (bgp-role, bgp-softver, bgp-gr, bgp-llnh, bgp-hostname, exabgp bridge internal and external) | Pure function config sections to declaration, run at Stage 2 and at verify | Extends: the verify-time result is sent to the engine instead of being compared and refused |
+| Capability extractor registry | `pkg/plugin/sdk/capability_declaration.go` `DeclareCapabilitiesFrom`, `CapabilityExtractor`; six plugin types with seven registration call sites (bgp-role, bgp-softver, bgp-gr, bgp-llnh, bgp-hostname, exabgp bridge internal and external) | Pure function config sections to declaration, run at Stage 2 and at verify | Extends: the verify-time result is sent to the engine instead of being compared and refused |
 | Stage 3 declaration | `startup.go` `engineStartupSink.onCapabilities`, `capabilitiesFromRPC` | Installs the declaration once | Extends: the same conversion installs a reload's declaration |
 | Capability injector | `internal/component/plugin/registration.go` `CapabilityInjector` | Per-selector store read at every OPEN build | Extends: an atomic per-plugin replace with the same conflict checks, plus a dry-run check used at verify |
 | Config transaction bridge | `config_tx_bridge.go` `configTxBridge`, `phaseKind.runRPC`; `reload_tx.go` `runTxCoordinator` | Sends config-verify/apply RPCs per participant, maps answers to acks | Extends: verify stages the declaration per participant; the first apply of the transaction installs every staged one; a rolled-back or aborted transaction restores the previous ones |
@@ -120,8 +118,8 @@ that publishes B and restores A cannot hide an OPEN that actually carried B.
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Plugin to engine | `ConfigVerifyOutput.Capabilities` (JSON over RPC, or DirectBridge with the same struct) | [ ] |
-| Plugin server to reactor | the injector store, read by `GetPluginCapabilitiesForSelectors` | [ ] |
+| Plugin to engine | `ConfigVerifyOutput.Capabilities` (JSON over RPC, or DirectBridge with the same struct) | Internal and forked FRR Role reload red/green walks |
+| Plugin server to reactor | the injector store, read by `GetPluginCapabilitiesForSelectors` | AC-1 exact new-peer OPEN and both FRR transports; snapshot regression |
 
 ### Integration Points
 - `capabilitiesFromRPC` - reused for the reload declaration.
@@ -138,7 +136,7 @@ that publishes B and restores A cannot hide an OPEN that actually carried B.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|---------------------------------|----------|--------------|--------|
 | A-1 | Every apply of a reload goes through `phaseKind.runRPC` phaseApply before the reactor reconciles peers | `config_tx_bridge.go` runRPC comment (orchestrator apply and executor section apply both reach it) | A new peer could build its OPEN before install | AC-1 native QEMU functional PASS observed by main | confirmed |
-| A-2 | The reactor builds a new peer's OPEN when the session starts, reading the store then | `peer.go` `getPluginCapabilities`, `session_negotiate.go` `prepareOpen` | Peer would carry the startup caps | AC-1 exact new-peer OPEN and establishment assertions passed | confirmed |
+| A-2 | The reactor builds a new peer's OPEN when the session starts, reading the store then | `peer.go` `pluginCapabilitySnapshot`, `session_negotiate.go` `prepareOpen` | Peer would carry the startup caps | AC-1 exact new-peer OPEN and establishment assertions passed | confirmed |
 
 ### Risks
 | Risk | Mitigation |
@@ -175,7 +173,7 @@ The SDK (public), the RPC type (wire, additive), the plugin server reload path, 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
 | TestComposedVerifyCarriesCandidateCapabilities | `pkg/plugin/sdk/capability_declaration_test.go` | AC-2 | |
-| TestReplacePluginCapabilities | `internal/component/plugin/registration_test.go` | AC-3 | |
+| TestReplacePluginCapabilities | `internal/component/plugin/capability_replace_test.go` | AC-3 | Scoped native package batch exited 0 |
 | TestConfigTxBridgeInstallsAndRestoresCapabilities | `internal/component/plugin/server/` | AC-4 | |
 | TestNegotiationPluginCapabilityChange | `internal/component/bgp/reactor/` | AC-5 | |
 | per-plugin `capability_reload_test.go` (role, softver, gr, llnh, hostname, bridge) | each plugin | AC-2 | |
@@ -229,6 +227,7 @@ The two native reload scenarios below supply that proof.
 | AC-5: a changed capability restarts only a session that can use it | Read `internal/component/bgp/reactor/peer_settings_negotiation.go` `pluginCapabilitiesKept` and `pluginDeclarationsKept`; run `TestNegotiationPluginCapabilityChange`, `TestReloadPluginCapabilityChange` and `TestReloadCapabilityBlockEdit`, then the changed-capability reload functional tests |
 | AC-6: a reload with unchanged capabilities keeps the session | Run `./le --name session test bgp reload --pattern reload-capability-unchanged-accepted`; its peer permits one TCP connection and the fixture confirms that the reload applied |
 | AC-7: operator and plugin-author instructions describe live replacement | Compare the four pages listed in Files to Modify with the current SDK, transaction bridge and reactor producers; record the documentation check result at closure |
+| AC-8: OPEN bytes and their recorded declaration use one snapshot | `TestPrepareOpenKeepsPluginSnapshotAcrossRollback` observed record 11/wire 22 and an incorrect keep before the fix; the repaired affected selector exited 0, and the two final native FRR scenarios passed |
 
 ### Security Review Checklist
 
@@ -296,7 +295,7 @@ None.
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-7 all demonstrated
+- [ ] AC-1..AC-8 evidence recorded in the Implementation Audit and Pre-Commit Verification tables
 - [ ] Targeted tests pass: `./le job run label unit-pkg command go test -race -tags ze_bgp ./pkg/plugin/sdk/ ./internal/component/plugin/ ./internal/component/plugin/server/ ./internal/component/bgp/reactor/` and each capability plugin package; `./le test reload <ids>` for the reload `.ci` tests
 
 ### TDD
@@ -313,7 +312,7 @@ None.
 
 ### Bugs Found/Fixed
 - No product behavior fix was made by the closing agent. The implementation follow-up repairs the snapshot defect and SDK instructions and supplies both observed interop walks.
-- Follow-up: the native Role reload scenarios and checker tests are written. The SDK paragraph, example and matching godoc now describe candidate installation. Both transports' red/green results are recorded below; final documentation checks remain owed.
+- Follow-up: the native Role reload scenarios and checker controls are committed. The SDK paragraph, example and matching godoc describe candidate installation. Both transports' observed red/green results and the focused final documentation review are recorded below.
 - Follow-up: `Peer.pluginCapabilitySnapshot` now derives the raw declaration index before runtime GR-bit transforms and derives the wire offer from that same injector read. `prepareOpen` records that snapshot beside the OPEN; the negotiation probe compares and builds one captured candidate. Existing tagged test bodies and assertions are unchanged.
 
 ### Snapshot Defect Diagnosis
@@ -347,11 +346,12 @@ supersedes it, then are removed with the task's disposable proof artifacts.
 The overlay replaces `composeCapabilityVerify`'s candidate assignment with an
 unused-value statement and leaves tracked source unchanged. Its source input
 is pinned to SHA-256 `1a1a48ad17202805b67db5272ea11c817877571302d4c3a4375ea037b6270fff`.
-The task-owned `tmp/session/2026-11-15-130223/scratch/peer-caps-reload-discrimination/`
-and preparation script hold this bounded proof setup. Remove them after all
-red/green outcomes and image IDs are recorded here. Both candidate-withholding
-reds and final unmodified greens are observed for each transport. The setup is
-now disposable; retained logs need only support any unresolved check or review.
+Both candidate-withholding reds and final unmodified greens are observed for
+each transport. The author removed the completed overlay directory, preparation
+script, hand-written mutant input and obsolete commit inputs after the evidence
+landed: 14 task-owned files, 21,315 bytes. No server was created, and both lab
+VMs stopped with no resources left. The canonical proof JSON and this committed
+record retain the outcomes; no temporary source copy is needed.
 
 ### Refreshed RFC Proofs
 
@@ -381,7 +381,8 @@ It is disposable after the final closure record supersedes this evidence.
 
 ### Documentation Updates
 - The prerequisite commit `e7c999863a` adds the deliverables, security and documentation checklists to this spec.
-- Existing guide and process-protocol claims were checked against the current SDK, capability stage and injector. The `DeclareAppliesNothing` paragraph, example and matching godoc are repaired. Required `./le --name session doc check all` exited 1 with 136 drift findings, including concurrent IRR and baseline changes; focused independent review is active.
+- Existing guide and process-protocol claims were checked against the current SDK, capability stage and injector. The `DeclareAppliesNothing` paragraph, example and matching godoc are repaired. Independent focused documentation review found zero blockers and zero issues in the selected changes.
+- Required `./le --name session doc check all` exited 1 with 136 drift findings, including concurrent IRR and baseline changes. The separate links check reported two missing README SVG assets; their owning session regenerated them. Neither global check was repeated or represented as green. The main thread completed `./le --name session rfc update` with exit 0 after the scoped proof refreshes.
 
 ### Validation Limits
 - The initial scoped lint found one owned ST1005 diagnostic, corrected to lowercase. Its other findings were unrelated package baseline findings. Two final bounded three-package attempts stopped during planning because other sessions were changing `register_watchdog_withdraw_value.go` and then `reactor_api_sealed_session_test.go`; neither produced a new lint verdict. No lint pass is claimed. Independent manual style/source review found no issues.
@@ -389,14 +390,15 @@ It is disposable after the final closure record supersedes this evidence.
 
 ### Deviations from Plan
 - The original interop exemption relied on unchanged encoding. The implemented reload changes what the peer receives and whether its session restarts, so interoperability proof is required.
-- Closure is handed back to implementation. No acceptance criterion is removed or transferred.
+- Closure found a concrete snapshot defect and widened this spec with AC-8; the source fix and deterministic regression landed in `4dbbd6fd62`. No acceptance criterion was removed or transferred.
 
 ## Mistake Log
 
 | Kind | What happened | What was true instead | How discovered | Action |
 |------|---------------|----------------------|----------------|--------|
-| assumption | Unchanged OPEN encoding was treated as an interop exemption | Reload changes the declaration sent and the session restart decision | Read `installStagedCapabilities`, `pluginCapabilitiesKept` and the startup-only FRR scenario producers | Add a native reload scenario in this spec |
-| approach | AC-7 was described as implemented while the SDK apply-handler example retained the old refusal contract | `DeclareCapabilitiesFrom` takes one extractor and config-verify carries its candidate | Compared "DeclareAppliesNothing" with `DeclareCapabilitiesFrom` and `composeCapabilityVerify` | Repair the SDK instructions before closure |
+| assumption | Unchanged OPEN encoding was treated as an interop exemption | Reload changes the declaration sent and the session restart decision | Read `installStagedCapabilities`, `pluginCapabilitiesKept` and the startup-only FRR scenario producers | Added and discriminated internal and forked native FRR reload scenarios |
+| approach | AC-7 was described as implemented while the SDK apply-handler example retained the old refusal contract | `DeclareCapabilitiesFrom` takes one extractor and config-verify carries its candidate | Compared "DeclareAppliesNothing" with `DeclareCapabilitiesFrom` and `composeCapabilityVerify` | Repaired the SDK instructions and reviewed them against source |
+| approach | Two separately atomic store reads were assumed to make the recorded declaration agree with OPEN | Publication B followed by restoration A could conceal an OPEN carrying B | The deterministic snapshot regression failed with record 11/wire 22 and an incorrect keep | One paired snapshot now supplies the record, OPEN and candidate comparison |
 
 ## Implementation Audit
 
@@ -406,6 +408,7 @@ It is disposable after the final closure record supersedes this evidence.
 | A reload carries each plugin's candidate declaration | Scoped unit and interop proof passed | `capability_declaration.go` `composeCapabilityVerify` | Both transports have an observed missing-candidate red followed by unmodified green |
 | A peer added by reload sends its configured capabilities | Functional proof passed | `config_tx_capabilities.go` `installStagedCapabilities` | Main observed the unchanged AC-1 native QEMU test PASS on Ze's own system |
 | A running session is restarted or kept by the negotiated-outcome rule | Scoped unit and interop proof passed | `peer_settings_negotiation.go` `pluginCapabilitiesKept` | Both native FRR scenarios prove Role add/remove on new sessions; existing unit cases retain the unsupported-code survivor |
+| The record and OPEN agree across publication and restoration | Done | `Peer.pluginCapabilitySnapshot`, `Session.prepareOpen`, `Session.negotiationOutcomeUnchanged` | AC-8 deterministic red before repair, selected unit green after repair |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
@@ -416,7 +419,7 @@ It is disposable after the final closure record supersedes this evidence.
 | AC-4 | Scoped batch passed | `TestConfigTxBridgeInstallsAndRestoresCapabilities` | Selected package run exited 0; no individual test result was printed |
 | AC-5 | Scoped unit and interop proof passed | `TestNegotiationPluginCapabilityChange`, `TestReloadPluginCapabilityChange`, `TestReloadCapabilityBlockEdit`, both Role reload scenarios | Selected unit runs exited 0; both FRR transports completed discriminating red/green walks |
 | AC-6 | Done | `reload-capability-unchanged-accepted` | Main observed PASS for named test 99 on 2026-11-15, 2.5 seconds |
-| AC-7 | Repair written; check owed | `docs/plugin-development/handlers.md`, "DeclareAppliesNothing" | Candidate installation replaces the obsolete refusal; the example uses one extractor argument |
+| AC-7 | Done | `docs/plugin-development/handlers.md`, "DeclareAppliesNothing", operator guides and process protocol | Candidate installation replaces the obsolete refusal; focused independent source-aware documentation review found zero blockers/issues; global drift remains disclosed |
 | AC-8 | Observed red, then selected unit proof passed | `TestPrepareOpenKeepsPluginSnapshotAcrossRollback` | The old two-read record/wire mismatch failed deterministically; the repaired snapshot selector exited 0 |
 
 ### Tests from TDD Plan
@@ -426,16 +429,18 @@ It is disposable after the final closure record supersedes this evidence.
 | `reload-add-peer-role-capability` | Pass | `test/reload/reload-add-peer-role-capability.ci` | Main observed the named PASS through `./le --name session test qemu ci test test/reload/reload-add-peer-role-capability.ci`; the earlier macOS attempt stopped at loopback setup |
 | `reload-capability-unchanged-accepted` | Pass | `test/reload/reload-capability-unchanged-accepted.ci` | Main observed the named result |
 | Interop for a reload changing plugin capabilities | Red/green walks passed | `bgp-role-reload-frr` and its forked twin | Each completed applied add/remove reloads and FRR's received Role on new sessions, and failed with the candidate withheld |
+| Snapshot regression | Observed red, then selected unit green | `session_plugin_snapshot_test.go` `TestPrepareOpenKeepsPluginSnapshotAcrossRollback` | Uses deterministic publication and restoration and judges the actual encoded bytes |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
 | SDK, injector, transaction bridge and reactor producers | Present and inspected | Source locations are named in Deliverables Checklist |
-| Four documentation pages | Present; repair written and checks owed | SDK apply-handler guidance now describes engine installation of the candidate and the current API |
+| Documentation pages | Present and independently reviewed | SDK apply-handler guidance describes engine installation and the current API; snapshot, interop and source-anchor updates match their producers |
+| Six new Go files and six scenario config files in Files to Create | Present | `ls -l` on 2026-11-15 found every named file; both complete scenario directories ran natively |
 
 ### Audit Summary
-- The audit is incomplete. AC-1 and AC-6 have named passing runs, and the scoped unit batch exited 0 for ten packages; no final completion count is claimed.
-- No item was skipped, removed or transferred to another spec.
+- All four task requirements and AC-1 through AC-8 have source and scoped proof evidence above. AC-1, AC-6 and both native interop scenarios have named passing outcomes; unit evidence records the selected package results rather than inventing per-test PASS output.
+- No in-scope item was skipped, removed or transferred. Validation limits remain explicit and make no whole-tree or full RFC conformance claim.
 
 ## Goal Validation (BLOCKING)
 
@@ -444,28 +449,41 @@ It is disposable after the final closure record supersedes this evidence.
 | A peer added by reload sends its plugin capabilities and establishes | Functional and interop | Main observed the AC-1 functional PASS through the native QEMU action on Ze's own system, with exact OPEN and End-of-RIB assertions; both transport variants also completed live capability replacement against FRR |
 | A changed plugin capability restarts only a session whose negotiated use can change | Unit, functional and interop | Selected AC-5 unit runs exited 0 and retain the peer-without-code survivor; both FRR transports observed the configured Role in a new session after each applied add/remove reload |
 | An unchanged declaration does not disturb the session | Functional | Main observed `reload-capability-unchanged-accepted` PASS on 2026-11-15, one TCP connection, accepted reload |
+| Publication and rollback cannot pair the recorded declaration with another OPEN generation | Deterministic regression | Before repair, `TestPrepareOpenKeepsPluginSnapshotAcrossRollback` observed record 11/wire 22 and kept=true after restoring 11; after repair, the affected selected package action exited 0 |
 
 ## Work Not Done
 
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
-| Focused documentation review and independent Review Gate | Scoped proof, freshness and unit results are recorded with lint/doc limits; final independent review is active and no scope is removed | `plan/release/fixes/spec-runtime-peer-plugin-capabilities.md` |
+| None | | |
 
 ## Review Gate
 
 | Field | Value |
 |-------|-------|
-| Artifact | None; no CLEAN verdict was recorded |
-| `./le spec review check` | Not run; independent closure review remains pending |
-| Rounds | Round 1 stopped with open findings; not a completed clean review |
-| Reviewer lenses used | Wiring and goal evidence; SDK refusal precedence, ownership replacement and compensation; running-session comparison |
-| Round 1 scope | Current producers and the implementation commits named above, including the later complete-set replacement fix `942ca06d90`; the generic review remains incomplete |
+| Artifact | `tmp/review/runtime-peer-plugin-capabilities-01a1df4b-40c0-7350-819b-b5f74e6b5a86.md` |
+| `./le commit check` (immutable tree) | clean: exit 0, verdict clean, 82 code paths including the deleted refusal test; artifact and tree `c975ebcf5ab58521f308fb7c339e25ba699f80cb` were passed explicitly |
+| Rounds | 2; final source and focused documentation review found 0 BLOCKER and 0 ISSUE |
+| Reviewer lenses used | Wiring and goal evidence; SDK refusal precedence, ownership replacement and compensation; OPEN snapshot concurrency and GR edge cases; allocation/style and source-aware documentation |
+| Round 1 scope | Original capability reload implementation and later complete-set replacement, plus the new native proof and SDK guidance; findings below were returned to implementation |
+| Round 2 scope | Snapshot repair and its OPEN, negotiation, GR, unchanged-test adapters and corresponding documentation; final committed content excludes unrelated working hunks |
+
+The artifact pins 81 immutable Git blobs and one removal. Its population is
+the historical implementation commits named by this spec, including the
+original umbrella-attributed work and its dead-reader cleanup, plus every
+current exact `Spec-work: runtime-peer-plugin-capabilities` commit. No relevant
+code changed between the final implementation commit and the recorded tree.
+The prospective-tree checker reads the committed `peer.go` blob rather than
+another session's live API edits. The native artifact remains available until
+the closure commits and their review evidence are accepted; remove it when
+superseded by the repository's retained closure evidence.
 
 ### Findings fixed
 | # | Severity | Finding | Location | Fixed by |
 |---|----------|---------|----------|----------|
 | 1 | BLOCKER | Missing native interop proof for reload capability replacement and session decisions | `installStagedCapabilities`, `pluginCapabilitiesKept`; startup-only scenario producers | Internal and forked carriers now have observed candidate-withholding reds and final unmodified greens |
-| 2 | ISSUE | SDK guidance asserted the removed refusal and obsolete API call | `docs/plugin-development/handlers.md`, "DeclareAppliesNothing" | Paragraph, example and matching SDK godoc repaired; documentation checks owed |
+| 2 | ISSUE | SDK guidance asserted the removed refusal and obsolete API call | `docs/plugin-development/handlers.md`, "DeclareAppliesNothing" | Paragraph, example and matching SDK godoc repaired in `9ea1d7aaeb`; focused independent documentation review is clean |
+| 3 | ISSUE | Separate declaration and wire reads could keep a session whose OPEN differed from its record after rollback | `Session.prepareOpen`, `Session.negotiationOutcomeUnchanged` | `4dbbd6fd62` captures one paired snapshot; deterministic regression observed red before repair and selected unit green after |
 
 ## Pre-Commit Verification
 
@@ -474,6 +492,9 @@ It is disposable after the final closure record supersedes this evidence.
 |------|--------|----------|
 | `test/reload/reload-add-peer-role-capability.ci` | Yes | Read its full body: daemon reload, exact new-peer OPEN bytes and End-of-RIB |
 | `test/reload/reload-capability-unchanged-accepted.ci` | Yes | Read its full body: one connection and applied reload assertion |
+| `register_role_reload.go`, `check_role_reload.go`, `check_role_reload_test.go` | Yes | `ls -l` returned all three files; native internal and forked discovery and checker runs reached their registered scenario names |
+| `session_plugin_capabilities.go`, `session_plugin_capabilities_fixture_test.go`, `session_plugin_snapshot_test.go` | Yes | `ls -l` returned all three files; committed source supplies the production snapshot, unchanged-test adapters and deterministic regression |
+| Internal and forked scenario `ze.conf`, `ze-reload.conf`, `frr.conf` | Yes | `ls -l` returned all six paths; both native scenarios completed applied add/remove reloads |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
@@ -482,7 +503,7 @@ It is disposable after the final closure record supersedes this evidence.
 | AC-2 to AC-5 | Scoped package verification | The main thread's native selected batch exited 0, with ten package `ok` lines; no individual PASS names were printed |
 | AC-1 | The newly added peer sends its configured Role and establishes | Main observed `reload-add-peer-role-capability` PASS through `./le --name session test qemu ci test test/reload/reload-add-peer-role-capability.ci` on Ze kernel 7.3.0-ze arm64, one executed and zero skipped |
 | AC-5, AC-8 | Native reload and snapshot proof | Both FRR transport walks completed red then green; the deterministic snapshot regression failed before the source repair and its post-fix selected run exited 0 |
-| AC-7 | Final verification remains open | Repaired documentation awaits its final check |
+| AC-7 | Current SDK and operator guidance | The focused independent documentation review compared the repaired claims and examples to the current producers and found zero blockers/issues; the unsuccessful global checks remain disclosed |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
@@ -497,5 +518,7 @@ It is disposable after the final closure record supersedes this evidence.
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
-| Config-verify carries a candidate and the store installs/restores it atomically | `composeCapabilityVerify`, `stageVerifiedCapabilities`, `ReplacePluginCapabilities`, `restoreCapabilities` | Current guide/protocol claims match the inspected producers; checks remain owed |
-| SDK apply-handler instructions | `DeclareCapabilitiesFrom`, `composeCapabilityVerify` | The paragraph, one-argument example and matching godoc are repaired against source; documentation checks remain owed |
+| Config-verify carries a candidate and the store installs/restores it atomically | `composeCapabilityVerify`, `stageVerifiedCapabilities`, `ReplacePluginCapabilities`, `restoreCapabilities` | Source and focused documentation review agree; global doc drift is disclosed, not claimed green |
+| SDK apply-handler instructions | `DeclareCapabilitiesFrom`, `composeCapabilityVerify` | Paragraph, one-argument example and matching godoc agree with source; focused independent review found no issue |
+| Snapshot and interop contracts | `Peer.pluginCapabilitySnapshot`, `Session.prepareOpen`, `checkRoleReload` | Committed lifecycle and interop pages describe one injector snapshot and both foreign Role/session transitions |
+| Categories without a surface change | Current candidate declaration, injector and snapshot producer diffs; source-anchor census in the Documentation Update Checklist | No config syntax, CLI registration, route metadata or metric registration changed; no feature maturity promotion is claimed |
