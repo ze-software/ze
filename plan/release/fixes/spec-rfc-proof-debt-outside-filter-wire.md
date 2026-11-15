@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-02 |
+| Updated | 2026-11-15 |
 
 Scope is tooling: the work re-takes discrimination records, re-judges audit
 verdicts and repairs two red tests in `internal/le/rfc`. No product behaviour
@@ -36,6 +36,11 @@ their package carry no filter work.
 The goal: `./le rfc check` lists none of the rows below, every record was
 observed red by `./le rfc record`, every STALE verdict was re-made by an
 independent auditor, and both tooling tests pass.
+
+This spec also owns the document-author evidence finding below. Its correction
+needs a separate design review before implementation; the existing ready work
+does not approve a change to the exclusion rules. Runtime decoder tests do not
+prove an obligation on a defining document.
 
 ## Required Reading
 
@@ -315,6 +320,54 @@ are re-made by an independent `/ze-rfc-audit` agent and stamped with
 ## Owned journal rows
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| `guard-demands-what-the-model-cannot-supply.md` | 2026-11-15 | RFC document-author evidence cannot pass the role-binding model |
+
+## Document-author evidence finding
+
+The RFC test campaign completed this investigation on 2026-11-15. It changes
+no summary, extraction site, audit verdict, requirement level or support claim.
+The finding is separate from the campaign's parser fault observations.
+
+| Source | Full obligation | Current evidence defect |
+|--------|-----------------|-------------------------|
+| RFC 7606 Section 8, `RFC7606-8-1` | "A document that specifies a new BGP attribute MUST provide specifics regarding what constitutes an error for that attribute and how that error is to be handled." | The summary records a gap. Its audit names `message/rfc7606.go::validateAttribute`, although that dispatcher cannot prove what the defining document specifies. The audit records an earlier owner-invalidated exclusion; that history is not authority for restoring it. |
+| RFC 5492 Section 4, `RFC5492-4-3` | "Processing of these capability instances is specific to the Capability Code and MUST be described in the document introducing the new capability." | The summary records a gap and no row audit exists. Extraction site `4:2` still says that the row is not applicable. That reason disagrees with the current summary and cannot authorize an exclusion. |
+
+### Cause and correction boundary
+
+`internal/le/rfc/notapplicable_roles.go::boundRoleRefusal` takes the text before
+the first BCP 14 keyword as the subject. `subjectRefusal` rejects a subject
+containing a `subjectBreakers` word. RFC 7606's restrictive subject contains
+`that`. RFC 5492's pre-MUST text contains `of` and `and`; its defining document
+appears after MUST in a passive complement. Neither section supplies a separate
+scoping sentence accepted by the current model.
+
+`docs/contributing/rfc-conformance-gates.md`, "The exclusion evidence ratchet",
+explicitly calls these shapes decided rules. Its suggested gap-and-test route
+does not resolve these document obligations: a decoder assertion can prove a
+receiver's behavior, but cannot prove what another document contains. The
+correction must change that contract through review, not force either sentence
+into a runtime requirement or bypass the source checks.
+
+| Existing mechanism | Treatment in the correction |
+|--------------------|-----------------------------|
+| `boundRoleRefusal` and `subjectRefusal` | Review a narrow document-author form against a general clause parser. Prefer the smallest source-bound representation that preserves the complete condition; do not remove breaker words globally. No alternative is approved here. |
+| `check_evidence.go::evidenceReader.roleQuoteGap` and `ownObligationRefusal` | Preserve complete-sentence, cited-section, own-clause and original-level checks. A title, borrowed clause or shortened quote remains insufficient. |
+| Native extraction and audit writers | Independently rejudge both rows after the reviewed correction. Reconcile summary, extraction reason and audit together; retain permanent ids and MUST levels. Do not create runtime discrimination records for document content. |
+
+### Acceptance and test plan for the reviewed correction
+
+| Criterion | Observable result and controls |
+|-----------|--------------------------------|
+| DA-1 | Exact complete RFC 7606 Section 8 and RFC 5492 Section 4 sentences can represent their document obligation through the reviewed evidence route. No arbitrary speaker obligation gains that route. |
+| DA-2 | Tests in `internal/le/rfc/notapplicable_roles_test.go` cover the restrictive-subject and passive-document forms separately. Nearby receiver obligations remain applicable, including RFC 5492 Section 4's acceptance of multiple Capabilities Optional Parameters. |
+| DA-3 | Tests in `internal/le/rfc/check_evidence_test.go` refuse a missing source, wrong section, incomplete sentence, dropped condition, borrowed obligation, altered level, generic actor or role Ze fills. Existing valid role evidence remains accepted. Each new guard has an observed fault that makes its test fail. |
+| DA-4 | An independent RFC auditor reads the defining sentences and current Ze roles, checks the historical owner ruling, and records the resulting disposition through native writers. No whole-RFC completion or runtime behavior is inferred. |
+| DA-5 | The correction updates "The exclusion evidence ratchet" in `docs/contributing/rfc-conformance-gates.md` in the same change. The document states the admitted evidence form and its refusal cases. |
+
+Until the design and independent rejudgment are complete, both rows remain
+disclosed findings. No decoder test is invented to clear them. The repair needs
+no protocol, SDK, schema, daemon command or wire-format change.
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
