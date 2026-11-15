@@ -12,6 +12,8 @@ package web
 import (
 	"net/http"
 	"sync"
+
+	"github.com/ze-software/ze/internal/component/aaa"
 )
 
 // WrapKind selects the auth/mutation middleware the hub applies to a route. The
@@ -32,6 +34,10 @@ const (
 type RouteDeps struct {
 	Renderer *Renderer
 	Dispatch CommandDispatcher
+	// Authorizer is the hub's live authorizer, the fallback for a session
+	// that carries none of its own (authorizerForRequest). Nil when no
+	// authorization is configured, and in insecure mode.
+	Authorizer aaa.Authorizer
 }
 
 // WebRoute is a self-registered HTTP route for an in-tree web feature. Feature

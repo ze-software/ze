@@ -159,6 +159,16 @@ and `request reload` instead.
 <!-- source: internal/component/cli/client/verb_tree.go -- BuildVerbCommandTree, verbContextPath -->
 <!-- source: internal/plugins/signal/main.go -- Commands table ExecCommand column -->
 
+### Web pages that a command grants
+
+Some web pages act on the device without running a command. They are
+judged by the Ze command that does the same thing, in the section that
+command lands in. The gokrazy management UI at `/gokrazy/` is one: its update
+handlers need `update system firmware apply` and its reboot handler
+`request reboot`, both judged in `edit`. The table of every page is in
+[appliance.md](appliance.md), "The gokrazy management UI".
+<!-- source: internal/component/gokrazy/gate.go -- forwardedPages -->
+
 ## Configuration
 
 ### Defining profiles

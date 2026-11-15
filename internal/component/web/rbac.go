@@ -26,13 +26,22 @@ func authorizerForRequest(r *http.Request, fallback aaa.Authorizer) aaa.Authoriz
 	return fallback
 }
 
-// canEdit reports whether the request's authenticated user may edit config.
-func canEdit(r *http.Request, authorizer aaa.Authorizer) bool {
-	authorizer = authorizerForRequest(r, authorizer)
+// authorizeRequest reports whether the request's authenticated user may run
+// command, judged in the run section of the user's profile when isReadOnly is
+// true and in the edit section otherwise. A nil authorizer is the guard for a
+// server with no authorization configured, and in insecure mode, and it allows:
+// that is the fail-open semantics every web gate shares (R-1).
+func authorizeRequest(r *http.Request, fallback aaa.Authorizer, command string, isReadOnly bool) bool {
+	authorizer := authorizerForRequest(r, fallback)
 	if authorizer == nil {
 		return true
 	}
-	return authorizer.Authorize(GetUsernameFromRequest(r), r.RemoteAddr, webCommandConfigEdit, false)
+	return authorizer.Authorize(GetUsernameFromRequest(r), r.RemoteAddr, command, isReadOnly)
+}
+
+// canEdit reports whether the request's authenticated user may edit config.
+func canEdit(r *http.Request, authorizer aaa.Authorizer) bool {
+	return authorizeRequest(r, authorizer, webCommandConfigEdit, false)
 }
 
 // saveOK builds the out-of-band commit bar one edit answers with. The

@@ -3,6 +3,7 @@
 // the management socket is absent.
 // PREVENTS: silent auth-injection regressions, broken relative links in the
 // proxied gokrazy UI, and 502-masking of a missing management socket.
+// The gate's own tests are in gate_test.go.
 package gokrazy
 
 import (
@@ -81,7 +82,19 @@ type capturedResp struct {
 
 func doGet(t *testing.T, h http.Handler, path string) capturedResp {
 	t.Helper()
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, http.NoBody)
+	return doRequest(t, h, http.MethodGet, path, nil)
+}
+
+// doRequest sends one request with the given method and extra headers through
+// h and answers the buffered response.
+func doRequest(t *testing.T, h http.Handler, method, path string, header http.Header) capturedResp {
+	t.Helper()
+	req := httptest.NewRequestWithContext(t.Context(), method, path, http.NoBody)
+	for name, values := range header {
+		for _, value := range values {
+			req.Header.Add(name, value)
+		}
+	}
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	res := rec.Result()
@@ -98,7 +111,7 @@ func doGet(t *testing.T, h http.Handler, path string) capturedResp {
 func TestGokrazyProxyAuthInjection(t *testing.T) {
 	sock, gotAuth := fakeGokrazy(t, "text/plain", "ok")
 	const auth = "Basic Z29rcmF6eTpzM2NyZXQ="
-	h := handlerWithAuth(sock, auth)
+	h := handlerWithAuth(sock, auth, allowAll)
 
 	resp := doGet(t, h, "/gokrazy/status")
 	if resp.code != http.StatusOK {
@@ -113,7 +126,7 @@ func TestGokrazyProxyAuthInjection(t *testing.T) {
 // when no gokrazy password is configured.
 func TestGokrazyProxyNoAuthWhenEmpty(t *testing.T) {
 	sock, gotAuth := fakeGokrazy(t, "text/plain", "ok")
-	h := handlerWithAuth(sock, "")
+	h := handlerWithAuth(sock, "", allowAll)
 
 	_ = doGet(t, h, "/gokrazy/status")
 	if *gotAuth != "" {
@@ -142,7 +155,7 @@ func TestProxyStripsPrefix(t *testing.T) {
 	go func() { _ = srv.Serve(ln) }()
 	t.Cleanup(func() { _ = srv.Close() })
 
-	_ = doGet(t, handlerWithAuth(socketPath, ""), "/gokrazy/status")
+	_ = doGet(t, handlerWithAuth(socketPath, "", allowAll), "/gokrazy/status")
 	mu.Lock()
 	defer mu.Unlock()
 	if gotPath != "/status" {
@@ -154,7 +167,7 @@ func TestProxyStripsPrefix(t *testing.T) {
 // generic 502 (AC-7: 503-on-missing-socket).
 func TestProxySocketMissing503(t *testing.T) {
 	missing := filepath.Join(t.TempDir(), "absent.sock")
-	h := handlerWithAuth(missing, "")
+	h := handlerWithAuth(missing, "", allowAll)
 
 	resp := doGet(t, h, "/gokrazy/status")
 	if resp.code != http.StatusServiceUnavailable {
@@ -169,7 +182,7 @@ func TestRewriteResponseHTMLPaths(t *testing.T) {
 		`<form action="/stop"></form><script>new EventSource("/log?path=x")</script>`
 	sock, _ := fakeGokrazy(t, "text/html", html)
 
-	resp := doGet(t, handlerWithAuth(sock, ""), "/gokrazy/")
+	resp := doGet(t, handlerWithAuth(sock, "", allowAll), "/gokrazy/")
 	got := resp.body
 	if got == "" {
 		t.Fatalf("proxy returned empty body")
@@ -196,7 +209,9 @@ func TestRewriteResponseSkipsNonHTML(t *testing.T) {
 	const payload = `{"path":"/status"}`
 	sock, _ := fakeGokrazy(t, "application/json", payload)
 
-	resp := doGet(t, handlerWithAuth(sock, ""), "/gokrazy/api")
+	// /status answers JSON when asked (gokrazy status.go jsonRequested), so a
+	// JSON body on a forwarded page is the case this proves.
+	resp := doGet(t, handlerWithAuth(sock, "", allowAll), "/gokrazy/status")
 	if resp.code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", resp.code)
 	}

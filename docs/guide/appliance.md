@@ -276,11 +276,42 @@ building continues to produce the same blob format.
 ```
 
 The command boots the named image in QEMU. Quit QEMU with **Ctrl-A X**.
-The Gokrazy management UI is exposed through Ze's authenticated web UI at
-`/gokrazy/`; the proxy reads Gokrazy's password from its standard password-file
-locations.
 <!-- source: internal/appliance/cmd_run.go -- runRun -->
+
+### The gokrazy management UI
+
+Ze's authenticated web UI shows the gokrazy management UI at `/gokrazy/`. The
+proxy reads gokrazy's password from its standard password-file locations and
+adds it to each request it forwards. gokrazy knows only that one credential, and
+it opens every gokrazy handler, the image update included. Ze's own
+authorization therefore decides what each web account reaches: the proxy
+forwards a gokrazy page only when the account's authorization profile grants
+the Ze command that does the same thing on the device. A refused request never
+reaches gokrazy and never carries the password.
+
+| gokrazy page | Methods | Granted by the Ze command | Profile section |
+|--------------|---------|---------------------------|-----------------|
+| `/gokrazy/`, `/gokrazy/status`, `/gokrazy/log`, `/gokrazy/assets/...` | GET, HEAD | `show status` | `run` |
+| `/gokrazy/update/...` | any | `update system firmware apply` | `edit` |
+| `/gokrazy/reboot` | any | `request reboot` | `edit` |
+| `/gokrazy/stop`, `/gokrazy/restart` | any | `request shutdown` | `edit` |
+| `/gokrazy/divert`, `/gokrazy/uploadtemp/...` | none | never forwarded | |
+| `/gokrazy/poweroff` | none | never forwarded | |
+
+The built-in `read-only` profile therefore sees the status pages and nothing
+that changes the device, and `admin` reaches every forwarded page. A page not
+in the table, a path that is not clean (`..`, a doubled slash) and a write to a
+read-only page are refused too. `divert` and `uploadtemp` start a program
+uploaded through the browser, outside the image the appliance was built from,
+so no profile grants them: to change the software, push an image with
+`./ze-host appliance push <name>`. No Ze command powers off the device, so
+`poweroff` is refused as well. A refusal names the Ze command the page needs,
+so an administrator knows which entry to allow (see
+[authorization.md](authorization.md)).
+<!-- source: internal/component/gokrazy/gate.go -- forwardedPages, refusedPages, pageFor -->
+<!-- source: internal/component/gokrazy/gokrazy.go -- handlerWithAuth -->
 <!-- source: internal/component/web/register_gokrazy.go -- /gokrazy route -->
+<!-- source: internal/component/web/rbac.go -- authorizeRequest -->
 <!-- source: internal/core/gokrazyutil/gokrazyutil.go -- ReadPassword -->
 
 ## Deploy to hardware

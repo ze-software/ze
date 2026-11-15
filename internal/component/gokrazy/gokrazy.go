@@ -1,11 +1,14 @@
-// Design: (none — new component for gokrazy management proxy)
+// Design: docs/guide/appliance.md -- "The gokrazy management UI"
+// Related: gate.go -- which requests the proxy forwards, and the Ze command that grants each
 //
 // Package gokrazy provides a reverse proxy handler for the gokrazy
 // management interface, mounted on ze's web server at /gokrazy/.
 // Gokrazy listens on a Unix socket (/run/gokrazy-http.sock)
-// unconditionally. This handler proxies to that socket, injects
-// gokrazy's Basic Auth credentials, and rewrites absolute paths in
-// HTML responses so links stay under the /gokrazy/ prefix.
+// unconditionally. This handler proxies to that socket. Each request
+// first passes the gate (gate.go), which forwards only the gokrazy pages
+// the account's Ze authorization grants. Only a forwarded request carries
+// gokrazy's Basic Auth credentials. The handler also rewrites absolute
+// paths in HTML responses so links stay under the /gokrazy/ prefix.
 //
 // Reference: https://github.com/gokrazy/gokrazy
 // Auth handler: gokrazy/authenticated.go
@@ -30,20 +33,25 @@ import (
 )
 
 // Handler returns an http.Handler that reverse-proxies to the gokrazy
-// management Unix socket. It strips the /gokrazy prefix, injects
-// Basic Auth, and rewrites absolute paths in HTML responses. The
-// caller wraps this with ze's auth middleware.
-func Handler(socketPath string) http.Handler {
+// management Unix socket. It strips the /gokrazy prefix, refuses every
+// request the gate does not forward for the account authorize judges,
+// injects Basic Auth into the requests it forwards, and rewrites absolute
+// paths in HTML responses. The caller wraps this with ze's auth middleware,
+// which sets the account authorize reads. authorize MUST NOT be nil.
+func Handler(socketPath string, authorize Authorize) http.Handler {
 	authHeader := gokrazyutil.AuthHeader()
 	if authHeader == "" {
 		slogutil.Logger("gokrazy").Info("gokrazy password not found, proxying without auth injection")
 	}
-	return handlerWithAuth(socketPath, authHeader)
+	return handlerWithAuth(socketPath, authHeader, authorize)
 }
 
 // handlerWithAuth is Handler with the Basic Auth header supplied explicitly,
 // so tests can drive auth injection without touching the on-disk password.
-func handlerWithAuth(socketPath, authHeader string) http.Handler {
+func handlerWithAuth(socketPath, authHeader string, authorize Authorize) http.Handler {
+	if authorize == nil {
+		panic("BUG: gokrazy proxy built without an authorizer")
+	}
 	if socketPath == "" {
 		socketPath = gokrazyutil.DefaultSocketPath
 	}
@@ -58,8 +66,14 @@ func handlerWithAuth(socketPath, authHeader string) http.Handler {
 		},
 		Rewrite: func(pr *httputil.ProxyRequest) {
 			pr.SetURL(&url.URL{Scheme: "http", Host: "gokrazy"})
+			// Forward exactly the path the gate judged: the decoded path,
+			// with no raw form left for gokrazy to decode into another.
 			pr.Out.URL.Path = pr.In.URL.Path
+			pr.Out.URL.RawPath = ""
 			pr.Out.URL.RawQuery = pr.In.URL.RawQuery
+			// The browser's own Authorization header carries its Ze
+			// credentials, which are not gokrazy's to see.
+			pr.Out.Header.Del("Authorization")
 			if authHeader != "" {
 				pr.Out.Header.Set("Authorization", authHeader)
 			}
@@ -79,7 +93,21 @@ func handlerWithAuth(socketPath, authHeader string) http.Handler {
 		http.Error(w, "gokrazy management unavailable", http.StatusBadGateway)
 	}
 
-	stripped := http.StripPrefix("/gokrazy", proxy)
+	// The gate runs before the proxy, so a refused request never reaches the
+	// socket and never carries the credential.
+	gated := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		page, refused := pageFor(r.Method, r.URL.Path)
+		if refused != nil {
+			refused.write(w)
+			return
+		}
+		if !authorize(r, page.command, page.readOnly) {
+			unauthorized(r.URL.Path, page.command).write(w)
+			return
+		}
+		proxy.ServeHTTP(w, r)
+	})
+	stripped := http.StripPrefix("/gokrazy", gated)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Clear ze's restrictive CSP (set by addSecurityHeaders in auth
 		// middleware) before the proxy writes. The proxy's ModifyResponse

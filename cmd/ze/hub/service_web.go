@@ -631,12 +631,14 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	// because they close over the session store, authorizer, and audit
 	// recorder (R-2); a route that returns nil from Enabled (e.g. gokrazy when
 	// its service is off) is skipped, and a route carrying a Portal registers
-	// its portal-menu entry when wired.
+	// its portal-menu entry when wired. A route that authorizes per request
+	// (the gokrazy proxy judges each page by the Ze command it needs) reads
+	// the authorizer from routeDeps.
 	routeWraps := map[zeweb.WrapKind]func(http.Handler) http.Handler{
 		zeweb.WrapAuth:     authWrap,
 		zeweb.WrapMutation: mutationWrap,
 	}
-	routeDeps := zeweb.RouteDeps{Renderer: renderer, Dispatch: dispatch}
+	routeDeps := zeweb.RouteDeps{Renderer: renderer, Dispatch: dispatch, Authorizer: authorizer}
 	for _, route := range zeweb.RegisteredWebRoutes() {
 		if route.Enabled != nil && !route.Enabled() {
 			continue
