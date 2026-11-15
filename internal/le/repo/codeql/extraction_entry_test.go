@@ -289,8 +289,7 @@ func extractionEntry(t *testing.T, root string, arguments []string, environment 
 	if err == nil {
 		return string(output), 0
 	}
-	var exit *exec.ExitError
-	if errors.As(err, &exit) {
+	if exit, ok := errors.AsType[*exec.ExitError](err); ok {
 		return string(output), exit.ExitCode()
 	}
 	t.Fatalf("start native extraction entry: %v", err)

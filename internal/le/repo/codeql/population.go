@@ -42,7 +42,7 @@ func Select(ctx context.Context, root string, target *build.Context) ([]string, 
 	}
 	directories := map[string]bool{}
 	classifiedDirectories := map[string]bool{}
-	for _, raw := range bytes.Split(out, []byte{0}) {
+	for raw := range bytes.SplitSeq(out, []byte{0}) {
 		if len(raw) == 0 {
 			continue
 		}
@@ -128,10 +128,8 @@ func classifyTrackedGo(file string) (bool, error) {
 	}
 	// These are tool pins, ruleguard input and the documented separate-module
 	// example, respectively; none belongs to the main module's traced builds.
-	for _, excluded := range []string{"tools.go", ".golangci/ruleguard/modern.go", "examples/plugin/go/main.go"} {
-		if file == excluded {
-			return true, nil
-		}
+	if slices.Contains([]string{"tools.go", ".golangci/ruleguard/modern.go", "examples/plugin/go/main.go"}, file) {
+		return true, nil
 	}
 	for _, segment := range segments {
 		if strings.HasPrefix(segment, ".") {
@@ -215,7 +213,8 @@ func guard(ctx context.Context, root string, target *build.Context, packages []s
 		}
 	}
 	const fields = "-json=ImportPath,Dir,Incomplete,Error,DepsErrors,GoFiles,CgoFiles,CFiles,CXXFiles,MFiles,HFiles,FFiles,SFiles,SwigFiles,SwigCXXFiles,SysoFiles,EmbedFiles"
-	args := []string{"list", "-deps", fields, "-tags", strings.Join(target.BuildTags, ","), "--"}
+	args := make([]string, 0, 6+len(packages))
+	args = append(args, "list", "-deps", fields, "-tags", strings.Join(target.BuildTags, ","), "--")
 	args = append(args, packages...)
 	out, err := captureGo(ctx, root, contextEnvironment(target), args...)
 	if err != nil {

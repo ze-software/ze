@@ -19,9 +19,9 @@ func TestLinuxContextNormalizesDarwinARM64Seed(t *testing.T) {
 		ReleaseTags: []string{"go1.26"}, GOROOT: "/fixture/toolchain",
 	}
 	blobs := map[string][]byte{
-		"source/register_linux_amd64.go": []byte("//go:build ze_le && ze_example && linux && amd64 && gc && !cgo && amd64.v1 && go1.26 && goexperiment.fixture && !ze_core && !host_only\n\npackage source\n"),
+		"source/register_linux_amd64.go":  []byte("//go:build ze_le && ze_example && linux && amd64 && gc && !cgo && amd64.v1 && go1.26 && goexperiment.fixture && !ze_core && !host_only\n\npackage source\n"),
 		"source/register_darwin_arm64.go": []byte("package source\n"),
-		"source/host.go": []byte("//go:build host_only || ze_core || cgo || gccgo || arm64.v8.0\n\npackage source\n"),
+		"source/host.go":                  []byte("//go:build host_only || ze_core || cgo || gccgo || arm64.v8.0\n\npackage source\n"),
 	}
 	context := normalizeLinuxContext(&seed, []repofeaturetags.Gate{{Tag: "ze_example"}}, blobs)
 	if context.GOOS != "linux" || context.GOARCH != "amd64" || context.Compiler != "gc" || context.CgoEnabled {

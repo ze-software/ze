@@ -33,11 +33,7 @@ func init() {
 		}
 		inv, reportErr := Collect(root)
 		plugins, pluginErr := DeclaredPlugins(root)
-		if reportErr == nil {
-			if pluginErr != nil {
-				t.Fatalf("alias consumers disagree: report succeeded, plugins refused: %v", pluginErr)
-			}
-		} else {
+		if reportErr != nil {
 			if !changed {
 				t.Fatalf("ordinary alias declaration control refused: report %v, plugins %v", reportErr, pluginErr)
 			}
@@ -59,6 +55,9 @@ func init() {
 				}
 			}
 			continue
+		}
+		if pluginErr != nil {
+			t.Fatalf("alias consumers disagree: report succeeded, plugins refused: %v", pluginErr)
 		}
 		for _, got := range [][]Plugin{inv.Plugins, plugins} {
 			if len(got) != 2 {

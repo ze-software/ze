@@ -232,12 +232,12 @@ func readExtractionManifest(file string) (proof extractionManifest, err error) {
 		return proof, fmt.Errorf("read CodeQL manifest: %w", err)
 	}
 	var extra any
-	if err := decoder.Decode(&extra); err != nil {
-		if !errors.Is(err, io.EOF) {
-			return proof, fmt.Errorf("read CodeQL manifest trailing data: %w", err)
-		}
-	} else {
+	err = decoder.Decode(&extra)
+	if err == nil {
 		return proof, errors.New("CodeQL manifest has trailing data")
+	}
+	if !errors.Is(err, io.EOF) {
+		return proof, fmt.Errorf("read CodeQL manifest trailing data: %w", err)
 	}
 	return proof, nil
 }

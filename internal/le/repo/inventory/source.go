@@ -254,8 +254,8 @@ func (s *Snapshot) selectPackage(dir string, context *build.Context) error {
 				return fmt.Errorf("read import in %s: %w", source.Path, err)
 			}
 			target := ""
-			if strings.HasPrefix(name, modulePrefix) {
-				target = strings.TrimPrefix(name, modulePrefix)
+			if internal, found := strings.CutPrefix(name, modulePrefix); found {
+				target = internal
 			} else if strings.Contains(strings.SplitN(name, "/", 2)[0], ".") {
 				target = "vendor/" + name
 			}

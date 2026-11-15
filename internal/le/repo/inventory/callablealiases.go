@@ -65,7 +65,10 @@ func (r *registrations) callableSource(call *ast.CallExpr, scope initializationS
 				if !callableAliasBinding(binding) {
 					return sourceExpr{}, false, r.eval.problem(origin, "callable parameter or variable "+value.Name+" has unresolved execution ownership")
 				}
+			case ast.Bad, ast.Pkg, ast.Con, ast.Lbl:
+				return sourceExpr{}, false, r.eval.problem(origin, "callable declaration "+value.Name+" has unresolved execution ownership")
 			default:
+				// Parser object kinds remain open to additions in go/ast.
 				return sourceExpr{}, false, r.eval.problem(origin, "callable declaration "+value.Name+" has unresolved execution ownership")
 			}
 		case *ast.SelectorExpr:
@@ -205,8 +208,8 @@ func (e *expression) callableImport(source sourceExpr, selector *ast.SelectorExp
 		}
 		target := ""
 		first, _, _ := strings.Cut(name, "/")
-		if strings.HasPrefix(name, modulePrefix) {
-			target = strings.TrimPrefix(name, modulePrefix)
+		if internal, found := strings.CutPrefix(name, modulePrefix); found {
+			target = internal
 		} else if strings.Contains(first, ".") {
 			target = "vendor/" + name
 		}

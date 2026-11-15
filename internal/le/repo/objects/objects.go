@@ -17,6 +17,8 @@ import (
 	"time"
 )
 
+const objectKindBlob = "blob"
+
 // Resolve resolves revision once to a full commit ID. Empty revision selects HEAD.
 // Callers MUST retain this ID for every subsequent tree and metadata selection;
 // Read MUST receive object IDs selected from that same resolved commit.
@@ -87,7 +89,7 @@ func ReadPath(ctx context.Context, root, tree, path string) ([]byte, bool, error
 	kind, id, typed := bytes.Cut(kindAndID, []byte{' '})
 	blobID := string(id)
 	if !terminated || len(rest) != 0 || !named || string(name) != path ||
-		!moded || len(mode) != 6 || !typed || string(kind) != "blob" {
+		!moded || len(mode) != 6 || !typed || string(kind) != objectKindBlob {
 		return nil, false, fmt.Errorf("path %q does not identify one exact blob member of immutable tree %s", path, tree)
 	}
 	blobs, err := Read(ctx, root, []string{blobID})
@@ -255,7 +257,7 @@ type Entry struct {
 // or 100755. A symbolic link is a blob of mode 120000 and a submodule is a
 // commit, so neither is regular.
 func (e Entry) Regular() bool {
-	if e.Kind != "blob" {
+	if e.Kind != objectKindBlob {
 		return false
 	}
 	return e.Mode == "100644" || e.Mode == "100755"
@@ -324,7 +326,7 @@ func parseListingRecord(record []byte) (Entry, error) {
 		return Entry{}, malformedListingRecord(record)
 	}
 	switch entry.Kind {
-	case "blob", "commit":
+	case objectKindBlob, "commit":
 	default:
 		return Entry{}, fmt.Errorf("listing record %q names object kind %q, which a recursive listing never holds; repair the repository", record, entry.Kind)
 	}
@@ -499,7 +501,7 @@ func blobSize(header []byte, id string) (int, error) {
 	if fields[0] != id {
 		return 0, fmt.Errorf("git returned a different object for source blob %s; repair the repository", id)
 	}
-	if fields[1] != "blob" {
+	if fields[1] != objectKindBlob {
 		return 0, fmt.Errorf("source object %s is %s, not a blob; select a regular file from the resolved commit", id, fields[1])
 	}
 	size, err := strconv.Atoi(fields[2])

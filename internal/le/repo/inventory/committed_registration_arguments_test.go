@@ -59,11 +59,7 @@ func installArgumentMember() { y.RegisterModule("argument.yang", "module argumen
 				}
 				inv, reportErr := Collect(root)
 				plugins, pluginErr := DeclaredPlugins(root)
-				if reportErr == nil {
-					if pluginErr != nil {
-						t.Fatalf("argument consumers disagree: report succeeded, plugins refused: %v", pluginErr)
-					}
-				} else {
+				if reportErr != nil {
 					if !changed {
 						t.Fatalf("ordinary argument control refused: report %v, plugins %v", reportErr, pluginErr)
 					}
@@ -82,6 +78,9 @@ func installArgumentMember() { y.RegisterModule("argument.yang", "module argumen
 						}
 					}
 					continue
+				}
+				if pluginErr != nil {
+					t.Fatalf("argument consumers disagree: report succeeded, plugins refused: %v", pluginErr)
 				}
 				want := []string{"argument-outer", "committed-linux"}
 				if changed && kind == "plugin" {

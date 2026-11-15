@@ -8,14 +8,13 @@ import (
 )
 
 // committedGit changes only a test-owned repository, never the shared checkout.
-func committedGit(t *testing.T, root string, args ...string) string {
+func committedGit(t *testing.T, root string, args ...string) {
 	t.Helper()
-	command := exec.Command("git", append([]string{"-C", root}, args...)...)
+	command := exec.CommandContext(t.Context(), "git", append([]string{"-C", root}, args...)...)
 	output, err := command.CombinedOutput()
 	if err != nil {
 		t.Fatalf("fixture git %v: %v: %s", args, err, output)
 	}
-	return string(output)
 }
 
 // committedFixture models the actual entry/import/registration boundary, including
