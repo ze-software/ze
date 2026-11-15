@@ -40,10 +40,11 @@ module ze-bmp-conf {
                 ze:listener;
                 description "The ze:listener extension marks this list, so config validation
                              refuses a second listener that binds the same protocol, port and
-                             address. Ze opens one TCP listener for each entry. A bind that
-                             fails is logged, and the other entries keep their listener. An
-                             empty list binds nothing, because the receiver has no default
-                             endpoint.";
+                             address. Ze binds every added listener before removing any old
+                             listener. If a bind fails, startup or reload fails, added sockets
+                             close, and the listeners and session limit active before the
+                             attempt stay unchanged. An empty list binds nothing, because the
+                             receiver has no default endpoint.";
                 ze:help "BMP receiver listen endpoints";
 
                 leaf name {

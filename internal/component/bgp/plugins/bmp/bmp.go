@@ -542,7 +542,9 @@ func (bp *BMPPlugin) registerCallbacks() {
 					logger().Error("bmp: receiver config parse failed", "error", err)
 					return err
 				}
-				bp.applyReceiverConfig(rcv)
+				if err := bp.applyReceiverConfig(rcv); err != nil {
+					return err
+				}
 				currentReceiver = rcv
 			case configRootBGP:
 				snd, err := parseSenderConfig(section.Data)
@@ -622,17 +624,21 @@ func (bp *BMPPlugin) registerCallbacks() {
 	// there. RFC 8671 Section 7.2 owes a bounce to a change in behavior, and
 	// most of what arrives here is not one.
 	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
+		// A rejected own apply gets no SDK rollback callback. Bind first so
+		// a receiver failure cannot publish another root's candidate state.
+		if pendingReceiver != nil {
+			if err := bp.applyReceiverConfig(pendingReceiver); err != nil {
+				return err
+			}
+			replacedReceiver = currentReceiver
+			currentReceiver = pendingReceiver
+			pendingReceiver = nil
+		}
 		if pendingSystem != nil {
 			replacedSystem = currentSystem
 			currentSystem = pendingSystem
 			pendingSystem = nil
 			bp.setSystemName(currentSystem)
-		}
-		if pendingReceiver != nil {
-			replacedReceiver = currentReceiver
-			currentReceiver = pendingReceiver
-			pendingReceiver = nil
-			bp.applyReceiverConfig(currentReceiver)
 		}
 		if pendingSender == nil {
 			return nil
@@ -652,15 +658,19 @@ func (bp *BMPPlugin) registerCallbacks() {
 	// transaction whose apply changed nothing restores the same configuration,
 	// which applySenderConfig reads as no change and acts on as one.
 	p.OnConfigRollback(func(_ string) error {
+		// Restore the fallible listener set before publishing other roots.
+		// Keep its undo target when binding fails, and report that failure.
+		if replacedReceiver != nil {
+			if err := bp.applyReceiverConfig(replacedReceiver); err != nil {
+				return err
+			}
+			currentReceiver = replacedReceiver
+			replacedReceiver = nil
+		}
 		if replacedSystem != nil {
 			currentSystem = replacedSystem
 			replacedSystem = nil
 			bp.setSystemName(currentSystem)
-		}
-		if replacedReceiver != nil {
-			currentReceiver = replacedReceiver
-			replacedReceiver = nil
-			bp.applyReceiverConfig(currentReceiver)
 		}
 		if replacedSender == nil {
 			return nil

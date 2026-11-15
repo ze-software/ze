@@ -14,7 +14,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"slices"
 	"sync/atomic"
+
+	"github.com/ze-software/ze/internal/core/configtext"
+	"github.com/ze-software/ze/internal/core/opererr"
 )
 
 // parseReceiverConfig extracts BMP receiver config from the environment section JSON.
@@ -30,18 +34,19 @@ func parseReceiverConfig(data string) (*receiverConfig, error) {
 	return sec.Environment.BMP, nil
 }
 
-// wantedListeners is the set of listen addresses a receiver configuration asks
-// for, keyed by the address string that also keys bp.listeners.
+// wantedListeners maps each configured endpoint to its server name. The name
+// stays with the endpoint so a bind refusal can name the exact config repair.
 //
 // A receiver that is not enabled wants none, so `enabled false` and a removed
 // `server` reach applyReceiverConfig by the one route and close the same way.
-func wantedListeners(cfg *receiverConfig) map[string]struct{} {
+func wantedListeners(cfg *receiverConfig) map[string]string {
 	if cfg == nil || cfg.Enabled != yangTrue {
 		return nil
 	}
-	wanted := make(map[string]struct{}, len(cfg.Servers))
-	for _, srv := range cfg.Servers {
-		wanted[net.JoinHostPort(srv.IP, srv.Port)] = struct{}{}
+	wanted := make(map[string]string, len(cfg.Servers))
+	for name, srv := range cfg.Servers {
+		addr := net.JoinHostPort(srv.IP, srv.Port)
+		wanted[addr] = name
 	}
 	return wanted
 }
@@ -61,21 +66,31 @@ func wantedListeners(cfg *receiverConfig) map[string]struct{} {
 // reconnect; what the operator asked for is that ze stop accepting on that
 // address, which closing the listener does.
 //
-// max-sessions is stored rather than passed down, so a reload changes the cap
-// on a listener it did not have to rebind (acceptLoop reads it per accept).
-func (bp *BMPPlugin) applyReceiverConfig(cfg *receiverConfig) {
-	if cfg != nil {
-		bp.maxSessions.Store(uint32(parseUint16(cfg.MaxSessions, 100)))
-	}
-
+// Added sockets are staged before any map, cap or old listener changes. A bind
+// failure closes that stage and leaves the complete running set unchanged.
+// max-sessions changes only after all binds succeed; acceptLoop reads it per
+// accept, so a cap-only change still needs no rebind.
+func (bp *BMPPlugin) applyReceiverConfig(cfg *receiverConfig) error {
 	wanted := wantedListeners(cfg)
 
 	bp.mu.Lock()
 	defer bp.mu.Unlock()
 
+	staged, err := bindReceiverListeners(wanted, bp.listeners)
+	if err != nil {
+		return err
+	}
+	if cfg != nil {
+		bp.maxSessions.Store(uint32(parseUint16(cfg.MaxSessions, 100)))
+	}
+	if bp.listeners == nil {
+		bp.listeners = make(map[string]net.Listener, len(staged))
+	}
+	for addr, ln := range staged {
+		bp.listeners[addr] = ln
+	}
 	for addr, ln := range bp.listeners {
 		if _, keep := wanted[addr]; keep {
-			delete(wanted, addr)
 			continue
 		}
 		// Removed from the map BEFORE the close, because that is what tells
@@ -85,31 +100,44 @@ func (bp *BMPPlugin) applyReceiverConfig(cfg *receiverConfig) {
 		logger().Info("bmp: receiver stopped listening", "address", addr)
 	}
 
-	for addr := range wanted {
-		bp.startListenerLocked(addr)
+	for addr, ln := range staged {
+		logger().Info("bmp: receiver listening", "address", addr)
+		bp.sessions.Go(func() {
+			bp.acceptLoop(addr, ln)
+		})
 	}
+	return nil
 }
 
-// startListenerLocked binds one receiver listener and starts its accept loop.
+// bindReceiverListeners stages only new endpoints, in stable address order.
+// A failure closes every socket in the stage before returning the refusal;
+// none of these sockets has been published or started an accept task.
 //
-// Caller MUST hold bp.mu.
-func (bp *BMPPlugin) startListenerLocked(addr string) {
+// The caller MUST hold bp.mu while passing its current listener map.
+func bindReceiverListeners(wanted map[string]string, current map[string]net.Listener) (map[string]net.Listener, error) {
+	added := make([]string, 0, len(wanted))
+	for addr := range wanted {
+		if _, kept := current[addr]; !kept {
+			added = append(added, addr)
+		}
+	}
+	slices.Sort(added)
+	staged := make(map[string]net.Listener, len(added))
 	var lc net.ListenConfig
-	ln, err := lc.Listen(context.Background(), "tcp", addr)
-	if err != nil {
-		logger().Error("bmp: listener bind failed", "address", addr, "error", err)
-		return
+	for _, addr := range added {
+		ln, err := lc.Listen(context.Background(), "tcp", addr)
+		if err != nil {
+			for _, bound := range staged {
+				closeLog(bound, "staged-listener")
+			}
+			return nil, opererr.Wrap(err,
+				fmt.Sprintf("BMP receiver server %q cannot listen on %s", wanted[addr], addr),
+				"Every requested listener must bind; the listeners active before this attempt remain unchanged",
+				"delete environment bmp server "+configtext.QuoteCommandWord(wanted[addr]))
+		}
+		staged[addr] = ln
 	}
-
-	if bp.listeners == nil {
-		bp.listeners = make(map[string]net.Listener)
-	}
-	bp.listeners[addr] = ln
-	logger().Info("bmp: receiver listening", "address", addr)
-
-	bp.sessions.Go(func() {
-		bp.acceptLoop(addr, ln)
-	})
+	return staged, nil
 }
 
 // stopListeners closes all receiver listeners.

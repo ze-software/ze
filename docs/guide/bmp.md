@@ -6,9 +6,14 @@
 Ze implements RFC 7854 BMP in both directions: as a **receiver** (accepting
 feeds from routers) and as a **sender** (streaming state to collectors).
 
-Both halves follow a reload. A commit that adds, moves or disables a receiver
-listener rebinds it, and one that changes the sender bounces the collector
-sessions, so neither reports success over a change it did not make. A Peer Down
+Both halves follow a reload. A commit that changes receiver listeners binds
+every added address before closing any removed address. If one bind fails,
+the commit is refused and the previous listeners and session limits stay in
+force. A sender change bounces the affected collector sessions.
+<!-- source: internal/component/bgp/plugins/bmp/receiver.go -- applyReceiverConfig -->
+<!-- source: internal/component/bgp/plugins/bmp/bmp.go -- registerCallbacks -->
+
+A Peer Down
 carries the Data its reason code requires: RFC 7854 Section 4.9 draws the field
 as present for reasons 1, 2 and 3, so a session ze closed by NOTIFICATION
 carries that PDU and one ze closed without carries the two-octet code of the
@@ -78,8 +83,21 @@ via the YANG `ze:listener` extension. The BMP receiver binds `::` dual-stack,
 so `::` alone already accepts IPv4 collectors on its port; `::` beside
 `0.0.0.0` (or any IPv4 address) on one port is refused, because the IPv4
 bind could never succeed (see `docs/guide/configuration.md`, "Named Listeners").
-<!-- source: internal/component/bgp/plugins/bmp/receiver.go -- startListenerLocked -->
+<!-- source: internal/component/bgp/plugins/bmp/receiver.go -- bindReceiverListeners -->
 <!-- source: internal/component/config/listener.go -- dualStackPair -->
+
+Receiver startup installs all requested listeners or returns a configuration
+error without leaving a partial set. An explicit external BMP process follows
+its [plugin failure policy](plugins.md#when-a-plugin-fails); its failure does
+not always stop the daemon. A reload keeps unchanged listener sockets and their sessions.
+Closing a removed listener stops new connections; sessions it already accepted
+continue. If the kernel cannot bind a replacement while the old listener is
+active, such as an incompatible specific-address and wildcard pair on one
+port, the replacement is refused and the old listener stays active. Resolve
+the bind conflict or remove the named server
+entry before committing again. The refusal names the endpoint and prints the
+exact repair command.
+<!-- source: internal/component/bgp/plugins/bmp/receiver.go -- applyReceiverConfig, bindReceiverListeners -->
 
 BMP uses unauthenticated, unencrypted TCP. Listener addresses and firewall rules
 should restrict access to the monitoring network. RFC 7854 Section 11 recommends
