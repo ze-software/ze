@@ -44,7 +44,7 @@ func checkASZeroRawFRR(ctx context.Context, check *interoplab.CheckContext) (res
 		if resultErr != nil {
 			verdict = resultErr.Error()
 		}
-		data, marshalErr := json.MarshalIndent(map[string]any{"scenario": check.Source.Name, "verdict": verdict, "evidence": evidence}, "", "  ")
+		data, marshalErr := json.MarshalIndent(map[string]any{evidenceKeyScenario: check.Source.Name, evidenceKeyVerdict: verdict, evidenceKeyEvidence: evidence}, "", "  ")
 		resultErr = errors.Join(resultErr, marshalErr)
 		if marshalErr == nil {
 			resultErr = errors.Join(resultErr, os.WriteFile(filepath.Join(directory, "proof.json"), data, 0o600))
@@ -171,7 +171,7 @@ func waitASZeroNativePath(ctx context.Context, lab interoplab.CheckerLab, eviden
 func waitASZeroWire(ctx context.Context, lab interoplab.CheckerLab, evidence map[string]string, ze, native netip.Addr, fromNative bool) error {
 	direction := "ze"
 	if fromNative {
-		direction = "frr"
+		direction = peerFRR
 	}
 	var judgement error
 	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: 30 * time.Second, Interval: time.Second, Description: "complete AS-zero " + direction + " wire interval"}, func(probe context.Context) (string, error) {

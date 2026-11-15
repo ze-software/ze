@@ -25,7 +25,7 @@ func checkFSMErrorFRR(ctx context.Context, check *interoplab.CheckContext, test 
 		diagnostic, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
 		defer cancel()
 		if resultErr != nil {
-			log, logErr := check.Lab.Query(diagnostic, peerFRR, []string{cmdCat, "/tmp/frr.log"}, nil)
+			log, logErr := check.Lab.Query(diagnostic, peerFRR, []string{cmdCat, frrLogPath}, nil)
 			retainFSMQuery(evidence, "frr-parsed-log", log, logErr)
 		}
 		version, versionErr := check.Lab.Query(diagnostic, peerFRR, []string{cmdVtysh, "-c", frrShowVersion}, nil)
@@ -37,7 +37,7 @@ func checkFSMErrorFRR(ctx context.Context, check *interoplab.CheckContext, test 
 		if resultErr != nil {
 			verdict = resultErr.Error()
 		}
-		data, marshalErr := json.MarshalIndent(map[string]any{"scenario": test.scenario, "verdict": verdict, "evidence": evidence}, "", "  ")
+		data, marshalErr := json.MarshalIndent(map[string]any{evidenceKeyScenario: test.scenario, evidenceKeyVerdict: verdict, evidenceKeyEvidence: evidence}, "", "  ")
 		resultErr = errors.Join(resultErr, marshalErr)
 		if marshalErr == nil {
 			resultErr = errors.Join(resultErr, os.WriteFile(filepath.Join(directory, "proof.json"), data, 0o600))
@@ -102,7 +102,7 @@ func checkFSMErrorFRR(ctx context.Context, check *interoplab.CheckContext, test 
 	_, _, err = interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: 30 * time.Second, Interval: time.Second, Description: "FRR parsed RFC 6608 NOTIFICATION and Data"}, func(probe context.Context) (string, error) {
 		text, queryErr := check.Lab.Query(probe, peerFRR, command, nil)
 		retainFSMQuery(evidence, "frr-neighbor", text, queryErr)
-		log, logErr := check.Lab.Query(probe, peerFRR, []string{cmdCat, "/tmp/frr.log"}, nil)
+		log, logErr := check.Lab.Query(probe, peerFRR, []string{cmdCat, frrLogPath}, nil)
 		retainFSMQuery(evidence, "frr-parsed-log", log, logErr)
 		if test.subcode == 1 {
 			// FRR has not received a KEEPALIVE in this case, so its

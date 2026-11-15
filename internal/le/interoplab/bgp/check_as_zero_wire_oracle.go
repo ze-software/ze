@@ -98,8 +98,7 @@ func asZeroWireBody(code, ordinal byte, zero bool, nextHop netip.Addr) []byte {
 		attrs = append(attrs, asn...)
 		attrs = append(attrs, 192, 0, 2, 9)
 	case 18:
-		attrs = append(attrs, 0xc0, 7, 6, 0x5b, 0xa0, 192, 0, 2, 9)
-		attrs = append(attrs, 0xc0, code, 8)
+		attrs = append(attrs, 0xc0, 7, 6, 0x5b, 0xa0, 192, 0, 2, 9, 0xc0, code, 8)
 		attrs = append(attrs, value...)
 		attrs = append(attrs, 192, 0, 2, 9)
 	}
@@ -245,7 +244,7 @@ func requireASZeroWireOpen(frame []byte, ze, native netip.Addr, fromNative bool)
 			asn4++
 		case *capability.AddPath:
 			if !fromNative {
-				return errors.New("Ze offered ADD-PATH in the unframed AS-zero fixture")
+				return errors.New("the Ze speaker offered ADD-PATH in the unframed AS-zero fixture")
 			}
 		}
 	}

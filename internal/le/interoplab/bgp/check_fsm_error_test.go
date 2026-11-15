@@ -106,14 +106,14 @@ func fsmErrorCheckerBranches(t *testing.T) {
 					t.Fatal("missing foreign parsed notification evidence passed")
 				}
 			}
-			if test.subcode != 1 {
+			if test.subcode == 1 {
+				fsmOpenSentParsedLogBranches(t, test)
+			} else {
 				for _, bad := range []string{"{}", strings.Replace(document, "received", "sent", 1)} {
 					if err := judgeFRRFSMNotification(bad, parsed, neighbor, test); err == nil {
 						t.Fatal("missing configured-peer reset after FRR Established passed")
 					}
 				}
-			} else {
-				fsmOpenSentParsedLogBranches(t, test)
 			}
 		})
 	}

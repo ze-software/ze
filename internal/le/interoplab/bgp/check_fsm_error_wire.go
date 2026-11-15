@@ -114,17 +114,18 @@ func judgeFSMRelay(report fsmRelayReport, test fsmRelayCase) error {
 			if !nativeOpened || !zeOpened || notifications != 0 {
 				return errors.New("KEEPALIVE lacks original OPENs")
 			}
-			if row.Source == fsmZe {
+			switch {
+			case row.Source == fsmZe:
 				if !nativeDelivered || !row.Delivered {
-					return errors.New("Ze KEEPALIVE lacks delivered native OPEN")
+					return errors.New("ze KEEPALIVE lacks delivered native OPEN")
 				}
 				zeKA = true
-			} else if test.subcode == 1 {
+			case test.subcode == 1:
 				if nativeDelivered || !row.Delivered || triggered {
 					return errors.New("KEEPALIVE trigger is not in OpenSent")
 				}
 				triggered, nativeKA = true, true
-			} else {
+			default:
 				if row.Delivered != (test.subcode != 2) {
 					return errors.New("native KEEPALIVE delivery violates scenario gate")
 				}
@@ -225,7 +226,7 @@ func judgeFRRFSMNotification(document, log, neighbor string, test fsmRelayCase) 
 func judgeFRRFSMNotificationLog(log, neighbor string, test fsmRelayCase) error {
 	head := fmt.Sprintf("received from neighbor %s 5/%d ", neighbor, test.subcode)
 	tail := fmt.Sprintf(" 1 bytes %02x", test.message)
-	for _, line := range strings.Split(log, "\n") {
+	for line := range strings.SplitSeq(log, "\n") {
 		if strings.Contains(line, "%NOTIFICATION") && strings.Contains(line, head) && strings.HasSuffix(strings.TrimSpace(line), tail) {
 			return nil
 		}
