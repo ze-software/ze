@@ -213,6 +213,31 @@ their baselines; the observed failures and passing controls are recorded below.
 | `TestRFC7947ReceivedDeniedReplacementSupersedesOldBytes` | A denied replacement updates the received bytes under the existing key and prevents replay of the previously accepted version |
 | `TestRFC7947ReceivedValidationCannotAcceptPolicyDenial` | An origin-validation acceptance cannot make an import-denied path eligible or replayable; the accepted control remains eligible |
 
+The additional probes in
+`internal/component/bgp/reactor/rfc7947_filtered_selection_test.go` exercise
+AC-3, AC-4 and AC-6 with a recipient socket and the daemon's actual selected
+Loc-RIB, on both cached and fast route-server forwarding. The fixture starts
+the registered received store, selecting RIB and route-server plugins. Its
+only directly installed route is the terminal interior host route resolving
+the announced NEXT_HOP. An accepted control must be received, selected and
+advertised before a live-export absence is judged; the late-client probe must
+receive that accepted control through peer-up replay. Main-thread execution
+of the final capture-fenced tests is recorded under Observed test-campaign
+results.
+
+| Probe | Required observation |
+|-------|----------------------|
+| `TestRFC7947FilteredReceivedExcludedFromSelection` | Loop rejection, explicit import rejection and absent import policy each retain the original client entry marked filtered, while selection, live export and both replay queries withhold it; accepted controls remain useful |
+| `TestRFC7947FilteredReplacementClearsSelectedRoute` | A previously received, selected and advertised path is replaced by current denied bytes marked filtered; its earlier version leaves the selected table, recipient and both replay rails. A subsequent explicit withdrawal removes the proven filtered entry |
+| `TestRFC7947FilteredReceivedWithheldOnClientJoin` | A client joining after the denial receives accepted replay and no denied route; a subsequent explicit withdrawal removes the proven filtered entry without removing the accepted control |
+
+Retention and downstream assertions in these probes are nonfatal so a stale
+accepted replacement can expose selection, wire and replay defects in the same
+run. The final removal checks require a successfully observed retained and
+marked entry first. A run that stops at that prerequisite proves no removal
+of a filtered entry. These are untagged defect probes, not new conformance
+credit or an implementation of this spec.
+
 The current source changes several earlier assumptions in this design:
 
 | Subject | Producer evidence and consequence |
@@ -623,6 +648,49 @@ No product behavior, RFC level or support figure was changed by these probes.
 The owner authorized retaining complex fixes for later review while the test
 campaign proceeds. This spec owns that repair. Retain the shared log until all
 specs citing it have superseding evidence; no extra report copy is needed.
+
+The main thread compiled and ran the final three
+`rfc7947_filtered_selection_test.go` probes with the race detector in
+`tmp/session/2026-11-14-210034/scratch/job-rfc-boundaries-final-race-cfc4586c.log`.
+All ten subcases passed their accepted controls: real receipt, next-hop
+resolution, Loc-RIB selection and useful recipient output on both cached and
+fast rails. The two late-client cases also received their accepted peer-up
+replay. All ten subcases then reported the following product failures. The
+final scoped run reported no DATA RACE; it remained red on the named behavior
+assertions and is not a whole-package or whole-tree pass.
+
+| Probe | Observed result | Still unproven |
+|-------|-----------------|----------------|
+| `TestRFC7947FilteredReceivedExcludedFromSelection` | All six loop, explicit-import-reject and absent-import-policy cases lack the denied entry in received storage. The joined downstream observations find no selected route, recipient announcement or replay announcement for that absent entry | Correct retention and its filtered mark; withholding a route that is actually retained as filtered |
+| `TestRFC7947FilteredReplacementClearsSelectedRoute` | Both rails retain the old accepted attributes without a filtered mark. The actual Loc-RIB still selects the path. The final captured recipient history still holds that earlier route and has zero withdrawals where one is required. Bulk replay returns it and single-path replay answers an announcement | Correct replacement and suppression; explicit deletion of a retained filtered entry, because its retained-and-marked prerequisite failed before the withdrawal was sent |
+| `TestRFC7947FilteredReceivedWithheldOnClientJoin` | Both rails receive the accepted peer-up control, but the denied source entry is absent from storage. Their final joined recipient histories contain no denied announcement | Correct retained-but-withheld state and explicit deletion from a proven filtered entry; the withdrawal steps are not reached |
+
+The source cause is before each consumer: `reactor_notify.go`
+`notifyOneMessage` returns on `!res.accept` before caching, live RS forwarding
+or received-event dispatch. A denied replacement therefore never reaches
+`adj_rib_in/rib.go` `handleReceivedStructured` or the selecting RIB as new
+received truth. The old entry is still eligible for `walkReplayRoutes` and
+`rib_replay_path.go` `replayPathCommand`; neither can infer that an UPDATE it
+never received replaced that entry. These direct store, selected-table and
+command observations corroborate the captured socket defect.
+
+Independent review found that `filteredSelectedLive.settle` took its last
+history snapshot before waiting for final recovery completion. The test now
+retains both accepted markers and all original assertions, then joins the
+forward writer, sends an actual recipient KEEPALIVE, waits for its capture,
+and rebuilds the final history. The final run named above executed that
+corrected fence. Both replacement subcases still held the old accepted route
+after it completed, so this result establishes the settled recipient defect
+as well as the store and selection defects. No product fix or conformance
+credit is claimed.
+
+Retain `job-rfc-boundaries-final-race-cfc4586c.log` at the path above until the
+eventual repair provides superseding evidence for retention, selection,
+replay, settled recipient state and filtered-entry deletion, and every other
+spec that cites the shared log has superseding evidence. The earlier
+`job-unit-pkg-334ed25d.log` is superseded for these three probes; retain it
+only while another owning record still needs its other findings. No extra
+report copy is needed.
 
 ## Review Gate
 
