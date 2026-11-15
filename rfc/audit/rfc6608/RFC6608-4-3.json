@@ -1,0 +1,13 @@
+{
+  "note": "Independently reread RFC 6608 Section 4, the complete requirement, both tagged units and their producers after the approved control strengthening. The RFC requires a NOTIFICATION with Finite State Machine Error and Receive Unexpected Message in Established State; its Data sentence says: The Data field is a 1-octet, unsigned integer that indicates the type of the unexpected message. TestRFC6608EstablishedUnexpectedOpen completes the actual OPEN/KEEPALIVE handshake before sending another same-connection OPEN. It requires exactly one packet, compares the entire NOTIFICATION payload to code 5/subcode 3/one OPEN-type octet, observes real TCP EOF rather than a timeout and waits for release of that Session. A separate pending TCP connection is collision resolution and is not this input. TestRFC6608EstablishedExpectedMessagesKeepTheConnection retains all three original valid KEEPALIVE, UPDATE and ROUTE-REFRESH frames and every per-frame no-notification, open-socket, Established-state, same-session and zero-retry assertion. It now follows them with a terminal same-connection OPEN and requires the sole exact 5/3/Data-1 notification, EOF, session release and retry count one. TCP FIFO makes that terminal reply a causal processing barrier for the preceding valid traffic: an earlier refusal has another message-type Data octet, an extra response, a prematurely closed socket or an excess retry count. The negative claim explicitly reserves error and closure for the terminal marker. Its ROUTE-REFRESH arm proves preservation of the established session, not negotiation or a refresh response. The named positive and strengthened negative both pass in the main thread's race run job-fsm-reviewed-controls-0091f069.log. Retain the refreshed native negative discrimination before stamping this rejudgment; the positive record's state-subcode substitution remains the separate exact-diagnostic proof. This verdict judges this requirement's session-bound behavior and does not claim an external-daemon scenario has run.",
+  "requirement_sha": "4a19561b417e3330",
+  "tests": {
+    "internal/component/bgp/reactor/rfc6608_fsm_notifications_test.go::TestRFC6608EstablishedExpectedMessagesKeepTheConnection": "1d5dcae3a6dcef5e",
+    "internal/component/bgp/reactor/rfc6608_fsm_notifications_test.go::TestRFC6608EstablishedUnexpectedOpen": "1d5dcae3a6dcef5e"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc6608_fsm_notifications_test.go::TestRFC6608EstablishedExpectedMessagesKeepTheConnection": "ef826f667a9f9748",
+    "internal/component/bgp/reactor/rfc6608_fsm_notifications_test.go::TestRFC6608EstablishedUnexpectedOpen": "79b3f4d419097df9"
+  },
+  "verdict": "enforced"
+}

@@ -283,7 +283,7 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 		// change the state before dispatch, but cannot turn this rejected
 		// message into an unclassified UPDATE handed to enforcement.
 		if updateIsUnexpected(s.fsm.State()) {
-			return s.fsmMessageEvent(fsm.EventUpdateMsg), false
+			return s.fsmMessageEvent(fsm.EventUpdateMsg, msgtype.TypeUPDATE), false
 		}
 		// RFC 7606 Sections 3 and 5.3: classify the original message once.
 		validation = s.classifyRFC7606(body)

@@ -1,0 +1,13 @@
+{
+  "note": "Read RFC 6608 Section 4 in full. After the actual OPEN exchange and before peer KEEPALIVE, the TCP matrix receives another same-connection OPEN, well-formed and malformed UPDATE, and ROUTE-REFRESH. It compares the entire notification payload to code 5/subcode 2/the single received-type octet, requires exactly one packet and real EOF, then waits for session release. The expected KEEPALIVE control reaches Established and checks no notification, close, session replacement or retry increment. The proposed producer substitution exchanges state subcode 2 for 1; its observed red remains the native record's responsibility. A separate pending TCP connection is collision resolution, not this test's second OPEN on the same connection.",
+  "requirement_sha": "a0f1ca990937a431",
+  "tests": {
+    "internal/component/bgp/reactor/rfc6608_fsm_notifications_test.go::TestRFC6608OpenConfirmExpectedKeepaliveKeepsTheConnection": "1d5dcae3a6dcef5e",
+    "internal/component/bgp/reactor/rfc6608_fsm_notifications_test.go::TestRFC6608OpenConfirmUnexpectedMessages": "1d5dcae3a6dcef5e"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc6608_fsm_notifications_test.go::TestRFC6608OpenConfirmExpectedKeepaliveKeepsTheConnection": "41d566058d401a52",
+    "internal/component/bgp/reactor/rfc6608_fsm_notifications_test.go::TestRFC6608OpenConfirmUnexpectedMessages": "593438ce5a30a215"
+  },
+  "verdict": "enforced"
+}

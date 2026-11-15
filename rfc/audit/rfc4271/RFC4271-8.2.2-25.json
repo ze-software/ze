@@ -1,13 +1,13 @@
 {
-  "note": "Judged 2026-10-01 (BGP c11 judge). Positive TestRFC4271OpenConfirmUpdateIsAnFSMError: a running Peer in OpenConfirm receiving an empty UPDATE (Event 27) or an UPDATE whose Withdrawn Routes Length overruns the message (Event 28) writes exactly one NOTIFICATION 5/0, drops TCP (EOF), stops ConnectRetry/Hold/Keepalive timers, releases the session, counter 0->1: every listed action. The producer (processMessage -> updateIsUnexpected -> fsmMessageEvent) intercepts the UPDATE before RFC 7606 parsing and plugin delivery. Negative TestRFC4271ExpectedMessagesRaiseNoFSMError: KEEPALIVE in OpenConfirm (Event 26, not listed) reaches Established with nothing written, connection/session kept, counter 0; the same UPDATE in Established draws nothing, so the state decides. Events 9, 12-13, 20 do not occur in Ze's OpenConfirm (no ConnectRetryTimer running, no DelayOpen, no IdleHoldTimer). Records observed red on updateIsUnexpected both polarities.",
+  "note": "Independently re-judged from the full RFC 4271 Section 8.2.2 OpenConfirm list and RFC 6608 Section 4. TestRFC4271OpenConfirmUpdateIsAnFSMError sends an empty UPDATE (Event 27) and the retained withdrawn-length overrun (Event 28) after OPEN and before KEEPALIVE. Each requires exactly one 5/2, TCP closure, three stopped session timers, session release and counter 0 to 1. The close helper distinguishes closure from a read deadline but does not require the concrete io.EOF value. updateIsUnexpected intercepts these inputs before UPDATE semantic parsing, and fsmMessageEvent preserves the receiving state for the RFC 6608 response; the shared FSM catchall still performs the listed counter/state actions. TestRFC4271ExpectedMessagesRaiseNoFSMError gives a conforming OpenConfirm KEEPALIVE that reaches Established and the same empty UPDATE accepted there, retaining connection/session and counter zero. Native renewals for the positive and existing boundary controls are green before their named producer breaks and red under those breaks; reverts establish dependence, not every possible fault. The updater changes the diagnostic subcode to 2 while the original teardown obligations remain. No separate credit is claimed here for RFC 6608's one-octet message Data.",
   "requirement_sha": "2ecaaa6f206572d9",
   "tests": {
-    "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271ExpectedMessagesRaiseNoFSMError": "0016171daa459363",
-    "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271OpenConfirmUpdateIsAnFSMError": "0016171daa459363"
+    "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271ExpectedMessagesRaiseNoFSMError": "ecb91f67fa817447",
+    "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271OpenConfirmUpdateIsAnFSMError": "ecb91f67fa817447"
   },
   "units": {
     "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271ExpectedMessagesRaiseNoFSMError": "306e1bb5c30d988b",
-    "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271OpenConfirmUpdateIsAnFSMError": "a1962ea722a87625"
+    "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271OpenConfirmUpdateIsAnFSMError": "64b028ff9de9f2ee"
   },
   "verdict": "enforced"
 }

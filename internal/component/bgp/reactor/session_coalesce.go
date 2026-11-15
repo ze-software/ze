@@ -160,7 +160,7 @@ func (s *Session) readAndProcessCoalesced(conn net.Conn, bufReader *bufio.Reader
 		}
 		// This admission was rejected already. Do not re-enter processMessage
 		// and reinterpret it after an asynchronous FSM transition.
-		return s.fsmMessageEvent(fsm.EventUpdateMsg)
+		return s.fsmMessageEvent(fsm.EventUpdateMsg, msgtype.TypeUPDATE)
 	}
 
 	sections, parseErr := wire.ParseUpdateSections(body)

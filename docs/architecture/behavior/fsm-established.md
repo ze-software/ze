@@ -13,6 +13,11 @@ NOTIFICATION received, UPDATE error, or manual stop.
 RFC 4271 Section 8.2.2 "Established state".
 
 <!-- source: internal/component/bgp/fsm/state.go — StateEstablished -->
+The receiving state selects the RFC 6608 subcode before the FSM transition can
+replace it with Idle. This same-connection OPEN error is distinct from the
+separate pending connection collision described below.
+<!-- source: internal/component/bgp/reactor/session_fsm_notification.go -- notifyFSMMessageError, fsmMessageErrorSubcode -->
+
 <!-- source: internal/component/bgp/fsm/fsm.go — handleEstablished -->
 
 ## Entry
@@ -63,7 +68,7 @@ The state-change callback in `peer_run.go`:
 | `EventUpdateMsgErr` | `processMessage` / RFC 7606 session-reset path | cleanup in caller; **increments ConnectRetryCounter** | NOTIFICATION (Update error) in caller | `Idle` |
 | `EventBGPHeaderErr` | `readAndProcessMessage` / `handleUnknownType` | cleanup in caller; **increments ConnectRetryCounter** | Message Header Error NOTIFICATION in caller (`notifyHeaderErr`: 1/1 for a bad Marker, 1/2 for a bad Length, 1/3 for an unknown Type), the Section 6.1 code rather than the Finite State Machine Error the "any other event" list names (rfc/corrections/rfc4271.md, `RFC4271-8.2.2-28`) | `Idle` |
 | `EventTCPConnectionFails` | `handleConnectionClose` | cleanup in caller; **increments ConnectRetryCounter** | none | `Idle` |
-| any other event (RFC 4271 lists 9, 12-13, 20-22) | a second OPEN (`EventBGPOpen`, from `handleOpen`); Ze has no Event 9, 12, 13 or 20, and Events 21 and 22 follow Section 6 (header error above, OPEN refused with Cease before parsing) | `ErrFSMError`; **increments ConnectRetryCounter** | Cease NOTIFICATION from `handleOpen`; no Finite State Machine Error NOTIFICATION is sent in this state | `Idle` |
+| any other event (RFC 4271 lists 9, 12-13, 20-22) | a second OPEN (`EventBGPOpen`, from `handleOpen`); Ze has no Event 9, 12, 13 or 20, and Events 21 and 22 follow Section 6 (header error above, unexpected same-connection OPEN diagnosed by RFC 6608 before parsing) | `ErrFSMError`; **increments ConnectRetryCounter** | RFC 6608 FSM Error NOTIFICATION 5/3 from `handleOpen`, carrying the single OPEN type octet (Data 1), then connection close | `Idle` |
 
 <!-- source: internal/component/bgp/fsm/fsm.go — handleEstablished -->
 <!-- source: internal/component/bgp/reactor/session_handlers.go — handleKeepalive, handleNotification, handleUnknownType -->

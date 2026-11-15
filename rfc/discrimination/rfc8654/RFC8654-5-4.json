@@ -1,6 +1,28 @@
 [
   {
     "rid": "RFC8654-5-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax",
+    "unit-sha": "97169d4281b126a9",
+    "claim-sha": "9d917c75541dab4e",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/header.go::ValidateLengthWithMax",
+    "producer-sha": "74b3bd33b6da2c9e",
+    "break": "body of ValidateLengthWithMax replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8654-5-4",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax",
+    "unit-sha": "97169d4281b126a9",
+    "claim-sha": "d93ea8f939126c77",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/header.go::ValidateLengthWithMax",
+    "producer-sha": "74b3bd33b6da2c9e",
+    "break": "body of ValidateLengthWithMax replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8654-5-4",
     "polarity": "negative",
     "unit": "internal/component/bgp/message/rfc8654_length_bounds_test.go::TestRFC8654LengthBoundsPerTypeAndCapability",
     "unit-sha": "7528545bc057de0d",
@@ -40,7 +62,7 @@
     "claim-sha": "f39779fbf9133782",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_coalesce.go::readAndProcessCoalesced",
-    "producer-sha": "c972fb73dcf80bf9",
+    "producer-sha": "55207abcf9749888",
     "break": "body of readAndProcessCoalesced replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {

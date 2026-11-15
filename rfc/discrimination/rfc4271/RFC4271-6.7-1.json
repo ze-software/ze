@@ -14,23 +14,23 @@
     "rid": "RFC4271-6.7-1",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271OpenConfirmUpdateIsAnFSMError",
-    "unit-sha": "a56f96c1a571728c",
-    "claim-sha": "19666fe27b226247",
+    "unit-sha": "20db3ed37590dd8e",
+    "claim-sha": "00a7273186d027b3",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_handlers.go::fsmMessageEvent",
-    "producer-sha": "2d6fdcbb9b8fc0a3",
-    "break": "body of fsmMessageEvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "23a69cb33f865b9a",
+    "break": "body of fsmMessageEvent replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4271-6.7-1",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271OpenSentUnexpectedMessageIsAnFSMError",
     "unit-sha": "9b6e3d58dc4a91a9",
-    "claim-sha": "29b7f3bc21ac56bb",
+    "claim-sha": "817cf792310d4ae8",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_handlers.go::fsmMessageEvent",
-    "producer-sha": "2d6fdcbb9b8fc0a3",
-    "break": "body of fsmMessageEvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "23a69cb33f865b9a",
+    "break": "body of fsmMessageEvent replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4271-6.7-1",
@@ -62,7 +62,7 @@
     "claim-sha": "4163c6c4b332e6b8",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_handlers.go::handleOpen",
-    "producer-sha": "57ed4e6b1eb7bc6b",
+    "producer-sha": "f1586750267dd51d",
     "break": "body of handleOpen replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -84,7 +84,7 @@
     "claim-sha": "9215fc4795a8e6f5",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_handlers.go::handleOpen",
-    "producer-sha": "57ed4e6b1eb7bc6b",
+    "producer-sha": "f1586750267dd51d",
     "break": "body of handleOpen replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

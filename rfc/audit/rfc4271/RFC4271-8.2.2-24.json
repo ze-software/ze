@@ -1,15 +1,15 @@
 {
-  "note": "Re-judged 2026-10-01 (BGP c12 judge). Positive TestRFC4271OpenSentUnexpectedMessageIsAnFSMError proves the whole list at peer level for the four listed events Ze can receive in OpenSent (Cease NOTIFICATION = Event 25, KEEPALIVE 26, empty UPDATE 27, malformed UPDATE 28): exactly one 5/0, EOF, three timers stopped, session released, counter 0->1. Negatives: TestRFC4271ExpectedMessagesRaiseNoFSMError (OPEN, Event 19, draws nothing) and the c11-owed list-boundary negative, now present: TestRFC4271VersionErrorNotificationReleasesQuietly/OPENSENT, a 2/1 NOTIFICATION (Event 24, not on the list) draws no 5/0 and leaves the counter at 3. That negative was red before the D-9 fix (handleNotification filed every NOTIFICATION as Event 25) and is green on notificationEvent; its record is observed red on Session.notificationEvent, the others on fsmMessageEvent. Events 9, 11, 12, 13, 20 do not occur in Ze's OpenSent (corrections). The c11 weak reason is resolved at the producer.",
+  "note": "Independently re-judged from the complete RFC 4271 Section 8.2.2 OpenSent action list and RFC 6608 Section 4. TestRFC4271OpenSentUnexpectedMessageIsAnFSMError retains four distinct real TCP inputs: Cease NOTIFICATION (Event 25), KEEPALIVE (26), empty UPDATE (27), and malformed withdrawn-length UPDATE (28). Each requires exactly one 5/1 response, TCP closure rather than a read timeout, stopped ConnectRetry/Hold/Keepalive timers, released session and ConnectRetryCounter 0 to 1. The older readUntil helper accepts a non-timeout read error as closure; this note does not call that a strict io.EOF assertion. The shared FSM catchall producer contains the same retry-counter/state transition for the listed timer/connection events; the peer matrix directly exercises received-message events. TestRFC4271ExpectedMessagesRaiseNoFSMError distinguishes a valid OPEN and subsequent legitimate KEEPALIVE/UPDATE with a live retained session and counter zero. The separate Event 24 control sends 2/1, requires no NOTIFICATION, closure/release and unchanged nonzero counter 3. These boundary controls distinguish state and version-error classification rather than merely another malformed packet. The renewed native records retain clean-green and named-unit-red observations, including the version-error claim renewal. The updated-by marker correctly adds the RFC 6608 subcode/Data obligation without removing the base teardown list. These base tests do not assert the one-octet Data; the updater is audited separately.",
   "requirement_sha": "1c94a60ea54dae2e",
   "tests": {
-    "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271ExpectedMessagesRaiseNoFSMError": "0016171daa459363",
-    "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271OpenSentUnexpectedMessageIsAnFSMError": "0016171daa459363",
-    "internal/component/bgp/reactor/rfc4271_version_error_peer_test.go::TestRFC4271VersionErrorNotificationReleasesQuietly": "20aa7ce5c43aad4a"
+    "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271ExpectedMessagesRaiseNoFSMError": "ecb91f67fa817447",
+    "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271OpenSentUnexpectedMessageIsAnFSMError": "ecb91f67fa817447",
+    "internal/component/bgp/reactor/rfc4271_version_error_peer_test.go::TestRFC4271VersionErrorNotificationReleasesQuietly": "b8559c34d8b668cf"
   },
   "units": {
     "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271ExpectedMessagesRaiseNoFSMError": "306e1bb5c30d988b",
-    "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271OpenSentUnexpectedMessageIsAnFSMError": "50a2659960b1038a",
-    "internal/component/bgp/reactor/rfc4271_version_error_peer_test.go::TestRFC4271VersionErrorNotificationReleasesQuietly": "5f3586a60efb68ca"
+    "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271OpenSentUnexpectedMessageIsAnFSMError": "231c882a40a181d3",
+    "internal/component/bgp/reactor/rfc4271_version_error_peer_test.go::TestRFC4271VersionErrorNotificationReleasesQuietly": "0fb24b297b29556f"
   },
   "verdict": "enforced"
 }

@@ -18,7 +18,7 @@
     "claim-sha": "02a7e5b37c36b032",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_read.go::processMessage",
-    "producer-sha": "b8efc198d63c5022",
+    "producer-sha": "b8f9c0b0e31225b2",
     "break": "body of processMessage replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -51,7 +51,7 @@
     "claim-sha": "ae28d4b143f4a2e9",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_handlers.go::handleOpen",
-    "producer-sha": "57ed4e6b1eb7bc6b",
+    "producer-sha": "f1586750267dd51d",
     "break": "body of handleOpen replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

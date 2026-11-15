@@ -23,6 +23,8 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/redistevents"
+	"github.com/ze-software/ze/internal/core/rib/igpcost"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
 )
 
@@ -194,6 +196,7 @@ func TestRFC8654ValidLengthRetainsInstalledRoutes(t *testing.T) {
 // distinct routes through TCP. Snapshot callbacks only observe production storage.
 func fatalLengthInstalledPeers(t *testing.T) []*lowLivePeer {
 	t.Helper()
+	t.Cleanup(redistevents.PreserveForTest())
 	// RFC 8654 Sections 5/6: this receiver has not advertised capability 6.
 	peers := flowForwardLiveRouter(t, "unchanged")
 	for _, cap := range peers[0].peer.Settings().Capabilities {
@@ -202,14 +205,24 @@ func fatalLengthInstalledPeers(t *testing.T) []*lowLivePeer {
 	}
 	require.NotNil(t, peers[0].peer.recvContext())
 	require.NotNil(t, peers[0].peer.sendContext())
+	// RFC 4271 Section 9.1.2: the real selection path requires a resolvable
+	// NEXT_HOP before either received route may enter the Loc-RIB. This
+	// fixture supplies one terminal interior route, not a resolver stub.
+	loc := locrib.Default()
+	require.NotNil(t, loc)
+	nextHop := netip.MustParsePrefix("192.0.2.1/32")
+	protocol := redistevents.RegisterProtocol("rfc8654-fatal-length-reachability-test")
+	loc.Insert(family.IPv4Unicast, nextHop, locrib.Path{Source: protocol, Metric: 1})
+	t.Cleanup(func() { loc.Remove(family.IPv4Unicast, nextHop, protocol, 0) })
+	require.True(t, igpcost.Resolve(loc, nextHop.Addr()).Resolved,
+		"fixture NEXT_HOP is reachable through the actual Loc-RIB")
+
 	// RFC 4271 Section 4.3: received announcements seed the cleanup obligation.
 	peers[0].send(t, message.PackTo(fatalLengthAnnouncement(), nil))
 	lowEventually(t, func() bool {
 		_, routes := fatalLengthRIBSnapshot()
 		return routes == 3
 	}, "both announcements installed in the actual Adj-RIB-In")
-	loc := locrib.Default()
-	require.NotNil(t, loc)
 	for _, prefix := range fatalLengthPrefixes() {
 		lowEventually(t, func() bool {
 			_, installed := loc.Lookup(family.IPv4Unicast, prefix)

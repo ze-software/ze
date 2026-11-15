@@ -55,7 +55,15 @@ The raw observer receives the original OPEN bytes on this new epoch.
 | `EventBGPHeaderErr` / `EventBGPOpenMsgErr` | `session_read.readAndProcessMessage` / `handleOpen` | log transition; **increments ConnectRetryCounter** | NOTIFICATION in caller | `Idle` |
 | `EventTCPConnectionFails` | `handleConnectionClose` on EOF / reset | cleanup in caller; **increments ConnectRetryCounter** | none | `Idle` |
 | `EventKeepaliveTimerExpires` | keepalive-timer callback in `Session.newSession` | stay (FSM no-op) | KEEPALIVE sent from callback | `OpenConfirm` |
-| any other event (RFC 4271 lists 9, 12-13, 20, 27-28): an UPDATE, well formed or not (`EventUpdateMsg`) | `processMessage`, before the UPDATE is parsed or reaches a plugin, through `Session.fsmMessageEvent` | `ErrFSMError`; **increments ConnectRetryCounter** | `fsmMessageEvent` sends NOTIFICATION 5/0 (Finite State Machine Error, subcode Unspecified) and closes the connection | `Idle` |
+| any other event (RFC 4271 lists 9, 12-13, 20, 27-28): an UPDATE, well formed or not (`EventUpdateMsg`) | `processMessage`, before the UPDATE is parsed or reaches a plugin, through `Session.fsmMessageEvent` | `ErrFSMError`; **increments ConnectRetryCounter** | `fsmMessageEvent` sends NOTIFICATION 5/2 (RFC 6608: unexpected message in OpenConfirm), with the received message type as one Data octet, and closes the connection | `Idle` |
+
+A second OPEN on this same connection receives 5/2 with Data 1; it must not
+renegotiate capabilities. An unexpected ROUTE-REFRESH receives 5/2 with Data 5
+before capability/family filtering, then AutomaticStop retires and counts the
+failed session. An OPEN on another pending TCP connection still uses collision
+resolution and its Cease 6/7 response.
+<!-- source: internal/component/bgp/reactor/session_handlers.go -- handleOpen, screenRouteRefresh -->
+<!-- source: internal/component/bgp/reactor/session_fsm_notification.go -- notifyFSMMessageError, fsmMessageErrorSubcode -->
 
 <!-- source: internal/component/bgp/reactor/session_read.go — processMessage refuses an UPDATE in OpenSent or OpenConfirm -->
 <!-- source: internal/component/bgp/reactor/session_handlers.go — fsmMessageEvent -->
@@ -190,7 +198,7 @@ transition.
   new connection always loses.
   <!-- source: internal/component/bgp/reactor/rfc4271_collision_open_receipt_test.go -->
 - `internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go` -- an
-  UPDATE received in OpenConfirm draws exactly one NOTIFICATION 5/0 and
+  UPDATE received in OpenConfirm draws exactly one NOTIFICATION 5/2 and
   releases the session; a KEEPALIVE moves the same Peer to Established with
   no NOTIFICATION.
   <!-- source: internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go -->

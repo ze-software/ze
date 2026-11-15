@@ -54,7 +54,7 @@ func startNeighborAt(t *testing.T, state fsm.State) *openSentNeighbor {
 //
 // RFC requirement: RFC4271-8.2.2-26 positive -- a running Peer in OpenSent at ConnectRetryCounter 3 that receives NOTIFICATION 2/1 writes no NOTIFICATION, closes the TCP connection, stops its three session timers, drops the session, reaches Idle, and leaves the counter at 3.
 // RFC requirement: RFC4271-8.2.2-27 positive -- a running Peer in OpenConfirm at ConnectRetryCounter 3 that receives NOTIFICATION 2/1 writes no NOTIFICATION, closes the TCP connection, stops its three session timers, drops the session, reaches Idle, and leaves the counter at 3.
-// RFC requirement: RFC4271-8.2.2-24 negative -- a running Peer in OpenSent that receives NOTIFICATION 2/1 (Event 24, not in the "any other event" list) writes no NOTIFICATION 5/0, and its ConnectRetryCounter stays at 3.
+// RFC requirement: RFC4271-8.2.2-24 negative -- a running Peer in OpenSent that receives NOTIFICATION 2/1 (Event 24, not in the "any other event" list) writes no FSM Error NOTIFICATION, and its ConnectRetryCounter stays at 3.
 func TestRFC4271VersionErrorNotificationReleasesQuietly(t *testing.T) {
 	for _, state := range []fsm.State{fsm.StateOpenSent, fsm.StateOpenConfirm} {
 		t.Run(state.String(), func(t *testing.T) {
@@ -74,14 +74,14 @@ func TestRFC4271VersionErrorNotificationReleasesQuietly(t *testing.T) {
 // Message Error / Bad Peer AS (2/2). Same error code, another subcode, so it is
 // Event 25 and takes each state's Event 25 path.
 //
-// VALIDATES: in OpenSent the Peer answers with exactly one NOTIFICATION 5/0 and
+// VALIDATES: in OpenSent the Peer answers with exactly one NOTIFICATION 5/1 and
 // the counter moves from 3 to 4 (OpenSent's "any other event" list); in
 // OpenConfirm the Peer writes no NOTIFICATION and the counter moves from 3 to 4
 // (the Event 18 / Event 25 list). Both drop the connection and the session.
 // PREVENTS: an Event 24 classifier that reads only the error code, so every OPEN
 // Message Error would skip the counter.
 //
-// RFC requirement: RFC4271-8.2.2-26 negative -- a running Peer in OpenSent at ConnectRetryCounter 3 that receives NOTIFICATION 2/2 (not a version error) writes one NOTIFICATION 5/0, closes the connection, drops the session, and moves the counter to 4.
+// RFC requirement: RFC4271-8.2.2-26 negative -- a running Peer in OpenSent at ConnectRetryCounter 3 that receives NOTIFICATION 2/2 (not a version error) writes one NOTIFICATION 5/1, closes the connection, drops the session, and moves the counter to 4.
 // RFC requirement: RFC4271-8.2.2-27 negative -- a running Peer in OpenConfirm at ConnectRetryCounter 3 that receives NOTIFICATION 2/2 (not a version error) writes no NOTIFICATION, closes the connection, drops the session, and moves the counter to 4.
 func TestRFC4271OtherOpenErrorNotificationIsNotAVersionError(t *testing.T) {
 	for _, tc := range []struct {

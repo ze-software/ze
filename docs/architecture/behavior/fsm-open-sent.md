@@ -62,9 +62,16 @@ OPEN from parsed capabilities.
 | `EventBGPOpenMsgErr` | `handleOpen` on version, hold-time, or capability validation failure | log transition; **increments ConnectRetryCounter** | NOTIFICATION in caller | `Idle` |
 | `EventNotifMsgVerErr` | `handleNotification`, through `notificationEvent`, for a received NOTIFICATION 2/1 (OPEN Message Error, Unsupported Version Number) | cleanup in caller; ConnectRetryCounter untouched (RFC 4271 8.2.2 gives Event 24 no counter clause in this state) | none: Event 24 is not on the "any other event" list, so no Finite State Machine Error is sent | `Idle` |
 | `EventTCPConnectionFails` | `handleConnectionClose` on EOF / reset | cleanup in caller; ConnectRetryCounter untouched (no counter clause in this state); the peer run loop is the restarted ConnectRetryTimer and the listener keeps accepting | none | `Active` (RFC 4271 Section 8.2.2) |
-| any other event (RFC 4271 lists 9, 11-13, 20, 25-28): a received NOTIFICATION that is not a version error (`EventNotifMsg`), a KEEPALIVE outside BFD strict mode (`EventKeepaliveMsg`), an UPDATE well formed or not (`EventUpdateMsg`) | `handleNotification`, `handleKeepalive`, and `processMessage` for an UPDATE before it is parsed or reaches a plugin, each through `Session.fsmMessageEvent` | `ErrFSMError`; **increments ConnectRetryCounter** | `fsmMessageEvent` sends NOTIFICATION 5/0 (Finite State Machine Error, subcode Unspecified: Ze does not originate the RFC 6608 subcodes) and closes the connection | `Idle` |
+| any other event (RFC 4271 lists 9, 11-13, 20, 25-28): a received NOTIFICATION that is not a version error (`EventNotifMsg`), a KEEPALIVE outside BFD strict mode (`EventKeepaliveMsg`), an UPDATE well formed or not (`EventUpdateMsg`) | `handleNotification`, `handleKeepalive`, and `processMessage` for an UPDATE before it is parsed or reaches a plugin, each through `Session.fsmMessageEvent` | `ErrFSMError`; **increments ConnectRetryCounter** | `fsmMessageEvent` sends NOTIFICATION 5/1 (RFC 6608: unexpected message in OpenSent), with the received message type as one Data octet, and closes the connection | `Idle` |
 
 <!-- source: internal/component/bgp/fsm/fsm.go — handleOpenSent -->
+An unexpected ROUTE-REFRESH is rejected before capability or family filtering can
+ignore it: `screenRouteRefresh` sends the same 5/1 diagnostic with Data 5, fires
+AutomaticStop to count and retire this failed session, then closes the socket.
+BFD strict pending keeps its valid KEEPALIVE progression; the FSM decides whether
+that message is unexpected before the error producer runs.
+<!-- source: internal/component/bgp/reactor/session_fsm_notification.go -- notifyFSMMessageError, fsmMessageErrorSubcode -->
+
 <!-- source: internal/component/bgp/reactor/session_handlers.go — fsmMessageEvent, updateIsUnexpected -->
 <!-- source: internal/component/bgp/reactor/session_read.go — processMessage refuses an UPDATE in OpenSent or OpenConfirm -->
 <!-- source: internal/component/bgp/reactor/session_handlers.go — handleOpen validations and fsm.Event(EventBGPOpen) -->
@@ -249,7 +256,7 @@ Section 8.2.2, Event 10.
 - `internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go` -- a
   running Peer in OpenSent that receives a NOTIFICATION other than a
   version error, a KEEPALIVE, an UPDATE or a malformed UPDATE writes exactly
-  one NOTIFICATION 5/0, drops the connection and the session, and counts the
+  one NOTIFICATION 5/1, drops the connection and the session, and counts the
   attempt; the same Peer given an OPEN, then a KEEPALIVE, then an UPDATE in
   Established writes no NOTIFICATION.
   <!-- source: internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go -->

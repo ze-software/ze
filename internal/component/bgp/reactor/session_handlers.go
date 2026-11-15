@@ -60,18 +60,10 @@ func (s *Session) handleOpen(body []byte) error {
 	// change the negotiated capability set (families, AddPath, ASN4) mid-session
 	// on an already-established peering.
 	//
-	// RFC 4271 Section 8.2.2 never routes BGPOpen (Event 19) to the FSM-Error
-	// branch: in Established that branch is scoped to "Events 9, 12-13, 20-22"
-	// and in OpenConfirm to "Events 9, 12-13, 20, 27-28". Both states instead
-	// send Event 19 through collision detection, whose termination action is
-	// "sends a NOTIFICATION with a Cease". So Cease is the code, not FSM Error.
-	//
-	// Honest about the edge: Section 6.8 collision detection is written for two
-	// DIFFERENT connections, so a second OPEN on one connection is not literally
-	// a collision and RFC 4271 does not name an action for it. Cease is chosen
-	// because it is what Section 8.2.2 associates with terminating on Event 19
-	// in exactly these two states. What is NOT defensible either way is silently
-	// re-negotiating, which is what happened before this gate.
+	// RFC 6608 Section 4 updates RFC 4271: an unexpected OPEN on this SAME
+	// connection earns FSM Error subcode 2 in OpenConfirm or 3 in Established,
+	// with the OPEN type as its one-octet Data. Collision resolution for an OPEN
+	// on a DIFFERENT pending connection remains the RFC 4271 Section 6.8 path.
 	// draft-ietf-idr-bgp-bfd-strict-mode Section 8.5.5 extends this gate to
 	// OpenSent: "If the FSM is in the OpenSentBfdUpPending sub-state or the
 	// OpenSentConfirmedBfdUpPending sub-state, the reception of a second OPEN
@@ -86,10 +78,7 @@ func (s *Session) handleOpen(body []byte) error {
 	// OpenSent's Event 19 arm apply the counter and Idle transition; none
 	// may negotiate capabilities a second time.
 	if pending := s.fsm.BfdSubState(); pending != fsm.SubStateNone {
-		s.mu.RLock()
-		conn := s.conn
-		s.mu.RUnlock()
-		s.logNotifyErr(conn, message.NotifyFSMError, 0, nil)
+		s.notifyFSMMessageError(s.fsm.State(), msgtype.TypeOPEN)
 		event := fsm.EventBGPOpen
 		if pending == fsm.SubStateConnectDelayOpenBfdUpPending ||
 			pending == fsm.SubStateActiveDelayOpenBfdUpPending {
@@ -103,15 +92,12 @@ func (s *Session) handleOpen(body []byte) error {
 	if state := s.fsm.State(); state == fsm.StateEstablished || state == fsm.StateOpenConfirm {
 		// Counted at the refusal, not after the send: what an operator needs to
 		// know is that this peer tried to re-negotiate mid-session, which is
-		// true whether or not the Cease made it onto a socket the peer may
+		// true whether or not the NOTIFICATION made it onto a socket the peer may
 		// already have abandoned.
 		if s.prefixMetrics != nil {
 			s.prefixMetrics.openInEstablished.With(s.addrLabel).Inc()
 		}
-		s.mu.RLock()
-		conn := s.conn
-		s.mu.RUnlock()
-		s.logNotifyErr(conn, message.NotifyCease, 0, nil)
+		s.notifyFSMMessageError(state, msgtype.TypeOPEN)
 		// MUST fire the FSM event, not just close the socket. Section 8.2.2's
 		// action list for terminating on Event 19 is not only the NOTIFICATION:
 		// it also "deletes all routes associated with this connection",
@@ -324,7 +310,7 @@ func (s *Session) handleKeepalive() error {
 		s.startSendHoldTimer()
 	}
 
-	return s.fsmMessageEvent(fsm.EventKeepaliveMsg)
+	return s.fsmMessageEvent(fsm.EventKeepaliveMsg, msgtype.TypeKEEPALIVE)
 }
 
 // fsmMessageEvent fires the FSM event a received message stands for. When the
@@ -336,9 +322,8 @@ func (s *Session) handleKeepalive() error {
 // Connect and Active also answer ErrFSMError for their "any other event".
 // DelayOpen and strict pending make received messages reachable there; those
 // catchall clauses send no NOTIFICATION and Run retires the failed session.
-// The subcode is 0 (Unspecified Error): Ze does not originate the RFC 6608
-// subcodes (rfc/short/rfc6608.md records the gap).
-func (s *Session) fsmMessageEvent(event fsm.Event) error {
+// RFC 6608's diagnostic uses the receiving state, retained before Event moves it.
+func (s *Session) fsmMessageEvent(event fsm.Event, received msgtype.MessageType) error {
 	state := s.fsm.State()
 	err := s.fsm.Event(event)
 	if !errors.Is(err, fsm.ErrFSMError) {
@@ -348,15 +333,12 @@ func (s *Session) fsmMessageEvent(event fsm.Event) error {
 		return err
 	}
 
-	s.mu.RLock()
-	conn := s.conn
-	s.mu.RUnlock()
 	// RFC 4271 Section 8.2.2: "In response to any other event (Events 9,
 	// 11-13, 20, 25-28), the local system: - sends the NOTIFICATION with the
 	// Error Code Finite State Machine Error". OpenConfirm ("Events 9, 12-13,
 	// 20, 27-28") and Established ("Events 9, 12-13, 20-22") open their lists
 	// with the same action.
-	s.logNotifyErr(conn, message.NotifyFSMError, 0, nil)
+	s.notifyFSMMessageError(state, received)
 	s.closeConn()
 	return fmt.Errorf("%w: %s received in %s", err, event, state)
 }
@@ -412,7 +394,7 @@ func (s *Session) handleNotification(body []byte) error {
 	// Event 24 is not on that list: OpenSent and OpenConfirm answer it with no
 	// NOTIFICATION and no ConnectRetryCounter change.
 	event := notificationEvent(notif)
-	if fsmErr := s.fsmMessageEvent(event); fsmErr != nil {
+	if fsmErr := s.fsmMessageEvent(event, msgtype.TypeNOTIFICATION); fsmErr != nil {
 		sessionLogger().Warn("FSM event failed",
 			"peer", s.settings.Address, "event", event, "error", fsmErr)
 	}
@@ -491,6 +473,17 @@ const (
 // error after validateRouteRefreshLength has sent the NOTIFICATION a bad length
 // earns and closed the connection.
 func (s *Session) screenRouteRefresh(body []byte) (bool, error) {
+	state := s.fsm.State()
+	if updateIsUnexpected(state) {
+		// RFC 6608 Section 4 diagnoses an unexpected ROUTE-REFRESH before
+		// capability/family filtering can silently ignore it. RFC 2918 adds no
+		// received-message event to the base FSM, so this local rejection uses
+		// AutomaticStop to count the failed attempt and perform its teardown.
+		s.notifyFSMMessageError(state, msgtype.TypeROUTEREFRESH)
+		s.logFSMEvent(fsm.EventAutomaticStop)
+		s.closeConn()
+		return false, fmt.Errorf("%w: ROUTE-REFRESH received in %s", ErrInvalidState, state)
+	}
 	ignore, err := s.validateRouteRefreshLength(body)
 	if err != nil {
 		return false, err

@@ -571,7 +571,7 @@ func TestHandleRouteRefresh_NonNegotiatedFamily(t *testing.T) {
 }
 
 // VALIDATES: a second OPEN arriving on an ALREADY-ESTABLISHED connection is
-// refused with NOTIFICATION Cease and the connection closed, instead of being
+// refused with the RFC 6608 FSM Error and the connection closed, instead of being
 // processed as if the session were still negotiating.
 // PREVENTS: silent mid-session re-negotiation. handleOpen had no state gate, so
 // an OPEN on a live session re-ran the whole path: it overwrote s.peerOpen and
@@ -580,10 +580,9 @@ func TestHandleRouteRefresh_NonNegotiatedFamily(t *testing.T) {
 // assertion is the load-bearing one -- checking only that a NOTIFICATION was
 // sent would still pass if the capabilities had been swapped first.
 //
-// RFC 4271 Section 8.2.2 excludes BGPOpen (Event 19) from the FSM-Error branch
-// in both Established ("Events 9, 12-13, 20-22") and OpenConfirm ("Events 9,
-// 12-13, 20, 27-28"), routing it through collision detection, whose termination
-// action is a NOTIFICATION with a Cease. Hence Cease (6), not FSM Error (5).
+// RFC 6608 Section 4 updates RFC 4271: an unexpected OPEN on the same
+// Established connection receives FSM Error subcode 3 and the OPEN type octet.
+// Collision resolution applies to a separate pending connection.
 func TestSecondOpenOnEstablishedSessionIsRefused(t *testing.T) {
 	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65002, 0x01020301)
 	settings.Connection = ConnectionPassive
@@ -686,9 +685,8 @@ func TestSecondOpenOnEstablishedSessionIsRefused(t *testing.T) {
 	require.Error(t, err, "a second OPEN on an established session must be refused")
 	require.ErrorIs(t, err, ErrInvalidState)
 
-	// Cease (6), per Section 8.2.2's Event 19 termination action. Asserted on
-	// the WIRE: without this the comment argues for Cease over FSM Error while
-	// nothing stops the code sending either.
+	// Assert the complete RFC 6608 diagnostic on the wire, including its
+	// state-specific subcode and exactly one OPEN type octet.
 	var notification []byte
 	for msg := range fromZe {
 		if len(msg) >= message.HeaderLen+2 && msg[message.HeaderLen-1] == byte(msgtype.TypeNOTIFICATION) {
@@ -697,8 +695,9 @@ func TestSecondOpenOnEstablishedSessionIsRefused(t *testing.T) {
 		}
 	}
 	require.NotNil(t, notification, "expected a NOTIFICATION on the wire")
-	assert.Equal(t, uint8(message.NotifyCease), notification[message.HeaderLen],
-		"RFC 4271 Section 8.2.2 terminates Event 19 with a Cease, not an FSM Error")
+	assert.Equal(t, []byte{byte(message.NotifyFSMError), message.NotifyFSMUnexpectedEstablished, byte(msgtype.TypeOPEN)},
+		notification[message.HeaderLen:],
+		"RFC 6608 Section 4 identifies the receiving Established state and OPEN type")
 
 	t.Cleanup(func() {
 		client.Close() //nolint:errcheck // test cleanup
@@ -707,17 +706,16 @@ func TestSecondOpenOnEstablishedSessionIsRefused(t *testing.T) {
 }
 
 // VALIDATES: AC-4a's OpenConfirm half -- a second OPEN arriving after the peer's
-// first OPEN but BEFORE the confirming KEEPALIVE is refused with Cease, exactly
-// as in Established.
+// first OPEN but BEFORE the confirming KEEPALIVE receives the OpenConfirm FSM
+// Error diagnostic, while an Established session receives its distinct subcode.
 // PREVENTS: a gate that reads correct but only covers one of the two states it
 // names. handleOpen's guard tests Established||OpenConfirm; before this test
 // only the Established arm was exercised, so dropping the OpenConfirm arm would
 // not have turned anything red.
 //
-// RFC 4271 Section 8.2.2 treats the two states the same way for BGPOpen (Event
-// 19): OpenConfirm's any-other-event branch is scoped to "Events 9, 12-13, 20,
-// 27-28" and Established's to "Events 9, 12-13, 20-22", so 19 is excluded from
-// both and routed through collision detection, terminating with a Cease.
+// RFC 6608 Section 4 requires FSM Error subcode 2 for an unexpected OPEN in
+// OpenConfirm, carrying the OPEN type as the single Data octet. This is another
+// OPEN on the same connection, rather than a separate-connection collision.
 func TestSecondOpenInOpenConfirmIsRefused(t *testing.T) {
 	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65002, 0x01020301)
 	settings.Connection = ConnectionPassive
@@ -791,8 +789,9 @@ func TestSecondOpenInOpenConfirmIsRefused(t *testing.T) {
 		}
 	}
 	require.NotNil(t, notification, "expected a NOTIFICATION on the wire")
-	assert.Equal(t, uint8(message.NotifyCease), notification[message.HeaderLen],
-		"RFC 4271 Section 8.2.2 terminates Event 19 with a Cease in OpenConfirm too")
+	assert.Equal(t, []byte{byte(message.NotifyFSMError), message.NotifyFSMUnexpectedOpenConfirm, byte(msgtype.TypeOPEN)},
+		notification[message.HeaderLen:],
+		"RFC 6608 Section 4 identifies the receiving OpenConfirm state and OPEN type")
 }
 
 // TestEstablishedSessionFamilyMismatchIgnoreMode verifies IgnoreFamilyMismatch mode.

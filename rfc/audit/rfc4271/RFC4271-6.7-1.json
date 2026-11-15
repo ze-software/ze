@@ -1,10 +1,10 @@
 {
-  "note": "Re-judged 2026-10-01 (BGP c11 judge). All five fatal-error classes of Section 6 are now proven at peer level never to be answered with Cease: Message Header Error (TestRFC4271MessageHeaderErrorIsReported, exactly one code 1; TestRFC4271OpenSentErrorReleasesTheConnection 1/1, 1/2), OPEN Message Error (2/1), UPDATE Message Error (TestRFC4271EstablishedUpdateErrorReleasesTheConnection, exactly one code 3), Hold Timer Expired (exactly one 4/0), and now Finite State Machine Error (Section 6.6): TestRFC4271OpenSentUnexpectedMessageIsAnFSMError and TestRFC4271OpenConfirmUpdateIsAnFSMError assert exactly one 5/0, never Cease, and TestSessionBFDStrictSecondOpenIsAnFSMErrorOnTheWire (newly tagged) asserts the first wire message is code 5. Positive TestRFC4271PrefixLimitTeardownSendsCease shows Cease where no fatal error exists. Each new negative carries an observed-red record (fsmMessageEvent x2, handleOpen). HEAD units rfc4271_test.go:636 and session_prefix_test.go:110 stay supplementary without records.",
+  "note": "Independently re-judged against RFC 4271 Sections 6, 6.6 and 6.7, RFC 6608 Section 4, all ten tagged units and the completed native renewal log job-rfc6608-record-renewals-09a8e39e.log. The prohibition concerns the fatal-error code, not an obligation to choose Cease for every discretionary closure. The running-peer tests distinguish all five Section 6 fatal classes: header code 1, OPEN code 2, UPDATE code 3, Hold Timer Expired code 4 and FSM code 5; each relevant exact-response assertion excludes Cease. The updated FSM expectations are 5/1 in OpenSent and 5/2 in OpenConfirm, as RFC 6608 requires; original error inputs, session release, timer and counter assertions remain. The BFD strict second-OPEN test independently asserts wire Error Code 5 without claiming its whole subcode or teardown outcome. The well-formed prefix-limit case provides the distinct Cease 6/1 control permitted by Section 6.7. TestRFC4271UpdateErrorReportedAsUpdateMessageError and TestPrefixExceedTeardown remain supplementary tagged checks; the refreshed records do not manufacture records for those older units. Whole-producer reverts prove dependence on their named producer, while the exact code assertions supply the semantic distinction. No one-octet RFC 6608 Data claim is credited here.",
   "requirement_sha": "0d1d2cb48444318c",
   "tests": {
     "internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go::TestRFC4271EstablishedUpdateErrorReleasesTheConnection": "75930a8f452295fa",
-    "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271OpenConfirmUpdateIsAnFSMError": "0016171daa459363",
-    "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271OpenSentUnexpectedMessageIsAnFSMError": "0016171daa459363",
+    "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271OpenConfirmUpdateIsAnFSMError": "ecb91f67fa817447",
+    "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271OpenSentUnexpectedMessageIsAnFSMError": "ecb91f67fa817447",
     "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List": "33aaf37273eacf0d",
     "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderErrorIsReported": "fec6a921b0bf494e",
     "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentErrorReleasesTheConnection": "56ab87e3b9f2067a",
@@ -15,8 +15,8 @@
   },
   "units": {
     "internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go::TestRFC4271EstablishedUpdateErrorReleasesTheConnection": "0feb9a83208798c9",
-    "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271OpenConfirmUpdateIsAnFSMError": "a1962ea722a87625",
-    "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271OpenSentUnexpectedMessageIsAnFSMError": "50a2659960b1038a",
+    "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271OpenConfirmUpdateIsAnFSMError": "64b028ff9de9f2ee",
+    "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271OpenSentUnexpectedMessageIsAnFSMError": "231c882a40a181d3",
     "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List": "51b56c66410541f9",
     "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderErrorIsReported": "9bc76112384a3dc9",
     "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentErrorReleasesTheConnection": "853449b49fd69683",

@@ -18,7 +18,7 @@
     "claim-sha": "d8d9d5a5436c1922",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_handlers.go::handleKeepalive",
-    "producer-sha": "a86bc1289372bdc0",
+    "producer-sha": "9dd7a60ec68c7312",
     "break": "body of handleKeepalive replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {

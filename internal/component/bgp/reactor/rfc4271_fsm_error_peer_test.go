@@ -16,9 +16,8 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 )
 
-// fsmErrorNotification is the (code, subcode) a Finite State Machine Error
-// writes: code 5, subcode 0 (Unspecified Error).
-var fsmErrorNotification = [2]byte{uint8(message.NotifyFSMError), 0}
+// fsmErrorNotification is the OpenSent FSM Error updated by RFC 6608 Section 4.
+var fsmErrorNotification = [2]byte{uint8(message.NotifyFSMError), message.NotifyFSMUnexpectedOpenSent}
 
 // emptyUpdate is a well-formed UPDATE with no withdrawn routes, no path
 // attributes and no NLRI: 19 octets of header and two zero length fields.
@@ -46,7 +45,7 @@ func malformedUpdate() []byte {
 // not a version error (Event 25), a KEEPALIVE (Event 26), an UPDATE (Event 27), or
 // a malformed UPDATE (Event 28).
 //
-// VALIDATES: for each, the Peer writes exactly one NOTIFICATION, 5/0 (Finite State
+// VALIDATES: for each, the Peer writes exactly one NOTIFICATION, 5/1 (Finite State
 // Machine Error), then drops the TCP connection (EOF at the far end); the session's
 // HoldTimer, KeepaliveTimer and ConnectRetryTimer stop; the Peer releases the
 // session; the ConnectRetryCounter moves from 0 to 1.
@@ -55,8 +54,8 @@ func malformedUpdate() []byte {
 // no NOTIFICATION producer existed), and an UPDATE received before Established that
 // is parsed and handed to the plugins.
 //
-// RFC requirement: RFC4271-8.2.2-24 positive -- a running Peer in OpenSent that receives a Cease NOTIFICATION (Event 25), a KEEPALIVE (Event 26), an empty UPDATE (Event 27) or an UPDATE whose Withdrawn Routes Length overruns the message (Event 28) writes exactly one NOTIFICATION 5/0, closes the TCP connection, stops its three session timers, drops the session, and moves the ConnectRetryCounter from 0 to 1.
-// RFC requirement: RFC4271-6.7-1 negative -- an FSM error on a running Peer in OpenSent (NOTIFICATION, KEEPALIVE or UPDATE received before an OPEN) is answered by exactly one NOTIFICATION, 5/0, never Cease.
+// RFC requirement: RFC4271-8.2.2-24 positive -- a running Peer in OpenSent that receives a Cease NOTIFICATION (Event 25), a KEEPALIVE (Event 26), an empty UPDATE (Event 27) or an UPDATE whose Withdrawn Routes Length overruns the message (Event 28) writes exactly one NOTIFICATION 5/1, closes the TCP connection, stops its three session timers, drops the session, and moves the ConnectRetryCounter from 0 to 1.
+// RFC requirement: RFC4271-6.7-1 negative -- an FSM error on a running Peer in OpenSent (NOTIFICATION, KEEPALIVE or UPDATE received before an OPEN) is answered by exactly one NOTIFICATION, 5/1, never Cease.
 func TestRFC4271OpenSentUnexpectedMessageIsAnFSMError(t *testing.T) {
 	cease := &message.Notification{ErrorCode: message.NotifyCease, ErrorSubcode: message.NotifyCeaseAdminShutdown}
 
@@ -86,14 +85,14 @@ func TestRFC4271OpenSentUnexpectedMessageIsAnFSMError(t *testing.T) {
 // KEEPALIVE: Event 27, or Event 28 when the UPDATE is malformed, both under
 // OpenConfirm's "any other event".
 //
-// VALIDATES: the Peer writes exactly one NOTIFICATION, 5/0, then drops the TCP
+// VALIDATES: the Peer writes exactly one NOTIFICATION, 5/2, then drops the TCP
 // connection; the three session timers stop; the session is released; the
 // ConnectRetryCounter moves from 0 to 1.
 // PREVENTS: an OpenConfirm that drops an early UPDATE's session in silence, or that
 // processes the UPDATE as if the session were Established.
 //
-// RFC requirement: RFC4271-8.2.2-25 positive -- a running Peer in OpenConfirm that receives an empty UPDATE (Event 27) or an UPDATE whose Withdrawn Routes Length overruns the message (Event 28) writes exactly one NOTIFICATION 5/0, closes the TCP connection, stops its three session timers, drops the session, and moves the ConnectRetryCounter from 0 to 1.
-// RFC requirement: RFC4271-6.7-1 negative -- an FSM error on a running Peer in OpenConfirm (UPDATE received before the KEEPALIVE) is answered by exactly one NOTIFICATION, 5/0, never Cease.
+// RFC requirement: RFC4271-8.2.2-25 positive -- a running Peer in OpenConfirm that receives an empty UPDATE (Event 27) or an UPDATE whose Withdrawn Routes Length overruns the message (Event 28) writes exactly one NOTIFICATION 5/2, closes the TCP connection, stops its three session timers, drops the session, and moves the ConnectRetryCounter from 0 to 1.
+// RFC requirement: RFC4271-6.7-1 negative -- an FSM error on a running Peer in OpenConfirm (UPDATE received before the KEEPALIVE) is answered by exactly one NOTIFICATION, 5/2, never Cease.
 func TestRFC4271OpenConfirmUpdateIsAnFSMError(t *testing.T) {
 	for _, tc := range []struct {
 		name string
@@ -109,7 +108,7 @@ func TestRFC4271OpenConfirmUpdateIsAnFSMError(t *testing.T) {
 			_, err := n.conn.Write(tc.send)
 			require.NoError(t, err)
 
-			requireReleased(t, n, [][2]byte{fsmErrorNotification}, 1)
+			requireReleased(t, n, [][2]byte{{uint8(message.NotifyFSMError), message.NotifyFSMUnexpectedOpenConfirm}}, 1)
 		})
 	}
 }

@@ -1,0 +1,13 @@
+{
+  "note": "Read RFC 6608 Section 4 in full. The TCP matrix receives KEEPALIVE, well-formed and malformed UPDATE, ROUTE-REFRESH, and non-version NOTIFICATION in ordinary OpenSent. It compares the entire notification payload to code 5/subcode 1/the single received-type octet, requires exactly one packet and real EOF, then waits for session release. The valid OPEN control reaches OpenConfirm and checks no notification, close, session replacement or retry increment. This excludes both silent discard and unconditional refusal. The proposed producer substitution exchanges state subcode 1 for 2; its observed red remains the native record's responsibility. BFD strict-mode pending is outside this ordinary-state matrix and retains its separate tests.",
+  "requirement_sha": "e75f5c524aa8b2a1",
+  "tests": {
+    "internal/component/bgp/reactor/rfc6608_fsm_notifications_test.go::TestRFC6608OpenSentExpectedOpenKeepsTheConnection": "1d5dcae3a6dcef5e",
+    "internal/component/bgp/reactor/rfc6608_fsm_notifications_test.go::TestRFC6608OpenSentUnexpectedMessages": "1d5dcae3a6dcef5e"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc6608_fsm_notifications_test.go::TestRFC6608OpenSentExpectedOpenKeepsTheConnection": "f5f2601efeb9f42d",
+    "internal/component/bgp/reactor/rfc6608_fsm_notifications_test.go::TestRFC6608OpenSentUnexpectedMessages": "ba7015b6ed33b017"
+  },
+  "verdict": "enforced"
+}

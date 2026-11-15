@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC6608-4-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc6608_fsm_notifications_test.go::TestRFC6608OpenSentExpectedOpenKeepsTheConnection",
+    "unit-sha": "76e6aa33273d4755",
+    "claim-sha": "9f0f6aee4e4dfe1c",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_handlers.go::handleOpen",
+    "producer-sha": "f1586750267dd51d",
+    "break": "line 92: \"state == fsm.StateEstablished\" -\u003e \"state == fsm.StateOpenSent\""
+  },
+  {
+    "rid": "RFC6608-4-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc6608_fsm_notifications_test.go::TestRFC6608OpenSentUnexpectedMessages",
+    "unit-sha": "fcf04a80c7bc1a3b",
+    "claim-sha": "429f34f5956a3c15",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_fsm_notification.go::fsmMessageErrorSubcode",
+    "producer-sha": "ed119a026eba086e",
+    "break": "line 37: \"return message.NotifyFSMUnexpectedOpenSent\" -\u003e \"return message.NotifyFSMUnexpectedOpenConfirm\""
+  }
+]

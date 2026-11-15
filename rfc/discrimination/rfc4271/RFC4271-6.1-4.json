@@ -7,7 +7,7 @@
     "claim-sha": "525bbd1e65f70ab9",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_read.go::processMessage",
-    "producer-sha": "b8efc198d63c5022",
+    "producer-sha": "b8f9c0b0e31225b2",
     "break": "body of processMessage replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
