@@ -89,9 +89,9 @@ func TestWhyZeCardsCarryApprovedArguments(t *testing.T) {
 	cards := regexp.MustCompile(`(?s)<span class="cat">([^<]*)</span>\s*<h3><a href="([^"]*)">([^<]*)</a></h3>`).FindAllStringSubmatch(row, -1)
 	want := [][3]string{
 		{"ExaBGP", "features/exabgp-compatibility/", "ExaBGP on steroids"},
-		{"Peering", "guides/irr-filtering/", "Peering without the side scripts"},
+		{"Peering", "guides/irr-filtering/", "Made for operators"},
 		{"Deployment", "guides/ze-install/", "Run it the way you want"},
-		{"AI", "guides/ai-agent/", "Ask your AI assistant what is wrong"},
+		{"AI", "guides/ai-agent/", "Made for AI assistants"},
 	}
 	var got [][3]string
 	for _, card := range cards {

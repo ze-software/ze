@@ -295,7 +295,7 @@ Keep the logs if a check fails.</pre>
                     </article>
                     <article class="card usp-card cat-operate">
                         <span class="cat">Peering</span>
-                        <h3><a href="guides/irr-filtering/">Peering without the side scripts</a></h3>
+                        <h3><a href="guides/irr-filtering/">Made for operators</a></h3>
                         <p>
                             Give Ze a peer's ASN and it finds the AS-SET in PeeringDB,
                             builds the IRR prefix filter and keeps it up to date, so no
@@ -316,7 +316,7 @@ Keep the logs if a check fails.</pre>
                     </article>
                     <article class="card usp-card cat-platform">
                         <span class="cat">AI</span>
-                        <h3><a href="guides/ai-agent/">Ask your AI assistant what is wrong</a></h3>
+                        <h3><a href="guides/ai-agent/">Made for AI assistants</a></h3>
                         <p>
                             Connect an assistant to Ze's MCP server and describe the
                             symptom. It runs <code>ze doctor</code>, reads peer, route
