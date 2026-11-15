@@ -54,6 +54,13 @@ value. Prepare carries `operation`, `tunnel-id`, `session-id`, `interface` and
 carry only `operation` and that token. The authenticated request's peer context
 must remain the same for every step.
 
+`sessionCommandDecls` registers this hidden command, and
+`executeSessionTransaction` validates its keyword, bounded JSON value and
+authenticated source. The configuration module holds the persistent profiles
+and interface bindings.
+<!-- source: internal/plugins/cos/session_transaction.go -- sessionCommandDecls, executeSessionTransaction -->
+<!-- source: internal/plugins/cos/yang/ze-cos-conf.yang -- container class-of-service, container interface -->
+
 Prepare changes nothing. It reads the actual VLAN ingress and egress maps with
 the interface backend's `GetLink`, copies the proposed profile and records the
 session's previous CoS state. Apply installs the maps before publishing the new
