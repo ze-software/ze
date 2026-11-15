@@ -60,24 +60,27 @@ var (
 	governedWrite   = regexp.MustCompile(`(?:\bopen\([^)]*["'](?:[wax]|r\+)[bt+]*["']|\bopen\b[^;\n]*["'](?:\+<|\+?>)|write_(?:text|bytes)\(|\.write\(|writelines\(|truncate\(|(?:write(?:Text)?File|appendFile|copyFile|rename)(?:Sync)?\(|createWriteStream\(|os\.replace\(|shutil\.(?:copy\w*|move)\(|\.replace\([^)]*(?:plan/|ai/rules/))`)
 )
 
-// ze point: none -- the worktree prohibition lives in ai/INSTRUCTIONS.md, outside the rule corpus
+// ze point: none -- the ban on copying a worktree's files into main lives in ai/INSTRUCTIONS.md, "Worktrees", outside the rule corpus
 // bashWorktreeCopy refuses a file copy out of a worktree into the main tree.
 // A worktree agent lands its work by committing, and a direct copy overwrites
 // whatever another session left uncommitted at the destination.
+//
+// It judges the commands the line runs (worktreeCopyLine), never its text: a
+// copy verb counts only where it runs as a command, and a copy or a
+// redirection only when its source is under .claude/worktrees and its
+// destination is not. The worktree work ai/owner/machines.md requires of
+// cross-machine work (`git worktree add` and `remove`, a test run inside the
+// worktree with its log there, `scp` of a bundle, a page whose prose names a
+// worktree) copies nothing out of one, and passes.
 func bashWorktreeCopy(ctx context) *verdict {
 	command := stringInput(ctx.input, "command")
-	if command == "" || !strings.Contains(command, ".claude/worktrees") {
+	if !strings.Contains(command, worktreesDirectory) {
 		return nil
 	}
-	blocked := false
-	for _, token := range []string{"cp ", "cp -", "mv ", "mv -", "rsync ", "install "} {
-		blocked = blocked || strings.Contains(command, token)
-	}
-	blocked = blocked || regexp.MustCompile(`\s>`).MatchString(command)
-	if !blocked {
+	if !worktreeCopyLine(command, ctx.commandParse(), worktreeStart) {
 		return nil
 	}
-	return &verdict{2, "❌ Blocked: copying files from worktree to main repo\n" +
+	return &verdict{2, "❌ Blocked: copying files out of a worktree into the main tree\n" +
 		"A direct copy overwrites the uncommitted work other sessions left in the main checkout.\n" +
 		"A worktree agent commits on its own branch, and the user lands that branch on main with `git rebase <branch>`.\n" +
 		"Commit your work on the worktree branch with:\n" +
