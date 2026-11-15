@@ -2425,6 +2425,16 @@ that model firewall concepts (MatchSourceAddress, Accept, SetMark), not nftables
 operations. The nft backend lowers abstract types to nftables expressions internally. The
 VPP backend maps them directly to ACL rules and policers.
 
+The firewall configuration parser refuses a literal `source-address` or
+`destination-address` prefix with host bits set. It reports the effective
+network and the corrected configuration statement instead of changing the
+operator's input. Offline validation, startup and reload verify reach the same
+parser before apply. Canonical networks, host routes and `@set` references keep
+their existing behavior. This input check does not change direct model producers
+or backend lowering.
+<!-- source: internal/component/firewall/config.go -- parseAddressMatch -->
+<!-- source: internal/component/firewall/engine.go -- VerifyConfig, parseConfigSections, runEngine -->
+
 A table may also carry conntrack helper objects (`Table.CtHelpers`), which a
 `SetCtHelper` action assigns. The nft backend adds them as `ct helper` objects
 before any rule, because the kernel resolves an objref by name when it adds the

@@ -157,14 +157,18 @@ module ze-firewall-conf {
         leaf source-address {
             type ip-prefix;
             description "A prefix carries its length, so write 10.0.0.0/24 or 10.0.0.1/32. A bare address is
-                refused. The form @name matches against a named set of the same table, and that set MUST
+                refused. A network prefix must use its network address: 10.0.0.1/24 is refused with the
+                corrected statement source-address 10.0.0.0/24. Host routes use /32 or /128. The form @name
+                matches against a named set of the same table, and that set MUST
                 be of type ipv4 or ipv6. Ze reads the IPv4 source at network-header offset 12 and the
                 IPv6 source at offset 8.";
             ze:help "Source IP prefix or @set-name";
         }
         leaf destination-address {
             type ip-prefix;
-            description "The value takes the same two forms the source-address leaf takes. Ze reads the IPv4
+            description "The value takes the same two forms the source-address leaf takes. A network prefix
+                must use its network address; a value with host bits set is refused with the corrected
+                destination-address statement. Host routes use /32 or /128. Ze reads the IPv4
                 destination at network-header offset 16 and the IPv6 destination at offset 24. An inet
                 table therefore carries an nfproto guard in front of the match, so an IPv4 rule never
                 reads IPv6 bytes.";

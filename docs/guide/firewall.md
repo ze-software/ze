@@ -258,6 +258,18 @@ Rule 2.
 | `connection-state` | Conntrack states | `connection-state established,related;` |
 | `connection-mark` | Mark value/mask | `connection-mark 0x10/0xff;` |
 
+Literal source and destination prefixes must use the network address. For
+example, `source-address 10.10.10.1/30` is refused because it matches the network
+`10.10.10.0/30`. The error identifies the term and gives the corrected statement,
+`source-address 10.10.10.0/30`. The same rule applies to IPv6. To match one host,
+use `/32` for IPv4 or `/128` for IPv6. Named-set references such as
+`source-address @trusted-hosts` keep their existing behavior.
+
+Offline validation, startup and configuration verify apply this check before
+the firewall changes. A refused reload keeps the active configuration and rules.
+<!-- source: internal/component/firewall/config.go -- parseAddressMatch -->
+<!-- source: internal/component/firewall/engine.go -- VerifyConfig, parseConfigSections, runEngine -->
+
 ### Protocol names
 
 `protocol` takes one of ten names. The set is the same everywhere a protocol is

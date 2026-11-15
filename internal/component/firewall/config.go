@@ -20,6 +20,7 @@ import (
 	"github.com/ze-software/ze/internal/core/configorder"
 	"github.com/ze-software/ze/internal/core/configvalue"
 	"github.com/ze-software/ze/internal/core/dscp"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -757,6 +758,18 @@ func parseAddressMatch(v string, isSource bool) (Match, error) {
 	prefix, err := netip.ParsePrefix(v)
 	if err != nil {
 		return nil, fmt.Errorf("invalid prefix %q: %w", v, err)
+	}
+	network := prefix.Masked()
+	if prefix != network {
+		leaf := "destination-address"
+		if isSource {
+			leaf = "source-address"
+		}
+		return nil, opererr.New(
+			fmt.Sprintf("%s %q has host bits set", leaf, v),
+			fmt.Sprintf("This prefix matches network %s; write its network address explicitly.", network),
+			fmt.Sprintf("%s %s", leaf, network),
+		)
 	}
 	if isSource {
 		return MatchSourceAddress{Prefix: prefix}, nil
