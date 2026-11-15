@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | done |
 | Priority | P1 |
 | Release reason | Explicit watchdog withdraw false must announce rather than hold the route. |
 | Scope | plugin |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 3/3 - scoped proof complete; wiring and closure landing pending |
+| Phase | complete |
 | Handoff | - |
 | Updated | 2026-11-15 |
 
@@ -293,7 +293,7 @@ PPP work is excluded and its specs remain unchanged.
 - [x] Tests FAIL: initial false-value units, both daemon presence cuts and the actual FRR true-leak cut.
 - [x] Tests PASS: restored units, promoted daemon cases, named stress selections and final FRR proof.
 - [x] Main completed the named-build form of `./le test bgp plugin --pattern watchdog-withdraw-value` and the scoped selections recorded below.
-- [ ] Root lands wiring, then the independent native review pin and two closure commits.
+- [x] Wiring 6c7093ce15 landed and the independent native review pin/check are CLEAN. Main executes the prepared two-commit closure script.
 
 ## Deliverables Checklist
 
@@ -305,7 +305,7 @@ PPP work is excluded and its specs remain unchanged.
 | Foreign receiver | Named FRR scenario with credited completion, queue drain, fresh received sentinel and route controls | Baseline 1/1 PASS in 52 seconds; true-leak cut failed held-route absence after the sentinel. Final restored run PASS 1/1 in 51 seconds, with zero failures and no resources left behind. |
 | Checker outcomes | Single registered owner, complete real-recording replay and first-operation failure | Focused native race selection PASS. Selected count profiles execute all 14 route operations and the local failure return. The failure unit has an explicit named PASS receipt. |
 | Documentation | YANG help/default, healthcheck guide and route-ownership page agree | Committed with the producer in eb084a4b99; independent source review CLEAN. The 16:14 doc-check run validates all 454 command nodes and help shape. Its only four source-anchor failures name foreign IRR pages. Watchdog source and schema have no later edit. |
-| Closure | Independent clean review artifact and two closure commits | Not reached. |
+| Closure | Independent clean review artifact and two closure commits | Native artifact CLEAN at round 5 over 25 paths. Immutable-tree check CLEAN over all 17 code-bearing paths. Main owns the final A+B publication and claim release. |
 
 ## Security Review Checklist
 
@@ -431,13 +431,14 @@ the complete seven-file core commit and the daemon, interop, recording and
 documentation population. Its lenses are correctness and wiring, security
 and failure paths, and proof completeness and Go style. The final restored
 FRR run passed without a source change. This pass found zero BLOCKER and zero
-ISSUE. The native hash pin waits for the wiring commit and claim handoff. A
-record correction is a NOTE and does not open another product review round.
+ISSUE. Wiring and the claim handoff are complete. Main recorded the native
+hash pin and checked all 17 code-bearing paths against the committed tree.
+A record correction is a NOTE and does not open another product review round.
 
 | Field | Value |
 |-------|-------|
-| Artifact | Pending root's wiring commit and claim handoff; no final native pin is claimed. |
-| `./le spec review check` | Not run for the final population yet. |
+| Artifact | `tmp/review/watchdog-withdraw-read-by-presence-01a1df36-384e-7873-a487-85e51b996435.md`, CLEAN, 25 paths. |
+| Native review check | `./le commit check` with that artifact and immutable tree 61a5885e1497d49672a7f23231a102d017fd2598: clean true, verdict clean, 17 code files. The historical YANG is pinned to its committed blob and mode, preserving the foreign working-tree hunk. |
 | Rounds | 5. No sixth product pass is authorized or needed. |
 | Reviewer lenses used | Correctness and wiring; security and failure paths; proof completeness and Go style. |
 
@@ -467,8 +468,9 @@ record correction is a NOTE and does not open another product review round.
 | `./le --name session doc check all` | Actual retained output is job-firewall-closure-doc-check-f119ecea.log in session 2026-11-15-130223. Overall RED on four IRR source anchors, with no watchdog failure. No later watchdog code, schema or guide edit stales that result. |
 
 Main owns all execution. Completed selections are not rerun for freshness.
-No further test or contract check is owed. Wiring and native closure landing
-remain. No whole-tree verification is part of the implementation or closure.
+No further test or contract check is owed. Wiring and the independent native
+pin/check are complete. Main publishes the prepared A+B closure script and
+releases the claim. No whole-tree verification is part of this closure.
 
 ## Current Audit and Review State
 
@@ -477,13 +479,13 @@ remain. No whole-tree verification is part of the implementation or closure.
 | Source audit | Completed 2026-11-15; observations above. |
 | Owner default decision | Approved: match ExaBGP. |
 | Complete design approval | Approved by the owner on 2026-11-15: "go". |
-| Product, test and documentation edits | Core committed in eb084a4b99. Both producer cuts were restored to SHA-256 a36965235495ba086a437f4b59e64bcbcfdfadab8e539376aa5325cf94bc309c. Wiring source stays frozen for final execution and commit. |
+| Product, test and documentation edits | Core committed in eb084a4b99 and wiring in 6c7093ce15. Both producer cuts were restored to SHA-256 a36965235495ba086a437f4b59e64bcbcfdfadab8e539376aa5325cf94bc309c. All scoped proof is complete and source stays frozen. |
 | Unit execution | Main observed explicit-false RED before the fix in job-unit-pkg-46a814a3. Watchdog package PASS in 721fa93f; schema/static controls PASS in acbbcc88; callback/EOR controls PASS in cfef2b72; receipt/session controls PASS in 2bb8d21f. |
 | Real daemon execution | Baseline and restored 2/2 PASS. Presence cut made both RED: ordinary and omitted routes plus EOR arrived; explicit false was missing. Separate internal and forked stress runs each have 80 exit-0 invocations and 160 named PASS receipts, zero failures. Tests promoted unchanged, then final promoted selection PASS 2/2. The earlier combined capture is not counted as proof. |
 | Retained checker replay | PASS in the focused native race run job-unit-pkg-78e93431 over the 34-call real passing FRR recording. Selected count/profile PASS in job-watchdog-checker-coverage-a893ef81. The canonical fixture is byte-identical to the original, SHA-256 65f0564dbb1cdbd6fd5fc01219bf73e52a1135043ae959b120bb47598dca6096. |
 | Checker ownership repair | Native race focused population, predicates and full recording replay PASS in job-unit-pkg-78e93431. Independent focused repair review CLEAN. Count profiles execute all 14 operations and the local first-operation failure return. The new failure unit also passed independent review. No further Go edit is planned. |
 | FRR execution | Baseline 1/1 PASS in 52 seconds. True-leak cut RED at assertion 5: held 10.77.3.0/24 was present after credited readiness, quiesce and fresh 10.77.4.0/24 receipt; positive routes remained present. Final restored run PASS 1/1 in 51 seconds. Check, command and lab exit 0, interrupted false, VM stopped and left-behind none. |
-| Independent implementation review | R3 source CLEAN and focused ownership/lint/failure-unit reviews CLEAN. Final closure review found zero BLOCKER and zero ISSUE across correctness, proof, security and style. The native hash pin waits for wiring and claim handoff. |
+| Independent implementation review | R3 source CLEAN and focused ownership/lint/failure-unit reviews CLEAN. Final closure review found zero BLOCKER and zero ISSUE across correctness, proof, security and style. Native artifact CLEAN at round 5, with the full 17-code-file immutable-tree check CLEAN. |
 | Light closure checks | repo check ran and reported four findings outside this spec: RTRSession cross-package use and three IRR number-parse counts. The later weakened-check attempt stopped before its action because the named launcher could not read two shared Go-cache entries. The earlier actual BMP-closure weakened-check over 3dead228c222 through the worktree reports zero deleted and five weakened foreign RFC tests, with no watchdog finding. Watchdog has only new units and its committed comment correction since that comparison. |
 
 The interop registry registers only the bespoke checker. Its own local sequence
