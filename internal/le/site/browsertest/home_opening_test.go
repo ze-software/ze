@@ -5,8 +5,6 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
-	"os/exec"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -20,18 +18,10 @@ import (
 // observes its playback clock advance. It exercises both themes at desktop,
 // laptop and phone sizes without scrolling to find the opening actions.
 func TestHomeOpeningShowsOverviewAndRecording(t *testing.T) {
-	repository, err := filepath.Abs(filepath.Join("..", "..", "..", ".."))
-	if err != nil {
-		t.Fatal(err)
-	}
-	output := t.TempDir()
-	build := exec.CommandContext(t.Context(), filepath.Join(repository, "le"),
-		"--name", "session", "site", "build", "output", output)
-	build.Dir = repository
-	if report, err := build.CombinedOutput(); err != nil {
-		t.Fatalf("publish the current homepage: %v\n%s", err, report)
-	}
-	server := httptest.NewServer(http.FileServer(http.Dir(output)))
+	paths := renderedBrowserSite(t)
+	stageHomeRecordings(t, paths)
+	renderBrowserProducer(t, paths, "home")
+	server := httptest.NewServer(http.FileServer(http.Dir(paths.Output)))
 	t.Cleanup(server.Close)
 	options := append(chromedp.DefaultExecAllocatorOptions[:], chromedp.ExecPath(findChrome(t)))
 	alloc, cancelAlloc := chromedp.NewExecAllocator(t.Context(), options...)

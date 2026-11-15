@@ -215,10 +215,23 @@ func renderProducers(paths Paths) ([]Claim, error) {
 	return claims, nil
 }
 
+// RenderProducer runs one registered producer over explicit source and artifact
+// paths. The caller supplies its recorded prerequisites. This operation writes
+// only that producer's pages; Build and BuildProducers own complete-artifact
+// validation, claims, trimming and publication stamps.
+func RenderProducer(paths Paths, name string) ([]string, error) {
+	for _, producer := range allProducers() {
+		if producer.Name == name {
+			return producer.Render(paths)
+		}
+	}
+	return nil, unknownProducer(name)
+}
+
 // renderInto runs one pass of producers and records the route each one wrote.
 func renderInto(byRoute map[string][]string, producers []Producer, paths Paths) error {
 	for _, producer := range producers {
-		routes, err := producer.Render(paths)
+		routes, err := RenderProducer(paths, producer.Name)
 		if err != nil {
 			return fmt.Errorf("site producer %s: %w", producer.Name, err)
 		}

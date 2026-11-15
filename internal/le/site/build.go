@@ -580,10 +580,7 @@ func refreshNativeSurfaces(ctx context.Context, paths Paths) (err error) {
 	if err := publishSiteFacts(paths); err != nil {
 		return err
 	}
-	if err := renderCSS(paths.Source, paths.Output); err != nil {
-		return err
-	}
-	if err := renderJS(paths.Source, paths.Output); err != nil {
+	if err := RenderAssets(paths); err != nil {
 		return err
 	}
 	if _, err := refreshTalks(paths.Repository, filepath.Join(paths.Output, "talks")); err != nil {

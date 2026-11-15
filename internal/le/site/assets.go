@@ -16,6 +16,16 @@ var cssSpace = regexp.MustCompile(`\s+`)
 var cssPunctuationSpace = regexp.MustCompile(`\s*([{},;])\s*`)
 var cssColonSpace = regexp.MustCompile(`:\s*`)
 
+// RenderAssets publishes the current stylesheet and authored scripts using the
+// same transformations as a full build. Static vendor files remain the caller's
+// staging responsibility.
+func RenderAssets(paths Paths) error {
+	if err := renderCSS(paths.Source, paths.Output); err != nil {
+		return err
+	}
+	return renderJS(paths.Source, paths.Output)
+}
+
 // siteStylesheet answers the deployable stylesheet: every local import of
 // site.css expanded once, minified.
 //

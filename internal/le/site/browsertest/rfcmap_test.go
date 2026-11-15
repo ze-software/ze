@@ -20,7 +20,7 @@ import (
 	"github.com/chromedp/chromedp/kb"
 )
 
-// TestRFCMapBrowserInteraction drives the canonical generated page in Chrome.
+// TestRFCMapBrowserInteraction drives the current producer's page in Chrome.
 // It checks persistent scope, keyboard selection, declared layer/profile
 // membership, exact keyword filters, phone layout and useful load failure.
 // Expected identities come from the published input, not graph internals.
@@ -266,8 +266,8 @@ func rfcMapBrowserLabels(stems []string) []string {
 	labels := make([]string, 0, len(stems))
 	for _, stem := range stems {
 		label := stem
-		if strings.HasPrefix(stem, "rfc") {
-			label = "RFC " + strings.TrimPrefix(stem, "rfc")
+		if number, prefixed := strings.CutPrefix(stem, "rfc"); prefixed {
+			label = "RFC " + number
 		}
 		labels = append(labels, label)
 	}
@@ -284,17 +284,20 @@ type rfcMapBrowserResponses struct {
 	NoSummary         string
 }
 
-// rfcMapBrowserSite serves the canonical artifact without copying it or
-// rebuilding unrelated pages. The HTTP failure switch changes no source file.
+// rfcMapBrowserSite renders the current page over the complete recorded graph
+// and roadmap. It copies only those inputs, never a source tree or unrelated
+// pages. The HTTP failure switch changes no source file.
 func rfcMapBrowserSite(t *testing.T) (string, rfcMapBrowserModel, *rfcMapBrowserResponses) {
 	t.Helper()
-	output, err := filepath.Abs(filepath.Join("..", "..", "..", "..", "..", "gh-pages"))
-	if err != nil {
-		t.Fatal(err)
+	paths := renderedBrowserSite(t)
+	recorded := recordedBrowserSite(paths.Repository)
+	for _, input := range []string{"data/rfc-requirements.json", "data/release-roadmap.json"} {
+		copyBrowserInput(t, filepath.Join(recorded, filepath.FromSlash(input)), filepath.Join(paths.Output, filepath.FromSlash(input)))
 	}
-	body, err := os.ReadFile(filepath.Join(output, "data", "rfc-map.json"))
+	renderBrowserProducer(t, paths, "rfc-map")
+	body, err := os.ReadFile(filepath.Join(paths.Output, "data", "rfc-map.json"))
 	if err != nil {
-		t.Fatalf("read the canonical RFC map (render it with ./le --name session site build producer rfc-map): %v", err)
+		t.Fatalf("read the RFC map the current producer rendered: %v", err)
 	}
 	var model rfcMapBrowserModel
 	if err := json.Unmarshal(body, &model); err != nil {
@@ -310,7 +313,8 @@ func rfcMapBrowserSite(t *testing.T) (string, rfcMapBrowserModel, *rfcMapBrowser
 			break
 		}
 	}
-	files := http.FileServer(http.Dir(output))
+	files := http.FileServer(http.Dir(paths.Output))
+	figures := http.StripPrefix("/data/rfc/", http.FileServer(http.Dir(filepath.Join(recorded, "data", "rfc"))))
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		if r.URL.Path == "/data/rfc-map.json" {
@@ -330,6 +334,10 @@ func rfcMapBrowserSite(t *testing.T) (string, rfcMapBrowserModel, *rfcMapBrowser
 				}
 				return
 			}
+		}
+		if strings.HasPrefix(r.URL.Path, "/data/rfc/") {
+			figures.ServeHTTP(w, r)
+			return
 		}
 		files.ServeHTTP(w, r)
 	}))

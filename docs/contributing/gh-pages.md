@@ -375,7 +375,7 @@ pre-installed network functions, shared management model and deployment options,
 with links on the technical terms. The primary introduction describes a Linux
 daemon or an immutable OS and links the latter to the appliance guide. The
 duplicate secondary configuration paragraph is removed. Getting started follows
-the hero, then Why Ze with its management walkthrough, news and testing evidence. The evidence section states
+the hero, then Why Ze with its management walkthrough and testing evidence. The evidence section states
 RFC populations and counting history, scenario counts by primary protocol,
 the bounded list of 13 test images and the other test layers. These counts
 describe inventory, not current passing runs or individual assertions.
@@ -562,6 +562,24 @@ tier, the segment order and text, a republished file read with no page
 changed, and a missing file named on the page
 (`docs/architecture/site-facts.md`, "RFC completion data").
 <!-- source: internal/le/site/browsertest/rfcfigures_test.go -- TestTheBrowserDrawsRFCFiguresFromTheirFiles -->
+
+The homepage opening and RFC-map browser tests render their current producers
+into test-owned outputs through `RenderProducer`, the operation the normal
+producer passes use. `RenderAssets` publishes the same current CSS and scripts
+as the full build. These operations do not replace the full build's artifact
+validation, ownership record or publication stamps.
+<!-- source: internal/le/site/producer.go -- RenderProducer, renderInto -->
+<!-- source: internal/le/site/assets.go -- RenderAssets -->
+
+The fixtures retain the complete recorded RFC graph and roadmap rather than
+requiring an already-published RFC-map page. Per-RFC figures remain read-only
+recorded inputs. The homepage retains only its three required demonstrations,
+each verified against the recorded asset digest before staging. A missing or
+invalid prerequisite fails the test; no launcher identity or whole-site build
+is required, and the viewport, theme and playback assertions remain in place.
+<!-- source: internal/le/site/browsertest/rendered_site_test.go -- renderedBrowserSite, stageHomeRecordings -->
+<!-- source: internal/le/site/browsertest/rfcmap_test.go -- rfcMapBrowserSite -->
+<!-- source: internal/le/site/browsertest/home_opening_test.go -- TestHomeOpeningShowsOverviewAndRecording -->
 
 The corpus tests materialize all registered derived artifacts once per process.
 This setup requires the checkout's real Git history, including a resolvable
