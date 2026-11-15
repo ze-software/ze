@@ -146,8 +146,18 @@ mandatory-dependency behavior.
 Validation of this admission change is still in progress. The native RIB package
 run exposes existing fixture topologies with no route to their next hops, plus
 concurrency fixtures that need their controlled resolver seam revalidated.
-Those failures have not been cleared by changing expected selections. The
-kernel fixture drafts have not yet established kernel installation proof.
+Those failures have not been cleared by changing expected selections.
+
+The promoted internal and forked Linux tests verify kernel installation,
+reselection and removal after reachability loss, recovery without another
+UPDATE, and preservation of a directly reachable control. Native producer
+faults exercise the kernel-removal assertions after BGP and Loc-RIB clear.
+<!-- source: internal/test/fixture/rfc4271_next_hop_daemon_fixture.go -- rfc4271NextHopWinner, rfc4271NextHopAbsent, rfc4271NextHopSurvivor -->
+<!-- source: rfc/discrimination/rfc4271/RFC4271-9.1.2.1-2.json -- native kernel removal records -->
+
+Live proof of prospective self-dependency remains incomplete. The daemon tests
+do not exercise that condition; broader RIB fixture review also remains open.
+<!-- source: plan/release/fixes/spec-bgp-next-hop-reachability-admission.md -- Current Evidence, Remaining Work for Review -->
 
 Eligible routes are removed from consideration in criterion order. Before later
 tie-breaks, MED removes each route whose MED exceeds another surviving route's
