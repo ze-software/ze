@@ -1,4 +1,5 @@
-// Design: docs/architecture/plugin/rib-storage-design.md -- received publication before cold recovery
+// Design: docs/architecture/plugin/rib-storage-design.md -- received UPDATE publication frontier
+// Design: docs/architecture/behavior/peer-lifecycle.md -- terminal received observer ordering
 // Related: peer_run.go -- one publication lifetime per delivery worker
 // Related: reactor_notify.go -- acceptance precedes reactor-native forwarding
 package reactor
@@ -29,8 +30,10 @@ type receivePublication struct {
 	changed   chan struct{}
 }
 
-// receivePublicationCut is captured only by cold recovery, after the destination
-// writer sequence. Waiting on it never holds writeMu or any source dispatch lock.
+// receivePublicationCut captures the accepted UPDATE frontier for cold recovery
+// or a terminal received observer event. Cold recovery captures it after the
+// destination writer sequence. Waiting on it never holds writeMu or any source
+// dispatch lock.
 type receivePublicationCut struct {
 	publication *receivePublication
 	messageID   uint64
@@ -94,8 +97,8 @@ func (cut receivePublicationCut) state(peer *Peer) receiveCutState {
 	return receiveCutCurrent
 }
 
-// complete follows successful publication, not plugin application. The caller
-// must still drain the selecting process's applied-event barrier before lookup.
+// complete follows successful publication, not plugin application. A recovery
+// caller must still drain the selecting process's applied-event barrier before lookup.
 func (publication *receivePublication) complete(messageID uint64) {
 	publication.completed.Store(messageID)
 	publication.wake()
@@ -111,7 +114,7 @@ func (publication *receivePublication) fail() bool {
 	return first
 }
 
-// wake allocates nothing. With no cold waiter, completion is two atomic stores
+// wake allocates nothing. With no waiter, completion is two atomic stores
 // or loads; the peer's hot receive loop does not acquire a publication mutex.
 func (publication *receivePublication) wake() {
 	if !publication.waiting.Load() {
@@ -127,7 +130,7 @@ func (publication *receivePublication) wake() {
 }
 
 // wait broadcasts completion to every waiter, rather than consuming one shared
-// notification. Channels are allocated only by a cold caller that must block;
+// notification. Channels are allocated only by a caller that must block;
 // cancellation leaves at most one reusable channel until the next completion.
 func (cut receivePublicationCut) wait(ctx context.Context) error {
 	publication := cut.publication

@@ -706,6 +706,23 @@ Key properties:
 
 <!-- source: internal/component/bgp/reactor/peer_run.go — runOnce delivery channel setup, drain, and worker goroutine -->
 
+A received NOTIFICATION waits for the earlier accepted UPDATEs to reach the
+observer queues before its synchronous callback runs. This terminal-only wait
+uses the session's receive-publication frontier and the peer context. KEEPALIVE
+stays synchronous without this wait, so UPDATE delivery does not delay its
+HoldTimer restart. If publication fails or the wait is canceled, Ze skips only
+the NOTIFICATION observer event. The session still processes the NOTIFICATION,
+logs its decoded reason, stops its timers, closes the socket, and reaches Idle.
+<!-- source: internal/component/bgp/reactor/reactor_notify.go -- notifyOneMessage -->
+<!-- source: internal/component/bgp/reactor/session_read.go -- processMessage -->
+<!-- source: internal/component/bgp/reactor/session_handlers.go -- handleNotification -->
+
+`doctor-bgp-received-notification-skipped` records that historical observer gap
+in the bounded report bus and at WARN. It does not claim that UPDATE delivery
+failed: cancellation can race a completed frontier. Run `ze show errors` to
+inspect the cause retained with the event.
+<!-- source: internal/component/bgp/reactor/received_notification_diagnostic.go -- reportReceivedNotificationSkipped -->
+
 ### Captured-session admission stops
 
 `Session.PauseAdmission(ctx, reserve)` returns an owned receipt only after no

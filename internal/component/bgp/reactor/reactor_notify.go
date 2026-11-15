@@ -836,6 +836,21 @@ func (r *Reactor) notifyOneMessage(peerAddr netip.Addr, msgType msgtype.MessageT
 		return kept
 	}
 
+	// A terminal received event must not overtake earlier accepted UPDATEs,
+	// including policy continuations. KEEPALIVE remains outside this wait so
+	// publication cannot delay its HoldTimer restart. A failed wait skips only
+	// this observer event: the session must still handle the NOTIFICATION.
+	if hasPeer {
+		if peer.deliverChan != nil {
+			if msgType == msgtype.TypeNOTIFICATION {
+				if err := peer.receiveCut().wait(peer.ctx); err != nil {
+					reportReceivedNotificationSkipped(peer.ctx, peer.addrString, err)
+					return kept
+				}
+			}
+		}
+	}
+
 	// Synchronous fallback: no delivery channel or non-UPDATE message.
 	consumerCount := receiver.OnMessageReceived(&peerInfo, msg)
 	if publication != nil {
