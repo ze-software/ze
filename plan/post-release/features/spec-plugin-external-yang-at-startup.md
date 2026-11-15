@@ -24,13 +24,29 @@ state of the Yang on commit and on start, and would be able to do what he needs
 with it." And, of this spec: "if right now third-party developers cannot
 correctly develop this specific plugin, then that's the first step".
 
+Owner statement of the load order (Thomas, 2026-11-15): "He learn about it by
+reading the config. It is in the design." And: "We add a plugin block into the
+configuration to declare the plugin to load, which was optional for our plugin,
+and then the plugin could read its section. It was also possible to put the
+plugin via the command line." "That is done before the protocol is used because
+to start the protocol you must run the plugin." "You can also declare a plugin
+by adding it to the command line instead of the configuration. Which would
+allow for example a plugin which has no configuration to still run with Ze."
+Every plugin compiled into `ze` counts as declared with no entry.
+
+Owner ruling (Thomas, 2026-11-15): "the plugin can only be changed on
+restarting ze".
+
 An external plugin (any language, a separate process speaking the plugin
 protocol) declares a YANG module in its registration. Today Ze stores that text
 and never joins it to the config schema, so the operator cannot write config
 under the plugin's own root: the config is refused at load, before the plugin
-has started. This spec makes Ze learn the module before it parses the config,
-join it to the schema every reader uses, parse the config against the combined
-schema, and deliver the plugin's section to it at start and on commit.
+has started. This spec builds the load order the design page already draws
+(`docs/architecture/hub-architecture.md`, "Startup Flow Diagram"): Ze reads the
+plugin declarations of the config and the command line, starts those plugins,
+takes each one's module at its Stage 1 declaration, joins the modules to the
+schema every reader uses, parses the full config against the combined schema,
+and delivers the plugin's section to it at start and on commit.
 
 Owner ruling (Thomas, 2026-10-16): "if a user use an external plugin the
 security is on him". There is no trust sandbox. Two refusals still apply:
@@ -43,8 +59,9 @@ security is on him". There is no trust sandbox. Two refusals still apply:
 Trust design (signing, allow-lists, sandboxing) is out of scope.
 
 In scope: the schema an external plugin brings at daemon start, for config.
-Not in scope, homed in `Work Not Done`: adding, removing or changing an
-external plugin while the daemon runs, and a plugin's command argument model.
+By the ruling above, the set of plugins and their modules is fixed while the
+daemon runs: a reload that would change it is refused, naming the restart.
+A plugin's command argument model is decision D-3.
 
 ## Required Reading
 
@@ -55,9 +72,10 @@ external plugin while the daemon runs, and a plugin's command argument model.
   → Constraint: a declaration is a pure value; a plugin queried in declare mode starts nothing (`ai/rules/plugins.md`).
   → Constraint: a backend that cannot apply a config exactly refuses it. A reload that would need a schema the daemon does not hold is refused, never accepted and left unapplied.
 - [ ] `docs/architecture/api/process-protocol.md`, "Query Mode"
-  → Decision: query mode is the carrier. A plugin binary started with `ZE_PLUGIN_MODE=declare` writes its whole Stage 1 line, `schema` included, and exits. It is the same declaration the live process sends, obtained without running the plugin.
-- [ ] `docs/architecture/hub-architecture.md`, sections 2 and 3, "Startup Flow Diagram"
-  → Decision: the page draws a two-phase start (minimal parse of the plugin block, fork, Stage 1 schema, full parse, Stage 2). This spec keeps its first and last steps and replaces the middle: the schema is read by a declaration query, not from a live process parked across the parse. The page is corrected in the same work.
+  → Decision: query mode serves only the commands that run with no daemon (`ze config validate` and the other offline config commands). A plugin binary started with `ZE_PLUGIN_MODE=declare` writes its whole Stage 1 line, `schema` included, and exits: the same declaration, where no hub exists for the plugin to connect back to.
+- [ ] `docs/architecture/hub-architecture.md`, sections 2 and 3, "Extended 5-Stage Protocol" and "Startup Flow Diagram"
+  → Decision: this is the design, and the spec follows it. Step 1 "minimal parse - just plugin blocks"; step 2 fork the plugins; step 3 Stage 1 with the schema, then "BARRIER: All plugins declared"; step 4 "Hub parses full config against combined YANG", then Stage 2. A plugin is started once, and its live Stage 1 declaration is the source of its module.
+  → Constraint: the page's status header says the standalone orchestrator was deleted because its second parser disagreed with validate. The minimal parse here is the one `Parser` over a sub-schema.
 - [ ] `docs/plugin-development/schema.md`, `docs/plugin-development/protocol.md`
   → Constraint: the author-facing contract this spec makes true. Its example modules (`acme-monitor`, `my-plugin`) do not end in `-conf`, so they would add no config even once joined; the examples are corrected.
 - [ ] `docs/architecture/config/yang-config-design.md`
@@ -76,7 +94,8 @@ external plugin while the daemon runs, and a plugin's command argument model.
 
 **Key insights:** (minimal context to resume after compaction)
 - The config is parsed at the top of `runYANGConfig`, long before any external plugin is forked (startup phase 2). The schema must be known before that parse.
-- Three things need the schema with no live plugin: daemon boot, offline `ze config validate`, and every other offline command that parses a config. Only a declaration query serves all three.
+- The design starts the plugins named by the `plugin` block and the command line before the full parse, and takes their modules at Stage 1. Today the plugin server is built from the fully parsed config, so the boot order changes: the plugin server needs only the first pass to accept a Stage 1.
+- Offline `ze config validate`, and every other offline command that parses a config, has no hub. There the same declaration is read by query mode. Both roads feed one join function.
 - The schema is a process-global: about 40 production files call `config.YANGSchema()`. The external modules must enter the set those calls answer from, or the editor, web and gNMI never see them.
 - `loadYANGModules` already takes module text, but it drops a duplicate module silently, checks no namespace, and its result reaches only one parse.
 - `PluginOnlySchema` cannot parse a full config: the parser refuses every unknown top-level keyword.
@@ -122,8 +141,10 @@ Verified at the producer on 2026-10-16 and again on 2026-11-15:
 | Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
 |-----------|-------------------------------------------|--------------------|--------------------------------------------------------------------|
 | Stage 1 declaration with a `schema` object | `pkg/plugin/rpc/types.go` `DeclareRegistrationInput`, `SchemaDecl` | Carries the module name, namespace and text | Extends: unchanged on the wire; it becomes the one source of an external module |
-| Query mode | `internal/component/plugin/declarations.go` `runQuery`, `declarationFromStdout`; `process-protocol.md` "Query Mode" | Starts a configured plugin with `ZE_PLUGIN_MODE=declare`, reads its Stage 1 line, kills the group on a budget | Extends: the schema it already reads is kept and becomes the carrier before the parse |
-| Stored declared schema | `plugin/server/startup.go` `registrationFromRPC`, `reg.PluginSchema` | Stored, read by nothing | Extends: at live Stage 1 it is compared with the module the schema was built from |
+| Plugin declaration in the config and on the command line | `ze-plugin-conf.yang` `plugin { external <name> }`; `config/loader.go` `ExtractPluginsFromTree`, `MergeCliPlugins`; `plugin/resolve.go` `ResolvePlugin` | Names the plugins to load, as a block or as a command-line path or command; a compiled-in plugin needs no entry. Read only after the full parse | Extends: the same two sources are read in the first pass, before the full parse and before any protocol |
+| Five-stage startup and its barrier | `plugin/server/startup_driver.go` `runStartupHandshake`; `process-protocol.md` | Stage 1 declaration, a barrier, Stage 2 config, per tier, all after the full parse | Extends: the Stage 1 of a declared external plugin runs before the full parse; its Stage 2 and later stages stay in its tier |
+| Stored declared schema | `plugin/server/startup.go` `registrationFromRPC`, `reg.PluginSchema` | Stored, read by nothing | Extends: it becomes the source of the plugin's module at boot |
+| Query mode | `internal/component/plugin/declarations.go` `runQuery`, `declarationFromStdout`; `process-protocol.md` "Query Mode" | Starts a configured plugin with `ZE_PLUGIN_MODE=declare`, reads its Stage 1 line, kills the group on a budget | Extends: the schema it already reads is kept, for the commands that parse a config with no daemon |
 | Module text road | `config/yang_schema.go` `loadYANGModules`, `YANGSchemaWithPlugins`; `config/loader.go` `parseTreeWithYANG` | Adds module text to a private loader for one parse, dropping duplicates | Replaces: one strict join function takes its place; the silent duplicate drop is deleted |
 | Internal plugin YANG for the parse | `plugin/inprocess.go` `CollectPluginYANG` | Hands the parse the YANG of internal plugins named on the command line, which `init()` has already registered | Replaces, if A-3 holds: it adds nothing the registry lacks, so it is deleted with the road above |
 | Plugin-only schema | `config/yang_schema.go` `PluginOnlySchema` | A schema for the `plugin` block alone, no caller | Extends: it gets its caller, the first pass, with a parser mode that skips the roots it does not know |
@@ -131,9 +152,9 @@ Verified at the producer on 2026-10-16 and again on 2026-11-15:
 | Startup integrity check of validators | `config/yang_schema.go` `validatorFromResolved`, `yang.CheckAllValidatorsRegistered` | Logs a `ze:validate` with no registered function | Extends: over an external module the same check refuses the join |
 | Config delivery by declared root | `config/plugin_verify.go` `BuildPluginConfigSections`; `plugin/server/reload.go` `groupRootFor` | Cuts the subtree of each `wants-config` root, at start and on reload | Does not apply a change: it works once the tree holds the root |
 | Config transaction callbacks | `docs/architecture/config/transaction-protocol.md` | Verify, apply, rollback and committed, per plugin root | Does not apply a change: this is "informed on commit" |
-| Plugin failure reporting | `plugin/server` `PluginFailed`, `RecordStopped`; doctor `doctor-plugin-stopped` | Stops a plugin that fails a stage and raises a doctor finding | Extends: a changed declaration at live Stage 1 fails the plugin through it |
+| Plugin failure reporting | `plugin/server` `PluginFailed`, `RecordStopped`; doctor `doctor-plugin-stopped` | Stops a plugin that fails a stage and raises a doctor finding | Extends: a plugin that restarts with a module different from the published one fails through it |
 | Doctor config-claims check | `checkConfigClaims`, `pluginregistry.ConfigSectionRootsMap` | Reports a configured root no internal plugin claims | Extends: the roots running external plugins declared join its population |
-| `ze schema` exec of a plugin with `--yang` | `config/schema/cli/main.go` `getExternalPluginYANG` | Runs a plugin binary with a flag only Ze's own plugin CLI handles | Replaces: the schema CLI reads the same declaration query, so one carrier exists |
+| `ze schema` exec of a plugin with `--yang` | `config/schema/cli/main.go` `getExternalPluginYANG` | Runs a plugin binary with a flag only Ze's own plugin CLI handles | Replaces: the schema CLI is an offline command and reads the declaration through declare mode, like validate |
 | `ConfigProvider.RegisterSchema` | `pkg/ze` `ConfigProvider`, `config.Provider.RegisterSchema` | Stores text, no caller | Does not apply: it is on the public interface and stores nothing a reader uses; left as is, recorded in Known Limitations |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
@@ -142,15 +163,19 @@ Verified at the producer on 2026-10-16 and again on 2026-11-15:
 - `ze start <config>`, `ze config validate <config>`, and every other entry that parses a config file, where the config holds a `plugin { external <name> { run ... } }` entry whose plugin declares a module in `schema.yang-text`.
 
 ### Transformation Path
-1. **First pass.** The config text is parsed by the same `Parser` over `PluginOnlySchema`, in a mode that skips a top-level block it does not know (balanced braces, or the lines of that root in `set` form). The result is the list of external plugins of the `plugin` block: name and run string.
-2. **Declaration query.** Each external plugin is queried once in declare mode, in order, each within the existing query budget. The answer's `schema` is kept with the plugin's name. A query that fails is kept as an outcome (unstartable, timeout, no answer), not as an error.
-3. **Join.** One function takes the compiled-in resolved set and the declared modules and answers a combined resolved set, or an error that names the plugin and the module. It refuses the cases in the Refusals table.
-4. **Publish.** The joined modules become the external layer of the process's module set, once, before the full parse. The generation advances, so every reader that asks for the schema after this point sees them.
-5. **Full parse.** The config is parsed against the combined schema by the unchanged road. An unknown top-level keyword that remains is reported with each query that failed, so the operator sees why a plugin's root is not known.
-6. **Live Stage 1.** When the plugin process registers, its declared module is compared with the text the schema was built from. A difference fails that plugin, naming the restart that reloads its schema.
-7. **Stage 2 and commit.** Delivery and the config transaction are unchanged: the plugin receives the subtree of each root it wants, at start and on each commit.
+The daemon, at start:
 
-On a reload in a running daemon, steps 1 and 2 run again only for an external plugin the daemon has not queried. If the resulting set of modules differs from the published one, the reload is refused with the restart that loads it. The published set never changes while the daemon runs.
+1. **First pass, before any protocol.** The config text is parsed by the same `Parser` over a sub-schema (`PluginOnlySchema`, widened to what a plugin needs to be run: the `plugin` block, its hub listener, and the `environment` block), in a mode that skips a top-level block it does not know (balanced braces, or the lines of that root in `set` form). The command-line plugins are merged in. The result is the list of declared external plugins, each with its run string. A compiled-in plugin is not in the list: its module is already registered.
+2. **Run the declared plugins.** The plugin server accepts connections with what the first pass gave it, and each declared external plugin is forked. Running the plugin is what starts the protocol.
+3. **Stage 1 and its barrier.** Each plugin sends its declaration, which carries its module. The daemon waits until every declared external plugin has declared or failed. A plugin that fails or stalls is kept as an outcome with its reason, under the failure handling that exists.
+4. **Join.** One function takes the compiled-in resolved set and the declared modules and answers a combined resolved set, or an error that names the plugin and the module. It refuses the cases in the Refusals table.
+5. **Publish.** The joined modules become the external layer of the process's module set, once, before the full parse. The generation advances, so every reader that asks for the schema after this point sees them.
+6. **Full parse.** The config is parsed against the combined schema by the unchanged road. An unknown top-level keyword that remains is reported with each plugin that did not declare, so the operator sees why a root is not known.
+7. **Stage 2 and commit.** The plugins held at the barrier continue in their startup tier with the unchanged stages: each receives the subtree of each root it wants, at start and on each commit.
+
+A command that parses a config with no daemon (`ze config validate` and the other offline config commands) takes steps 1 and 4 to 6 as written. In place of steps 2 and 3 it runs each declared plugin in declare mode, where the plugin writes the same declaration and exits, within the existing query budget. No hub exists there for a plugin to connect back to.
+
+While the daemon runs, the published set never changes (owner ruling). A reload whose plugin declarations differ from the ones the daemon started with is refused, naming the restart. A plugin that is restarted and declares a module different from the published one is failed, naming the restart.
 
 ### Refusals at the join
 
@@ -167,7 +192,8 @@ On a reload in a running daemon, steps 1 and 2 run again only for an external pl
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Loader to plugin binary | A forked process in declare mode writes one Stage 1 line to stdout | No |
+| Plugin process to hub, at boot | The Stage 1 declaration over the plugin connection carries the module | No |
+| Offline command to plugin binary | A forked process in declare mode writes the same Stage 1 line to stdout | No |
 | Plugin declaration to module set | The join function, text in, checked `Resolved` out | No |
 | Module set to every schema reader | The registry generation, which the schema caches key on | No |
 | Hub to plugin | Stage 2 `configure` and the config transaction carry the section under the plugin's root | No |
@@ -188,11 +214,12 @@ The declaration, its `schema` object, the query-mode line and the Stage 2 sectio
 | `--yang` flag of a plugin binary | reader | `internal/component/config/schema/cli/main.go` `getExternalPluginYANG` | Search hit; a third-party binary has no such flag and would run its live start | Changed: the reader is replaced by the declaration query |
 
 ### Integration Points
-- `config.PluginOnlySchema` and `Parser`, for the first pass.
-- `plugin.runQuery` and `declarationFromStdout`, for the query.
+- `config.PluginOnlySchema` and `Parser`, for the first pass; `MergeCliPlugins` for the command line.
+- `cmd/ze/hub` `runYANGConfig` and `pluginserver.NewServer`, whose order changes: the plugin server accepts a Stage 1 before the full parse.
+- `runStartupHandshake` and `registrationFromRPC`, for the early Stage 1 and the stored module.
+- `plugin.runQuery` and `declarationFromStdout`, for the offline commands.
 - `yang.Loader.AddModuleFromText` and `Resolve`, inside the join.
 - `yang.RegisterModule`'s registry and `DefaultLoader`, for publishing.
-- `registrationFromRPC`, for the live comparison.
 - `checkConfigClaims`, for doctor.
 
 ### Architectural Verification
@@ -209,19 +236,23 @@ The declaration, its `schema` object, the query-mode line and the Stage 2 sectio
 
 | # | Question | Recommendation |
 |---|----------|----------------|
-| D-1 | Carrier: how does the module reach the parser before the config that uses it? | Declaration query before the parse (Key Design Decisions). It needs every plugin that brings a schema to answer declare mode, which the protocol already defines |
-| D-2 | Runtime: adding, removing or changing an external plugin while the daemon runs | Out of this spec. Here a reload that would change the module set is refused with the restart to use. The runtime case gets its own spec (`Work Not Done`) |
-| D-3 | Command argument model of an external plugin (journal row 2026-11-02, owned here until now) | Move to the runtime spec: it needs a second module kind in one declaration, a wire change this spec avoids |
-| D-4 | Priority and bucket: the spec is post-release P3 | The owner's to set. The design no longer waits on any other spec |
-| Q10 | Startup budget: one forked query per external plugin, plus one resolve of the module set | Measure at implementation on a known host; the query budget stays `ze.plugin.query.timeout` |
+Answered on 2026-11-15, recorded in the Task section: the load order (the design page's, plugin declarations read before any protocol, from the config or the command line), and that a plugin changes only when `ze` restarts.
+
+| # | Question | Recommendation |
+|---|----------|----------------|
+| D-3 | Command argument model of an external plugin (journal row 2026-11-02, owned here): help, completion and checking of the arguments of a plugin's own commands, from a module the plugin brings | Keep it in this spec as its last phase: a plugin that wraps a program needs its config and its commands. It makes one declaration carry a config module and a command module, a wire change |
+| D-4 | Priority and bucket: the spec is post-release P3 | The owner's to set. The design waits on no other spec |
+| Q10 | Startup budget: the declared plugins reach Stage 1 before the full parse, plus one resolve of the module set | Measure at implementation on a known host |
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | A plugin that brings a schema can answer declare mode | `process-protocol.md` "Query Mode"; `sdk.RunOrDeclare` does it for Go plugins | A plugin that cannot is treated as a failed query: its root stays unknown and the error says why | `external-yang-declare-only.ci`, a shell script that answers only declare mode | unvalidated |
-| A-2 | A declaration is the same in declare mode and live | `ai/rules/plugins.md`, declare-mode purity | The live comparison refuses the plugin; AC-7 covers it | `external-yang-declaration-changed.ci` | unvalidated |
+| A-1 | The plugin server can accept a Stage 1 with only what the first pass yields (the `plugin` block, its hub listener, the `environment` block, the CA from the store) | `runYANGConfig` builds `ServerConfig` from the full tree today, but the fields a Stage 1 reads are the hub listener and the plugin list | The first pass widens to the roots the server needs, or those fields are set after the full parse and before Stage 2 | Audit phase: every `ServerConfig` field read before Stage 2, by `onRegistration` and the acceptor | unvalidated |
+| A-2 | A plugin held at the Stage 1 barrier while the daemon parses the config is not failed by the stage timer | The timer measures a plugin that stalls; here the hub is the one working | The timer is not armed for the hub's own parse | Audit phase: read `startupStageStall` (`plugin/server/startup_budget.go`); `external-yang-own-root.ci` with a large config | unvalidated |
+| A-7 | The checks a Stage 1 runs against other plugins (`Dependencies` through `isPluginLoaded`, registry conflicts) can run when the plugin's tier starts, after the full parse | Those plugins are not loaded at the early Stage 1 | The early Stage 1 stores the declaration, and the checks move to the tier | Audit phase: every check in `engineStartupSink.onRegistration` | unvalidated |
+| A-8 | A plugin that brings a schema can answer declare mode, for the offline commands | `process-protocol.md` "Query Mode"; `sdk.RunOrDeclare` does it for Go plugins | Offline validate cannot know the plugin's root and says so; boot is not affected | `external-yang-declare-only.ci`, a shell script that answers only declare mode | unvalidated |
 | A-3 | Every internal plugin's `registry.YANG` is also registered by `init()`, so `CollectPluginYANG` adds nothing | The build-time spec's A-6; `loadYANGModules` comment on duplicates | `CollectPluginYANG` stays and feeds the join as internal modules | Audit: compare `registry.YANGSchemas()` names with `yang.Modules()` | unvalidated |
 | A-4 | A plugin that owns a shared container tolerates a child an external module augments into it | Several compiled-in modules already share `service` and `environment` | The augment AC narrows to roots no internal plugin parses strictly, and the refusal table gains the case | `external-yang-augment-shared-root.ci` with `service` | unvalidated |
 | A-5 | No schema reader caches a schema before the external layer is published | Boot parses first; the three once-caches belong to services started later | That reader keeps a stale schema: it is re-keyed on the generation | Audit: every `YANGSchema()` caller reached before `LoadConfig` in `run` | unvalidated |
@@ -230,11 +261,13 @@ The declaration, its `schema` object, the query-mode line and the Stage 2 sectio
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | The plugin's run string is executed twice at boot, and once by offline validate on a machine that is not the router | A plugin that does work before it reads its mode runs that work under the query | Declare-mode purity is the contract; the docs state it; the query drops every `ze.plugin.*` key and kills the group on the budget |
-| R-2 | Offline validate on a machine that cannot run the plugin refuses a config the router accepts | `unknown top-level keyword` with a failed query | The error names the plugin, the query outcome and the fix; it never passes a root it could not check |
-| R-3 | A slow or hanging plugin delays every load by the query budget | Boot time grows by the budget per plugin | The existing budget and group kill; Q10 measures; the daemon reuses the published set on reload and does not query again |
+| R-1 | The boot order of `runYANGConfig` changes: the plugin server exists before the full parse | Existing `test/plugin` and `test/reload` tests change outcome | Only a declared external plugin takes the early Stage 1; with none declared the order is today's (AC-9). The audit phase lists what moves |
+| R-2 | Offline validate on a machine that cannot run the plugin refuses a config the router accepts | `unknown top-level keyword` with a failed declare-mode run | The error names the plugin, the outcome and the fix; it never passes a root it could not check |
+| R-3 | A slow or hanging plugin delays boot until its Stage 1 fails | Boot time grows by the stage timeout | The existing stage timeout and failure policy; Q10 measures |
+| R-9 | Offline validate runs the plugin's command in declare mode on the machine that validates | A plugin that does work before it reads its mode runs that work | Declare-mode purity is the contract and the docs state it; the run drops every `ze.plugin.*` key and kills the group on the budget |
+| R-10 | Boot takes the module from the live Stage 1 and validate from declare mode, so a plugin that answers differently in the two makes validate and boot disagree | `config-validate-agrees-with-boot` style failure for an external root | The two answers are one declaration by contract (`sdk.RunOrDeclare` writes the same value); `external-yang-validate-agrees-with-boot.ci` proves it for the fixture |
 | R-4 | Publishing after a reader already took the schema leaves that reader stale | A value accepted by one surface and refused by another | A-5 audit; the three once-caches key on the generation |
-| R-5 | An inline external plugin (`bgp peer ... attach run`) is not in the `plugin` block, so the first pass does not see it | Its module is never queried | Its live declaration then differs from the published set and the plugin is refused, with the message to declare it under `plugin external` |
+| R-5 | An inline external plugin (`bgp peer ... attach run`) is not in the `plugin` block, so the first pass does not see it | It declares a module after the set is published | That plugin is failed, with the message to declare it under `plugin external` or on the command line |
 | R-6 | Deleting the silent duplicate drop refuses a start that worked | A compiled-in plugin named on the command line fails with a duplicate module | A-3 decides it at audit, before the deletion |
 | R-7 | The build-time compile spec lands later and rebuilds the join | Two producers of the schema | One join function with fixture tests is the seam; that spec replaces its body only, and its Q1 is updated to say so |
 | R-8 | Two external plugins declare modules that clash with each other | The second join fails | The refusal names both plugins; order is the config order |
@@ -251,12 +284,13 @@ The declaration, its `schema` object, the query-mode line and the Stage 2 sectio
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `ze start` with an external plugin that declares a module, and a block under its root | → | first pass, query, join, publish, parse, Stage 2 delivery | `test/plugin/external-yang-own-root.ci` |
-| `ze config validate` on the same config, no daemon | → | the same four steps in the validate entry | `test/plugin/external-yang-validate-agrees-with-boot.ci` |
+| `ze start` with an external plugin declared in the `plugin` block, and a block under its root | → | first pass, early Stage 1, join, publish, parse, Stage 2 delivery | `test/plugin/external-yang-own-root.ci` |
+| `ze start` with the same plugin declared on the command line, no `plugin` block | → | the command-line half of the first pass | `test/plugin/external-yang-command-line.ci` |
+| `ze config validate` on the same config, no daemon | → | first pass, declare-mode run, join, publish, parse | `test/plugin/external-yang-validate-agrees-with-boot.ci` |
 | `ze start`, module that does not compile | → | join refusal | `test/plugin/external-yang-invalid-refused.ci` |
 | `ze start`, module named like a compiled-in module | → | join refusal | `test/plugin/external-yang-clash-refused.ci` |
-| `ze start`, live declaration differs from the queried one | → | Stage 1 comparison | `test/plugin/external-yang-declaration-changed.ci` |
-| SIGHUP with a config that adds an external plugin bringing a module | → | reload refusal | `test/reload/external-yang-reload-refused.ci` |
+| A running plugin is restarted and declares a different module | → | comparison with the published set | `test/plugin/external-yang-declaration-changed.ci` |
+| SIGHUP with a config whose plugin declarations differ | → | reload refusal | `test/reload/external-yang-reload-refused.ci` |
 | Editor session in the daemon, completion under the external root | → | published module set | `test/editor/external-yang-completion.et` |
 
 ## Acceptance Criteria
@@ -269,22 +303,23 @@ The declaration, its `schema` object, the query-mode line and the Stage 2 sectio
 | AC-4 | The declared module does not compile | Startup refuses, naming the plugin, the module and the loader's error with its location | None: a module with no schema cannot be parsed against |
 | AC-5 | The module's name or namespace equals one already in the set, or it redefines an existing top-level node | Startup refuses, naming the plugin and both holders; for a redefined node the message gives the `augment` form | A module that reaches the same container by `augment` is accepted: that is the sanctioned way to share a container |
 | AC-6 | An external module augments compiled-in container `service` with `chrony`, and the plugin wants root `service/chrony` | The config block `service { chrony { ... } }` is accepted and the plugin receives that subtree; the internal owner of `service` keeps working | The internal owner still receives its own children of `service`: delivery is by declared root |
-| AC-7 | The live process declares a module whose text differs from the queried one | That plugin is refused at Stage 1 with a message naming the restart; doctor reports it; the config under its root stays loaded | The daemon and every other plugin keep running: one plugin's declaration does not stop the others, as its failure policy already rules |
-| AC-8 | A config holds a block under an external plugin's root and that plugin's query fails | The load refuses with the unknown keyword, the plugin's name, the query outcome and the command that fixes it | A config with no block under that root loads: a failed query alone refuses nothing, and doctor reports the plugin |
-| AC-9 | A config with no external plugin | No query runs and the module set is resolved exactly as today, once | None: the common case pays nothing |
+| AC-7 | A running external plugin is restarted (operator restart or respawn) and declares a module whose text differs from the published one | That plugin is failed at Stage 1 with a message naming the restart of `ze`; doctor reports it; the config under its root stays loaded | A restart that declares the same module continues as today. The daemon and every other plugin keep running, as the plugin's failure policy already rules |
+| AC-8 | A config holds a block under an external plugin's root and that plugin does not reach its Stage 1 (it cannot be run, it stalls, or it exits) | The load refuses with the unknown keyword, the plugin's name, why it did not declare and the command that fixes it | A config with no block under that root loads: a plugin that did not declare refuses nothing by itself, and doctor reports it |
+| AC-9 | Neither the config nor the command line declares an external plugin | The boot order and the module set are today's: no early Stage 1, one resolve | None: the common case pays nothing |
+| AC-16 | The plugin of AC-1 is declared on the command line and the config holds no `plugin` block | Same outcome as AC-1 | A command-line plugin with no module and no config section still runs, as today |
 | AC-10 | A value out of the external module's declared range, a missing mandatory leaf, or a pattern mismatch | Refused at load with the same message a compiled-in leaf gives | Values the module allows are accepted as strings in the delivered section, as for every plugin |
 | AC-11 | An external module names a `ze:validate` function, or another daemon-side registration, that the daemon does not hold | Startup refuses, naming the plugin, the extension and the name | Schema-only extensions (`ze:help`, `ze:sensitive`, `ze:hidden` and the rest) work: they need no registration |
-| AC-12 | A reload whose config adds, removes or changes an external plugin so that the module set would differ | The reload is refused with the restart that loads it; the running config is unchanged | A reload that leaves the module set equal proceeds as today |
+| AC-12 | A reload whose config adds, removes or changes a plugin declaration | The reload is refused, naming the plugin and the restart of `ze` that loads it; the running config is unchanged | A reload that leaves the plugin declarations equal proceeds as today, including changes under a plugin's own root |
 | AC-13 | In the running daemon: the editor, `show config`, `show yang`, save and the JSON an API returns | Each shows the external root: completion offers its leaves, a saved config holds the block, and it parses again | Offline commands that load no config (`ze schema` with no config) show compiled-in modules only: they have no plugin to ask |
-| AC-14 | Doctor on a daemon running AC-1 | No `unclaimed root` finding for `acme-monitor`; a failed query, a refused module and a changed declaration each have a doctor code with its cause and fix | A root no running plugin wants is still reported: the check keeps its meaning |
-| AC-15 | A plugin that is a shell script answering only declare mode | Offline validate accepts a config under its root | Starting the daemon with it fails that plugin at its handshake, as any plugin that does not speak the protocol |
+| AC-14 | Doctor on a daemon running AC-1 | No `unclaimed root` finding for `acme-monitor`; a plugin that did not declare, a refused module and a changed declaration each have a doctor code with its cause and fix | A root no running plugin wants is still reported: the check keeps its meaning |
+| AC-15 | A plugin that is a shell script answering only declare mode | Offline validate accepts a config under its root | Starting the daemon with it gives AC-8: it never reaches its Stage 1 |
 
 ## End-to-End User Stories
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|---------------------|-----------------------|
-| 1 | Writes a plugin in any language that declares a module, adds it and its config block, starts Ze | first pass → query → join → publish → parse → Stage 2 | `external-yang-own-root.ci` |
-| 2 | Checks the config on the build machine before deploying | validate entry → the same road | `external-yang-validate-agrees-with-boot.ci` |
+| 1 | Writes a plugin in any language that declares a module, declares it in the `plugin` block or on the command line, adds its config block, starts Ze | first pass → run the plugin → Stage 1 → join → publish → parse → Stage 2 | `external-yang-own-root.ci`, `external-yang-command-line.ci` |
+| 2 | Checks the config on the build machine before deploying | validate entry → first pass → declare-mode run → join → parse | `external-yang-validate-agrees-with-boot.ci` |
 | 3 | Edits the plugin's config in the SSH editor and commits | editor schema → commit → verify → apply | `external-yang-completion.et`, `external-yang-commit.ci` |
 | 4 | Ships a broken module | join refusal with plugin, module, location | `external-yang-invalid-refused.ci` |
 
@@ -305,8 +340,11 @@ The declaration, its `schema` object, the query-mode line and the Stage 2 sectio
 | `TestJoinRefusesUnregisteredValidator` | `internal/component/config/yang/join_test.go` | AC-11 | |
 | `TestJoinRefusesModuleThatContributesNothing` | `internal/component/config/yang/join_test.go` | The `-conf` rule is stated, not silent | |
 | `TestJoinRefusesDeclaredFieldMismatch` | `internal/component/config/yang/join_test.go` | `module` or `namespace` field against the text | |
-| `TestQueryKeepsSchema` | `internal/component/plugin/declarations_test.go` | The query answer carries `schema` | |
-| `TestNoExternalPluginResolvesOnce` | `internal/component/config/loader_test.go` | AC-9 | |
+| `TestFirstPassMergesCommandLinePlugins` | `internal/component/config/loader_test.go` | A command-line plugin joins the declared list with no `plugin` block | |
+| `TestEarlyStage1HoldsAtBarrier` | `internal/component/plugin/server/startup_test.go` | A declared external plugin declares, then waits for Stage 2 without the stage timer failing it | |
+| `TestEarlyStage1KeepsFailureOutcome` | `internal/component/plugin/server/startup_test.go` | A plugin that does not declare is kept with its reason | |
+| `TestQueryKeepsSchema` | `internal/component/plugin/declarations_test.go` | The declare-mode answer carries `schema` | |
+| `TestNoExternalPluginKeepsBootOrder` | `internal/component/config/loader_test.go` | AC-9 | |
 | `TestPublishedSetReachesSchemaCaches` | `internal/component/config/yang_schema_test.go` | gNMI schema, argument definitions and the completer follow the generation | |
 | `TestStage1RefusesChangedDeclaration` | `internal/component/plugin/server/startup_test.go` | AC-7 | |
 | `TestDoctorClaimsCountExternalRoots` | the doctor check's package test | AC-14 | |
@@ -320,6 +358,7 @@ The declaration, its `schema` object, the query-mode line and the Stage 2 sectio
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `external-yang-own-root` | `test/plugin/external-yang-own-root.ci` | AC-1 | |
+| `external-yang-command-line` | `test/plugin/external-yang-command-line.ci` | AC-16 | |
 | `external-yang-validate-agrees-with-boot` | `test/plugin/external-yang-validate-agrees-with-boot.ci` | AC-2, AC-10 | |
 | `external-yang-commit` | `test/plugin/external-yang-commit.ci` | AC-3 | |
 | `external-yang-invalid-refused` | `test/plugin/external-yang-invalid-refused.ci` | AC-4 | |
@@ -338,17 +377,18 @@ N-A: no protocol peer. The outside party is a plugin author; AC-15 proves the co
 ## Files to Modify
 - `internal/component/config/parser.go` - a root-skip mode for the first pass
 - `internal/component/config/yang_schema.go` - `PluginOnlySchema` gets its caller; `loadYANGModules` and `YANGSchemaWithPlugins` give way to the join; strict validator check over external modules
-- `internal/component/config/loader.go` - `loadConfig` runs the first pass, the query and the publish before `parseTreeWithYANG`
+- `internal/component/config/loader.go` - the first pass (the `plugin` block and the command line), and the full parse taking the published set
+- `cmd/ze/hub/main.go` - `runYANGConfig`: the plugin server accepts the declared external plugins' Stage 1 before the full parse
+- `internal/component/plugin/server/startup.go`, `startup_driver.go` - the early Stage 1 of a declared external plugin, held at the barrier; `registrationFromRPC` feeds the join; a restart is compared with the published set
 - `internal/component/config/yang/register.go`, `loader.go` - the external layer of the module set and its generation
-- `internal/component/config/cli/cmd_validate.go`, and each other entry the audit finds that parses a config - take the schema by the same road
-- `internal/component/plugin/declarations.go` - the query answer keeps `Schema`
+- `internal/component/config/cli/cmd_validate.go`, and each other offline entry the audit finds that parses a config - first pass, declare-mode run, join
+- `internal/component/plugin/declarations.go` - the declare-mode answer keeps `Schema`
 - `internal/component/plugin/inprocess.go` - `CollectPluginYANG` removed if A-3 holds
-- `internal/component/plugin/server/startup.go` - `registrationFromRPC` compares the live module with the published one
 - `internal/component/plugin/server/reload.go` - the reload refusal of AC-12
-- `internal/component/config/schema/cli/main.go` - `getExternalPluginYANG` replaced by the declaration query
+- `internal/component/config/schema/cli/main.go` - `getExternalPluginYANG` replaced by the declare-mode run the other offline commands use
 - `internal/component/gnmi/server.go`, `internal/component/config/yang/command_argdefs.go`, the completer's value schema - keyed on the generation
 - the doctor config-claims check and `internal/core/diagnostic/codes.go` - external roots and the three new codes
-- `docs/plugin-development/schema.md`, `protocol.md`, `README.md`, `docs/architecture/api/process-protocol.md`, `docs/architecture/hub-architecture.md`, `docs/architecture/config/yang-config-design.md`, `docs/guide/plugins.md`, `ai/doors/plugin-infra.md`, `ai/doors/config-yang.md`, `features/plugins.md`
+- `docs/plugin-development/schema.md`, `protocol.md`, `README.md`, `docs/architecture/api/process-protocol.md`, `docs/architecture/hub-architecture.md`, `docs/architecture/plugin/plugin-system.md`, `docs/architecture/config/yang-config-design.md`, `docs/guide/plugins.md`, `ai/doors/plugin-infra.md`, `ai/doors/config-yang.md`, `ai/doors/hub-engine.md`, `ai/digests/hub-engine.md`, `features/plugins.md`
 
 ## Files to Create
 - `internal/component/config/yang/join.go` and `join_test.go` - the join function and its fixtures
@@ -366,8 +406,8 @@ N-A: no protocol peer. The outside party is a plugin author; AC-15 proves the co
 | Functional test for new RPC/API | Yes | `test/plugin/external-yang-*.ci` |
 | Pipe completeness | N-A | No new output |
 | Env var registration | No | The query budget `ze.plugin.query.timeout` exists |
-| Doctor check for runtime dependencies | Yes | The plugin's run string must be runnable in declare mode: `doctor-plugin-schema-query-failed`, raised at load and at the runtime phase |
-| Doctor code per problem class | Yes | `doctor-plugin-schema-query-failed` (query outcome), `doctor-plugin-schema-refused` (join refusal, at load), `doctor-plugin-schema-changed` (live declaration differs, runtime); the claims check counts external roots |
+| Doctor check for runtime dependencies | Yes | A declared external plugin must be runnable and reach its Stage 1: `doctor-plugin-schema-undeclared`, raised at load and at the runtime phase |
+| Doctor code per problem class | Yes | `doctor-plugin-schema-undeclared` (a declared plugin did not reach its Stage 1, with why), `doctor-plugin-schema-refused` (join refusal, at load), `doctor-plugin-schema-changed` (a restarted plugin declares a different module, runtime); the claims check counts external roots |
 | Prometheus counters/metrics | No | Startup-only path |
 | BGP family surface (new SAFI / capability / attribute) | N-A | Not a family change |
 
@@ -381,11 +421,11 @@ N-A: no protocol peer. The outside party is a plugin author; AC-15 proves the co
 | 5 | Plugin added/changed? | Yes | `docs/guide/plugins.md`: an external plugin with its own config, the restart rule |
 | 6 | Has a user guide page? | Yes | `docs/plugin-development/schema.md`: "What works today", the `-conf` rule, `augment` for a shared container, the refused extensions, corrected examples |
 | 7 | Wire format changed? | No | - |
-| 8 | Plugin SDK/protocol changed? | Yes | `docs/plugin-development/protocol.md`, `docs/architecture/api/process-protocol.md` "Query Mode": a plugin that brings a schema must answer declare mode; `ai/rules/plugins.md` if its text names query mode as optional |
+| 8 | Plugin SDK/protocol changed? | Yes | `docs/plugin-development/protocol.md`, `docs/architecture/api/process-protocol.md`: a declared external plugin's Stage 1 runs before the config is parsed, and it waits at the barrier; "Query Mode": a plugin that brings a schema answers declare mode so offline validate knows its root |
 | 9 | RFC behavior implemented, changed, or newly proven? | No | - |
 | 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md`: the fixture plugin that declares a module |
 | 11 | Affects daemon comparison? | No | - |
-| 12 | Internal architecture changed? | Yes | `docs/architecture/hub-architecture.md` sections 2 and 3; `docs/architecture/config/yang-config-design.md` "Module Loading"; `ai/doors/plugin-infra.md`, `ai/doors/config-yang.md` |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/hub-architecture.md` sections 2 and 3 and the "Startup Flow Diagram", now the live order; `docs/architecture/plugin/plugin-system.md` "Startup phases and callbacks": the early Stage 1, and the owner ruling that a plugin changes only when `ze` restarts; `docs/architecture/config/yang-config-design.md` "Module Loading"; `ai/doors/plugin-infra.md`, `ai/doors/config-yang.md`, `ai/doors/hub-engine.md`, `ai/digests/hub-engine.md` |
 | 13 | Route metadata keys added/changed? | No | - |
 | 14 | Prometheus counters added/changed? | No | - |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | - |
@@ -400,24 +440,31 @@ Each phase edits the pages its row names as it codes. Tests are written first an
    - Tests: every `external-yang-*` test above
    - Files: `test/plugin/`, `test/reload/`, `test/editor/`, the fixture plugin
    - Verify: `external-yang-own-root` red with `unknown top-level keyword`
-2. **Phase: Audit** -- validate A-3, A-5 and the census of entries that parse a config
-   - Output: the assumptions table updated, the list of entries written into Files to Modify
+2. **Phase: Audit** -- validate A-1, A-2, A-3, A-5, A-7 and the census of offline entries that parse a config
+   - Output: the assumptions table updated; the list of what `runYANGConfig` builds before and after the full parse; the list of offline entries written into Files to Modify
 3. **Phase: Join** -- the join function and every refusal
    - Tests: the `TestJoin*` rows
    - Files: `config/yang/join.go`, `yang_schema.go`
    - Verify: the old text road and its duplicate drop are gone
-4. **Phase: First pass and query** -- the parser mode, the kept schema, the publish
-   - Tests: `TestFirstPass*`, `TestQueryKeepsSchema`, `TestNoExternalPluginResolvesOnce`, `TestPublishedSetReachesSchemaCaches`
-   - Files: `parser.go`, `loader.go`, `declarations.go`, `yang/register.go`, the three caches
-   - Verify: `external-yang-own-root`, `-validate-agrees-with-boot`, `-invalid-refused`, `-clash-refused`, `-augment-shared-root`, `-query-failed`, `-declare-only` green
-5. **Phase: Live comparison and reload** -- Stage 1 comparison, the reload refusal
+4. **Phase: First pass and publish** -- the parser mode, the command-line merge, the external layer of the module set
+   - Tests: `TestFirstPass*`, `TestPublishedSetReachesSchemaCaches`
+   - Files: `parser.go`, `loader.go`, `yang/register.go`, the three caches
+5. **Phase: Early Stage 1 at boot** -- the plugin server before the full parse, the barrier, the join fed by live declarations
+   - Tests: `TestEarlyStage1*`, `TestNoExternalPluginKeepsBootOrder`
+   - Files: `cmd/ze/hub/main.go`, `plugin/server/startup.go`, `startup_driver.go`
+   - Verify: `external-yang-own-root`, `-command-line`, `-invalid-refused`, `-clash-refused`, `-augment-shared-root`, `-query-failed`, `-commit` green
+6. **Phase: Offline commands** -- validate and the other offline entries take the first pass, the declare-mode run and the join
+   - Tests: `TestQueryKeepsSchema`
+   - Files: `declarations.go`, `config/cli/cmd_validate.go`, the entries the audit lists
+   - Verify: `external-yang-validate-agrees-with-boot`, `-declare-only` green
+7. **Phase: Restart rule** -- a restarted plugin compared with the published set, the reload refusal
    - Tests: `TestStage1RefusesChangedDeclaration`
    - Files: `plugin/server/startup.go`, `reload.go`
-   - Verify: `external-yang-declaration-changed`, `-reload-refused`, `-commit` green
-6. **Phase: Surfaces and doctor** -- the editor, the schema CLI, the claims check, the three codes
+   - Verify: `external-yang-declaration-changed`, `-reload-refused` green
+8. **Phase: Surfaces and doctor** -- the editor, the schema CLI, the claims check, the three codes
    - Tests: `TestDoctorClaimsCountExternalRoots`
    - Verify: `external-yang-completion`, `-doctor` green
-7. **Phase: Measure** -- Q10 on a known host, the figure written into `docs/plugin-development/schema.md`
+9. **Phase: Measure** -- Q10 on a known host, the figure written into `docs/plugin-development/schema.md`
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -429,7 +476,7 @@ Each phase edits the pages its row names as it codes. Tests are written first an
 | Data flow | The query stays in `plugin`, the join in `config/yang`; no second parser exists |
 | Operator errors and doctor codes | Every refusal names the plugin, the module, the cause and the fix on its last line |
 | Rule: `no-layering` | The old text road, its duplicate drop and `--yang` are deleted, not kept beside the join |
-| Rule: `principles` | A failed query never reads as "no module": the outcome is kept and reported |
+| Rule: `principles` | A plugin that did not declare never reads as "no module": the outcome is kept and reported |
 
 ### Deliverables Checklist
 | Deliverable | Verification method |
@@ -462,26 +509,26 @@ Each phase edits the pages its row names as it codes. Tests are written first an
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
-| `unwired-feature.md` | 2026-11-02 | A plugin's Stage 1 `Schema.YANGText` is stored in `reg.PluginSchema` and never read, so its command arguments are judged only against compiled-in YANG (moves to the runtime spec if D-3 is approved) |
+| `unwired-feature.md` | 2026-11-02 | A plugin's Stage 1 `Schema.YANGText` is stored in `reg.PluginSchema` and never read, so its command arguments are judged only against compiled-in YANG (D-3 decides whether its fix is this spec's last phase) |
 | `unwired-feature.md` | 2026-08-13 | external plugin YANG never reaches the daemon schema (moved 2026-11-14 from `plan/release/fixes/spec-yang-single-source-of-truth.md`; AC-1 here holds its old AC-11 schema half, and that spec's AC-3 holds the run-time unread-leaf report) |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
 | No trust sandbox (owner ruling 2026-10-16) | Signed modules, allow-lists | "if a user use an external plugin the security is on him" |
-| The module is read by a declaration query before the parse | (a) Two-phase start: fork every external, hold it between Stage 1 and Stage 2 across the full parse. (c) A YANG file path in the `plugin external` block | (a) cannot serve offline validate, so validate and boot would disagree; it also needs the plugin server before the config it is built from, and parks live processes under the stage timer. (c) declares the module twice, in a file and in the declaration, and is not "register his Yang via the API". The query is the same declaration, already defined by the protocol, and one road serves boot, validate and reload |
-| The live declaration is compared with the queried one | Trust the query; or re-join at Stage 1 | A binary replaced between the query and the start would otherwise run against a schema it did not declare |
-| The module set is fixed while the daemon runs | Swap the set on reload | A changing set needs an atomic holder for about 40 readers and a reload that starts and stops external plugins. That is the runtime spec; here an explicit refusal is exact |
+| The load order is the design page's: plugin declarations read first, from the config or the command line, the plugins run, their modules taken at Stage 1, then the full parse (owner, 2026-11-15) | A separate declaration query before the parse with the plugin started later (the first draft of this spec, set aside: it ran each plugin twice and departed from `hub-architecture.md`); a YANG file path in the `plugin external` block (declares the module twice) | "It is in the design." A plugin is run once, and the protocol starts when it runs |
+| Offline commands read the same declaration through declare mode | Start a hub for validate; refuse to validate a config with an external root | Validate has no daemon and must still agree with boot. Declare mode is the protocol's own way to obtain the Stage 1 line with no hub |
+| The set of plugins and modules is fixed while the daemon runs (owner ruling, 2026-11-15) | Start, stop or re-declare a plugin on reload | "the plugin can only be changed on restarting ze". A reload that would change it is refused, which is exact |
 | No dependency on the build-time compile spec | Wait for it | Nothing of it exists; today's loader joins text. One join function is the seam it later re-implements |
-| The wire is unchanged | A list of modules in `schema`; dropping the redundant `module` and `namespace` fields | One config module is all this spec needs. A second module kind belongs with command arguments (D-3) |
+| The wire is unchanged for config | A list of modules in `schema`; dropping the redundant `module` and `namespace` fields | One config module is all the config half needs. A second module kind comes only with command arguments (D-3) |
 | An external module follows the `-conf` naming rule and uses `augment` for a shared container | Treat any declared module as config; allow a second definition | One rule for every module, compiled-in or not; a module that would add nothing is refused with the rule, never accepted in silence |
 | A daemon-side extension the daemon does not hold is refused | Skip it, as an unregistered `ze:validate` is skipped today | An accepted annotation that checks nothing is a silent wrong answer; the plugin validates in its own verify step |
 
 ## Known Limitations
 - In-process Go plugins still need a rebuild with the package in `internal/component/plugin/all`; runtime Go plugin loading is not in scope.
-- A plugin that brings a schema must answer declare mode. One that cannot gets no config root.
-- An external plugin attached inline to a BGP peer cannot bring a schema; it is declared under `plugin external`.
-- Offline validate runs the plugin's run string in declare mode, so it needs the plugin on the machine that validates.
+- A plugin, its declaration and its module change only when `ze` restarts (owner ruling). A reload that changes a plugin declaration is refused.
+- Offline validate needs the plugin on the machine that validates, and the plugin must answer declare mode. Boot needs neither.
+- An external plugin attached inline to a BGP peer cannot bring a schema; it is declared under `plugin external` or on the command line.
 - `ConfigProvider.RegisterSchema` stays unused.
 
 ## Work Not Done (homed elsewhere)
@@ -489,14 +536,13 @@ Each phase edits the pages its row names as it codes. Tests are written first an
 | Item | Home |
 |------|------|
 | Validating leafref values ("Ze validates that referenced values exist" was also removed from `docs/plugin-development/schema.md`) | `plan/post-release/features/spec-config-yang-type-leafref.md` |
-| Adding, removing or changing an external plugin while the daemon runs: starting it on reload, swapping the module set for every reader, a changed module at restart | A new spec, `plan/post-release/features/spec-plugin-external-runtime-change.md`, written when D-2 is approved; no existing spec owns reload-time plugin start |
-| A plugin's command argument model from its own module (journal row 2026-11-02) | The same new spec, if D-3 is approved |
+| A plugin's command argument model from its own module (journal row 2026-11-02) | This spec, as a last phase with its own acceptance criteria, when D-3 is answered yes; a spec of its own when answered no |
 | Defaults in the section delivered to an external plugin | `plan/release/fixes/spec-yang-defaults-applied-once.md` (D-1, AC-6 there) |
 | Walking every schema section for custom validators | `plan/release/fixes/spec-validation-walks-every-schema-section.md` (AC-1 there) |
 
 ## Effort
 
-Estimate 8 to 11 agent-days: first pass, query, join with its refusals, publish and the three caches, live comparison, reload refusal, doctor, docs, and the functional tests with a fixture plugin that declares a module.
+Estimate 10 to 13 agent-days: first pass, the plugin server before the full parse and the early Stage 1, join with its refusals, publish and the three caches, the offline commands, the restart rule, doctor, docs, and the functional tests with a fixture plugin that declares a module.
 
 ## Checklist
 
