@@ -22,7 +22,7 @@
 
 **Where the hunk is unsafe to carry, deferring is a claim about a future you MUST verify: that somebody else will commit it.** Two sessions both reading "leave another session's work alone" defer on the same file, and the change then belongs to nobody. Show the holder is still running, by its `tmp/session/<YYYY-MM-DD>-<HHMMSS>/` directory still being written: the directory whose `.session-id` file holds the holder's session id. Where the holder is gone, the work lands anyway; where the hunks trace to nobody, ask the owner. "Modified by someone else" is the reason to look, never the answer.
 
-**A branch MUST NOT be changed, created, deleted, renamed or integrated from a tool call, except for the same-branch `git pull --rebase` that "Never edit behind the upstream" requires of a branch behind its upstream: stay on the branch you started on and ask the user to move it.** When the user integrates a worktree branch it lands on main via `git rebase <branch>`, never `git merge`, so history stays linear.
+**A branch MUST NOT be changed, created, deleted, renamed or integrated from a tool call, except for the same-branch `git pull --rebase` that "Never edit behind the upstream" requires of a branch behind its upstream, and for the new branch of the worktree an agent opens for work also tested on Thomas's other development machine (`ai/owner/machines.md`): stay on the branch you started on and ask the user to move it.** When the user integrates a worktree branch it lands on main via `git rebase <branch>`, never `git merge`, so history stays linear.
 
 **`--no-gpg-sign`, `-c commit.gpgsign=false` and `--no-verify` MUST NOT be used, and a hook MUST NOT be disabled to make a commit pass.** What to do when signing fails is `docs/contributing/committing.md`.
 

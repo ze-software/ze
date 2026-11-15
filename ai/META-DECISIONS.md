@@ -265,7 +265,9 @@ in the spec or commit it applies to.
 - No agent develops or tests code in a worktree, a `git archive` export or
   any other copy of the tree: features and code are tested in the main
   checkout. When another session's in-progress edit breaks the build there,
-  the agent reports it and waits rather than moving to a copy.
+  the agent reports it and waits rather than moving to a copy. The one
+  exception is work that is also tested on Thomas's other development
+  machine, which runs in worktrees as "How agents work" states.
 - Only Thomas knows when the machine will stay quiet long enough for a full
   verification: several agent sessions run at once nearly all the time, and
   he starts new sessions, agents start agents, and he tests features by hand.
@@ -367,7 +369,17 @@ in the spec or commit it applies to.
   remaining blocker is missing historical evidence moves to a spec of its own,
   to be completed later, so the spec that held it can close.
 - Sessions share the one `main` checkout. No worktree per session: fix
-  shared-checkout friction inside that model.
+  shared-checkout friction inside that model. The one exception is the
+  cross-machine work below.
+- On Thomas's two development machines (`ai/owner/machines.md`), work that is
+  also tested on the other machine is developed in a worktree of its own on
+  the machine the agent runs on, on a branch of its own, never in the shared
+  checkout. When the work is ready, the agent tests that worktree on its own
+  machine and commits on its branch. It then carries the commits to the other
+  machine through git and tests them there in a worktree of their own,
+  detached at those commits. The other machine's shared checkout is never
+  pulled into or tested for that work. The branch reaches `main` only when
+  Thomas lands it with `git rebase <branch>`.
 - Close in-progress specs before opening new ones. The WIP cap is lowered as
   specs close, never raised.
 - Two limits apply to spec work, and they count different things. The open
