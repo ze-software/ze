@@ -13,6 +13,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net"
 	"slices"
 	"sync/atomic"
@@ -86,9 +87,7 @@ func (bp *BMPPlugin) applyReceiverConfig(cfg *receiverConfig) error {
 	if bp.listeners == nil {
 		bp.listeners = make(map[string]net.Listener, len(staged))
 	}
-	for addr, ln := range staged {
-		bp.listeners[addr] = ln
-	}
+	maps.Copy(bp.listeners, staged)
 	for addr, ln := range bp.listeners {
 		if _, keep := wanted[addr]; keep {
 			continue

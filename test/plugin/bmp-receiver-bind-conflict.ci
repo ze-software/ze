@@ -1,0 +1,26 @@
+# QUESTION: does a real daemon refuse startup when one BMP endpoint is held?
+# Unit callbacks cannot prove startup failure reaches the daemon exit status.
+# Staged cleanup has deterministic unit coverage; the external startup
+# counterpart checks sibling release while its daemon remains available.
+# The holder's ready fence owns the conflict before daemon startup.
+
+option=timeout:value=30s
+
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+    bmp {
+        enabled true
+        max-sessions 1
+        server available { ip 127.0.0.1; port $PORT; }
+        server blocked { ip 127.0.0.1; port $PORT2; }
+    }
+}
+EOF_CONF
+
+cmd=background:seq=1:name=holder:exec=le test fixture plugin/bmp-bind-holder $PORT2:ready=BMP-BIND-HELD
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+
+expect=stderr:contains=BMP receiver server "blocked" cannot listen on
+expect=stderr:contains=delete environment bmp server blocked
+expect=exit:code=1
+reject=stderr:pattern=panic

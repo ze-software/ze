@@ -1,0 +1,70 @@
+# QUESTION: does an externally occupied BMP endpoint make the real reload
+# refuse while preserving its running config, old session and admission cap,
+# and can a subsequent valid repair add a listener and raise the cap?
+# Unit callbacks cannot prove the coordinator's candidate publication,
+# rollback verdict and later real reload reach those live sockets together.
+
+option=timeout:value=60s
+
+stdin=ze-bgp:terminator=EOF_CONF
+system { host bmp-before; }
+environment {
+    bmp {
+        enabled true
+        max-sessions 1
+        server old { ip 127.0.0.1; port $PORT; }
+    }
+}
+plugin {
+    external bmp-bind-observer {
+        run "le test fixture plugin/bmp-bind-reload $PORT $PORT3 $PORT2"
+        encoder json
+    }
+}
+EOF_CONF
+
+tmpfs=bmp-bind-refused.conf:terminator=EOF_REFUSED
+system { host bmp-refused; }
+environment {
+    bmp {
+        enabled true
+        max-sessions 2
+        server staged { ip 127.0.0.1; port $PORT2; }
+        server blocked { ip 127.0.0.1; port $PORT3; }
+    }
+}
+plugin {
+    external bmp-bind-observer {
+        run "le test fixture plugin/bmp-bind-reload $PORT $PORT3 $PORT2"
+        encoder json
+    }
+}
+EOF_REFUSED
+
+tmpfs=bmp-bind-repair.conf:terminator=EOF_REPAIR
+system { host bmp-repaired; }
+environment {
+    bmp {
+        enabled true
+        max-sessions 2
+        server old { ip 127.0.0.1; port $PORT; }
+        server staged { ip 127.0.0.1; port $PORT2; }
+    }
+}
+plugin {
+    external bmp-bind-observer {
+        run "le test fixture plugin/bmp-bind-reload $PORT $PORT3 $PORT2"
+        encoder json
+    }
+}
+EOF_REPAIR
+
+cmd=background:seq=1:name=holder:exec=le test fixture plugin/bmp-bind-holder $PORT3:ready=BMP-BIND-HELD
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=50s
+
+expect=stderr:contains=BMP receiver server "blocked" cannot listen on
+expect=stderr:contains=delete environment bmp server blocked
+expect=stderr:contains=BMP refused reload kept running config, live old session, cap 1 and free staged endpoint
+expect=stderr:contains=BMP valid repair preserved old session, admitted session 2 and served added listener
+expect=exit:code=0
+reject=stderr:pattern=panic
