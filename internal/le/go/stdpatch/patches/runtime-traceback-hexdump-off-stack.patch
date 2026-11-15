@@ -28,7 +28,7 @@ pins carries the fix.
 No Ze code references this patch: a build without it compiles and runs
 the same, and only a SIGQUIT dump under -race (or msan, asan) differs.
 
-Ze-Reviewed-Against: go1.27.3
+Ze-Reviewed-Against: go1.27.4
 
 diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
 index 58161de..0fa83be 100644

@@ -1,6 +1,6 @@
 module github.com/ze-software/ze
 
-go 1.27.3
+go 1.27.4
 
 // The patch-qualified Go directive is the standard-library security floor.
 // Every workflow reads this file through actions/setup-go, and Go's toolchain

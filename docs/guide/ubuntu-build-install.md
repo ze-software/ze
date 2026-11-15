@@ -29,11 +29,11 @@ sudo apt-get install -y \
 ```
 
 Install the exact Go version pinned in this checkout's `go.mod`. The commands
-below use `go1.27.3`; update that value when building a checkout with another pin.
+below use `go1.27.4`; update that value when building a checkout with another pin.
 <!-- source: go.mod -- Go version -->
 
 ```bash
-GO_VERSION=1.27.3
+GO_VERSION=1.27.4
 GO_ARCH="$(dpkg --print-architecture)"
 case "$GO_ARCH" in
   amd64|arm64) ;;
