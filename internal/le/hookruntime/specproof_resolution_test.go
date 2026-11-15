@@ -77,7 +77,7 @@ func TestDaemonProofRefusalNamesEachJudgedPath(t *testing.T) {
 		t.Fatal(err)
 	}
 	problem := daemonProofProblem(root, resolutionHeader+
-		"## Files to Create\n`./bgp/run.go`, `alias/reactor/peer.go` and `internal/le/probe/tool.go`\n")
+		"## Files to Create\n`./bgp/run.go`, `alias/reactor/peer.go` and `internal/le/probe/tool.go`\n") // <!-- doc-links: ignore (intentionally nonexistent planned tooling file tests the daemon-proof exemption) -->
 	for _, want := range []string{
 		"Daemon-path changes must reference a functional test file under test/",
 		"Judged as daemon code, from the checkout root: bgp/run.go, alias/reactor/peer.go.",

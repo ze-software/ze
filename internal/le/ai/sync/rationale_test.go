@@ -116,17 +116,17 @@ func TestASkillCitationOfAMissingRationaleHeadingIsRefused(t *testing.T) {
 	write(t, root, "ai/rationale/ze-demo.md", "# Rationale\n\n## Kept\n\nwhy\n")
 	write(t, root, "ai/rationale/other.md", "# Other\n\n## There\n\nwhy\n")
 	write(t, root, "ai/skills/ze-demo.md", "---\nname: ze-demo\ndescription: d\n---\n"+
-		"Step one (why: `ai/rationale/ze-demo.md`, \"Kept\").\n"+
-		"Step two (why: `ai/rationale/ze-demo.md`,\n\"Gone\").\n"+
-		"Step three (why: `ai/rationale/other.md`, \"Absent\").\n"+
-		"Step four (why: `ai/rationale/other.md`, \"There\").\n")
+		"Step one (why: `ai/rationale/ze-demo.md`, \"Kept\").\n"+ // <!-- doc-links: ignore (citation of a kept heading in the temporary checkout rationale fixture) -->
+		"Step two (why: `ai/rationale/ze-demo.md`,\n\"Gone\").\n"+ // <!-- doc-links: ignore (citation of an intentionally missing heading in the temporary checkout rationale fixture) -->
+		"Step three (why: `ai/rationale/other.md`, \"Absent\").\n"+ // <!-- doc-links: ignore (citation of an intentionally missing heading on the temporary checkout's other rationale page) -->
+		"Step four (why: `ai/rationale/other.md`, \"There\").\n") // <!-- doc-links: ignore (citation of a kept heading on the temporary checkout's other rationale page) -->
 	problems, pages := rationaleProblems(t, root)
 	if pages != 1 {
 		t.Fatalf("pages = %d, want 1", pages)
 	}
 	want := []string{
-		`ai/skills/ze-demo.md cites ai/rationale/ze-demo.md, "Gone", which is no heading of that page`,
-		`ai/skills/ze-demo.md cites ai/rationale/other.md, "Absent", which is no heading of that page`,
+		`ai/skills/ze-demo.md cites ai/rationale/ze-demo.md, "Gone", which is no heading of that page`, // <!-- doc-links: ignore (exact diagnostic expected for the temporary checkout's missing own-page heading) -->
+		`ai/skills/ze-demo.md cites ai/rationale/other.md, "Absent", which is no heading of that page`, // <!-- doc-links: ignore (exact diagnostic expected for the temporary checkout's missing other-page heading) -->
 	}
 	if strings.Join(problems, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("problems:\n%s\nwant:\n%s", strings.Join(problems, "\n"), strings.Join(want, "\n"))

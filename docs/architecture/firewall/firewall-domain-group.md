@@ -193,9 +193,9 @@ serves the `le mock dns` stub in process on port 53, which `system name-server`
 reaches because that leaf is an address and carries no port.
 <!-- source: internal/test/fixture/netfilter_fixture_domain_group.go -- domainGroupUpdate, domainGroupClear, domainGroupShow -->
 
-A fourth file asks a question a daemon the runner starts once cannot answer:
-does a second start honour the stored expiry the first one wrote.
-`test/plugin/firewall-domain-group-restart-keeps-answers.ci` runs a fixture that
+A fourth file, still a draft, asks a question a daemon the runner starts once
+cannot answer: does a second start honor the stored expiry the first one wrote.
+`test/draft/plugin/firewall-domain-group-restart-keeps-answers.ci` runs a fixture that
 starts the daemon itself, twice, over one config directory, in the same
 exclusive group. Between the starts it waits for the table to leave the kernel
 and changes both answers. It then checks, from the kernel and from the stub's

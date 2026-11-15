@@ -306,7 +306,7 @@ the header. Its base64 form, 16,000,000 bytes, still fits one RPC message
 (`rpc.MaxMessageSize`, 16 MiB) with its envelope. The bound is declared once,
 on the registration: `rpc.StateDataMaxFor` reads it for the SDK and the
 daemon, and `ze-plugin-engine.yang` models the largest one
-([process protocol](api/process-protocol.md), "Persistent runtime state"). The
+([process protocol](./api/process-protocol.md), "Persistent runtime state"). The
 store itself bounds no value by key.
 <!-- source: pkg/zefs/keys.go -- IRRDatasetValueMax, KeyIRRDataset -->
 <!-- source: pkg/plugin/rpc/state.go -- StateDataMaxFor, StateDataLargest -->

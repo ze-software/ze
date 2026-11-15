@@ -58,7 +58,7 @@ const (
 		"# Rules for the main session\n\n- only the main session reads this, and it is long enough to tell the sets apart\n" +
 		"- a second main-session rule, so the always-loaded payload is the larger set\n\n" +
 		"# Rules for one kind of work\n\n## Labs\n\nRead before: building a lab.\n\n- a lab rule\n"
-	fixtureTriggers = "# Trigger Index\n\n| Rule | When |\n|------|------|\n| `ai/rules/x.md` | always |\n"
+	fixtureTriggers = "# Trigger Index\n\n| Rule | When |\n|------|------|\n| `ai/rules/x.md` | always |\n" // <!-- doc-links: ignore (synthetic rule name in the temporary checkout trigger fixture) -->
 	fixtureCore     = "# Core\n\n## A rule\n\nA directive every agent keeps.\n"
 )
 
@@ -238,7 +238,7 @@ func TestTheStubOrdersAFullReadOfItsSourceAndHoldsNoArgumentPlaceholder(t *testi
 		t.Errorf("the first line after the frontmatter is %q, want %q", marker, wantMarker)
 	}
 	for _, order := range []string{
-		"Read `ai/skills/ze-args.md` in full now, in one read with no offset and no limit.",
+		"Read `ai/skills/ze-args.md` in full now, in one read with no offset and no limit.", // <!-- doc-links: ignore (exact stub instruction expected for the temporary checkout skill created above) -->
 		"relative to the repository root",
 		"Follow that file as this skill's instructions.",
 		"The argument placeholder in that file stands for the arguments given to this skill.",

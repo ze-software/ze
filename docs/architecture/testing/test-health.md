@@ -310,7 +310,7 @@ new `.ci` beside a deleted one, never admit the loss of committed proof.
 The hook judges an alias of a committed test as that test. The edited path's
 symlinks are resolved, and each existing component is spelled as its
 directory lists it, so a case variant on a case-insensitive filesystem
-(`pkg/Intent_test.go` for `pkg/intent_test.go` on macOS) is the committed
+(`Intent_test.go` for a hypothetical `intent_test.go` on macOS) is the committed
 path. A path whose target lies outside the checkout keeps its lexical form.
 A hard link has no spelling to map back to, so a committed test file of the
 edited file's own directory that is the same file on disk (`os.SameFile`)

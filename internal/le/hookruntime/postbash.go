@@ -160,8 +160,8 @@ func (named namedPath) matches(candidate string) bool {
 
 // commandNames answers whether one of a command's named paths is file, a slash
 // path relative to the checkout, or one of its parent directories. The
-// comparison is of whole paths, so `internal/le/archive` does not name a file
-// under `internal/le/arch`. The checkout itself is never a candidate: every
+// comparison is of whole paths, so a directory named `archive` does not name a
+// file under its sibling `arch`. The checkout itself is never a candidate: every
 // command runs in it, so it would name every file.
 func commandNames(named []namedPath, file string) bool {
 	for candidate := file; candidate != "." && candidate != "/"; candidate = path.Dir(candidate) {
@@ -362,7 +362,7 @@ func wordPath(word *syntax.Word, root string) (namedPath, wordNaming) {
 // matches. It is read from the word's parts: a parameter, a substitution or a
 // quoted part is a part of another kind. The literals can be several, because
 // the bash lexer ends a literal before a `[` inside a word
-// (vendor/mvdan.cc/sh/v3/syntax/lexer.go, advanceLitNone), so `pkg/[ab].go`
+// (vendor/mvdan.cc/sh/v3/syntax/lexer.go, advanceLitNone), so `file[ab].go`
 // is two of them. A glob word that also carries a quote or a backslash is
 // left out, and names nothing.
 func globOnly(word *syntax.Word) bool {

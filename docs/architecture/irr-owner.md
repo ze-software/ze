@@ -70,7 +70,7 @@ notice.
 ### Who may touch which key
 
 Each side's `register.go` declares its grants
-([process protocol](api/process-protocol.md), "Persistent runtime state"):
+([process protocol](./api/process-protocol.md), "Persistent runtime state"):
 
 | Plugin | Write | Read only |
 |--------|-------|-----------|

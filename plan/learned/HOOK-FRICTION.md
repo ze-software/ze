@@ -1895,7 +1895,7 @@ has this cost under auto mode. Refuse with the exact text to type instead.
 
 **Hook:** `lineCommands`, the hand splitter of the pre-tool Bash hook, and
 `modeledSyntax`, the byte allow-list that bounded where its split was trusted
-(`internal/le/hookruntime/shellline.go`, `shellsyntax.go`). Read by
+(`internal/le/hookruntime/shellline.go`, `shellsyntax.go`). Read by <!-- doc-links: ignore (historical splitter removed by the parser replacement described in this entry) -->
 `bashAgentIdentity` and by the build, piped-command, raw-job, `/tmp` and
 deletion guards. Replaced by one bash parse per hook call (`mvdan.cc/sh`) and
 the reader-line walk (`readerline.go`).
@@ -2119,7 +2119,7 @@ full paths. Tests: `TestDesignEvidenceSkipsDirectoryOutsideCheckout`,
 
 **Abandoned approach.** Resolving shorthand over tracked files in the proof
 gate, as the design gate does, was reviewed out: the index alone cannot tell a
-planned untracked `internal/component/bgp/run.go` from the tracked
+planned untracked `internal/component/bgp/run.go` from the tracked <!-- doc-links: ignore (hypothetical planned daemon file in the abandoned shorthand-resolution design) -->
 `internal/le/interoplab/bgp/run.go`, so a name collision would excuse daemon
 code that owed proof.
 
