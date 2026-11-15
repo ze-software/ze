@@ -24,7 +24,7 @@ type ProducerBuildOptions struct {
 	Output     string
 	// Producers names the producers to run, as Producer.Name spells them. Each
 	// one runs once, in the order a full build runs it, whatever order they were
-	// named in.
+	// named in. Producers marked AlwaysOnPartial also run once.
 	Producers []string
 }
 
@@ -45,7 +45,8 @@ type ProducerBuildReport struct {
 
 // BuildProducers re-renders the pages of the named producers over an existing
 // full artifact, so a page under review is published in seconds rather than
-// with the whole site.
+// with the whole site. Producers marked AlwaysOnPartial refresh their shared
+// artifacts on this path too.
 //
 // It keeps every step that decides the bytes of the pages it writes:
 //   - the derived checkout artifacts, which a producer reads (derived.EnsureAll)
@@ -146,9 +147,9 @@ type producerSelection struct {
 	names    []string
 }
 
-// selectProducers answers the registered producers a run names. A name the
-// registry does not hold is refused, and the refusal lists every name it does
-// hold, read from the registry.
+// selectProducers answers the producers a run names and those registered for
+// every partial build. A name the registry does not hold is refused, and the
+// refusal lists every name it does hold, read from the registry.
 func selectProducers(requested []string) (producerSelection, error) {
 	if len(requested) == 0 {
 		return producerSelection{}, errors.New("site build producer names no producer: it renders only the producers it is given; " +
@@ -161,16 +162,22 @@ func selectProducers(requested []string) (producerSelection, error) {
 	}
 	var selection producerSelection
 	for _, producer := range registeredProducers {
-		if slices.Contains(requested, producer.Name) {
-			selection.pages = append(selection.pages, producer)
-			selection.names = append(selection.names, producer.Name)
+		if !slices.Contains(requested, producer.Name) {
+			if !producer.AlwaysOnPartial {
+				continue
+			}
 		}
+		selection.pages = append(selection.pages, producer)
+		selection.names = append(selection.names, producer.Name)
 	}
 	for _, producer := range derivedProducers {
-		if slices.Contains(requested, producer.Name) {
-			selection.finished = append(selection.finished, producer)
-			selection.names = append(selection.names, producer.Name)
+		if !slices.Contains(requested, producer.Name) {
+			if !producer.AlwaysOnPartial {
+				continue
+			}
 		}
+		selection.finished = append(selection.finished, producer)
+		selection.names = append(selection.names, producer.Name)
 	}
 	return selection, nil
 }

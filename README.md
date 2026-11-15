@@ -7,15 +7,11 @@ forwarding table. Operators use a shared configuration model through an SSH CLI
 or a web editor.
 
 <!-- terminal-demo-hero:start -->
-**[▶ Watch Ze in action](https://ze-software.net/demos/terminal/#continuous-live-configuration-showcase)**
+[![Ze's live BGP dashboard, opened over SSH](docs/demos/cli-dashboard.svg)](https://ze-software.net/demos/terminal/#live-bgp-dashboard)
 
-[![Watch Ze in action: open the website player](docs/demos/showcase.webp)](https://ze-software.net/demos/terminal/#continuous-live-configuration-showcase "Watch the recording on the Ze website")
-
-Click the preview or the link above, then select **Play** on the website.
-The continuous terminal recording shows how to migrate ExaBGP, operate the BGP
-dashboard, then configure, prove, diagnose and repair eight features without
-restarting Ze. The [site player and transcript](https://ze-software.net/demos/terminal/#continuous-live-configuration-showcase)
-retain the captured session. More recordings are on the
+The animation shows the configuration editor and live BGP dashboard in one
+SSH session. The [site player and transcript](https://ze-software.net/demos/terminal/#live-bgp-dashboard)
+provide playback controls and the command sequence. More recordings are on the
 [demonstrations page](https://ze-software.net/demos/terminal/).
 <!-- terminal-demo-hero:end -->
 

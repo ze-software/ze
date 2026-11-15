@@ -731,8 +731,10 @@ video about Ze.
 - Website screenshots use WebP, alongside lightweight terminal-event playback
   for application demonstrations. Encoded video assets are not published on the
   website or stored in the repository, and CI/CD does not generate videos.
-- The README links to lightweight playback with a screenshot rather than
-  producing an encoded-video or large animated-SVG carrier.
+- The README shows a short animated SVG derived from the website's terminal
+  recording, so the demonstration plays inside GitHub. Website regeneration
+  refreshes that SVG from the same recording. The README does not need the
+  complete continuous demonstration or an encoded-video carrier.
 - Every website value that changes over time (counts, percentages, release
   versions, download artifacts and their sizes) lives in exactly one JSON file,
   and pages render it with JavaScript. Site-wide values live in

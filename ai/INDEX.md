@@ -70,6 +70,7 @@ Ask the question from Bash instead
 | Understand Ze vs standard Go | `ai/rules/architecture.md` | Buffer-first, registration, YANG, etc. |
 | Know which hooks will check my code | `ai/rules/repo-maintenance.md` | Pre-flight compliance checklist |
 | Edit the website or presentations | `docs/contributing/gh-pages.md` then `website/AI.md` | Source layout, generation target, adding a talk |
+| Refresh the animated README demo | `docs/contributing/gh-pages.md` (README animation and terminal playback) | Site builds derive the SVG from the dashboard recording |
 | Assign website card colors | `website/style-guide/index.html#sg-category` | Shared subject categories, matching controls, neutral content and independent status colors |
 | Write, change, or record a terminal demo or video | `docs/contributing/terminal-demos.md` then `docs/contributing/gh-pages.md` | What the recording shows and its tone, then how it is built and rendered |
 | Write or revise prose in Thomas's voice | `ai/skills/ze-author.md` | Precise claims, personal voice, and iterative editing with approved wording |

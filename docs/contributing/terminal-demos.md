@@ -178,9 +178,11 @@ The owner set these on 2026-10-09 with the decisions above.
 - A separate super-recording is one continuous session that builds the
   configuration up feature by feature. It is recorded on its own, never
   stitched from the feature recordings and never cut into them. It is the hero
-  of the site. Under the owner's 2026-10-27 presentation policy, the README uses
-  a WebP thumbnail linked to the actual site player. Terminal events remain
-  `.cast` files. Browser presentation uses WebP screenshots, not encoded video.
+  of the site. The README shows a short animated SVG of the dashboard recording,
+  generated from the website's verified `.cast` events whenever the website is
+  regenerated. The animation plays inside GitHub and links to the site player.
+  Browser presentation uses WebP screenshots, not encoded video.
+  <!-- source: internal/le/site/readme_demo.go -- renderReadmeDemo -->
 - When a feature does not enable on a live commit, that is a Ze defect to fix.
   Never work around it in the tape.
 

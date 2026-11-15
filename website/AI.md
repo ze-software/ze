@@ -652,6 +652,7 @@ website edit.
 | Ruling | Scope | Rule that applies it | Test that pins it |
 |--------|-------|----------------------|-------------------|
 | Links are never underlined, in any state. A text link stands out from the text around it by color and turns white on hover. Keyboard focus keeps its outline | Homepage hero | `.site-home .hero a` and `.site-home .hero :where(p, figcaption) a` in `website/assets/css/30-components.css` | `TestHeroLinksAreNeverUnderlined` |
+| The README plays a short dashboard animation inside GitHub. Website regeneration updates its SVG from the site's verified terminal recording | README demo and website build | `internal/le/site/readme_demo.go` registered producer and `BuildProducers` integration | `TestReadmeDemoRegisteredForEveryBuild`, `TestReadmeDemoRefreshesDuringOtherProducerBuild` |
 | The front page says Ze is self-contained: "Self-contained" is the fourth hero key point, placed first in the row beside "Extend with plugins", "Appliance option" and "ExaBGP compatible". Thomas chose the wording on 2026-11-14, after rejecting "Fully integrated" as not the right expression. It means the shipped `ze` binary needs no other routing daemon or runtime library; Linux or VPP still forwards the packets, so it claims nothing about the forwarding plane | Homepage hero | The `hero-start-points` row in `homeTemplate`, `internal/le/site/homebody.go` | `TestHeroSaysZeIsSelfContained` |
 | Each existing hero key point has the blue tick from index2. The wording and order remain Self-contained, Extend with plugins, Appliance option, ExaBGP compatible; each tick stays with its label when the row wraps | Homepage hero | `.site-home .hero-start-points span::before` and its span rule in `website/assets/css/30-components.css` | `TestHeroKeyPointsUseApprovedTicks` |
 | The current homepage adopts index2's Capabilities and current limitations presentation: maturity introduction, compact configuration/command/plugin reference cards, then the complete generated feature directory in flat category groups. Counts and destinations remain generated; the documentation explanation stays beneath the reference cards | Homepage capability section | `homeTemplate` in `internal/le/site/homebody.go`, `.home-section-panel-map` reference and capability rules in `website/assets/css/30-components.css`, responsive rules in `website/assets/css/60-responsive.css` | `TestHomepageCapabilitiesRetainGeneratedDestinations` |
@@ -812,10 +813,12 @@ manifest-derived full-size and transcript links. The CLI editor and CLI
 dashboard remain genuine static captures with no player controls burned in.
 The full manifest-derived terminal replay precedes these previews in the opening
 hero, with its transcript link and `recording-title` anchor. `HeroDemo` in
-`internal/le/site/terminaldemo/types.go` selects the recording for both
-the homepage and the README screenshot link. The selector never replaces
+`internal/le/site/terminaldemo/types.go` selects the homepage recording. The
+README uses a short dashboard SVG generated from the website's verified
+`cli-dashboard.cast` whenever the website is regenerated. The selector never replaces
 that replay or transcript. Screenshots use WebP; terminal playback uses the
-captured `.cast` events. Encoded video and animated README carriers are not used.
+captured `.cast` events. The README's SVG animates directly inside GitHub;
+encoded video is not used.
 The opening replay shows a genuine BGP dashboard frame at 43 seconds before
 Play, using `data-cast-poster` and the player's recorded-time poster.
 The initial preview enlarges the peer table within the existing media frame.

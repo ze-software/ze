@@ -360,7 +360,7 @@ never a prompt. The rule is `feature-maturity.md`, "Recorded runs".
 
 See `website/AI.md` for the full reference: structure, tools, and how to add a talk.
 
-## README thumbnail and terminal playback
+## README animation and terminal playback
 
 The homepage introduces project size with three linked figures: Go source lines,
 Go test lines and third-party Go lines. The line totals are recorded through
@@ -401,12 +401,19 @@ of days and keep every other day's line as it was. Every refusal names the form
 that repairs it (`docs/architecture/site-facts.md`, "Size history").
 <!-- source: internal/le/site/history/update.go -- planUpdate, planRange -->
 
-The homepage and README select the continuous recording through `HeroDemo`.
-The site replays its `.cast` terminal events with the vendored asciinema player.
-The README uses `docs/demos/showcase.webp`, linked to the continuous showcase's
-actual player anchor. It does not embed encoded video or an animated SVG.
+The homepage selects the continuous recording through `HeroDemo`. The site
+replays its `.cast` terminal events with the vendored asciinema player.
 <!-- source: internal/le/site/terminaldemo/types.go -- HeroDemo -->
 <!-- source: internal/le/site/home.go -- homeHeroSlots -->
+
+The README plays a short dashboard animation in `docs/demos/cli-dashboard.svg`,
+linked to the dashboard's site player. Website builds regenerate the SVG from
+the same verified `cli-dashboard.cast` that the site publishes, including when
+only selected page producers are rebuilt. It is generated content; change the
+recording and rebuild the site instead of editing the SVG. Generation errors
+leave the previous SVG intact and fail the build.
+<!-- source: internal/le/site/readme_demo.go -- renderReadmeDemo -->
+<!-- source: internal/le/site/terminaldemo/readme_svg.go -- Asset.ReadmeSVG -->
 <!-- source: README.md -- terminal-demo-hero -->
 
 The homepage terminal shows a genuine recorded frame before playback. Its
@@ -500,8 +507,8 @@ files, including aliases into `.git` or a directory later pruning would remove.
 Confined source-file links remain usable as file content.
 <!-- source: internal/le/site/copyparents.go -- checkCopyParent, checkTreeCopyParents, openCopyParent -->
 
-Do not generate or publish MP4 or WebM assets for this site. The former README
-carrier conversion and GitHub SVG/video selection workflow is retired. A
+Do not generate or publish MP4 or WebM assets for this site. The former large
+carrier conversion and GitHub video selection workflow is retired. A
 local preview or conversion authorizes no upload, push or deployment.
 The site's publication filter excludes these extensions when it seeds previous
 assets, removes staged source files and checks the final output.

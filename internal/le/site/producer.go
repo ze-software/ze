@@ -21,6 +21,9 @@ import (
 type Producer struct {
 	// Name identifies this producer in a coverage answer, in lower kebab-case.
 	Name string
+	// AlwaysOnPartial includes this producer in every partial build, even when
+	// another producer was requested. Full builds already run every producer.
+	AlwaysOnPartial bool
 	// Render writes this producer's pages under paths.Output and answers the
 	// route of every page it wrote, spelled as pageRegistry spells one: a
 	// leading slash, a trailing slash, and "/" for the site root. A file that

@@ -19,7 +19,7 @@ import (
 	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
-// HeroDemo selects the terminal recording shown on the homepage and linked by the README.
+// HeroDemo selects the continuous terminal recording shown on the homepage.
 const HeroDemo = "showcase"
 
 const (

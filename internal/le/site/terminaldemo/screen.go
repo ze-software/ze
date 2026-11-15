@@ -4,6 +4,7 @@
 package siteterminaldemo
 
 import (
+	"errors"
 	"slices"
 	"strconv"
 	"strings"
@@ -17,7 +18,7 @@ type terminalScreen struct {
 	width       int
 	top         int
 	bottom      int
-	rows        map[int][]rune
+	rows        map[int][]terminalCell
 	shown       map[int]string
 	row         int
 	column      int
@@ -27,6 +28,9 @@ type terminalScreen struct {
 	history     []string
 	sequence    terminalSequence
 	parameters  []rune
+	style       terminalStyle
+	styleError  error
+	preview     bool
 }
 
 // terminalSequence tracks only unfinished input; its zero value is uninitialized.
@@ -49,12 +53,13 @@ func newTerminalScreen(height, width int) *terminalScreen {
 		width:    width,
 		top:      1,
 		bottom:   height,
-		rows:     map[int][]rune{},
+		rows:     map[int][]terminalCell{},
 		shown:    map[int]string{},
 		row:      1,
 		savedRow: 1,
 		dirty:    map[int]struct{}{},
 		sequence: terminalSequenceText,
+		style:    terminalDefaultStyle(),
 	}
 }
 
@@ -76,13 +81,13 @@ func (s *terminalScreen) painted() []string {
 func (s *terminalScreen) text() string {
 	rows := make([]string, 0, len(s.rows))
 	for _, row := range sortedRowKeys(s.rows) {
-		rows = append(rows, string(s.rows[row]))
+		rows = append(rows, terminalLineText(s.rows[row]))
 	}
 	return strings.Join(rows, "\n")
 }
 
 func (s *terminalScreen) line(row int) string {
-	return strings.TrimRight(string(s.rows[row]), " ")
+	return strings.TrimRight(terminalLineText(s.rows[row]), " ")
 }
 
 func (s *terminalScreen) settle(text string) {
@@ -143,6 +148,9 @@ func (s *terminalScreen) feed(text string) {
 			s.column = max(0, s.column-1)
 		case '\t':
 			s.column = (s.column/tabStop + 1) * tabStop
+			if s.preview {
+				s.column = min(s.column, s.width-1)
+			}
 		default:
 			if character >= ' ' && character != '\x7f' {
 				s.put(character)
@@ -200,7 +208,7 @@ func (s *terminalScreen) escape(final rune) {
 	case '7':
 		s.savedRow, s.savedColumn = s.row, s.column
 	case '8':
-		s.move(s.savedRow, s.savedColumn)
+		s.cursor(s.savedRow, s.savedColumn)
 	}
 }
 
@@ -210,12 +218,12 @@ func (s *terminalScreen) put(character rune) {
 	}
 	line := s.rows[s.row]
 	for len(line) < s.column {
-		line = append(line, ' ')
+		line = append(line, terminalCell{character: ' ', style: terminalDefaultStyle()})
 	}
 	if s.column < len(line) {
-		line[s.column] = character
+		line[s.column] = terminalCell{character: character, style: s.style}
 	} else {
-		line = append(line, character)
+		line = append(line, terminalCell{character: character, style: s.style})
 	}
 	s.rows[s.row] = line
 	s.column++
@@ -237,7 +245,7 @@ func (s *terminalScreen) move(row, column int) {
 
 func (s *terminalScreen) insertLines(count int) {
 	top := s.row
-	moved := make(map[int][]rune, len(s.rows))
+	moved := make(map[int][]terminalCell, len(s.rows))
 	for row, line := range s.rows {
 		if row < top {
 			moved[row] = line
@@ -262,7 +270,7 @@ func (s *terminalScreen) deleteLines(count int) {
 	for row := top; row < top+count; row++ {
 		s.show(row)
 	}
-	moved := make(map[int][]rune, len(s.rows))
+	moved := make(map[int][]terminalCell, len(s.rows))
 	for row, line := range s.rows {
 		if row < top {
 			moved[row] = line
@@ -306,7 +314,7 @@ func (s *terminalScreen) scroll(count int) {
 		}
 		return row - count, true
 	}
-	rows := make(map[int][]rune, len(s.rows))
+	rows := make(map[int][]terminalCell, len(s.rows))
 	for row, line := range s.rows {
 		if moved, keep := moveRow(row); keep {
 			rows[moved] = line
@@ -350,46 +358,81 @@ func (s *terminalScreen) eraseRows(rows []int) {
 	for _, row := range rows {
 		s.show(row)
 		delete(s.rows, row)
+		if s.preview {
+			if s.style.erasesBackground() {
+				s.rows[row] = terminalBlankCells(s.width, s.style)
+			}
+		}
 		delete(s.shown, row)
 		delete(s.dirty, row)
 	}
 }
 
 func (s *terminalScreen) eraseInLine(mode int) {
+	if s.preview {
+		s.column = min(s.column, s.width-1)
+	}
 	line := s.rows[s.row]
 	s.dirty[s.row] = struct{}{}
 	switch mode {
 	case 0:
 		line = line[:min(s.column, len(line))]
+		if s.preview {
+			if s.style.erasesBackground() {
+				for len(line) < s.column {
+					line = append(line, terminalCell{character: ' ', style: terminalDefaultStyle()})
+				}
+				line = append(line, terminalBlankCells(s.width-s.column, s.style)...)
+			}
+		}
 	case 1:
+		if s.preview {
+			for len(line) < s.column+1 {
+				line = append(line, terminalCell{character: ' ', style: terminalDefaultStyle()})
+			}
+		}
 		for index := range min(s.column+1, len(line)) {
-			line[index] = ' '
+			line[index] = terminalCell{character: ' ', style: s.style}
 		}
 	default:
 		line = nil
+		if s.preview {
+			if s.style.erasesBackground() {
+				line = terminalBlankCells(s.width, s.style)
+			}
+		}
 	}
 	s.rows[s.row] = line
 }
 
 func (s *terminalScreen) eraseInDisplay(mode int) {
 	rows := make([]int, 0)
+	candidates := sortedRowKeys(s.rows)
+	if s.preview {
+		if s.style.erasesBackground() {
+			candidates = make([]int, s.height)
+			for index := range candidates {
+				candidates[index] = index + 1
+			}
+		}
+	}
 	switch mode {
 	case 0:
 		s.eraseInLine(0)
-		for row := range s.rows {
+		for _, row := range candidates {
 			if row > s.row {
 				rows = append(rows, row)
 			}
 		}
 	case 1:
 		s.eraseInLine(1)
-		for row := range s.rows {
+		for _, row := range candidates {
 			if row < s.row {
 				rows = append(rows, row)
 			}
 		}
 	default:
-		for row := range s.rows {
+		for _, row := range candidates {
 			rows = append(rows, row)
 		}
 	}
@@ -397,6 +440,12 @@ func (s *terminalScreen) eraseInDisplay(mode int) {
 }
 
 func (s *terminalScreen) control(parameters string, final rune) {
+	if s.preview {
+		if err := readmeSVGControl(parameters); err != nil {
+			s.styleError = err
+			return
+		}
+	}
 	if strings.HasPrefix(parameters, "?") {
 		return
 	}
@@ -438,31 +487,43 @@ func (s *terminalScreen) control(parameters string, final rune) {
 		if row == 0 {
 			row = 1
 		}
-		s.move(row, column-1)
+		s.cursor(row, column-1)
 	case 'A':
-		s.move(s.row-one, s.column)
+		s.cursor(s.row-one, s.column)
 	case 'B', 'e':
-		s.move(s.row+one, s.column)
+		s.cursor(s.row+one, s.column)
 	case 'C', 'a':
 		s.column += one
+		if s.preview {
+			s.column = min(s.column, s.width-1)
+		}
 	case 'D':
 		s.column = max(0, s.column-one)
 	case 'E':
-		s.move(s.row+one, 0)
+		s.cursor(s.row+one, 0)
 	case 'F':
-		s.move(s.row-one, 0)
+		s.cursor(s.row-one, 0)
 	case 'G', '`':
 		s.column = max(0, one-1)
+		if s.preview {
+			s.column = min(s.column, s.width-1)
+		}
 	case 'd':
-		s.move(one, s.column)
+		s.cursor(one, s.column)
 	case 'K':
 		s.eraseInLine(first)
 	case 'J':
 		s.eraseInDisplay(first)
 	case 'X':
 		line := s.rows[s.row]
+		if s.preview {
+			s.column = min(s.column, s.width-1)
+			for len(line) < min(s.column+one, s.width) {
+				line = append(line, terminalCell{character: ' ', style: terminalDefaultStyle()})
+			}
+		}
 		for index := s.column; index < min(s.column+one, len(line)); index++ {
-			line[index] = ' '
+			line[index] = terminalCell{character: ' ', style: s.style}
 		}
 		s.rows[s.row] = line
 		s.dirty[s.row] = struct{}{}
@@ -472,27 +533,53 @@ func (s *terminalScreen) control(parameters string, final rune) {
 		s.deleteLines(one)
 	case 'P':
 		line := s.rows[s.row]
+		if s.preview {
+			s.column = min(s.column, s.width-1)
+		}
 		start := min(s.column, len(line))
 		end := min(start+one, len(line))
 		s.rows[s.row] = append(line[:start], line[end:]...)
 		s.dirty[s.row] = struct{}{}
 	case '@':
 		line := s.rows[s.row]
-		for len(line) < s.column {
-			line = append(line, ' ')
+		if s.preview {
+			s.column = min(s.column, s.width-1)
+			one = min(one, s.width-s.column)
 		}
-		spaces := make([]rune, one)
+		for len(line) < s.column {
+			line = append(line, terminalCell{character: ' ', style: terminalDefaultStyle()})
+		}
+		spaces := make([]terminalCell, one)
 		for index := range spaces {
-			spaces[index] = ' '
+			spaces[index] = terminalCell{character: ' ', style: s.style}
 		}
 		line = append(line, spaces...)
 		copy(line[s.column+one:], line[s.column:len(line)-one])
 		copy(line[s.column:], spaces)
+		if s.preview {
+			line = line[:min(len(line), s.width)]
+		}
 		s.rows[s.row] = line
 		s.dirty[s.row] = struct{}{}
 	case 'S':
 		s.scroll(one)
 	case 'r':
+		if s.preview {
+			bottom := s.height
+			if len(numbers) > 1 {
+				if numbers[1] != 0 {
+					bottom = numbers[1]
+				}
+			}
+			if one > bottom {
+				s.styleError = errors.New("README cast scroll region starts below its bottom")
+				return
+			}
+			if bottom > s.height {
+				s.styleError = errors.New("README cast scroll region extends beyond its recorded grid")
+				return
+			}
+		}
 		s.top = one
 		s.bottom = s.height
 		if len(numbers) > 1 && numbers[1] != 0 {
@@ -501,7 +588,9 @@ func (s *terminalScreen) control(parameters string, final rune) {
 	case 's':
 		s.savedRow, s.savedColumn = s.row, s.column
 	case 'u':
-		s.move(s.savedRow, s.savedColumn)
+		s.cursor(s.savedRow, s.savedColumn)
+	case 'm':
+		s.sgr(numbers)
 	}
 }
 
