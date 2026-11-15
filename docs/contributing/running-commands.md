@@ -415,7 +415,9 @@ says so with exit 2.
 invocation and exports `ZE_LE_BUILD_NAME` so nested calls select the same
 private build; `--name session` names it `s-<first 8 of
 CLAUDE_CODE_SESSION_ID>`, and refuses with exit 2 when the variable is unset.
-Every publish, a build of HEAD and a named rebuild alike, writes a complete
+It is how an uncommitted edit is tried through le itself: a website page under
+review is rendered with `./le --name session site build producer <name>`
+(`docs/contributing/gh-pages.md`). Every publish, a build of HEAD and a named rebuild alike, writes a complete
 sibling and renames it onto the target, so a process already running keeps its
 old inode and no caller opens a partially written file. The final filename stays
 `le`, preserving personality dispatch. Preparation failures, including a missing
