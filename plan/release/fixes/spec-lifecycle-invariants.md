@@ -578,6 +578,7 @@ tests instead.
    - Tests: `TestCoAUnappliedAnswersNAK`, `TestPPPoESessionDrivesSubscriberRoutes`, `TestPPPoESubscriberRoutesCannotCollideWithL2TP`, plus the disconnect, framed-route and `test/pppoe/redistribute-subscriber-route.ci` functional tests
    - Files: `authradius/coa.go`, `pppoe/subsystem.go`, `route_observer.go`, `redistribute.go`, `subscriber/handler_registry.go`
    - Verify: AC-15, AC-16 and AC-23 end to end; the route observer is keyed on the subscriber session before PPPoE drives it, so the keyspace phase precedes this one
+   - Under the recommended D-14 design (pending Thomas): the observer subscribes to `subevents.SessionIPAssigned` and `SessionDown`; the direct calls in `reactor_kernel.go` and `teardown.go` are deleted in the same commit; the `pppoe` source is registered from the PPPoE package; an L2TP test proves a teardown still follows the address it withdraws once the observer is reached through the bus
 8. **Phase: Standalone defects** - IKE rekey continuity and flow-export epoch
    - Tests: `TestIKERekeyPreservesEstablishedAt`, `TestFlowExportReloadPreservesSysUpTime`
    - Files: `ike/engine/rekey.go`, `flowexport/register.go`
