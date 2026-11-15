@@ -169,7 +169,8 @@ func Check(request Request) Result {
 	result.RFCApprovals.Path = owner.path
 	// Every landed weakening row leaves with this commit: it already did its
 	// work. The RFC approval file's landed rows are its own gate's to drop.
-	for _, row := range weakening.rows {
+	for index := range weakening.rows {
+		row := &weakening.rows[index]
 		if row.Carrier != "" {
 			result.Approvals.Dropped = append(result.Approvals.Dropped, row.Text)
 		}
@@ -231,7 +232,8 @@ func Check(request Request) Result {
 // that targets no commit names unit, stale or not. It claims nothing: a
 // stale row stays unspent, and only claimFinding records a trailer.
 func namesUnlanded(file *approvalFile, unit Finding) bool {
-	for _, row := range file.rows {
+	for index := range file.rows {
+		row := &file.rows[index]
 		if row.Target != "" {
 			continue
 		}
@@ -250,7 +252,8 @@ func namesUnlanded(file *approvalFile, unit Finding) bool {
 // claims nothing. LoadApprovals marks only an unlanded row stale, so a row a
 // landed commit carried never refuses here.
 func staleRowProblem(file *approvalFile, unit Finding) string {
-	for _, row := range file.rows {
+	for index := range file.rows {
+		row := &file.rows[index]
 		if row.Target != "" {
 			continue
 		}
@@ -316,7 +319,8 @@ func loadApprovalFile(root string, source ApprovalSource) (approvalFile, []strin
 // verdict that made it stale.
 func claimFinding(approvals *Approvals, file *approvalFile, finding Finding) (bool, string) {
 	why := ""
-	for index, row := range file.rows {
+	for index := range file.rows {
+		row := &file.rows[index]
 		if row.Target != "" {
 			continue
 		}

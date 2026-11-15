@@ -408,7 +408,8 @@ func liveApprovalRows(root, namespace string) (auditApprovals, string) {
 		if len(problems) != 0 {
 			return auditApprovals{}, strings.Join(problems, "; ")
 		}
-		for _, row := range rows {
+		for index := range rows {
+			row := &rows[index]
 			if row.Carrier != "" {
 				continue
 			}

@@ -12,7 +12,7 @@ import (
 func TestPackageIsIndependentAndRefusesExistingDirectory(t *testing.T) {
 	fixture := newCheckerFixture(t, fixtureConfig)
 	for _, name := range []string{"Dockerfile.tools", "README.md"} {
-		writeFixtureFile(t, filepath.Join(fixture.root, "contrib/netlab", name), name+"\n", 0o644)
+		writeFixtureFile(t, filepath.Join(fixture.root, "contrib", "netlab", name), name+"\n", 0o644)
 	}
 	destination := filepath.Join(t.TempDir(), "lab")
 	if err := fixture.checker.Package(destination); err != nil {

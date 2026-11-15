@@ -234,8 +234,8 @@ func newConfigPushProtocolFixture(t *testing.T) *configPushProtocolFixture {
 	}
 	fixture.workers.Go(fixture.serve)
 	fixture.server = httptest.NewTLSServer(http.HandlerFunc(fixture.management))
-	sshPort := fixture.listener.Addr().(*net.TCPAddr).Port
-	updatePort := fixture.server.Listener.Addr().(*net.TCPAddr).Port
+	sshPort := installTestListenerPort(t, fixture.listener)
+	updatePort := installTestListenerPort(t, fixture.server.Listener)
 	fixture.ports = append(fixture.ports, sshPort)
 	for range 3 {
 		fixture.ports = append(fixture.ports, updatePort, updatePort)

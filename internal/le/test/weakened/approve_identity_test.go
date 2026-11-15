@@ -46,15 +46,16 @@ func TestWeakeningApprovalValidatesCarrierBeforeWrites(t *testing.T) {
 				root := weakeningIdentityFixture(t, paths...)
 				weakeningIdentityEnvironment(t, root, "p31-weakening-refusal")
 				before := humantest.Snapshot(t, root)
-				if entry == "callable" {
+				switch entry {
+				case "callable":
 					if _, err := Approve(root, fixtureSession, test.unit, test.reason); err == nil {
 						t.Errorf("callable approval accepted invalid request %q, %q", test.unit, test.reason)
 					}
-				} else if entry == "registered" {
+				case "registered":
 					if _, code := Answer([]string{"approve", "unit", test.unit, "reason", test.reason}); code != 2 {
 						t.Errorf("registered approval exit = %d, want 2 for %q, %q", code, test.unit, test.reason)
 					}
-				} else {
+				default:
 					line := []string{"approve", "unit", test.unit, "reason", test.reason}
 					prepare, words := Actions().Preparer(line)
 					if prepare == nil {

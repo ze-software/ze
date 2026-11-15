@@ -121,12 +121,12 @@ const tagsFlag = "-tags"
 // same word internal/le/test/functional spells for the same reason.
 const allTests = "--all"
 
-// The le test subcommands of the guest suites that more than one row names:
-// the plain suite and its wire-level twin. OSPF uses netnsOSPF.
+// Names reused by the guest suite plan and health checks. OSPF uses netnsOSPF.
 const (
-	guestL2TP = "l2tp"
-	guestISIS = "isis"
-	guestWire = "wire"
+	guestL2TP  = "l2tp"
+	guestISIS  = "isis"
+	guestIPsec = "ipsec"
+	guestWire  = "wire"
 )
 
 // The concurrency a suite takes. An empty value is the run's own, and takeNoP
@@ -213,7 +213,7 @@ var vmSuites = []vmSuite{
 			" the namespace they are installed in, the transport's included. Serial for firewall's reason",
 	},
 	{
-		Name: "ipsec", Args: []string{"ipsec", allTests}, Concurrency: serial, Namespace: perTest,
+		Name: guestIPsec, Args: []string{guestIPsec, allTests}, Concurrency: serial, Namespace: perTest,
 		Why: "a real-XFRM daemon that leaves `vpn ipsec unmatched` unset installs the RFC 4301" +
 			" catch-all DISCARD for in, out and fwd any-to-any (installUnmatched), and in the guest" +
 			" root namespace that drops the SSH transport carrying the run: ssh exits 255 once its" +

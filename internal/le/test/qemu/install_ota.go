@@ -588,7 +588,7 @@ func otaInactiveHealth(component health.ComponentHealth, seed *config.Tree) bool
 			return false
 		}
 		return component.Status == health.StatusDegraded && component.Reason == "subsystem not running"
-	case "ipsec":
+	case guestIPsec:
 		if seed.GetContainerPath("vpn/ipsec") != nil {
 			return false
 		}

@@ -42,7 +42,7 @@ func TestApplianceOTASSHCancellation(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				guest.sshPort = listener.Addr().(*net.TCPAddr).Port
+				guest.sshPort = installTestListenerPort(t, listener)
 				var accepted net.Conn
 				var acceptedMu sync.Mutex
 				stopped := false

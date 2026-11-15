@@ -2,6 +2,7 @@
 package testnetlab
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -62,9 +63,9 @@ func TestPackagedZeStartsAfterInitialInterfaceConfiguration(t *testing.T) {
 	if !strings.HasPrefix(string(initial), "#!/bin/sh\n") {
 		t.Error("initial template must execute as a shell script inside the node")
 	}
-	stopOnFailure := strings.Index(string(initial), "\nset -e\n")
-	setup := strings.Index(string(initial), "include 'initial/linux/vanilla.j2'")
-	ready := strings.Index(string(initial), "touch /var/run/initial.done")
+	stopOnFailure := bytes.Index(initial, []byte("\nset -e\n"))
+	setup := bytes.Index(initial, []byte("include 'initial/linux/vanilla.j2'"))
+	ready := bytes.Index(initial, []byte("touch /var/run/initial.done"))
 	if stopOnFailure < 0 || setup <= stopOnFailure {
 		t.Errorf("initial template must stop on failure before Linux interface setup: %s", initial)
 	}

@@ -113,10 +113,10 @@ func newOTAProtocolFixture(t *testing.T, legacy bool) *otaProtocolFixture {
 	web.TLS = update.TLS.Clone()
 	web.StartTLS()
 	t.Cleanup(web.Close)
-	fixture.webPort = web.Listener.Addr().(*net.TCPAddr).Port
+	fixture.webPort = installTestListenerPort(t, web.Listener)
 	sshPort := fixture.serveSSH(t)
 	fixture.sshPort = sshPort
-	ports := []int{sshPort, update.Listener.Addr().(*net.TCPAddr).Port, fixture.webPort}
+	ports := []int{sshPort, installTestListenerPort(t, update.Listener), fixture.webPort}
 	installer.ops.Port = func() (int, error) {
 		if len(ports) == 0 {
 			return 0, fmt.Errorf("unexpected extra forward")
@@ -289,7 +289,7 @@ func (fixture *otaProtocolFixture) serveSSH(t *testing.T) int {
 			})
 		}
 	}()
-	return listener.Addr().(*net.TCPAddr).Port
+	return installTestListenerPort(t, listener)
 }
 
 func (fixture *otaProtocolFixture) sshConnection(connection net.Conn, config *ssh.ServerConfig) {

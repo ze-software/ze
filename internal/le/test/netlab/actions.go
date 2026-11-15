@@ -14,6 +14,7 @@ import (
 const (
 	area             = "test netlab"
 	directoryKeyword = "directory"
+	runtimeKeyword   = "runtime"
 	runtimeHost      = "host"
 )
 
@@ -48,7 +49,7 @@ var actions = actionTable(runCheckHere, runUpdateHere,
 		Verb: "run", Heavy: true, Summary: "prove live protocols, routes and traffic, then stop", Writes: true,
 		Why: "build a local Ze lab image and pinned upstream tools, run the reference topology on the Ze Docker host, assert every declared adjacency and route plus loopback traffic, and tear down the lab",
 		Parameters: []leaction.Parameter{
-			{Keyword: "runtime", Kind: leaction.KindEnum, Value: "runtime", Requirement: leaction.Optional, Help: "run tools in a container or this Docker host namespace", Values: []string{"container", runtimeHost}, ValueHelp: map[string]string{"container": "build and run the tool container on the Ze Docker host", runtimeHost: "run the packaged lab inside the prepared tool container"}},
+			{Keyword: runtimeKeyword, Kind: leaction.KindEnum, Value: runtimeKeyword, Requirement: leaction.Optional, Help: "run tools in a container or this Docker host namespace", Values: []string{"container", runtimeHost}, ValueHelp: map[string]string{"container": "build and run the tool container on the Ze Docker host", runtimeHost: "run the packaged lab inside the prepared tool container"}},
 			{Keyword: directoryKeyword, Kind: leaction.KindPath, Value: "path", Requirement: leaction.Optional, Help: "prepared lab directory for runtime host"},
 		},
 		AnswerArgs: runLiveHere,

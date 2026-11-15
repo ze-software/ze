@@ -53,7 +53,7 @@ func runLiveHere(args leaction.Arguments) (any, int) {
 	defer stop()
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Minute)
 	defer cancel()
-	if args.One("runtime") == runtimeHost {
+	if args.One(runtimeKeyword) == runtimeHost {
 		directory := args.One(directoryKeyword)
 		if directory == "" {
 			leaction.ReportError(opererr.New("netlab runtime host needs a packaged lab directory",
@@ -163,7 +163,7 @@ func runContainerLab(ctx context.Context, root string) (directory string, err er
 	_, err = docker.RunOneShot(ctx, interoplab.OneShotContainer{
 		Image: image.Reference, Network: runtimeHost, Mounts: mounts,
 		Arguments: []string{"--privileged", "--pid=host", "--workdir", directory},
-		Command:   []string{"/usr/local/bin/le", "test", "netlab", "run", "runtime", runtimeHost, directoryKeyword, directory},
+		Command:   []string{"/usr/local/bin/le", "test", "netlab", "run", runtimeKeyword, runtimeHost, directoryKeyword, directory},
 		Timeout:   20 * time.Minute, Stdout: os.Stdout, Stderr: os.Stderr,
 	})
 	if err != nil {

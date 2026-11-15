@@ -255,7 +255,7 @@ func editInSSHEditor(ctx context.Context, address, user, password, hostKey strin
 
 // terminalEscape matches the control sequences a terminal program writes:
 // CSI, OSC and the two-byte escapes.
-var terminalEscape = regexp.MustCompile("\x1b\\[[0-?]*[\\x20-\\x2f]*[@-~]|\x1b\\][^\x07\x1b]*(?:\x07|\x1b\\\\)|\x1b[@-_]")
+var terminalEscape = regexp.MustCompile("\x1b\\[[0-?]*[\\x20-\\x2f]*[\\x40-\\x7e]|\x1b\\][^\x07\x1b]*(?:\x07|\x1b\\\\)|\x1b[\\x40-\\x5f]")
 
 // terminalRecorder keeps the bounded text of a terminal session and when it
 // last wrote. Safe for concurrent use.
