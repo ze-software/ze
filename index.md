@@ -132,29 +132,29 @@ Playback starts at the SSH introduction (0:36) in the full recorded session. Use
 
  [Full recording and quickstart →](https://ze-software.net/guides/quickstart/#initialize) [Read transcript →](https://ze-software.net/assets/demos/zefs-config.txt?v=586e5c6ada)
 
-**Decision**
+**ExaBGP**
 
-### [Reasons to consider Ze](https://ze-software.net/project/why-ze/)
+### [ExaBGP on steroids](https://ze-software.net/features/exabgp-compatibility/)
 
-The overview explains the CLI and operator protocols, in-engine IRR filtering, PeeringDB data, looking glass APIs and shared YANG model. It also describes when another NOS may be a better choice.
+Used as a controller, Ze behaves like ExaBGP: your scripts run unchanged and the host's routing table is left alone. Its native API offers much more: a program written in any language can filter each route (accept, reject or rewrite it), add its own commands and YANG configuration, and report problems through `ze doctor`.
 
-**Runtime**
+**Peering**
 
-### [A small core shared by each subsystem](https://ze-software.net/architecture/)
+### [Made for operators](https://ze-software.net/guides/irr-filtering/)
 
-The core manages background tasks, messages between components, configuration and plugins. BGP and interface management connect to these shared services.
+Give Ze a peer's ASN and it finds the AS-SET in PeeringDB, builds the IRR prefix filter and keeps it up to date, so no bgpq4 job is needed. RPKI validation and a looking glass with a Birdwatcher-compatible API are built in, and the CLI completes every command and explains what is wrong.
 
-**Routing**
+**Deployment**
 
-### [Network OS built on the engine](https://ze-software.net/architecture/)
+### [Run it the way you want](https://ze-software.net/guides/ze-install/)
 
-The shipped daemon speaks BGP, manages Linux interfaces, programs the FIB, and serves its configuration through SSH and the web UI.
+One binary, four ways to run it: a daemon on the Linux host you already have, a dedicated appliance image for a VM or mini PC, a Docker container, or a node in a containerlab topology. The configuration and the commands stay the same.
 
-**Modular**
+**AI**
 
-### [Extend Ze with plugins](https://ze-software.net/reference/plugins/)
+### [Made for AI assistants](https://ze-software.net/guides/ai-agent/)
 
-Plugins can be compiled Go modules or external processes. Compiled modules load their YANG into the daemon validator; external plugins can expose their model through `ze schema`.
+Connect an assistant to Ze's MCP server and describe the symptom. It runs `ze doctor`, reads peer, route and interface state from the live daemon, and explains the cause, using a reference built from that binary.
 
  Evidence for your decision
 

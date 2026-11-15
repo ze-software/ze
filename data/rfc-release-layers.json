@@ -1,0 +1,57 @@
+{
+  "schema-version": 1,
+  "proposed": true,
+  "default-layer": "base-ipv4-bgp",
+  "layers": [
+    {
+      "id": "base-ipv4-bgp",
+      "title": "Base IPv4 BGP",
+      "stems": ["rfc4271"]
+    },
+    {
+      "id": "modern-ipv4",
+      "title": "Modern IPv4 interoperability",
+      "stems": ["rfc5492", "rfc6286", "rfc6608", "rfc6793", "rfc7606", "rfc7607", "rfc8212", "rfc9687", "rfc9774"]
+    },
+    {
+      "id": "ipv6-unicast",
+      "title": "IPv6 unicast",
+      "stems": ["rfc4760", "rfc2545"]
+    },
+    {
+      "id": "policy-communities",
+      "title": "Common policy communities",
+      "stems": ["rfc1997", "rfc8092", "rfc7999"]
+    },
+    {
+      "id": "route-server",
+      "title": "IXP route-server role",
+      "stems": ["rfc7947", "rfc7948", "rfc7454", "rfc9234"]
+    },
+    {
+      "id": "rpki-validation",
+      "title": "RPKI validation",
+      "stems": ["rfc6811", "rfc8210", "rfc8893", "rfc9582"]
+    },
+    {
+      "id": "session-operations",
+      "title": "Additional session operations",
+      "stems": ["rfc2385", "rfc5082", "rfc2918", "rfc7313", "rfc4486", "rfc8654", "rfc9072", "rfc8950", "rfc8203", "rfc9003", "rfc7911"]
+    },
+    {
+      "id": "reflection-restart",
+      "title": "Reflection and restart",
+      "stems": ["rfc4456", "rfc5065", "rfc4724", "rfc8538", "rfc9494"]
+    },
+    {
+      "id": "extended-policy",
+      "title": "Extended policy attributes",
+      "stems": ["rfc4360", "rfc5701"]
+    },
+    {
+      "id": "monitoring-archival",
+      "title": "Monitoring and archival",
+      "stems": ["rfc7854", "rfc8671", "rfc9069", "rfc6396", "rfc6397", "rfc8050"]
+    }
+  ]
+}

@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>RFC dependency map - Ze</title>
+        <meta name="description" content="Explore RFC dependencies, proposed release layers and the specifications associated with each requirement." />
+        <meta property="og:title" content="RFC dependency map - Ze" />
+        <meta property="og:description" content="Explore RFC dependencies, proposed release layers and the specifications associated with each requirement." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="RFC dependency map - Ze" />
+        <meta name="twitter:description" content="Explore RFC dependencies, proposed release layers and the specifications associated with each requirement." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/quality/rfc-map/" />
+        <meta property="og:url" content="https://ze-software.net/quality/rfc-map/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+        <link rel="stylesheet" href="../../assets/rfc-map.css" />
+        <script src="../../assets/rfc-map.js" defer></script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../project/roadmap/">Roadmap</a>
+                    <a href="../../project/changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="site-main-wide" tabindex="-1">
+<section class="hero hero-inner" aria-labelledby="top">
+<div class="hero-copy"><span class="journey-eyebrow">Release planning</span>
+<h1 id="top">RFC dependency map.</h1>
+<p>Start with base BGP, explore the capabilities around it, and find the specifications associated with each requirement.</p>
+<p>Release layers are proposals. A filter changes this view; it does not disable a feature or approve a release.</p>
+<nav aria-label="Related standards pages"><a href="../rfc-compliance/">RFC compliance</a> · <a href="../rfc-compliance/profiles/">Completion by use case</a> · <a href="../../project/roadmap/">Roadmap</a></nav></div>
+</section>
+<section id="rfc-map" data-rfc-map data-source="../../data/rfc-map.json" data-rfc-base="../../data/rfc/" data-roadmap="../../data/release-roadmap.json" aria-label="RFC dependencies and release filters">
+<div class="rfc-map-fallback"><h2>Explore the recorded evidence</h2>
+<p>The interactive graph is loading. The recorded RFC list and evidence links below remain available if JavaScript is disabled or the graph cannot load.</p>
+<p><a href="../rfc-compliance/">RFC evidence</a> · <a href="../rfc-compliance/profiles/">Existing release profiles</a> · <a href="../../project/roadmap/">Specification inventory</a></p>
+<p>RFC evidence revision and age are unknown where the recorded input supplies neither. Specification snapshot: <code>f7a3d3e4ad72d7233ccfeff630ea8e911b613ea8</code>. These inputs do not certify one release candidate.</p>
+<noscript><p>The graph needs JavaScript. Use the recorded list below or the existing evidence pages to continue.</p></noscript>
+<details><summary>Recorded RFC list</summary><ul>
+<li><a href="../rfc-compliance/rfc1661/"><code>rfc1661</code></a> — The Point-to-Point Protocol (PPP)</li>
+<li><a href="../rfc-compliance/rfc1994/"><code>rfc1994</code></a> — PPP Challenge Handshake Authentication Protocol (CHAP)</li>
+<li><a href="../rfc-compliance/rfc2516/"><code>rfc2516</code></a> — A Method for Transmitting PPP Over Ethernet (PPPoE)</li>
+<li><a href="../rfc-compliance/rfc2865/"><code>rfc2865</code></a> — Remote Authentication Dial In User Service (RADIUS)</li>
+<li><a href="../rfc-compliance/rfc2866/"><code>rfc2866</code></a> — RADIUS Accounting</li>
+<li><a href="../rfc-compliance/rfc4754/"><code>rfc4754</code></a> — IKE and IKEv2 Authentication Using the Elliptic Curve Digital Signature Algorithm (ECDSA)</li>
+<li><a href="../rfc-compliance/rfc4787/"><code>rfc4787</code></a> — Network Address Translation (NAT) Behavioral Requirements for Unicast UDP</li>
+<li><a href="../rfc-compliance/rfc1035/"><code>rfc1035</code></a> — Domain Names - Implementation and Specification</li>
+<li><a href="../rfc-compliance/rfc1332/"><code>rfc1332</code></a> — The PPP Internet Protocol Control Protocol (IPCP)</li>
+<li><a href="../rfc-compliance/rfc1334/"><code>rfc1334</code></a> — PPP Authentication Protocols</li>
+<li><a href="../rfc-compliance/rfc2131/"><code>rfc2131</code></a> — Dynamic Host Configuration Protocol</li>
+<li><a href="../rfc-compliance/rfc2132/"><code>rfc2132</code></a> — DHCP Options and BOOTP Vendor Extensions</li>
+<li><a href="../rfc-compliance/rfc4861/"><code>rfc4861</code></a> — Neighbor Discovery for IP version 6 (IPv6)</li>
+<li><a href="../rfc-compliance/rfc1877/"><code>rfc1877</code></a> — PPP Internet Protocol Control Protocol Extensions for Name Server Addresses</li>
+<li><a href="../rfc-compliance/rfc2181/"><code>rfc2181</code></a> — Clarifications to the DNS Specification</li>
+<li><a href="../rfc-compliance/rfc2759/"><code>rfc2759</code></a> — Microsoft PPP CHAP Extensions, Version 2</li>
+<li><a href="../rfc-compliance/rfc3022/"><code>rfc3022</code></a> — Traditional IP Network Address Translator (Traditional NAT)</li>
+<li><a href="../rfc-compliance/rfc4271/"><code>rfc4271</code></a> — A Border Gateway Protocol 4 (BGP-4)</li>
+<li><a href="../rfc-compliance/rfc4862/"><code>rfc4862</code></a> — IPv6 Stateless Address Autoconfiguration</li>
+<li><a href="../rfc-compliance/rfc5280/"><code>rfc5280</code></a> — Internet X.509 Public Key Infrastructure Certificate and Certificate Revocation List (CRL) Profile</li>
+<li><a href="../rfc-compliance/rfc5382/"><code>rfc5382</code></a> — NAT Behavioral Requirements for TCP</li>
+<li><a href="../rfc-compliance/rfc9582/"><code>rfc9582</code></a> — A Profile for Route Origin Authorizations (ROAs)</li>
+<li><a href="../rfc-compliance/rfc1997/"><code>rfc1997</code></a> — BGP Communities Attribute</li>
+<li><a href="../rfc-compliance/rfc2545/"><code>rfc2545</code></a> — Use of BGP-4 Multiprotocol Extensions for IPv6 Inter-Domain Routing</li>
+<li><a href="../rfc-compliance/rfc3948/"><code>rfc3948</code></a> — UDP Encapsulation of IPsec ESP Packets</li>
+<li><a href="../rfc-compliance/rfc4106/"><code>rfc4106</code></a> — The Use of Galois/Counter Mode (GCM) in IPsec Encapsulating Security Payload (ESP)</li>
+<li><a href="../rfc-compliance/rfc4301/"><code>rfc4301</code></a> — Security Architecture for the Internet Protocol</li>
+<li><a href="../rfc-compliance/rfc4303/"><code>rfc4303</code></a> — IP Encapsulating Security Payload (ESP)</li>
+<li><a href="../rfc-compliance/rfc5072/"><code>rfc5072</code></a> — IP Version 6 over PPP</li>
+<li><a href="../rfc-compliance/rfc5282/"><code>rfc5282</code></a> — Using Authenticated Encryption Algorithms with the Encrypted Payload of the Internet Key Exchange version 2 (IKEv2) Protocol</li>
+<li><a href="../rfc-compliance/rfc5492/"><code>rfc5492</code></a> — Capabilities Advertisement with BGP-4</li>
+<li><a href="../rfc-compliance/rfc6608/"><code>rfc6608</code></a> — Subcodes for BGP Finite State Machine Error</li>
+<li><a href="../rfc-compliance/rfc7296/"><code>rfc7296</code></a> — Internet Key Exchange Protocol Version 2 (IKEv2)</li>
+<li><a href="../rfc-compliance/rfc8212/"><code>rfc8212</code></a> — Default External BGP (EBGP) Route Propagation Behavior without Policies</li>
+<li><a href="../rfc-compliance/rfc8247/"><code>rfc8247</code></a> — Algorithm Implementation Requirements and Usage Guidance for the Internet Key Exchange Protocol Version 2 (IKEv2)</li>
+<li><a href="../rfc-compliance/rfc9687/"><code>rfc9687</code></a> — Border Gateway Protocol 4 (BGP-4) Send Hold Timer</li>
+<li><a href="../rfc-compliance/rfc9915/"><code>rfc9915</code></a> — Dynamic Host Configuration Protocol for IPv6 (DHCPv6)</li>
+<li><a href="../rfc-compliance/rfc2661/"><code>rfc2661</code></a> — Layer Two Tunneling Protocol &#34;L2TP&#34;</li>
+<li><a href="../rfc-compliance/rfc4760/"><code>rfc4760</code></a> — Multiprotocol Extensions for BGP-4</li>
+<li><a href="../rfc-compliance/rfc7427/"><code>rfc7427</code></a> — Signature Authentication in the Internet Key Exchange Version 2 (IKEv2)</li>
+<li><a href="../rfc-compliance/rfc8221/"><code>rfc8221</code></a> — Cryptographic Algorithm Implementation Requirements and Usage Guidance for Encapsulating Security Payload (ESP) and Authentication Header (AH)</li>
+<li><a href="../rfc-compliance/rfc2869/"><code>rfc2869</code></a> — RADIUS Extensions</li>
+<li><a href="../rfc-compliance/rfc6793/"><code>rfc6793</code></a> — BGP Support for Four-Octet Autonomous System (AS) Number Space</li>
+<li><a href="../rfc-compliance/rfc7911/"><code>rfc7911</code></a> — Advertisement of Multiple Paths in BGP</li>
+<li><a href="../rfc-compliance/rfc7947/"><code>rfc7947</code></a> — Internet Exchange BGP Route Server</li>
+<li><a href="../rfc-compliance/rfc8522/"><code>rfc8522</code></a> — Looking Glass Command Set</li>
+<li><a href="../rfc-compliance/rfc3162/"><code>rfc3162</code></a> — RADIUS and IPv6</li>
+<li><a href="../rfc-compliance/rfc5625/"><code>rfc5625</code></a> — DNS Proxy Implementation Guidelines</li>
+<li><a href="../rfc-compliance/rfc6286/"><code>rfc6286</code></a> — Autonomous-System-Wide Unique BGP Identifier for BGP-4</li>
+<li><a href="../rfc-compliance/rfc6811/"><code>rfc6811</code></a> — BGP Prefix Origin Validation</li>
+<li><a href="../rfc-compliance/rfc7084/"><code>rfc7084</code></a> — Basic Requirements for IPv6 Customer Edge Routers</li>
+<li><a href="../rfc-compliance/rfc7606/"><code>rfc7606</code></a> — Revised Error Handling for BGP UPDATE Messages</li>
+<li><a href="../rfc-compliance/rfc7948/"><code>rfc7948</code></a> — Internet Exchange BGP Route Server Operations</li>
+<li><a href="../rfc-compliance/rfc5176/"><code>rfc5176</code></a> — Dynamic Authorization Extensions to Remote Authentication Dial In User Service (RADIUS)</li>
+<li><a href="../rfc-compliance/rfc7454/"><code>rfc7454</code></a> — BGP Operations and Security</li>
+<li><a href="../rfc-compliance/rfc7607/"><code>rfc7607</code></a> — Codification of AS 0 Processing</li>
+<li><a href="../rfc-compliance/rfc7854/"><code>rfc7854</code></a> — BGP Monitoring Protocol (BMP)</li>
+<li><a href="../rfc-compliance/rfc7999/"><code>rfc7999</code></a> — BLACKHOLE Community</li>
+<li><a href="../rfc-compliance/rfc8092/"><code>rfc8092</code></a> — BGP Large Communities Attribute</li>
+<li><a href="../rfc-compliance/rfc8893/"><code>rfc8893</code></a> — Resource Public Key Infrastructure (RPKI) Origin Validation for BGP Export</li>
+<li><a href="../rfc-compliance/rfc9234/"><code>rfc9234</code></a> — Route Leak Prevention and Detection Using Roles in UPDATE and OPEN Messages</li>
+<li><a href="../rfc-compliance/rfc9774/"><code>rfc9774</code></a> — Deprecation of AS_SET and AS_CONFED_SET in BGP</li>
+<li><a href="../rfc-compliance/rfc8210/"><code>rfc8210</code></a> — The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 1</li>
+<li><a href="../rfc-compliance/rfc8671/"><code>rfc8671</code></a> — Support for Adj-RIB-Out in the BGP Monitoring Protocol (BMP)</li>
+<li><a href="../rfc-compliance/rfc9069/"><code>rfc9069</code></a> — Support for Local RIB in the BGP Monitoring Protocol (BMP)</li>
+<li><a href="../rfc-compliance/rfc6071/"><code>rfc6071</code></a> — IP Security (IPsec) and Internet Key Exchange (IKE) Document Roadmap</li>
+<li><a href="../rfc-compliance/rfc6396/"><code>rfc6396</code></a> — Multi-Threaded Routing Toolkit (MRT) Routing Information Export Format</li>
+<li><a href="../rfc-compliance/rfc6397/"><code>rfc6397</code></a> — Multi-Threaded Routing Toolkit (MRT) Border Gateway Protocol (BGP) Routing Information Export Format with Geo-Location Extensions</li>
+<li><a href="../rfc-compliance/rfc8050/"><code>rfc8050</code></a> — Multi-Threaded Routing Toolkit (MRT) Routing Information Export Format with BGP Additional Path Extensions</li>
+<li><code>rfc768</code> — no recorded summary</li>
+<li><code>rfc791</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc792/"><code>rfc792</code></a> — Internet Control Message Protocol</li>
+<li><a href="../rfc-compliance/rfc905/"><code>rfc905</code></a> — ISO Transport Protocol Specification (ISO DP 8073)</li>
+<li><a href="../rfc-compliance/rfc1071/"><code>rfc1071</code></a> — Computing the Internet Checksum</li>
+<li><a href="../rfc-compliance/rfc2205/"><code>rfc2205</code></a> — Resource ReSerVation Protocol (RSVP) -- Version 1 Functional Specification</li>
+<li><code>rfc2210</code> — no recorded summary</li>
+<li><code>rfc2211</code> — no recorded summary</li>
+<li><code>rfc2215</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc2385/"><code>rfc2385</code></a> — Protection of BGP Sessions via the TCP MD5 Signature Option</li>
+<li><code>rfc2845</code> — no recorded summary</li>
+<li><code>rfc3526</code> — no recorded summary</li>
+<li><code>rfc3610</code> — no recorded summary</li>
+<li><code>rfc3704</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc3882/"><code>rfc3882</code></a> — Configuring BGP to Block Denial-of-Service Attacks</li>
+<li><a href="../rfc-compliance/rfc3954/"><code>rfc3954</code></a> — Cisco Systems NetFlow Services Export Version 9</li>
+<li><code>rfc4254</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc4739/"><code>rfc4739</code></a> — Multiple Authentication Exchanges in the Internet Key Exchange (IKEv2) Protocol</li>
+<li><a href="../rfc-compliance/rfc5301/"><code>rfc5301</code></a> — Dynamic Hostname Exchange Mechanism for IS-IS</li>
+<li><a href="../rfc-compliance/rfc5304/"><code>rfc5304</code></a> — IS-IS Cryptographic Authentication</li>
+<li><a href="../rfc-compliance/rfc5305/"><code>rfc5305</code></a> — IS-IS Extensions for Traffic Engineering</li>
+<li><code>rfc5396</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc5685/"><code>rfc5685</code></a> — Redirect Mechanism for the Internet Key Exchange Protocol Version 2 (IKEv2)</li>
+<li><code>rfc5903</code> — no recorded summary</li>
+<li><code>rfc7457</code> — no recorded summary</li>
+<li><code>rfc7519</code> — no recorded summary</li>
+<li><code>rfc7539</code> — no recorded summary</li>
+<li><code>rfc7542</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc7950/"><code>rfc7950</code></a> — The YANG 1.1 Data Modeling Language</li>
+<li><code>rfc8032</code> — no recorded summary</li>
+<li><code>rfc8439</code> — no recorded summary</li>
+<li><code>draft-mangin-netcapstring-00</code> — no recorded summary</li>
+<li><code>rfc952</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc1570/"><code>rfc1570</code></a> — PPP LCP Extensions</li>
+<li><code>rfc2961</code> — no recorded summary</li>
+<li><code>rfc2997</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc5036/"><code>rfc5036</code></a> — LDP Specification</li>
+<li><a href="../rfc-compliance/rfc5635/"><code>rfc5635</code></a> — Remote Triggered Black Hole Filtering with Unicast Reverse Path Forwarding (uRPF)</li>
+<li><code>rfc1034</code> — no recorded summary</li>
+<li><code>rfc1122</code> — no recorded summary</li>
+<li><code>rfc1123</code> — no recorded summary</li>
+<li><code>rfc1191</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc1195/"><code>rfc1195</code></a> — Use of OSI IS-IS for Routing in TCP/IP and Dual Environments</li>
+<li><a href="../rfc-compliance/rfc1350/"><code>rfc1350</code></a> — The TFTP Protocol (Revision 2)</li>
+<li><code>rfc1812</code> — no recorded summary</li>
+<li><code>rfc2433</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc3748/"><code>rfc3748</code></a> — Extensible Authentication Protocol (EAP)</li>
+<li><code>rfc4291</code> — no recorded summary</li>
+<li><code>rfc4443</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc4638/"><code>rfc4638</code></a> — Accommodating a Maximum Transit Unit/Maximum Receive Unit (MTU/MRU) Greater Than 1492 in the Point-to-Point Protocol over Ethernet (PPPoE)</li>
+<li><a href="../rfc-compliance/rfc5561/"><code>rfc5561</code></a> — LDP Capabilities</li>
+<li><a href="../rfc-compliance/rfc5905/"><code>rfc5905</code></a> — Network Time Protocol Version 4: Protocol and Algorithms Specification</li>
+<li><code>rfc8200</code> — no recorded summary</li>
+<li><code>rfc8201</code> — no recorded summary</li>
+<li><code>rfc9293</code> — no recorded summary</li>
+<li><code>draft-ietf-radext-deprecating-radius-10</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc2003/"><code>rfc2003</code></a> — IP Encapsulation within IP</li>
+<li><a href="../rfc-compliance/rfc2347/"><code>rfc2347</code></a> — TFTP Option Extension</li>
+<li><a href="../rfc-compliance/rfc2348/"><code>rfc2348</code></a> — TFTP Blocksize Option</li>
+<li><a href="../rfc-compliance/rfc2349/"><code>rfc2349</code></a> — TFTP Timeout Interval and Transfer Size Options</li>
+<li><code>rfc2464</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc2548/"><code>rfc2548</code></a> — Microsoft Vendor-specific RADIUS Attributes</li>
+<li><a href="../rfc-compliance/rfc2784/"><code>rfc2784</code></a> — Generic Routing Encapsulation (GRE)</li>
+<li><a href="../rfc-compliance/rfc2966/"><code>rfc2966</code></a> — Domain-wide Prefix Distribution with Two-Level IS-IS</li>
+<li><a href="../rfc-compliance/rfc3031/"><code>rfc3031</code></a> — Multiprotocol Label Switching Architecture</li>
+<li><a href="../rfc-compliance/rfc3032/"><code>rfc3032</code></a> — MPLS Label Stack Encoding</li>
+<li><code>rfc3617</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc3786/"><code>rfc3786</code></a> — Extending the Number of Intermediate System to Intermediate System (IS-IS) Link State PDU (LSP) Fragments Beyond the 256 Limit</li>
+<li><a href="../rfc-compliance/rfc3787/"><code>rfc3787</code></a> — Recommendations for Interoperable IP Networks using Intermediate System to Intermediate System (IS-IS)</li>
+<li><code>rfc4007</code> — no recorded summary</li>
+<li><code>rfc4191</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc4213/"><code>rfc4213</code></a> — Basic Transition Mechanisms for IPv6 Hosts and Routers</li>
+<li><a href="../rfc-compliance/rfc4578/"><code>rfc4578</code></a> — Dynamic Host Configuration Protocol (DHCP) Options for the Intel Preboot eXecution Environment (PXE)</li>
+<li><code>rfc4821</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc5303/"><code>rfc5303</code></a> — Three-Way Handshake for IS-IS Point-to-Point Adjacencies</li>
+<li><a href="../rfc-compliance/rfc5308/"><code>rfc5308</code></a> — Routing IPv6 with IS-IS</li>
+<li><a href="../rfc-compliance/rfc5310/"><code>rfc5310</code></a> — IS-IS Generic Cryptographic Authentication</li>
+<li><code>rfc6691</code> — no recorded summary</li>
+<li><code>rfc6891</code> — no recorded summary</li>
+<li><code>rfc7761</code> — no recorded summary</li>
+<li><code>rfc8899</code> — no recorded summary</li>
+<li><code>rfc8945</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/sflow-v5/"><code>sflow-v5</code></a> — sFlow: A Method for Monitoring Traffic in Switched and Routed Networks</li>
+<li><code>rfc2308</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc2328/"><code>rfc2328</code></a> — OSPF Version 2</li>
+<li><a href="../rfc-compliance/rfc2782/"><code>rfc2782</code></a> — A DNS RR for specifying the location of services (DNS SRV)</li>
+<li><a href="../rfc-compliance/rfc3101/"><code>rfc3101</code></a> — The OSPF Not-So-Stubby Area (NSSA) Option</li>
+<li><a href="../rfc-compliance/rfc3209/"><code>rfc3209</code></a> — RSVP-TE: Extensions to RSVP for LSP Tunnels</li>
+<li><code>rfc3602</code> — no recorded summary</li>
+<li><code>rfc4182</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc4302/"><code>rfc4302</code></a> — IP Authentication Header</li>
+<li><code>rfc4309</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc4456/"><code>rfc4456</code></a> — BGP Route Reflection: An Alternative to Full Mesh Internal BGP (IBGP)</li>
+<li><a href="../rfc-compliance/rfc5065/"><code>rfc5065</code></a> — Autonomous System Confederations for BGP</li>
+<li><code>rfc5246</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc5250/"><code>rfc5250</code></a> — The OSPF Opaque LSA Option</li>
+<li><code>rfc5508</code> — no recorded summary</li>
+<li><code>rfc5543</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc6482/"><code>rfc6482</code></a> — A Profile for Route Origin Authorizations (ROAs)</li>
+<li><a href="../rfc-compliance/rfc6911/"><code>rfc6911</code></a> — RADIUS Attributes for IPv6 Access Networks</li>
+<li><a href="../rfc-compliance/rfc7440/"><code>rfc7440</code></a> — TFTP Windowsize Option</li>
+<li><code>rfc7794</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc8106/"><code>rfc8106</code></a> — IPv6 Router Advertisement Options for DNS Configuration</li>
+<li><code>rfc8410</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc9072/"><code>rfc9072</code></a> — Extended Optional Parameters Length for BGP OPEN Message</li>
+<li><a href="../rfc-compliance/rfc2473/"><code>rfc2473</code></a> — Generic Packet Tunneling in IPv6 Specification</li>
+<li><a href="../rfc-compliance/rfc2890/"><code>rfc2890</code></a> — Key and Sequence Number Extensions to GRE</li>
+<li><code>rfc3046</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc3623/"><code>rfc3623</code></a> — Graceful OSPF Restart</li>
+<li><a href="../rfc-compliance/rfc3630/"><code>rfc3630</code></a> — Traffic Engineering (TE) Extensions to OSPF Version 2</li>
+<li><a href="../rfc-compliance/rfc3765/"><code>rfc3765</code></a> — NOPEER Community for Border Gateway Protocol (BGP) Route Scope Control</li>
+<li><a href="../rfc-compliance/rfc4033/"><code>rfc4033</code></a> — DNS Security Introduction and Requirements</li>
+<li><a href="../rfc-compliance/rfc4034/"><code>rfc4034</code></a> — Resource Records for the DNS Security Extensions</li>
+<li><a href="../rfc-compliance/rfc4035/"><code>rfc4035</code></a> — Protocol Modifications for the DNS Security Extensions</li>
+<li><a href="../rfc-compliance/rfc4090/"><code>rfc4090</code></a> — Fast Reroute Extensions to RSVP-TE for LSP Tunnels</li>
+<li><a href="../rfc-compliance/rfc4360/"><code>rfc4360</code></a> — BGP Extended Communities Attribute</li>
+<li><a href="../rfc-compliance/rfc4555/"><code>rfc4555</code></a> — IKEv2 Mobility and Multihoming Protocol (MOBIKE)</li>
+<li><a href="../rfc-compliance/rfc4818/"><code>rfc4818</code></a> — RADIUS Delegated-IPv6-Prefix Attribute</li>
+<li><code>rfc4945</code> — no recorded summary</li>
+<li><code>rfc5077</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc5082/"><code>rfc5082</code></a> — The Generalized TTL Security Mechanism (GTSM)</li>
+<li><a href="../rfc-compliance/rfc5216/"><code>rfc5216</code></a> — The EAP-TLS Authentication Protocol</li>
+<li><a href="../rfc-compliance/rfc5443/"><code>rfc5443</code></a> — LDP IGP Synchronization</li>
+<li><a href="../rfc-compliance/rfc5709/"><code>rfc5709</code></a> — OSPFv2 HMAC-SHA Cryptographic Authentication</li>
+<li><a href="../rfc-compliance/rfc5998/"><code>rfc5998</code></a> — An Extension for EAP-Only Authentication in IKEv2</li>
+<li><code>rfc6749</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc7011/"><code>rfc7011</code></a> — Specification of the IP Flow Information Export (IPFIX) Protocol for the Exchange of Flow Information</li>
+<li><a href="../rfc-compliance/rfc7012/"><code>rfc7012</code></a> — Information Model for IP Flow Information Export (IPFIX)</li>
+<li><a href="../rfc-compliance/rfc7383/"><code>rfc7383</code></a> — Internet Key Exchange Protocol Version 2 (IKEv2) Message Fragmentation</li>
+<li><a href="../rfc-compliance/rfc7627/"><code>rfc7627</code></a> — Transport Layer Security (TLS) Session Hash and Extended Master Secret Extension</li>
+<li><a href="../rfc-compliance/rfc7634/"><code>rfc7634</code></a> — ChaCha20, Poly1305, and Their Use in the Internet Key Exchange Protocol (IKE) and IPsec</li>
+<li><a href="../rfc-compliance/rfc7705/"><code>rfc7705</code></a> — Autonomous System Migration Mechanisms and Their Effects on the BGP AS_PATH Attribute</li>
+<li><a href="../rfc-compliance/rfc8031/"><code>rfc8031</code></a> — Curve25519 and Curve448 for the Internet Key Exchange Protocol Version 2 (IKEv2) Key Agreement</li>
+<li><a href="../rfc-compliance/rfc8326/"><code>rfc8326</code></a> — Graceful BGP Session Shutdown</li>
+<li><code>rfc8415</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc8484/"><code>rfc8484</code></a> — DNS Queries over HTTPS (DoH)</li>
+<li><code>rfc8642</code> — no recorded summary</li>
+<li><code>rfc8810</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc9329/"><code>rfc9329</code></a> — TCP Encapsulation of Internet Key Exchange Protocol (IKE) and IPsec Packets</li>
+<li><a href="../rfc-compliance/rfc9370/"><code>rfc9370</code></a> — Multiple Key Exchanges in the Internet Key Exchange Protocol Version 2 (IKEv2)</li>
+<li><code>rfc9463</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/draft-walton-bgp-hostname-capability/"><code>draft-walton-bgp-hostname-capability</code></a> — Hostname Capability for BGP</li>
+<li><a href="../rfc-compliance/rfc2867/"><code>rfc2867</code></a> — RADIUS Accounting Modifications for Tunnel Protocol Support</li>
+<li><a href="../rfc-compliance/rfc2868/"><code>rfc2868</code></a> — RADIUS Attributes for Tunnel Protocol Support</li>
+<li><a href="../rfc-compliance/rfc2918/"><code>rfc2918</code></a> — Route Refresh Capability for BGP-4</li>
+<li><code>rfc2930</code> — no recorded summary</li>
+<li><code>rfc3079</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc3145/"><code>rfc3145</code></a> — L2TP Disconnect Cause Information</li>
+<li><code>rfc3646</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc4486/"><code>rfc4486</code></a> — Subcodes for BGP Cease NOTIFICATION Message</li>
+<li><a href="../rfc-compliance/rfc4724/"><code>rfc4724</code></a> — Graceful Restart Mechanism for BGP</li>
+<li><code>rfc5080</code> — no recorded summary</li>
+<li><code>rfc5452</code> — no recorded summary</li>
+<li><code>rfc5668</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc5701/"><code>rfc5701</code></a> — IPv6 Address Specific BGP Extended Community Attribute</li>
+<li><a href="../rfc-compliance/rfc5880/"><code>rfc5880</code></a> — Bidirectional Forwarding Detection (BFD)</li>
+<li><a href="../rfc-compliance/rfc6138/"><code>rfc6138</code></a> — LDP IGP Synchronization for Broadcast Networks</li>
+<li><code>rfc6720</code> — no recorded summary</li>
+<li><code>rfc6750</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc7311/"><code>rfc7311</code></a> — The Accumulated IGP Metric Attribute for BGP</li>
+<li><a href="../rfc-compliance/rfc7474/"><code>rfc7474</code></a> — Security Extensions for OSPFv2 when Using Manual Key Management</li>
+<li><a href="../rfc-compliance/rfc7534/"><code>rfc7534</code></a> — AS112 Nameserver Operations</li>
+<li><a href="../rfc-compliance/rfc7535/"><code>rfc7535</code></a> — AS112 Redirection Using DNAME</li>
+<li><code>rfc7552</code> — no recorded summary</li>
+<li><code>rfc7600</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc7684/"><code>rfc7684</code></a> — OSPFv2 Prefix/Link Attribute Advertisement</li>
+<li><a href="../rfc-compliance/rfc7871/"><code>rfc7871</code></a> — Client Subnet in DNS Queries</li>
+<li><code>rfc8420</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc8707/"><code>rfc8707</code></a> — Resource Indicators for OAuth 2.0</li>
+<li><code>rfc8986</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc9190/"><code>rfc9190</code></a> — EAP-TLS 1.3: Using the Extensible Authentication Protocol with TLS 1.3</li>
+<li><a href="../rfc-compliance/rfc9568/"><code>rfc9568</code></a> — Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6</li>
+<li><a href="../rfc-compliance/draft-abraitis-bgp-version-capability/"><code>draft-abraitis-bgp-version-capability</code></a> — Software Version Capability for BGP</li>
+<li><a href="../rfc-compliance/rfc3768/"><code>rfc3768</code></a> — Virtual Router Redundancy Protocol (VRRP)</li>
+<li><a href="../rfc-compliance/rfc4364/"><code>rfc4364</code></a> — BGP/MPLS IP Virtual Private Networks (VPNs)</li>
+<li><a href="../rfc-compliance/rfc4659/"><code>rfc4659</code></a> — BGP-MPLS IP Virtual Private Network (VPN) Extension for IPv6 VPN</li>
+<li><code>rfc4798</code> — no recorded summary</li>
+<li><code>rfc5291</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc5798/"><code>rfc5798</code></a> — Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6</li>
+<li><a href="../rfc-compliance/rfc5881/"><code>rfc5881</code></a> — Bidirectional Forwarding Detection (BFD) for IPv4 and IPv6 (Single Hop)</li>
+<li><a href="../rfc-compliance/rfc5882/"><code>rfc5882</code></a> — Generic Application of Bidirectional Forwarding Detection (BFD)</li>
+<li><a href="../rfc-compliance/rfc5883/"><code>rfc5883</code></a> — Bidirectional Forwarding Detection (BFD) for Multihop Paths</li>
+<li><code>rfc6368</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc6996/"><code>rfc6996</code></a> — Autonomous System (AS) Reservation for Private Use</li>
+<li><code>rfc7153</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc8203/"><code>rfc8203</code></a> — BGP Administrative Shutdown Communication</li>
+<li><a href="../rfc-compliance/rfc8277/"><code>rfc8277</code></a> — Using BGP to Bind MPLS Labels to Address Prefixes</li>
+<li><a href="../rfc-compliance/rfc8950/"><code>rfc8950</code></a> — Advertising IPv4 Network Layer Reachability Information (NLRI) with an IPv6 Next Hop</li>
+<li><code>rfc8996</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc9003/"><code>rfc9003</code></a> — Extended BGP Administrative Shutdown Communication</li>
+<li><code>rfc9325</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/draft-abraitis-idr-addpath-paths-limit/"><code>draft-abraitis-idr-addpath-paths-limit</code></a> — Scalability Considerations for ADD-PATH with PATHS-LIMIT</li>
+<li><code>draft-ietf-idr-bgp-multisession</code> — no recorded summary</li>
+<li><code>draft-ietf-idr-operational-message</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc3579/"><code>rfc3579</code></a> — RADIUS (Remote Authentication Dial In User Service) Support For Extensible Authentication Protocol (EAP)</li>
+<li><a href="../rfc-compliance/rfc4576/"><code>rfc4576</code></a> — Using a Link State Advertisement (LSA) Options Bit to Prevent Looping in BGP/MPLS IP Virtual Private Networks (VPNs)</li>
+<li><a href="../rfc-compliance/rfc4577/"><code>rfc4577</code></a> — OSPF as the Provider/Customer Edge Protocol for BGP/MPLS IP Virtual Private Networks (VPNs)</li>
+<li><a href="../rfc-compliance/rfc4684/"><code>rfc4684</code></a> — Constrained Route Distribution for Border Gateway Protocol/MultiProtocol Label Switching (BGP/MPLS) Internet Protocol (IP) Virtual Private Networks (VPNs)</li>
+<li><a href="../rfc-compliance/rfc4761/"><code>rfc4761</code></a> — Virtual Private LAN Service (VPLS) Using BGP for Auto-Discovery and Signaling</li>
+<li><code>rfc5292</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc5549/"><code>rfc5549</code></a> — Advertising IPv4 Network Layer Reachability Information with an IPv6 Next Hop</li>
+<li><a href="../rfc-compliance/rfc6514/"><code>rfc6514</code></a> — BGP Encodings and Procedures for Multicast in MPLS/BGP IP VPNs</li>
+<li><a href="../rfc-compliance/rfc6810/"><code>rfc6810</code></a> — The Resource Public Key Infrastructure (RPKI) to Router Protocol</li>
+<li><a href="../rfc-compliance/rfc7313/"><code>rfc7313</code></a> — Enhanced Route Refresh Capability for BGP-4</li>
+<li><a href="../rfc-compliance/rfc7611/"><code>rfc7611</code></a> — BGP ACCEPT_OWN Community Attribute</li>
+<li><code>rfc7636</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc7858/"><code>rfc7858</code></a> — Specification for DNS over Transport Layer Security (TLS)</li>
+<li><a href="../rfc-compliance/rfc8097/"><code>rfc8097</code></a> — BGP Prefix Origin Validation State Extended Community</li>
+<li><a href="../rfc-compliance/rfc8538/"><code>rfc8538</code></a> — Notification Message Support for BGP Graceful Restart</li>
+<li><a href="../rfc-compliance/rfc8654/"><code>rfc8654</code></a> — Extended Message Support for BGP</li>
+<li><a href="../rfc-compliance/rfc8669/"><code>rfc8669</code></a> — Segment Routing Prefix Segment Identifier Extensions for BGP</li>
+<li><code>rfc8915</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc8955/"><code>rfc8955</code></a> — Dissemination of Flow Specification Rules</li>
+<li><code>rfc9184</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc9319/"><code>rfc9319</code></a> — The Use of maxLength in the Resource Public Key Infrastructure (RPKI)</li>
+<li><a href="../rfc-compliance/draft-ietf-bess-mup-safi/"><code>draft-ietf-bess-mup-safi</code></a> — BGP Extensions for the Mobile User Plane (MUP) SAFI</li>
+<li><code>draft-ietf-bess-mup-safi-00</code> — no recorded summary</li>
+<li><code>draft-mangin-idr-attr-tombstone-00</code> — no recorded summary</li>
+<li><code>draft-mpmz-bess-mup-safi-06</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc4552/"><code>rfc4552</code></a> — Authentication/Confidentiality for OSPFv3</li>
+<li><a href="../rfc-compliance/rfc5340/"><code>rfc5340</code></a> — OSPF for IPv6</li>
+<li><a href="../rfc-compliance/rfc5575/"><code>rfc5575</code></a> — Dissemination of Flow Specification Rules</li>
+<li><a href="../rfc-compliance/rfc7432/"><code>rfc7432</code></a> — BGP MPLS-Based Ethernet VPN</li>
+<li><a href="../rfc-compliance/rfc8195/"><code>rfc8195</code></a> — Use of BGP Large Communities</li>
+<li><a href="../rfc-compliance/rfc8414/"><code>rfc8414</code></a> — OAuth 2.0 Authorization Server Metadata</li>
+<li><a href="../rfc-compliance/rfc8907/"><code>rfc8907</code></a> — The Terminal Access Controller Access-Control System Plus (TACACS+) Protocol</li>
+<li><a href="../rfc-compliance/rfc8956/"><code>rfc8956</code></a> — Dissemination of Flow Specification Rules for IPv6</li>
+<li><a href="../rfc-compliance/rfc9012/"><code>rfc9012</code></a> — The BGP Tunnel Encapsulation Attribute</li>
+<li><a href="../rfc-compliance/rfc9117/"><code>rfc9117</code></a> — Revised Validation Procedure for BGP Flow Specifications</li>
+<li><a href="../rfc-compliance/rfc9384/"><code>rfc9384</code></a> — A BGP Cease NOTIFICATION Subcode for Bidirectional Forwarding Detection (BFD)</li>
+<li><a href="../rfc-compliance/rfc9494/"><code>rfc9494</code></a> — Long-Lived Graceful Restart for BGP</li>
+<li><code>rfc9515</code> — no recorded summary</li>
+<li><code>draft-ietf-idr-flowspec-interfaceset</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/draft-ietf-idr-linklocal-capability/"><code>draft-ietf-idr-linklocal-capability</code></a> — Link-Local Next Hop Capability for BGP</li>
+<li><a href="../rfc-compliance/draft-ietf-sidrops-aspa-verification/"><code>draft-ietf-sidrops-aspa-verification</code></a> — BGP AS_PATH Verification Based on Autonomous System Provider Authorization (ASPA) Objects</li>
+<li><code>draft-simpson-idr-flowspec-redirect-02</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc5187/"><code>rfc5187</code></a> — OSPFv3 Graceful Restart</li>
+<li><a href="../rfc-compliance/rfc5286/"><code>rfc5286</code></a> — Basic Specification for IP Fast Reroute: Loop-Free Alternates</li>
+<li><a href="../rfc-compliance/rfc5392/"><code>rfc5392</code></a> — OSPF Extensions in Support of Inter-Autonomous System (AS) MPLS and GMPLS Traffic Engineering</li>
+<li><a href="../rfc-compliance/rfc5838/"><code>rfc5838</code></a> — Support of Address Families in OSPFv3</li>
+<li><a href="../rfc-compliance/rfc6549/"><code>rfc6549</code></a> — OSPFv2 Multi-Instance Extensions</li>
+<li><a href="../rfc-compliance/rfc6987/"><code>rfc6987</code></a> — OSPF Stub Router Advertisement</li>
+<li><a href="../rfc-compliance/rfc7166/"><code>rfc7166</code></a> — Supporting Authentication Trailer for OSPFv3</li>
+<li><a href="../rfc-compliance/rfc7770/"><code>rfc7770</code></a> — Extensions to OSPF for Advertising Optional Router Capabilities</li>
+<li><code>rfc8628</code> — no recorded summary</li>
+<li><code>rfc8705</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc9136/"><code>rfc9136</code></a> — IP Prefix Advertisement in Ethernet VPN (EVPN)</li>
+<li><code>rfc9736</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/draft-ietf-idr-bgp-bfd-strict-mode/"><code>draft-ietf-idr-bgp-bfd-strict-mode</code></a> — BGP BFD Strict-Mode</li>
+<li><code>draft-ietf-idr-flowspec-redirect-ip-16</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/draft-ietf-sidrops-8210bis/"><code>draft-ietf-sidrops-8210bis</code></a> — The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 2</li>
+<li><a href="../rfc-compliance/rfc8362/"><code>rfc8362</code></a> — OSPFv3 Link State Advertisement (LSA) Extensibility</li>
+<li><a href="../rfc-compliance/rfc8665/"><code>rfc8665</code></a> — OSPF Extensions for Segment Routing</li>
+<li><a href="../rfc-compliance/rfc9129/"><code>rfc9129</code></a> — YANG Data Model for the OSPF Protocol</li>
+<li><a href="../rfc-compliance/rfc9252/"><code>rfc9252</code></a> — BGP Overlay Services Based on Segment Routing over IPv6 (SRv6)</li>
+<li><a href="../rfc-compliance/rfc9728/"><code>rfc9728</code></a> — OAuth 2.0 Protected Resource Metadata</li>
+<li><a href="../rfc-compliance/rfc8666/"><code>rfc8666</code></a> — OSPFv3 Extensions for Segment Routing</li>
+<li><code>rfc8667</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc9552/"><code>rfc9552</code></a> — Distribution of Link-State and Traffic Engineering Information Using BGP</li>
+<li><a href="../rfc-compliance/rfc7752/"><code>rfc7752</code></a> — North-Bound Distribution of Link-State and Traffic Engineering (TE) Information Using BGP</li>
+<li><a href="../rfc-compliance/rfc8571/"><code>rfc8571</code></a> — BGP - Link State (BGP-LS) Advertisement of IGP Traffic Engineering Performance Metric Extensions</li>
+<li><a href="../rfc-compliance/rfc9256/"><code>rfc9256</code></a> — Segment Routing Policy Architecture</li>
+<li><code>rfc9352</code> — no recorded summary</li>
+<li><a href="../rfc-compliance/rfc9085/"><code>rfc9085</code></a> — Border Gateway Protocol - Link State (BGP-LS) Extensions for Segment Routing</li>
+<li><a href="../rfc-compliance/rfc9830/"><code>rfc9830</code></a> — BGP Extensions for the Advertisement of Segment Routing (SR) Policies</li>
+<li><a href="../rfc-compliance/rfc9086/"><code>rfc9086</code></a> — Border Gateway Protocol - Link State (BGP-LS) Extensions for Segment Routing BGP Egress Peer Engineering</li>
+<li><a href="../rfc-compliance/rfc9514/"><code>rfc9514</code></a> — Border Gateway Protocol - Link State (BGP-LS) Extensions for Segment Routing over IPv6 (SRv6)</li>
+<li><a href="../rfc-compliance/rfc4762/"><code>rfc4762</code></a> — Virtual Private LAN Service (VPLS) Using Label Distribution Protocol (LDP) Signaling</li>
+<li><a href="../rfc-compliance/rfc5120/"><code>rfc5120</code></a> — M-ISIS: Multi Topology (MT) Routing in Intermediate System to Intermediate Systems (IS-ISs)</li>
+<li><a href="../rfc-compliance/rfc5925/"><code>rfc5925</code></a> — The TCP Authentication Option</li>
+</ul></details>
+</div>
+</section>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                    <a href="../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 15 November 2026 03:42 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

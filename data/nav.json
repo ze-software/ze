@@ -36,6 +36,7 @@
                     {"href": "quality/", "icon": "✓", "title": "Code quality", "desc": "Tests, QEMU, fuzzing, and mutation checks", "feature": true},
                     {"href": "quality/health/", "icon": "📈", "title": "Testing health", "desc": "Test coverage, known weaknesses, and results over time"},
                     {"href": "quality/rfc-compliance/", "icon": "🤖", "title": "RFC compliance", "desc": "Standards requirements, test evidence, and missing coverage"},
+                    {"href": "quality/rfc-map/", "icon": "🗺️", "title": "RFC dependency map", "desc": "Explore standards, release layers, and the work behind them"},
                     {"href": "reference/dependencies/", "icon": "📦", "title": "Dependencies", "desc": "{{ze:dependencies}} direct packages, generated from go.mod"},
                     {"href": "security/", "icon": "🔒", "title": "Security", "desc": "Security policy and vulnerability reporting"}
                 ]
