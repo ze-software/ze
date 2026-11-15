@@ -703,6 +703,21 @@ Together with the two tracker and two functional entries, the canonical
 Section 4 record now holds six bounded observations. Mapping deletion still
 prevents a whole-requirement enforcement claim.
 
+Five further normal-return producer faults completed the existing Section 2
+origin-state claims. Every named clean run passed. Forcing promotion to Valid
+failed both transports' absolute Invalid-state checks; reversing each lookup
+result failed the corresponding Valid or Invalid assertion. Selecting the
+first AS_PATH segment failed only the two new multisegment cases, and using
+an AS_SET member as origin failed both final-set cases while the other
+controls passed. The observations are retained in
+`rfc/discrimination/rfc6811/RFC6811-2-1.json`; their clean/red receipt is
+`tmp/session/2026-11-14-210034/scratch/job-rpki-origin-existing-native-proofs-e302411f.log`.
+Retain this receipt through review and commit, then remove it once the
+canonical records and independently rejudged audit preserve the decision.
+That rejudge retains `enforced` for the exact state-from-lookup MUST. The
+scoped RFC 6811 inventory reports 19 recorded claims, zero stale records and
+zero unproven claims. This is claim evidence, not whole-RFC support.
+
 ## Known Limitations
 
 - RFC 8097 stays unimplemented, so a validation state, set or derived, does not propagate
@@ -714,9 +729,12 @@ prevents a whole-requirement enforcement claim.
 - ASPA keeps its own `action` container, so the daemon carries two shapes of RPKI-adjacent
   policy config until ASPA is converted. This is stated, not hidden, and the two govern
   disjoint state spaces.
-- RFC6811-2-1 stays open. The JSON event rail derives the origin AS from a flat AS_PATH
-  with its segment types discarded, so an AS_SET route can read Valid there and a
-  confederation route can read Invalid. This spec makes both cheaper and fixes neither.
+- RFC6811-2-1's exact state-from-lookup MUST is audited as enforced. Structured
+  receive, reload replay and JSON receive with raw attributes use segment-aware
+  origin extraction; normal subscriptions request full events. The flattened
+  compatibility fallback without raw attributes lacks segment types. These
+  proofs do not establish every legacy input shape or family-delivery path,
+  and do not close the separate policy and cache-revalidation obligations.
 
 ## RFC Documentation (Scope: protocol)
 

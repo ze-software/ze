@@ -228,6 +228,14 @@ func TestRPKIOriginASFromASPathRFC6811(t *testing.T) {
 		{name: "sequence", path: &attribute.ASPath{Segments: []attribute.ASPathSegment{{
 			Type: attribute.ASSequence, ASNs: []uint32{65000, 65001},
 		}}}, want: 65001},
+		{name: "sequence then sequence", path: &attribute.ASPath{Segments: []attribute.ASPathSegment{
+			{Type: attribute.ASSequence, ASNs: []uint32{65000, 65001}},
+			{Type: attribute.ASSequence, ASNs: []uint32{65002, 65003}},
+		}}, want: 65003},
+		{name: "sequence then set", path: &attribute.ASPath{Segments: []attribute.ASPathSegment{
+			{Type: attribute.ASSequence, ASNs: []uint32{65000}},
+			{Type: attribute.ASSet, ASNs: []uint32{65001}},
+		}}, want: OriginNone},
 		{name: "set", path: &attribute.ASPath{Segments: []attribute.ASPathSegment{{
 			Type: attribute.ASSet, ASNs: []uint32{65001},
 		}}}, want: OriginNone},

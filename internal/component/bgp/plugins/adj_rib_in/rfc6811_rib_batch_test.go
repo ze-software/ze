@@ -447,6 +447,24 @@ func TestBatchValidateTypedMatchesString(t *testing.T) {
 	defer stringPath.mu.RUnlock()
 	defer typedPath.mu.RUnlock()
 
+	for name, manager := range map[string]*AdjRIBInManager{"string": stringPath, "typed": typedPath} {
+		assert.Empty(t, manager.pending, "%s decisions must settle every pending route", name)
+		routes := manager.ribIn[netip.MustParseAddr("10.0.0.1")]
+		require.NotNil(t, routes, "%s accepted routes must exist", name)
+		assert.Equal(t, 2, routes.Len(), "%s must retain exactly the two accepted routes", name)
+		for i, want := range map[uint32]uint8{0: ValidationValid, 2: ValidationInvalid} {
+			key := routeKeyFromStrings(family.IPv4Unicast, prefixes[i], i)
+			route, found := routes.Get(key)
+			require.True(t, found, "%s must retain accepted %s", name, prefixes[i])
+			assert.Equal(t, want, route.ValidationState, "%s lookup state for %s", name, prefixes[i])
+		}
+		for _, i := range []uint32{1, 3} {
+			key := routeKeyFromStrings(family.IPv4Unicast, prefixes[i], i)
+			_, found := routes.Get(key)
+			assert.False(t, found, "%s must discard explicitly rejected %s", name, prefixes[i])
+		}
+	}
+
 	assert.Equal(t, len(stringPath.pending), len(typedPath.pending), "pending count mismatch")
 	for peer, strRoutes := range stringPath.ribIn {
 		typRoutes, ok := typedPath.ribIn[peer]
