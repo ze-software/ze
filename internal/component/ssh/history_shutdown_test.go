@@ -385,7 +385,7 @@ func TestSSHStopJoinsFactoryAlreadyAdmitted(t *testing.T) {
 	server := answerServer(t, func(string) (*plugin.Response, error) {
 		return plugin.NewResponse(plugin.StatusDone, nil), nil
 	})
-	client := dialPanicTest(t, server, "operator")
+	client := dialPanicTest(t, server)
 	idle, err := client.NewSession()
 	if err != nil {
 		t.Fatal(err)
@@ -461,7 +461,7 @@ func TestSSHExecStopCallbackDoesNotJoinItself(t *testing.T) {
 	server := answerServer(t, func(string) (*plugin.Response, error) {
 		return plugin.NewResponse(plugin.StatusDone, nil), nil
 	})
-	client := dialPanicTest(t, server, "operator")
+	client := dialPanicTest(t, server)
 	idle, err := client.NewSession()
 	if err != nil {
 		t.Fatal(err)

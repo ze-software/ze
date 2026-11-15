@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/opererr"
 )
@@ -18,9 +20,7 @@ func TestCLIHostKeyRefusalKeepsProducerRepair(t *testing.T) {
 	refusal := opererr.Wrap(cause, "The SSH host key changed for router.example:2222", "Verify the offered fingerprint with the device operator", "ssh-keygen -F '[router.example]:2222' -f '/trusted/known_hosts'")
 	wrapped := fmt.Errorf("connect to router.example:2222: %w", refusal)
 	got := daemonUnreachable("router.example", "2222", wrapped)
-	if got != wrapped {
-		t.Fatalf("connection mapper replaced an actionable refusal: %v", got)
-	}
+	require.Same(t, wrapped, got, "connection mapper replaced an actionable refusal")
 	var typed *opererr.Error
 	if !errors.As(got, &typed) || typed != refusal || !errors.Is(got, cause) {
 		t.Fatalf("connection mapper lost the producer or its cause: %v", got)

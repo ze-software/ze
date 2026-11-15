@@ -239,7 +239,12 @@ func (f *htmxCaptureLifecycle) serveWork(w http.ResponseWriter, r *http.Request)
 	default:
 	}
 	if f.mode == "request-failure" {
-		connection, _, err := w.(http.Hijacker).Hijack()
+		hijacker, ok := w.(http.Hijacker)
+		if !ok {
+			f.t.Errorf("owned failing request writer %T does not support hijacking", w)
+			return
+		}
+		connection, _, err := hijacker.Hijack()
 		if err != nil {
 			f.t.Errorf("hijack the owned failing request: %v", err)
 			return

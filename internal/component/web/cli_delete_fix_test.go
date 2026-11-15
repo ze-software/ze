@@ -50,9 +50,9 @@ func TestWebPrintedDeleteFixKeepsAcceptedMembers(t *testing.T) {
 					require.NoError(t, us.editor.SetValue(path, memberKind, badValue))
 					refused := webTerminalLine(t, terminal, position, "commit now")
 					var fix string
-					for _, line := range strings.Split(refused.Output, "\n") {
-						if strings.HasPrefix(strings.TrimSpace(line), "fix: ") {
-							fix = strings.TrimPrefix(strings.TrimSpace(line), "fix: ")
+					for line := range strings.SplitSeq(refused.Output, "\n") {
+						if correction, found := strings.CutPrefix(strings.TrimSpace(line), "fix: "); found {
+							fix = correction
 						}
 					}
 					prefix := "delete "

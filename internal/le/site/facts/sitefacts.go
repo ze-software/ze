@@ -174,22 +174,44 @@ type interopScenario struct {
 	name  string
 }
 
+// Shared protocol names used by the scenario partition and its fallback row.
+const (
+	interopProtocolBGP    = "bgp"
+	interopProtocolOSPFv3 = "ospfv3"
+	interopProtocolRPKI   = "rpki"
+	interopProtocolOther  = "other"
+)
+
 // Reviewed primary-area aliases partition the shared suite. Cross-protocol
 // cases belong to their primary area, never to every protocol they mention.
 // enumeration: exempt (this editorial policy assigns each scenario prefix to one primary test area, not to every registered plugin)
 var interopSharedPrefixes = map[string]string{
-	"bgp": "bgp", "addpath": "bgp", "as": "bgp", "frr": "bgp", "local": "bgp",
-	"no": "bgp", "peer": "bgp", "show": "bgp", "shutdown": "bgp",
-	"ospf": "ospfv2", "ospfv3": "ospfv3", "isis": "isis", "bfd": "bfd", "bmp": "bmp",
-	"rpki": "rpki", "rtr": "rpki", "vrrp": "vrrp", "dns": "dns",
-	"dhcpv4": "dhcpv4", "dhcpv6": "dhcpv6", "ldp": "ldp", "as112": "as112", "gtsm": "gtsm",
+	interopProtocolBGP:    interopProtocolBGP,
+	"addpath":             interopProtocolBGP,
+	"as":                  interopProtocolBGP,
+	"frr":                 interopProtocolBGP,
+	"local":               interopProtocolBGP,
+	"no":                  interopProtocolBGP,
+	"peer":                interopProtocolBGP,
+	"show":                interopProtocolBGP,
+	"shutdown":            interopProtocolBGP,
+	"ospf":                "ospfv2",
+	interopProtocolOSPFv3: interopProtocolOSPFv3,
+	"isis":                "isis",
+	"bfd":                 "bfd",
+	"bmp":                 "bmp",
+	interopProtocolRPKI:   interopProtocolRPKI,
+	"rtr":                 interopProtocolRPKI,
+	"vrrp":                "vrrp",
+	"dns":                 "dns",
+	"dhcpv4":              "dhcpv4", "dhcpv6": "dhcpv6", "ldp": "ldp", "as112": "as112", "gtsm": "gtsm",
 }
 
 // These four names predate the explicit ospfv3 prefix. Their primary area is
 // OSPFv3, including the IPsec authentication cases, rather than OSPFv2 or IPsec.
 var interopSharedOverrides = map[string]string{
-	"ospf-ipsec-ah-frr": "ospfv3", "ospf-ipsec-frr": "ospfv3",
-	"ospf-multiaf-frr": "ospfv3", "ospf-multiaf-v4-frr": "ospfv3",
+	"ospf-ipsec-ah-frr": interopProtocolOSPFv3, "ospf-ipsec-frr": interopProtocolOSPFv3,
+	"ospf-multiaf-frr": interopProtocolOSPFv3, "ospf-multiaf-v4-frr": interopProtocolOSPFv3,
 }
 
 // Dedicated suites retain their primary test area; both RADIUS populations
@@ -204,7 +226,7 @@ var interopSuiteProtocols = map[string]string{
 // Other retains an unfamiliar future case explicitly rather than dropping it
 // from the total or guessing its primary protocol. Callers receive their own list.
 func InteropProtocolKeys() []string {
-	keys := map[string]struct{}{"other": {}}
+	keys := map[string]struct{}{interopProtocolOther: {}}
 	for _, protocol := range interopSharedPrefixes {
 		keys[protocol] = struct{}{}
 	}
@@ -446,7 +468,7 @@ func interopProtocol(scenario interopScenario) string {
 		if protocol, known := interopSuiteProtocols[scenario.suite]; known {
 			return protocol
 		}
-		return "other"
+		return interopProtocolOther
 	}
 	if protocol, overridden := interopSharedOverrides[scenario.name]; overridden {
 		return protocol
@@ -455,7 +477,7 @@ func interopProtocol(scenario interopScenario) string {
 	if protocol, known := interopSharedPrefixes[prefix]; known {
 		return protocol
 	}
-	return "other"
+	return interopProtocolOther
 }
 
 // countAnnotations counts the file-header annotations across the tracked Go

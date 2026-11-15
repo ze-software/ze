@@ -8,7 +8,6 @@ import (
 	"context"
 	"net"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -22,17 +21,21 @@ const unbindableIPv4 = "192.0.2.1"
 // ::1 both have free right now.
 func freePort(t *testing.T, needIPv6 bool) string {
 	t.Helper()
+	var listen net.ListenConfig
 	for range 20 {
-		ln, err := net.Listen("tcp", "127.0.0.1:0")
+		ln, err := listen.Listen(t.Context(), "tcp", "127.0.0.1:0")
 		if err != nil {
 			t.Fatal(err)
 		}
-		port := strconv.Itoa(ln.Addr().(*net.TCPAddr).Port) //nolint:forcetypeassert // A TCP listener answers a TCPAddr.
+		_, port, err := net.SplitHostPort(ln.Addr().String())
+		if err != nil {
+			t.Fatal(err)
+		}
 		if !needIPv6 {
 			_ = ln.Close()
 			return port
 		}
-		ln6, err6 := net.Listen("tcp", net.JoinHostPort("::1", port))
+		ln6, err6 := listen.Listen(t.Context(), "tcp", net.JoinHostPort("::1", port))
 		_ = ln.Close()
 		if err6 != nil {
 			continue
@@ -47,7 +50,8 @@ func freePort(t *testing.T, needIPv6 bool) string {
 // requireIPv6Loopback skips a test on a host without ::1.
 func requireIPv6Loopback(t *testing.T) {
 	t.Helper()
-	ln, err := net.Listen("tcp", "[::1]:0")
+	var listen net.ListenConfig
+	ln, err := listen.Listen(t.Context(), "tcp", "[::1]:0")
 	if err != nil {
 		t.Skipf("host has no IPv6 loopback: %v", err)
 	}
@@ -81,7 +85,7 @@ func newListenerServer(t *testing.T, addrs ...string) *Server {
 // server sends, which proves this server, not another process, answers there.
 func requireZeBanner(t *testing.T, addr string) {
 	t.Helper()
-	conn, err := net.DialTimeout("tcp", addr, 5*time.Second)
+	conn, err := (&net.Dialer{Timeout: 5 * time.Second}).DialContext(t.Context(), "tcp", addr)
 	if err != nil {
 		t.Fatalf("dial %s: %v", addr, err)
 	}
@@ -101,7 +105,7 @@ func requireZeBanner(t *testing.T, addr string) {
 // requireRefused requires that nothing listens on addr.
 func requireRefused(t *testing.T, addr string) {
 	t.Helper()
-	conn, err := net.DialTimeout("tcp", addr, 2*time.Second)
+	conn, err := (&net.Dialer{Timeout: 2 * time.Second}).DialContext(t.Context(), "tcp", addr)
 	if err == nil {
 		_ = conn.Close()
 		t.Fatalf("%s still accepts connections", addr)
@@ -131,7 +135,8 @@ func TestStartFailsWhenExtraListenerFails(t *testing.T) {
 	if got := srv.Addresses(); got != nil {
 		t.Fatalf("Addresses after a failed Start = %v, want none", got)
 	}
-	ln, err := net.Listen("tcp", first)
+	var listen net.ListenConfig
+	ln, err := listen.Listen(t.Context(), "tcp", first)
 	if err != nil {
 		t.Fatalf("first listener %s left bound after the failed Start: %v", first, err)
 	}

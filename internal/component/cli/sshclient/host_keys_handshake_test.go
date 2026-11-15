@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"net"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -28,11 +27,15 @@ func TestRemoteKnownHostExecCommandHandshake(t *testing.T) {
 			if trusted {
 				recordedKey = serverKey
 			}
-			listener, err := net.Listen("tcp4", "127.0.0.2:0")
+			var listen net.ListenConfig
+			listener, err := listen.Listen(t.Context(), "tcp4", "127.0.0.2:0")
 			if err != nil {
 				t.Fatal(err)
 			}
-			port := strconv.Itoa(listener.Addr().(*net.TCPAddr).Port)
+			_, port, err := net.SplitHostPort(listener.Addr().String())
+			if err != nil {
+				t.Fatal(err)
+			}
 			address := net.JoinHostPort("127.0.0.2", port)
 			writeHostKeyTestFile(t, filepath.Join(home, ".ssh", "known_hosts"), knownhosts.Line([]string{address}, recordedKey.PublicKey())+"\n")
 			done := make(chan error, 1)
@@ -57,7 +60,8 @@ func TestRemoteKnownHostExecCommandHandshake(t *testing.T) {
 
 func TestRemoteExecCommandUsesBracketedIPv6Address(t *testing.T) {
 	hostKeyTestEnvironment(t)
-	listener, err := net.Listen("tcp6", "[::1]:0")
+	var listen net.ListenConfig
+	listener, err := listen.Listen(t.Context(), "tcp6", "[::1]:0")
 	if err != nil {
 		t.Skipf("host has no IPv6 loopback listener: %v", err)
 	}
@@ -70,7 +74,10 @@ func TestRemoteExecCommandUsesBracketedIPv6Address(t *testing.T) {
 			t.Errorf("SSH proof server: %v", err)
 		}
 	})
-	port := strconv.Itoa(listener.Addr().(*net.TCPAddr).Port)
+	_, port, err := net.SplitHostPort(listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
 	output, err := ExecCommand(Credentials{Host: "::1", Port: port, Username: "operator", Auth: "host-key-proof"}, "show version")
 	if err != nil || output != "verified-host-key-command" {
 		t.Fatalf("IPv6 client output=%q err=%v", output, err)
@@ -82,12 +89,12 @@ func serveKnownHostCommand(listener net.Listener, signer ssh.Signer) error {
 		if metadata.User() != "operator" || string(password) != "host-key-proof" {
 			return nil, errors.New("invalid test credentials")
 		}
-		return nil, nil
+		return &ssh.Permissions{}, nil
 	}}
 	return serveKnownHostCommandConfig(listener, signer, config)
 }
 
-func serveKnownHostCommandConfig(listener net.Listener, signer ssh.Signer, config *ssh.ServerConfig) error {
+func serveKnownHostCommandConfig(listener net.Listener, signer ssh.Signer, config *ssh.ServerConfig) (resultErr error) {
 	connection, err := listener.Accept()
 	if errors.Is(err, net.ErrClosed) {
 		return nil
@@ -95,7 +102,13 @@ func serveKnownHostCommandConfig(listener net.Listener, signer ssh.Signer, confi
 	if err != nil {
 		return err
 	}
-	defer connection.Close()
+	defer func() {
+		if err := connection.Close(); err != nil {
+			if !errors.Is(err, net.ErrClosed) {
+				resultErr = errors.Join(resultErr, err)
+			}
+		}
+	}()
 	if err := connection.SetDeadline(time.Now().Add(10 * time.Second)); err != nil {
 		return err
 	}
@@ -104,7 +117,7 @@ func serveKnownHostCommandConfig(listener net.Listener, signer ssh.Signer, confi
 	if err != nil {
 		return err
 	}
-	defer server.Close()
+	// The accepted connection above owns transport cleanup on every path.
 	go ssh.DiscardRequests(requests)
 	for proposed := range channels {
 		if proposed.ChannelType() != "session" {

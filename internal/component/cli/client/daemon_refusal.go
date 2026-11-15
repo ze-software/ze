@@ -17,8 +17,7 @@ import (
 func daemonUnreachable(host, port string, err error) error {
 	// A trust refusal already explains why this daemon cannot be contacted
 	// and how to repair that refusal. Keep its final fix and error identity.
-	var refusal *opererr.Error
-	if errors.As(err, &refusal) {
+	if _, actionable := errors.AsType[*opererr.Error](err); actionable {
 		return err
 	}
 	var problem textbuf.Buffer

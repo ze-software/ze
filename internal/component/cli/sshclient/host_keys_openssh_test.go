@@ -39,7 +39,7 @@ func TestRemoteHostKeyRepairSelectsOneOpenSSHTrustFile(t *testing.T) {
 			}
 			want := "userknownhostsfile " + path
 			found := 0
-			for _, line := range strings.Split(string(output), "\n") {
+			for line := range strings.SplitSeq(string(output), "\n") {
 				if strings.HasPrefix(line, "userknownhostsfile ") {
 					found++
 					if line != want {
@@ -65,7 +65,8 @@ func TestRemoteHostKeyRepairAuthenticatesWithSelectedOpenSSHTrustFile(t *testing
 		t.Run(name, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), name)
 			signer := hostKeyTestSigner(t)
-			listener, err := net.Listen("tcp4", "127.0.0.2:0")
+			var listen net.ListenConfig
+			listener, err := listen.Listen(t.Context(), "tcp4", "127.0.0.2:0")
 			if err != nil {
 				t.Fatal(err)
 			}

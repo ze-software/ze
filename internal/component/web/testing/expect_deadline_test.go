@@ -34,8 +34,8 @@ func TestBrowserExpectationFixture(t *testing.T) {
 	}
 	query.Set("session", os.Getenv("AGENT_BROWSER_SESSION"))
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, *browserExpectationFixture+"?"+query.Encode(), nil)
+	t.Cleanup(cancel)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, *browserExpectationFixture+"?"+query.Encode(), http.NoBody)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -345,13 +345,13 @@ func (f *browserExpectationRendezvous) ServeHTTP(w http.ResponseWriter, r *http.
 	command := strings.Join(args, " ")
 	f.commands = append(f.commands, command)
 	body := ""
-	switch {
-	case command == "open about:blank", command == "open http://owned.invalid/owned", command == "close":
-	case command == "eval "+inflightIdleExpr:
+	switch command {
+	case "open about:blank", "open http://owned.invalid/owned", "close":
+	case "eval " + inflightIdleExpr:
 		body = "true\n"
-	case command == "get url":
+	case "get url":
 		body = "http://owned.invalid/owned-ready\n"
-	case command == "get html body":
+	case "get html body":
 		f.queries++
 		if f.first.IsZero() {
 			f.first = time.Now()

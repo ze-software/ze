@@ -105,8 +105,12 @@ func newRenderObserverAddress(session string) (*renderObserver, error) {
 	if runtime.GOOS != "windows" {
 		return &renderObserver{network: "unix", address: filepath.Join(directory, session+".sock")}, nil
 	}
-	data, err := os.ReadFile(filepath.Join(directory, session+".port"))
+	file, err := os.OpenInRoot(directory, session+".port")
 	if err != nil {
+		return nil, fmt.Errorf("read owned browser port: %w", err)
+	}
+	data, readErr := io.ReadAll(file)
+	if err := errors.Join(readErr, file.Close()); err != nil {
 		return nil, fmt.Errorf("read owned browser port: %w", err)
 	}
 	portText := strings.TrimSpace(string(data))
@@ -142,7 +146,7 @@ func renderObserverSocketDir() (string, error) {
 		return filepath.Join(os.TempDir(), "agent-browser"), nil
 	}
 	// agentEnv removes TMPDIR, so native temp_dir uses the Unix default.
-	return filepath.Join("/tmp", "agent-browser"), nil
+	return "/tmp/agent-browser", nil
 }
 
 // command owns and closes one newline-JSON connection. Its context bounds dial,

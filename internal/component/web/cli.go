@@ -435,8 +435,7 @@ func applyWebSet(mgr *EditorManager, schema *config.Schema, username string, at,
 		}
 	}
 	if err := mgr.SetValue(username, setPath, key, value); err != nil {
-		var refusal *configyang.ValidationError
-		if errors.As(err, &refusal) {
+		if refusal, typed := errors.AsType[*configyang.ValidationError](err); typed {
 			if refusal.HoldsOperatorError() {
 				// Mask the semantic operand before the frame quotes it. Keep
 				// the typed refusal and mark the mask as replacement syntax.

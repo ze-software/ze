@@ -82,7 +82,7 @@ func TestSessionCandidateValueCanBeRepairedAfterRefusal(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if string(pendingAfter) != string(pendingBefore) {
+			if !bytes.Equal(pendingAfter, pendingBefore) {
 				t.Fatal("reading the pending candidate rewrote it")
 			}
 			if err := model.editor.SetValue(path, "route-refresh", "disable"); err != nil {

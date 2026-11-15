@@ -94,8 +94,7 @@ func TestModelUnfinishedQuoteRefusesWithoutChangingCandidate(t *testing.T) {
 			if err == nil {
 				t.Fatal("unfinished quote was accepted")
 			}
-			var operator *opererr.Error
-			if !errors.As(err, &operator) {
+			if _, operator := errors.AsType[*opererr.Error](err); !operator {
 				t.Fatalf("refusal lost its operator error type: %T", err)
 			}
 			if !strings.HasPrefix(err.Error(), "the command has an unfinished quoted value\n") {

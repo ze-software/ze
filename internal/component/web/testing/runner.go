@@ -47,6 +47,9 @@ type Browser struct {
 
 var browserSequence atomic.Uint64
 
+// browserTrue is the CLI rendering of a positive JavaScript boolean result.
+const browserTrue = "true"
+
 // newBrowser creates a browser instance with its own process-local identity.
 func newBrowser(baseURL string) *Browser {
 	var tb textbuf.Buffer
@@ -114,7 +117,7 @@ func (b *Browser) waitLoad() error {
 		if b.ctx.Err() != nil {
 			return errors.Join(lastErr, err, b.describePending(), context.Cause(b.ctx))
 		}
-		if err == nil && strings.TrimSpace(out) == "true" {
+		if err == nil && strings.TrimSpace(out) == browserTrue {
 			return context.Cause(b.ctx)
 		}
 		if err == nil {
@@ -328,7 +331,7 @@ func (b *Browser) waitLogin() error {
 		if err != nil {
 			return fmt.Errorf("read login completion: %w", err)
 		}
-		if strings.TrimSpace(out) != "true" {
+		if strings.TrimSpace(out) != browserTrue {
 			return errors.New("login did not reach an authenticated page")
 		}
 		return nil

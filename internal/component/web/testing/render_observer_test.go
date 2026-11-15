@@ -31,7 +31,8 @@ func TestRenderObserverNativeResponses(t *testing.T) {
 		{"oversized", strings.Repeat("x", (1<<20)+1) + "\n", "exceeds 1 MiB"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			listener, err := net.Listen("tcp", "127.0.0.1:0")
+			var config net.ListenConfig
+			listener, err := config.Listen(t.Context(), "tcp", "127.0.0.1:0")
 			if err != nil {
 				t.Fatal(err)
 			}

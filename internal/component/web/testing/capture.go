@@ -80,7 +80,7 @@ func (b *Browser) settleCapture() error {
 		if err != nil {
 			return fmt.Errorf("observe browser render before capture: %w", err)
 		}
-		if strings.TrimSpace(out) != "true" {
+		if strings.TrimSpace(out) != browserTrue {
 			lastFacts = strings.TrimSpace(out)
 			return errors.New("browser capture is not settled: require installed request observation, then wait for rendering, fonts, finite animations and requests to finish; inspect the page if they do not finish")
 		}

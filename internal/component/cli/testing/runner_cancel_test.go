@@ -4,6 +4,7 @@ package testing
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -36,7 +37,11 @@ func TestEditorOwnedRunClosesModels(t *testing.T) {
 	defer cancel()
 	var model *headlessModel
 	validExpectationTypes[observer] = func(_ Expectation, state State) error {
-		model = state.(*headlessModel)
+		var ok bool
+		model, ok = state.(*headlessModel)
+		if !ok {
+			return fmt.Errorf("owned model observer received %T, want *headlessModel", state)
+		}
 		cancel()
 		return nil
 	}

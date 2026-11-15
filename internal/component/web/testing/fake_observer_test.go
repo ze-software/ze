@@ -49,7 +49,9 @@ type fakeObserverBootstrap struct {
 // supplies its effective owned session identity.
 func installFakeObserver(t *testing.T, logPath string) string {
 	t.Helper()
-	directory, err := os.MkdirTemp(os.TempDir(), "ab-sdk-")
+	// Session socket paths must fit Unix sockaddr_un even when the host's
+	// temporary directory has a long path.
+	directory, err := os.MkdirTemp("/tmp", "ab-sdk-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,7 +98,8 @@ func installFakeObserver(t *testing.T, logPath string) string {
 // Cleanup MUST close the listener and each active connection, then join it.
 func (f *fakeObserver) listen(address string, answer func(net.Conn) error) error {
 	t := f.test
-	listener, err := net.Listen("unix", address)
+	var config net.ListenConfig
+	listener, err := config.Listen(t.Context(), "unix", address)
 	if err != nil {
 		return err
 	}
@@ -244,7 +247,7 @@ func TestFakeObserverBootstrapCommand(t *testing.T) {
 	if start < 0 {
 		t.Fatal("fake observer command has no argument separator")
 	}
-	connection, err := net.DialTimeout("unix", address, 5*time.Second)
+	connection, err := (&net.Dialer{Timeout: 5 * time.Second}).DialContext(t.Context(), "unix", address)
 	if err != nil {
 		t.Fatal(err)
 	}

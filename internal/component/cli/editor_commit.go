@@ -272,8 +272,6 @@ func (e *Editor) commitSessionCandidate(stamp time.Time, force bool) (*CommitRes
 		return nil, "", fmt.Errorf("parse config: %w", err)
 	}
 
-	var warnings []string
-
 	draftPath := DraftPath(e.originalPath)
 	draftData, err := guard.ReadFile(draftPath)
 	if errors.Is(err, fs.ErrNotExist) {
@@ -332,7 +330,7 @@ func (e *Editor) commitSessionCandidate(stamp time.Time, force bool) (*CommitRes
 	if err != nil {
 		return nil, "", fmt.Errorf("hash password: %w", err)
 	}
-	warnings = append(warnings, config.PasswordWeaknessWarnings(hashed)...)
+	warnings := config.PasswordWeaknessWarnings(hashed)
 	myEntries = dropPlaintextPasswordEntries(myEntries)
 
 	if err := e.validateStagedTree(committedTree); err != nil {

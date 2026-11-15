@@ -51,9 +51,13 @@ func TestBrowserCloseHasSeparateBound(t *testing.T) {
 				t.Fatal(err)
 			}
 			t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
-			previous := agentTimeout
-			agentTimeout = 100 * time.Millisecond
-			t.Cleanup(func() { agentTimeout = previous })
+			// The success case uses the production command budget; only the
+			// deliberately hung command needs a short cleanup bound.
+			if hang {
+				previous := agentTimeout
+				agentTimeout = 100 * time.Millisecond
+				t.Cleanup(func() { agentTimeout = previous })
+			}
 			browser := newBrowserWithSession("", "owned-bounded-close")
 			ctx, cancel := context.WithCancel(context.Background())
 			cancel()

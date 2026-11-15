@@ -68,7 +68,7 @@ func TestBrowserNativeObserverPrecedesPageScript(t *testing.T) {
 			t.Errorf("close native observer lifecycle browser: %v", err)
 		}
 	}()
-	for _, phase := range []string{"first", "second"} {
+	observePhase := func(phase string) {
 		gate := gates[phase]
 		released := false
 		opened := make(chan error, 1)
@@ -107,6 +107,9 @@ func TestBrowserNativeObserverPrecedesPageScript(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+	}
+	for _, phase := range []string{"first", "second"} {
+		observePhase(phase)
 	}
 	capture := filepath.Join(t.TempDir(), "early-observed.png")
 	if err := browser.Screenshot(capture); err != nil {

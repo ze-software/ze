@@ -121,8 +121,7 @@ func TestRemoteHostKeysRefuseUnknownChangedAndRevokedKeys(t *testing.T) {
 				t.Fatalf("host-key refusal omits trust file or next step: %v", err)
 			}
 			if mode == "revoked" {
-				var revoked *knownhosts.RevokedError
-				if !errors.As(err, &revoked) {
+				if _, revoked := errors.AsType[*knownhosts.RevokedError](err); !revoked {
 					t.Fatalf("revocation cause lost: %v", err)
 				}
 			} else {

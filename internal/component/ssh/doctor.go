@@ -27,8 +27,8 @@ const codeSSHHostKeyMissing = "doctor-ssh-hostkey-missing"
 // configLeafTrue is the spelling of a true boolean leaf in the config tree.
 const configLeafTrue = "true"
 
-// doctorComponentSSH names this component as the owner of the check below.
-const doctorComponentSSH = "ssh"
+// componentSSH is the shared identity for this component and its SSH surfaces.
+const componentSSH = "ssh"
 
 // sshHostKeyDoctorCheck describes the check. register.go registers it.
 //
@@ -41,7 +41,7 @@ var sshHostKeyDoctorCheck = diagnostic.DoctorCheck{
 	Name:         "ssh-host-key",
 	Phase:        diagnostic.DoctorPhasePostConfig,
 	Order:        2010,
-	Component:    doctorComponentSSH,
+	Component:    componentSSH,
 	Dependencies: []string{"filesystem"},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
 	Codes:        []string{codeSSHHostKeyMissing},

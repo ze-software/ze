@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -74,8 +75,8 @@ func TestWBCaseContextPolicy(t *testing.T) {
 	}
 }
 
-// TestWBWaitLoadRefusesNonsettling drives the real command boundary with an
-// owned executable whose observed state never settles.
+// TestWBWaitLoadRefusesNonsettling proves the real executable boundary fails at
+// its absolute deadline, including when the first query has not completed.
 func TestWBWaitLoadRefusesNonsettling(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "agent-browser"), []byte("#!/bin/sh\nprintf 'false\\n'\n"), 0o700); err != nil {
@@ -90,8 +91,52 @@ func TestWBWaitLoadRefusesNonsettling(t *testing.T) {
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("nonsettling state did not fail at deadline: %v", err)
 	}
-	if !strings.Contains(err.Error(), "did not settle") {
-		t.Fatalf("lost last observed state: %v", err)
+}
+
+// TestBrowserWaitLoadRetainsObservedState completes one false observation through
+// the real executable before expiring the next command's owned context. The
+// second eval rendezvous proves waitLoad consumed the first command's answer.
+func TestBrowserWaitLoadRetainsObservedState(t *testing.T) {
+	ctx, cancel := context.WithCancelCause(t.Context())
+	defer cancel(context.Canceled)
+	var queries atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("session") != "wait-load-retained" {
+			http.Error(w, "foreign browser session", http.StatusBadRequest)
+			return
+		}
+		switch strings.Join(r.URL.Query()["arg"], " ") {
+		case "eval " + inflightIdleExpr:
+			if queries.Add(1) == 2 {
+				expired, expire := context.WithDeadline(t.Context(), time.Now())
+				defer expire()
+				<-expired.Done()
+				cancel(context.Cause(expired))
+				<-r.Context().Done()
+				return
+			}
+		case "eval " + inflightPendingExpr:
+		default:
+			http.Error(w, "unexpected owned command", http.StatusBadRequest)
+			return
+		}
+		if _, err := w.Write([]byte("false\n")); err != nil {
+			t.Errorf("write owned idle observation: %v", err)
+		}
+	}))
+	defer server.Close()
+	installExpectationAgentBrowser(t, server.URL)
+	browser := newBrowserWithSession("http://127.0.0.1:1", "wait-load-retained")
+	browser.ctx = ctx
+	err := browser.waitLoad()
+	if queries.Load() < 2 {
+		t.Fatalf("deadline preceded the completed false observation: queries=%d", queries.Load())
+	}
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("nonsettling state lost its deadline cause: %v", err)
+	}
+	if !strings.Contains(err.Error(), `browser requests did not settle: "false"`) {
+		t.Fatalf("lost completed nonsettling observation: %v", err)
 	}
 }
 

@@ -75,7 +75,7 @@ func (s *Server) serveSubsystem(sess ssh.Session, handler SubsystemHandler) {
 	defer owner.finish()
 	err := handler(ctx, sess, plugin.CallerIdentity{
 		Username: sess.User(), RemoteAddr: sess.RemoteAddr().String(),
-		Authorizer: getSessionAuthorizer(sess), Surface: "ssh",
+		Authorizer: getSessionAuthorizer(sess), Surface: componentSSH,
 	})
 	if err != nil {
 		io.WriteString(sess.Stderr(), err.Error()+"\n") //nolint:errcheck // The peer may have disconnected.

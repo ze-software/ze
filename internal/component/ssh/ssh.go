@@ -247,7 +247,7 @@ func NewServer(cfg Config) (*Server, error) {
 
 	return &Server{
 		config:          cfg,
-		logger:          slog.Default().With("subsystem", "ssh"),
+		logger:          slog.Default().With("subsystem", componentSSH),
 		modelDrainLimit: modelDrainLimitDefault,
 	}, nil
 }
@@ -269,7 +269,7 @@ func (s *Server) recordAuthFailure(username, remote string) {
 
 // Name returns the subsystem identifier.
 func (s *Server) Name() string {
-	return "ssh"
+	return componentSSH
 }
 
 // Address returns the listen address. If the server has bound to a port (e.g., port 0),
@@ -500,14 +500,16 @@ func (s *Server) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvider) 
 
 	// Always register a password auth handler.
 	// When no users are configured, reject all attempts (never allow NoClientAuth).
-	opts := []ssh.Option{
+	subsystems := s.subsystemOptions()
+	opts := make([]ssh.Option, 0, 6+len(subsystems))
+	opts = append(opts,
 		hostKeyOpt,
 		// Announce a distinctive "SSH-2.0-ze" identification banner. This is a
 		// positive ze marker that the `ze init` daemon-liveness probe requires
 		// to tell a live ze daemon apart from a generic SSH server (host
 		// OpenSSH) or a bare TCP listener. See internal/component/cli/sshclient.
 		wish.WithVersion(sshclient.ServerSoftwareVersion),
-		wish.WithMaxTimeout(time.Duration(s.config.IdleTimeout) * time.Second),
+		wish.WithMaxTimeout(time.Duration(s.config.IdleTimeout)*time.Second),
 		// Wish composes middleware from first to last: last = outermost = runs first.
 		// Order: panic → maxSessions → exec → sessionClose → bubbletea → activeterm (innermost).
 		// The panic boundary is outermost so a Ze defect anywhere in a session's
@@ -552,9 +554,9 @@ func (s *Server) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvider) 
 				return ok
 			})
 		}),
-	}
+	)
 
-	opts = append(opts, s.subsystemOptions()...)
+	opts = append(opts, subsystems...)
 	srv, err := wish.NewServer(opts...)
 	if err != nil {
 		return fmt.Errorf("create SSH server: %w", err)

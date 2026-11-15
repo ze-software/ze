@@ -31,7 +31,7 @@ func (s *Server) authenticatePasswordResult(authenticator authz.Authenticator, u
 		Username:   username,
 		Password:   pass,
 		RemoteAddr: remote,
-		Service:    "ssh",
+		Service:    componentSSH,
 		Local:      isLocalTransport(peer),
 	})
 	if err == nil && result.Authenticated {

@@ -43,7 +43,7 @@ func TestSSHHandlerPanicContained(t *testing.T) {
 			Data:   plugin.Records{Key: "commands", Rows: commandRecords(1)},
 		}, nil
 	})
-	client := dialPanicTest(t, srv, "operator")
+	client := dialPanicTest(t, srv)
 
 	stderr, err := runPanicTest(t, client, "boom")
 	var exit *gossh.ExitError
@@ -54,7 +54,7 @@ func TestSSHHandlerPanicContained(t *testing.T) {
 
 	_, err = runPanicTest(t, client, "ok")
 	require.NoError(t, err, "a later session on the same connection must be answered")
-	_, err = runPanicTest(t, dialPanicTest(t, srv, "operator"), "ok")
+	_, err = runPanicTest(t, dialPanicTest(t, srv), "ok")
 	require.NoError(t, err, "a new connection must be answered")
 	require.Eventually(t, func() bool { return srv.ActiveSessions() == 0 }, 5*time.Second, 10*time.Millisecond,
 		"the panicking session's slot must be released")
@@ -110,7 +110,7 @@ func TestSSHAuthPanicContained(t *testing.T) {
 	_, err = gossh.Dial("tcp", srv.Address(), panicTestClientConfig("crash"))
 	require.Error(t, err, "a login whose check panicked must be refused")
 
-	_, err = runPanicTest(t, dialPanicTest(t, srv, "operator"), "ok")
+	_, err = runPanicTest(t, dialPanicTest(t, srv), "ok")
 	require.NoError(t, err, "a later login must be accepted and answered")
 
 	count, _ := sessionGuard.Panics(taskAuth)
@@ -131,10 +131,10 @@ func panicTestClientConfig(user string) *gossh.ClientConfig {
 	}
 }
 
-// dialPanicTest opens one SSH connection to srv as user.
-func dialPanicTest(t *testing.T, srv *Server, user string) *gossh.Client {
+// dialPanicTest opens one SSH connection to srv as the operator.
+func dialPanicTest(t *testing.T, srv *Server) *gossh.Client {
 	t.Helper()
-	client, err := gossh.Dial("tcp", srv.Address(), panicTestClientConfig(user))
+	client, err := gossh.Dial("tcp", srv.Address(), panicTestClientConfig("operator"))
 	require.NoError(t, err)
 	t.Cleanup(func() { client.Close() }) //nolint:errcheck // best-effort cleanup
 	return client
