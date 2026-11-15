@@ -112,7 +112,7 @@ type peerForwardFacts struct {
 	// Addr when the session holds none a next hop can carry
 	// (connectedLocalAddress). precomputeNextHop builds next-hop self from it.
 	connectedLocal netip.Addr
-	// nhSelfWithheld is a GUARD: next-hop self is configured and no local
+	// nhSelfWithheld is a GUARD: self is configured or selected by auto, and no local
 	// address exists to put in the received next hop's place, so both forward
 	// rails withhold the announcement toward this peer rather than pass the
 	// third-party NEXT_HOP the operator disabled (RFC 4271 Section 5.1.3).
@@ -594,7 +594,19 @@ func (p localASPrepend) prependTo(path *attribute.ASPath) {
 // IPv6 next hop lands on the single-address form here; applyLinkLocalNextHop
 // then decides whether RFC 2545 Section 3 puts a second address beside it.
 func precomputeNextHop(s *PeerSettings, f *peerForwardFacts) {
-	switch s.NextHopMode {
+	nextHopMode := s.NextHopMode
+	// RFC 4271 Section 5.1.3 items 2 and 3: by default the speaker SHOULD
+	// use the interface address with which it establishes the eBGP connection.
+	// RFC 7947 Section 2.2.1: "As the route server does not participate in the
+	// actual routing of traffic, the NEXT_HOP attribute MUST be passed
+	// unmodified to the route server clients, similar to the "third-party"
+	// next-hop feature described in Section 5.1.3. of [RFC4271]."
+	// Internal peers also retain their received next hop unless self was
+	// explicitly configured.
+	if nextHopMode == NextHopAuto && f.isEBGP && !f.rsClient {
+		nextHopMode = NextHopSelf
+	}
+	switch nextHopMode {
 	case NextHopAuto, NextHopUnchanged:
 		f.nhMode = nhModeNone
 	case NextHopSelf:

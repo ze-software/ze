@@ -73,7 +73,7 @@
     "claim-sha": "ce24aebb0cee391f",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/peer_forward_facts.go::precomputeNextHop",
-    "producer-sha": "d9473e369d277c3a",
-    "break": "body of precomputeNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "688d6f4f16a7227b",
+    "break": "body of precomputeNextHop replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

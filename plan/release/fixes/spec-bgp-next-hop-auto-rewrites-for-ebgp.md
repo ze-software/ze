@@ -96,7 +96,7 @@ deciding function in each before the design is presented
   → Constraint: Section 4 item 3, third bullet: "By default, the BGP speaker SHOULD use the Global IPv6 address of the interface that the speaker uses in the next hop to establish the BGP connection to peer X."
   → Constraint: Section 4 item 1: "If the internal peer is more than one IP hop away, the BGP speaker MUST NOT include a Link-Local IPv6 next hop." and Section 4: "If, after completing these procedures, there are no IPv6 next hop addresses included in the next hop, the BGP route MUST not be advertised to its peer."
 - [ ] `rfc/short/rfc7947.md` - route server clients
-  → Constraint: RFC 7947 Section 2.2.1: "As the route server does not participate in the actual routing of traffic, the NEXT_HOP attribute MUST be passed unmodified to the route server clients". `auto` towards an RS client MUST keep the received next hop
+  → Constraint: RFC 7947 Section 2.2.1: "As the route server does not participate in the actual routing of traffic, the NEXT_HOP attribute MUST be passed unmodified to the route server clients, similar to the "third-party" next-hop feature described in Section 5.1.3. of [RFC4271]." `auto` towards an RS client MUST keep the received next hop
 
 **Key insights:**
 - The rewrite machinery already exists: `auto` towards eBGP needs the same wire form `self` builds, including the withheld outcome when the session has no local address.
@@ -432,6 +432,23 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] Critical Review passes, and `ai/rules/quality.md` is satisfied: lint fixed rather than disabled, the focused check for the changed behavior run once with its OUTPUT PASTED, and any red named with the one-line reason it is scaffolding
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 - [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
+
+## Current test-campaign evidence
+
+The bounded eBGP Auto producer change selects the existing Self branch for
+ordinary eBGP destinations. `job-bgp-auto-as0-green-55235c3d.log` in
+`tmp/session/2026-11-14-210034/scratch/` passes all four new units in
+`next_hop_auto_relay_test.go`: IPv4/IPv6 single-hop and multihop rewrite,
+connected-endpoint preference and configured fallback, iBGP/RS preservation,
+explicit-mode preservation, and exact mixed withdrawals when no self address
+exists, across cached and native relays.
+
+These tests observe in-process Session output using controlled transport
+metadata. Warning lines are visible in the log but are not asserted.
+Functional wiring, interoperability, AC-7/A-3 review, remaining blast-radius
+review and spec closure stay open. The existing owner decisions are unchanged;
+these untagged tests add no RFC conformance credit. Retain the green log through
+the source commit and remaining evidence review.
 
 ### TDD
 - [ ] Tests written

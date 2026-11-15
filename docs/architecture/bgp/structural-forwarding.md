@@ -708,9 +708,20 @@ as its Global alone, length 16. RFC 2545 would want that router's own
 Link-Local there, which Ze never learns: a recorded gap in the whole
 `RFC2545-3-3` condition as well as `RFC2545-3-6`.
 
-A relayed route under `next-hop unchanged` or `auto` keeps its effective next
-hop only if its wire form is usable. For a 32-octet pair (or a 48-octet VPN-IPv6
-pair), the first address must be IPv6 global unicast and the second must be
+A relayed route under `next-hop auto` uses the same self address as explicit
+`next-hop self` toward an ordinary eBGP peer, on single-hop and multihop
+sessions. The connected local endpoint takes precedence over the configured
+local address. If neither supplies a usable address, the announcement becomes
+a withdrawal; existing withdrawals in the same UPDATE still pass. Both relay
+paths read this decision from the destination's precomputed forwarding facts.
+Auto preserves the received next hop toward iBGP peers and route-server
+clients, subject to the wire-form checks below. Explicit `unchanged`, `self`,
+and address modes retain their configured behavior.
+
+A relayed route under `next-hop unchanged`, or under a preserving `auto`
+destination, keeps its effective next hop only if its wire form is usable.
+For a 32-octet pair (or a 48-octet VPN-IPv6 pair), the first address must be
+IPv6 global unicast and the second must be
 IPv6 link-local unicast, apart from the canonical VPN exception below.
 Link-local, IPv4-mapped, loopback, unspecified and multicast first addresses
 cannot supply the ordinary pair's global slot. A global, unspecified,
