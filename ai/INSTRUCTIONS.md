@@ -86,6 +86,7 @@ Other maps:
 | Where a spec goes, and its template | `plan/README.md`, `plan/templates/TEMPLATE.md` |
 | Past decisions and known traps | `plan/learned/RECURRING-PATTERNS.md`, `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `plan/journal/` |
 | Terminal colors and TUI styling | `docs/architecture/cli/color-system.md` |
+| Thomas's own two development machines, which one you are on and what you may do on the other. Applies only on those machines | `ai/owner/machines.md` |
 | A WAVE of red: unrelated packages fail to build, `no space left on device`, `cache entry not found` | `docs/contributing/running-commands.md`, "When the disk is full". The cache disk is full before this is a code defect. Run `./le scratch trim`, then `./le scratch clean` (removes only entries older than three hours, safe while others build). `./le scratch clean all` empties everything and refuses while any build runs |
 
 # Core Architecture
@@ -109,17 +110,17 @@ trafficfeature, trafficstat, vpp, web
 **System plugins** (`internal/plugins/`) handle domain policy outside the BGP engine: DHCP, NTP, sysctl, static routes, firewall lowering, TFTP/image servers, and CLI verb providers (`*-cmd`). Communication: JSON events down, text commands up.
 
 <!-- BEGIN GENERATED: arch-system-plugins (internal/le/repo/archmap.Update; ./le repo arch-map update) -->
-66 directories under `internal/plugins/`:
+68 directories under `internal/plugins/`:
 
 aaa-cmd, anomaly, as112, completion, config-archive-cmd, config-cli,
 config-schema, config-storage, config-yang, connect, connected, copp, cos,
 crashes, ddos, debug, dhcpserver, diag, dnsresolver, env, exabgp, explain,
 fib, firewall, flowexport, flowexport-cmd, flowspec-firewall, geodns,
-gnmi-cmd, help, host, host-cmd, iface, imageserver, init, isis, kernel, ldp,
-local, log, memlock, meta, mpls-cmd, mrt, ntp, ospf, passwd, pki-cmd,
+gnmi-cmd, help, host, host-cmd, iface, imageserver, init, irr, isis, kernel,
+ldp, local, log, memlock, meta, mpls-cmd, mrt, ntp, ospf, passwd, pki-cmd,
 policyroute, provision, redistribute, resolve-cmd, routingtable, rsvpte,
-signal, skills, static, storage-cmd, support, systemd, tftpserver, traffic,
-traffic-cmd, trafficusage, update-cmd, vrrp
+signal, skills, static, storage-cmd, support, system-dns-cmd, systemd,
+tftpserver, traffic, traffic-cmd, trafficusage, update-cmd, vrrp
 <!-- END GENERATED: arch-system-plugins -->
 
 **BGP plugins** (`internal/component/bgp/plugins/`) extend the BGP engine: RIB, route server, graceful restart, NLRI codecs, filters, RPKI, BMP.
