@@ -52,6 +52,8 @@ Spot-checked on 2026-10-23: `internal/plugins/vrrp/groups.go` still sets
 - [ ] `internal/component/bfd/engine/snapshot.go` - session profile
 - [ ] `internal/component/bfd/bfd.go` - `EnsureSession`, `bindV6`
 - [ ] `internal/plugins/vrrp/groups.go` - `IsOwner`, `ownedVIPs`
+- [ ] `internal/plugins/vrrp/fsm/fsm.go` - `backupAdvert` accepts a non-zero advert when `!i.cfg.Preempt` with no `isOwner` test; `backupConfigUpdated` only re-arms the down-timer; the Initialize case alone honours `isOwner` (read 2026-11-15, AC-18)
+- [ ] `internal/plugins/vrrp/transport/announce.go` `runBurst`, `internal/plugins/vrrp/transport/backend_linux.go` `SendAnnounce` and `sendNALocked` - three sends 100 ms apart, each result only reported; an IPv6 send with no link-local returns `ErrNoLinkLocal` and the burst does not retry (read 2026-11-15, AC-19)
 
 ## Existing Mechanisms (MANDATORY)
 
@@ -68,6 +70,8 @@ routing-protocols and system-plugins doors (`ai/doors/routing-protocols.md`,
 | IS-IS ISH handling | `internal/plugins/isis/circuit/ish.go` `receiveISH` | Records the ISH on a P2P circuit; the IIH waits for the next hello tick | Extends: AC-6 sends the IIH from the same handler |
 | VRRP group spec build | `internal/plugins/vrrp/groups.go` (`spec.IsOwner = ownsAny(...)`) | Decides owner status once for the whole group | Extends: AC-3 decides it per VIP in the same builder |
 | Rows already owned elsewhere | `plan/release/fixes/spec-vrrp-owner-arp-rfc-defects.md` | Owns the `ownerfilter.go` and vpp `verifyMatch` rows | Does not apply: those rows stay with that spec (Task) |
+| VRRP FSM owner test | `internal/plugins/vrrp/fsm/fsm.go` `isOwner`, used by the Initialize case | Sends the owner straight to Active at startup | Extends: AC-18 applies the same test in Backup, on an advert and on a config update |
+| VRRP announcer | `internal/plugins/vrrp/transport/announce.go` `announcer`, `runBurst` | One worker sends each VIP's announcement three times per Active transition | Extends: AC-19 starts the IPv6 burst only once the virtual link-local is usable. The owner boot row of `spec-vrrp-owner-arp-rfc-defects` (`announced-before-it-is-installed`, 2026-10-30) gates the same announcement on the address install; the two fixes share the gate and are designed together |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -126,6 +130,8 @@ BFD `api.Service`, BGP-LS export, the durable store (boot count).
 | AC-15 | OSPFv3 extended LSAs x2 | RFC 8362 Sections 4.8 and 4.3: E-Intra-Area-Prefix references 0xA021 or 0xA022 and each E-Inter-Area-Prefix-LSA carries one Inter-Area-Prefix TLV (hex tests) |
 | AC-16 | OSPF reload race | `TestOSPFReloadCreatedInstanceInitializesState` and its AF sibling pass under `-race -count=20` |
 | AC-17 | `show bfd session address` first map hit (moved from `spec-typed-identity-keys`, 2026-11-14) | With two sessions to one peer address (different local address, interface, VRF or mode), `(*Loop).SessionDetail` and `(*pluginService).SessionDetail` answer every match, or refuse as ambiguous naming the fields that tell them apart; never the first map hit. A unit holds two sessions to one address |
+| AC-18 | VRRP owner with `preempt false` in Backup (added 2026-11-15) | RFC 9568 Section 5.1, Preempt_Mode: "The exception is that the router that owns the IPvX address associated with the Virtual Router always preempts, independent of the setting of this flag." A Backup that a reload makes the owner, and an owner in Backup hearing a lower-priority Active, becomes Active whatever Preempt says; a non-owner with `preempt false` still stays Backup (the negative). Tested on the advert and on the config update |
+| AC-19 | VRRP v3 IPv6 failover in the production order (added 2026-11-15) | `InstallVIPs` then `AnnounceMaster` with the virtual link-local not yet installed: the unsolicited Neighbor Advertisements still leave, from the virtual link-local, after it lands, and the `no-link-local` count does not stand for a lost burst. The test drives the order production runs, unlike `TestIntegrationNAOnWire`, which waits for the link-local first. The QS-6 scenario of `spec-vrrp-deferred-keepalived-interop-scenarios` is the wire proof against keepalived |
 
 ## 🧪 TDD Test Plan
 
@@ -183,6 +189,8 @@ BFD `api.Service`, BGP-LS export, the durable store (boot count).
 | `gate-red-where-nothing-blocks-on-it` | 2026-09-17 | OSPF reload-created instance tests race in `reconcile` |
 | `field-derived-from-the-message-not-the-sender` | 2026-10-31 | IS-IS `lspTypeBlock` L1L2 IS Type in L1 LSPs |
 | `key-omits-a-fact-the-builder-uses` | 2026-10-13 | AC-17: `show bfd session address` answers the first map hit of two sessions to one address |
+| `requirement-proven-in-one-state-of-many` | 2026-11-15 | AC-18: VRRP owner in Backup never preempts with `preempt false` |
+| `announced-before-it-is-installed` | 2026-11-15 | AC-19: VRRP IPv6 NA burst lost before the virtual link-local is installed |
 
 ## Rows found already fixed
 

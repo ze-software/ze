@@ -154,7 +154,7 @@ Closed or Stopped still ends the session.
 |----------|-----|----------|
 | Kernel PPP unit ↔ session goroutine | read on the unit fd via `NewFDFile`, `PPPIOCSNPMODE` ioctl on the unit fd | No |
 | `ppp` ↔ transports (PPPoE subsystem, L2TP reactor) | new per-family release event on `EventsOut`, beside `EventSessionIPAssigned` | No |
-| Transport ↔ redistribution | `RouteObserver` per-family down; PPPoE route-change remove batch for one family | No |
+| Transport ↔ redistribution | `RouteObserver` per-family down, called by the L2TP reactor only. PPPoE has no redistribute producer today: nothing under `internal/component/l2tp/pppoe/` calls the observer or registers a source (`plan/journal/invariant-enforced-by-an-absent-call-site.md`, 2026-11-15, owned by `spec-lifecycle-invariants` D-14), so a PPPoE per-family withdrawal has no route to remove until that lands (corrected 2026-11-15) | No |
 
 ### Integration Points
 - `pppSession.run` select - gains the unit-frame source and the NCP Restart timers.

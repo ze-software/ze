@@ -31,6 +31,19 @@ Input: the "implemented, untested" bin produced by
 
 The spec ranks the candidates first, then writes the tests in that order.
 
+One OS-met family joined on 2026-11-15 from a comparison with osvbng's fixes:
+ICMP error translation through NAT, on both firewall backends. No `.ci`,
+integration or lab check sends a fragmentation-needed, port-unreachable or
+time-exceeded error through a NAT Ze installed. On nft the translation is
+nf_conntrack's, on the rules `lowerMasquerade`, `lowerSNAT` and `lowerDNAT`
+install (`internal/plugins/firewall/nft/lower_linux.go`); on vpp it is VPP
+NAT44-ED's, on what `applyMasquerade`, `applySNAT` and `applyDNAT` program
+(`internal/plugins/firewall/vpp/nat_linux.go`), which the rows' own notes call
+unverified. The rows it proves are RFC4787-9-1, RFC4787-10-1 and RFC5382-7.3-1,
+with the SHOULDs RFC4787-9-3 and RFC5382-7.3-2. The proof owed per backend: the
+translated error reaches the inner host with its quoted header rewritten, and
+the mapping survives the error.
+
 ## Required Reading
 
 ### Architecture Docs
@@ -94,9 +107,9 @@ The spec ranks the candidates first, then writes the tests in that order.
 
 ## Owned journal rows
 
-| Row | Journal file |
-|-----|--------------|
-| - | - |
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `lower-layer-obligation-never-observed.md` | 2026-11-15 | ICMP error translation through NAT untested on nft and vpp |
 
 ## Checklist
 

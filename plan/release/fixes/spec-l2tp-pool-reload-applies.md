@@ -8,9 +8,9 @@
 | Release reason | Shipped defect: a reload that edits `l2tp pool` reports success and changes nothing, and a RADIUS-assigned address inside a pool range can be handed to a second subscriber |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 0/3 |
+| Phase | 0/4 |
 | Handoff | - |
-| Updated | 2026-10-28 |
+| Updated | 2026-11-15 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -40,9 +40,36 @@ stores a RADIUS Framed-IP-Address with `fromPool: false` and never marks it in
 the pool bitmap, so an address RADIUS assigns inside a configured range can be
 allocated by `ipv4Pool.allocate` to another subscriber while the first holds it.
 
+Two more defects of the same ownership question joined on 2026-11-15, from a
+comparison with osvbng's fixes; each was read at its producer.
+
+- **An answer no session receives leaks its address.** `startPoolDrain`
+  (`internal/component/l2tp/drain.go`) and `startPPPoEPoolDrain`
+  (`internal/component/l2tp/pppoe/drain.go`) call the pool handler, then
+  `d.IPResponse`. `handle` has already stored the allocation in `sessionAddrs`.
+  When the session ended while its IPv4 request was queued (PADT, CDN or a
+  timeout), `IPResponse` returns `ErrSessionNotFound`, the drain only logs it,
+  and the session-down release has already found nothing, so the address never
+  returns. The pool drains toward exhaustion, and its live count never reaches
+  zero, which today also refuses every reload. The lifetime half (a successor
+  that drew the same key taking the stale answer) is part 1 of
+  `spec-l2tp-session-identity-and-publish-stall`; this spec owns the release.
+- **Verify accepts pools that cannot be served exactly.** `parseIPv4Pool`
+  checks only that the range is ordered and misses the gateway. It accepts
+  named pools overlapping each other or the default pool, so one address can
+  reach two subscribers. It accepts any size, so 1.0.0.0-127.255.255.255
+  builds a 254 MiB bitmap, twice (verify and configure both build it). In
+  `newIPv4Pool`, 0.0.0.1-255.255.255.255 wraps the uint32 word count to 0,
+  so every request is answered "pool exhausted" with nothing saying why. It
+  accepts a range holding 0.0.0.0 or 255.255.255.255. And it parses
+  `dns-primary` and `dns-secondary` without checking they are IPv4. A value
+  that is silently wrong must not be reachable, and a config error is refused
+  at verify (`ai/rules/principles.md`, `ai/doors/system.md`).
+
 Goal: a committed pool edit is installed by the reload that commits it, live
-subscribers keep their addresses across it, and no address is held by two
-subscribers at once.
+subscribers keep their addresses across it, no address is held by two
+subscribers at once, an address whose answer reached no session returns to
+its pool, and verify refuses a pool the plugin cannot serve exactly.
 
 Reference: accel-ppp PR #318 (https://github.com/accel-ppp/accel-ppp/pull/318,
 merged) rebuilds the pool set on `EV_CONFIG_RELOAD` and reconciles live
@@ -78,6 +105,8 @@ reserved to avoid duplicate assignment".
 - [ ] `internal/component/l2tp/plugins/pool/l2tppool.go` - `parsePoolConfig`, `parseFullPoolConfig`, `poolConfigResult` (holds built `*ipv4Pool` and `*ipv6PrefixPool` objects, not a declarative description)
 - [ ] `test/l2tp/pool-basic.ci`, `test/l2tp/session-auth-pool.ci` - boot only, no reload
 - [ ] `test/reload/dhcpserver-range-reload.ci` - the model for a plugin reload `.ci` (SIGHUP fixture, install log line as the discriminating assertion)
+- [ ] `internal/component/l2tp/drain.go` `startPoolDrain`, `internal/component/l2tp/pppoe/drain.go` `startPPPoEPoolDrain` - call the handler, then `d.IPResponse`; an error is logged and nothing else (read 2026-11-15)
+- [ ] `internal/component/l2tp/plugins/pool/register.go` `parseIPv4Pool`, `pool.go` `newIPv4Pool` - the range checks are order and gateway only; the word count is `(size + 63) / 64` in uint32 (read 2026-11-15)
 
 **Behavior to preserve:**
 - Boot install, `show l2tp pool` output, allocation order, named pools selected by RADIUS Framed-Pool, release on `subevents.SessionDown` for both L2TP and PPPoE (`spec-lifecycle-invariants` D-1).
@@ -88,6 +117,21 @@ reserved to avoid duplicate assignment".
 - A live allocation survives the reload, reserved in whichever new pool's range holds it.
 - The live-allocation refusal is deleted, not kept beside the carry (`ai/rules/no-layering.md`).
 - A RADIUS-assigned address inside a range is reserved in that pool for the session's life.
+- An allocation whose answer `IPResponse` cannot deliver is released into the pool that made it.
+- Verify refuses overlapping pools, an oversized range, a range holding 0.0.0.0 or 255.255.255.255, and a non-IPv4 DNS server, each naming the leaf and the fix.
+
+## Existing Mechanisms (MANDATORY)
+
+Added 2026-11-15, when the two defects above joined; the rows restate what the
+sections above already decided.
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Config transaction helper | `pkg/plugin/sdk/config_tx.go` `sdk.NewConfigTx` | Verify, apply and rollback with a deep-equal skip, used by every plugin of `spec-plugin-reload-applies-or-refuses` | Replaces the four hand-written closures (Key Design Decisions) |
+| Session-down release | `internal/component/l2tp/plugins/pool/register.go` `onSessionDown`, `sessionAddrs` | Releases the address the session record names when `subevents.SessionDown` arrives | Extends: the carry rewrites the record's pool; an undeliverable answer is released by the same release path |
+| Pool drains | `internal/component/l2tp/drain.go` `startPoolDrain`, `pppoe/drain.go` `startPPPoEPoolDrain` | Hand the handler's answer to `d.IPResponse` and log a failure | Extends: a failed delivery releases the allocation; the lifetime check stays with `spec-l2tp-session-identity-and-publish-stall` |
+| Range parse | `register.go` `parseIPv4Pool` | Refuses an unordered range and a gateway inside it | Extends: the overlap, size, network and broadcast, and DNS-family refusals join it, in verify |
+| accel-ppp reload reconciliation | accel-ppp PR #318 | Rebuilds pools from live sessions on reload | Followed for the carry (Design Insights) |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -159,6 +203,11 @@ reserved to avoid duplicate assignment".
 | AC-8 | An `l2tp` edit outside `pool` | the pools are not rebuilt (no install line logged) |
 | AC-9 | RADIUS assigns a Framed-IP-Address inside a configured range | the bit is marked for the session's life, the pool never hands that address to another subscriber, and the address is released at session-down |
 | AC-10 | RADIUS assigns a Framed-IP-Address inside a range whose bit is already held | the address request is refused with a reason naming the address as in use; no subscriber is given an address another subscriber holds |
+| AC-11 | An IPv4 request waits in the drain while its session ends, on L2TP and on PPPoE | the allocation is released into its pool, `show l2tp pool` does not count it, and after every session ends the live count is zero |
+| AC-12 | A config whose named pools overlap each other, or the default pool | refused at verify, naming both pools and the overlapping addresses |
+| AC-13 | A range larger than the plugin's stated bound, including 0.0.0.1-255.255.255.255 | refused at verify, naming the range, its size and the bound; no bitmap is built for it |
+| AC-14 | A range holding 0.0.0.0 or 255.255.255.255 | refused at verify, naming the address |
+| AC-15 | `dns-primary` or `dns-secondary` set to an IPv6 address | refused at verify, naming the leaf |
 
 ## End-to-End User Stories
 | # | Story | Path | Test |
@@ -180,11 +229,16 @@ reserved to avoid duplicate assignment".
 | `TestPoolAllocateConcurrentWithApply` | same, `-race` | R-1 | |
 | `TestPoolRADIUSAddressInRangeIsReserved` | `internal/component/l2tp/plugins/pool/register_test.go` | AC-9 | |
 | `TestPoolRADIUSAddressAlreadyHeldIsRefused` | same | AC-10 | |
+| `TestPoolDrainReleasesUndeliveredAnswer` | `internal/component/l2tp/` and `internal/component/l2tp/pppoe/` drain tests | AC-11, one case per drain | |
+| `TestPoolVerifyRefusesOverlappingPools` | `internal/component/l2tp/plugins/pool/register_test.go` | AC-12 | |
+| `TestPoolVerifyRefusesOversizedRange` | same | AC-13, the wrapping range among the cases | |
+| `TestPoolVerifyRefusesZeroAndBroadcast` | same | AC-14 | |
+| `TestPoolVerifyRefusesNonIPv4DNS` | same | AC-15 | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| N-A | the spec adds no numeric input; range parsing is unchanged | - | - | - |
+| IPv4 range size | 1 to the bound the design states | the bound | N/A (an unordered range is refused today) | the bound plus one, and 2^32 - 1 (0.0.0.1-255.255.255.255) |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
@@ -200,7 +254,8 @@ reserved to avoid duplicate assignment".
 - `internal/component/l2tp/plugins/pool/register.go` - `runPlugin` registers `sdk.NewConfigTx`; the closures, `pendingResult` and the live-allocation refusal are deleted; `handle` reserves an in-range RADIUS address; the session record names the reserving pool
 - `internal/component/l2tp/plugins/pool/l2tppool.go` - parse yields a declarative description; a builder makes the pools from it
 - `internal/component/l2tp/plugins/pool/pool.go`, `pool_v6.go` - mark a given address or prefix (reserve), reporting whether it was in range and whether it was already held
-- `docs/guide/l2tp.md` - what a reload does to the pools and to live subscribers; RADIUS addresses inside a range are reserved
+- `docs/guide/l2tp.md` - what a reload does to the pools and to live subscribers; RADIUS addresses inside a range are reserved; the pool refusals verify gives
+- `internal/component/l2tp/drain.go`, `internal/component/l2tp/pppoe/drain.go` - a failed `IPResponse` releases the allocation (AC-11)
 
 ## Files to Create
 - `internal/component/l2tp/plugins/pool/config_tx_test.go`
@@ -223,7 +278,8 @@ reserved to avoid duplicate assignment".
 ## Implementation Steps
 1. **Phase 1: config transaction.** Declarative description, builder, `ConfigTx` registration, carry on install, closures and refusal deleted. Tests: AC-1 to AC-8, R-1, R-2, then `l2tp-pool-range-reload.ci` red against today's binary and green after.
 2. **Phase 2: RADIUS in-range reservation.** `handle` marks and records; release frees it; carry covers it. Tests: AC-9, AC-10.
-3. **Phase 3: docs.** Both pages in the same commit as the behavior they describe; the journal rows marked `fixed:`.
+3. **Phase 3: undelivered answers and verify refusals (added 2026-11-15).** The drains release an allocation `IPResponse` could not deliver; verify refuses overlap, size, 0.0.0.0 and broadcast, and non-IPv4 DNS. The size bound is chosen in design and stated in the guide. Tests: AC-11 to AC-15.
+4. **Phase 4: docs.** Both pages in the same commit as the behavior they describe; the journal rows marked `fixed:`.
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -257,6 +313,8 @@ reserved to avoid duplicate assignment".
 |------------|------|-----------------|
 | `unwired-feature.md` | 2026-10-28 | `runPlugin` pool reload apply installs nothing |
 | `two-owners-share-one-name.md` | 2026-10-28 | RADIUS Framed-IP-Address inside a range not reserved |
+| `record-written-before-the-operation-succeeds.md` | 2026-11-15 | AC-11: pool drains drop an undeliverable answer and leak its address |
+| `bound-wraps-before-it-refuses.md` | 2026-11-15 | AC-12 to AC-15: `parseIPv4Pool` accepts overlap, any size, a wrapping range, 0.0.0.0 or broadcast, non-IPv4 DNS |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
