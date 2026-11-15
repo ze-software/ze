@@ -3615,7 +3615,7 @@ withdrawal cannot precede the announcement it takes back.
 
 The capability set is the one conditional member. `negotiationOutcomeUnchanged`
 (`peer_settings_negotiation.go`) re-runs the negotiation: it builds the candidate
-OPEN from the new settings with `buildOpen`, negotiates it against the capabilities
+OPEN from the new settings with `buildOpenFromSnapshot`, negotiates it against the capabilities
 the peer really advertised, and compares the result with the running session's. Both
 runs take ONE identity, because a reload changes the capabilities ze offers and never
 who the two speakers are: the peer AS comes from `sessionPeerAS` (`peer.go`) and the

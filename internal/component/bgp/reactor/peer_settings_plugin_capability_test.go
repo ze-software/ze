@@ -95,8 +95,7 @@ func TestNegotiationPluginCapabilityChange(t *testing.T) {
 			r.pluginCapabilitySeam = store.get
 
 			s := establishNegotiatedSession(t, peer, tc.peerCaps...)
-			s.setPluginCapabilityGetter(peer.getPluginCapabilities)
-			s.setPluginDeclarationGetter(peer.pluginCapabilityDeclarations)
+			s.setPluginCapabilitySnapshotGetter(peer.pluginCapabilitySnapshot)
 			require.NoError(t, s.prepareOpen(), "the running OPEN carries the sent declaration")
 
 			store.set(tc.next...)
@@ -160,8 +159,7 @@ func TestReloadPluginCapabilityChange(t *testing.T) {
 			r.pluginCapabilitySeam = store.get
 
 			s := establishNegotiatedSession(t, peer, tc.peerCaps...)
-			s.setPluginCapabilityGetter(peer.getPluginCapabilities)
-			s.setPluginDeclarationGetter(peer.pluginCapabilityDeclarations)
+			s.setPluginCapabilitySnapshotGetter(peer.pluginCapabilitySnapshot)
 			require.NoError(t, s.prepareOpen(), "the running OPEN carries the sent declaration")
 			peer.state.Store(int32(PeerStateEstablished))
 
@@ -243,8 +241,7 @@ func TestReloadCapabilityBlockEdit(t *testing.T) {
 			r.pluginCapabilitySeam = store.get
 
 			s := establishNegotiatedSession(t, peer, tc.peerCaps...)
-			s.setPluginCapabilityGetter(peer.getPluginCapabilities)
-			s.setPluginDeclarationGetter(peer.pluginCapabilityDeclarations)
+			s.setPluginCapabilitySnapshotGetter(peer.pluginCapabilitySnapshot)
 			require.NoError(t, s.prepareOpen(), "the running OPEN carries the sent declaration")
 			peer.state.Store(int32(PeerStateEstablished))
 

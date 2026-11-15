@@ -1,6 +1,6 @@
 // Design: docs/guide/graceful-restart.md -- what Ze advertises in the GR capability
 // RFC: rfc/short/rfc4724.md -- Sections 4.1 and 4.2, the Restart State bit in the OPEN
-// Overview: peer.go -- getPluginCapabilities, the plugin capabilities the OPEN carries
+// Overview: peer.go -- pluginCapabilitySnapshot, the plugin capabilities the OPEN carries
 // Related: peer_gr_flags.go -- restartFlagsFor, the bit edit the restart window gates
 
 package reactor
@@ -17,8 +17,8 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 )
 
-// rfc4724SentGR builds the OPEN a session sends with the production capability getter
-// (Peer.getPluginCapabilities) wired as peer_run.go wires it, while the bgp-gr plugin
+// rfc4724SentGR builds the OPEN through the production capability snapshot,
+// reached through the test-only wire view Peer.getPluginCapabilities, while the bgp-gr plugin
 // declares Restart Time 120 for IPv4 unicast with every flag clear, and returns the
 // Graceful Restart Capability that OPEN carries. restartUntil is the reactor's restart
 // deadline; the zero time is a cold start.

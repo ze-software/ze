@@ -1420,20 +1420,21 @@ func (p *Peer) SetReactor(r *Reactor) {
 	p.reactor = r
 }
 
-// getPluginCapabilities returns capabilities declared by API plugins.
-// Used as callback for Session.setPluginCapabilityGetter().
-// Converts plugin.InjectedCapability to capability.Capability for OPEN injection.
+// pluginCapabilitySnapshot captures capabilities declared by API plugins once
+// and derives both the raw declaration index and the wire offer from that read.
+// The returned snapshot MUST remain immutable after publication to a Session.
 // Resolves the peer's name, its address and, for a peer built from a dynamic
 // group's template, that group -- in one query, so per-peer and per-group
 // declarations are not lost behind a plugin's global ones.
 //
 // RFC 4724 Section 4.1: If within the restart window (RestartUntil), sets the
 // Restart State bit (R=1) on code-64 capabilities so peers know we restarted.
-func (p *Peer) getPluginCapabilities() []capability.Capability {
+func (p *Peer) pluginCapabilitySnapshot() pluginCapabilitySnapshot {
 	injected := p.pluginCapabilityDeclarations()
 	if len(injected) == 0 {
-		return nil
+		return pluginCapabilitySnapshot{}
 	}
+	declarations := pluginDeclarationIndex(injected)
 	p.mu.RLock()
 	r := p.reactor
 	p.mu.RUnlock()
@@ -1445,12 +1446,12 @@ func (p *Peer) getPluginCapabilities() []capability.Capability {
 	for i, ic := range injected {
 		caps[i] = capability.NewPlugin(ic.Code, ic.Value)
 	}
-	return caps
+	return pluginCapabilitySnapshot{declarations: declarations, capabilities: caps}
 }
 
 // pluginCapabilityDeclarations returns what the injector store declares for
 // this peer, as the plugins wrote it: before the restart-window flags
-// getPluginCapabilities sets, so the reload probe comparing two reads sees a
+// pluginCapabilitySnapshot sets, so the reload probe comparing snapshots sees a
 // declaration change and never the passing of the restart deadline.
 func (p *Peer) pluginCapabilityDeclarations() []plugin.InjectedCapability {
 	p.mu.RLock()

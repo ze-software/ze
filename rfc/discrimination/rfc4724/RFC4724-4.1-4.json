@@ -39,8 +39,8 @@
     "unit-sha": "7eeaa6a8775c8b55",
     "claim-sha": "12be7e2ba24a503d",
     "route": "revert",
-    "producer": "internal/component/bgp/reactor/peer.go::getPluginCapabilities",
-    "producer-sha": "ba37d6f02e36d5c5",
-    "break": "body of getPluginCapabilities replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/component/bgp/reactor/peer.go::Peer.pluginCapabilitySnapshot",
+    "producer-sha": "0e33a1685633471e",
+    "break": "body of Peer.pluginCapabilitySnapshot replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

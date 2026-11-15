@@ -1274,7 +1274,7 @@ peer transit-a {
 ```
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- peer-fields, filter-policy -->
 <!-- source: internal/core/bgp/capability/negotiated.go -- Negotiate treats a side with no Multiprotocol capability as advertising ipv4/unicast -->
-<!-- source: internal/component/bgp/reactor/session_negotiate.go -- buildOpen, plugin decode families when the config declares none -->
+<!-- source: internal/component/bgp/reactor/session_negotiate.go -- buildOpenFromSnapshot, plugin decode families when the config declares none -->
 <!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- sendInitialRoutes, one End-of-RIB marker per negotiated family -->
 
 ### Prefix Limits

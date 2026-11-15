@@ -6,9 +6,9 @@
     "unit-sha": "d7ed111b84530b38",
     "claim-sha": "c27254773be47b52",
     "route": "mutant",
-    "producer": "internal/component/bgp/reactor/session_negotiate.go::buildOpen",
-    "producer-sha": "f937bc1380ae0377",
-    "break": "line 304: \"openAS \u003e 65535\" -\u003e \"false\"",
+    "producer": "internal/component/bgp/reactor/session_negotiate.go::buildOpenFromSnapshot",
+    "producer-sha": "1b2458f60ca7e90f",
+    "break": "line 303: \"openAS \u003e 65535\" -\u003e \"false\"",
     "paired": [
       {
         "producer": "internal/component/bgp/message/open.go::writeFixedFields",
@@ -18,16 +18,16 @@
     ],
     "solo": [
       {
-        "producer": "internal/component/bgp/reactor/session_negotiate.go::buildOpen",
-        "break": "line 304: \"openAS \u003e 65535\" -\u003e \"false\"",
-        "seconds": 18,
-        "green": "ok  \tgithub.com/ze-software/ze/internal/component/bgp/reactor\t1.039s"
+        "producer": "internal/component/bgp/reactor/session_negotiate.go::buildOpenFromSnapshot",
+        "break": "line 303: \"openAS \u003e 65535\" -\u003e \"false\"",
+        "seconds": 11,
+        "green": "ok  \tgithub.com/ze-software/ze/internal/component/bgp/reactor\t0.818s"
       },
       {
         "producer": "internal/component/bgp/message/open.go::writeFixedFields",
         "break": "line 120: \"o.ASN4 \u003e 0 \u0026\u0026 o.ASN4 \u003e 65535\" -\u003e \"false\"",
-        "seconds": 21,
-        "green": "ok  \tgithub.com/ze-software/ze/internal/component/bgp/reactor\t0.980s"
+        "seconds": 12,
+        "green": "ok  \tgithub.com/ze-software/ze/internal/component/bgp/reactor\t0.823s"
       }
     ]
   },

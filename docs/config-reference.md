@@ -194,7 +194,7 @@ A plugin fills the same gap. When the config declares no family, Ze advertises
 the families the loaded plugins can decode. Config families win: a peer with a
 `family` block ignores the plugin families.
 <!-- source: internal/core/bgp/capability/negotiated.go -- Negotiate treats a side with no Multiprotocol capability as advertising ipv4/unicast -->
-<!-- source: internal/component/bgp/reactor/session_negotiate.go -- buildOpen falls back to the plugin decode families -->
+<!-- source: internal/component/bgp/reactor/session_negotiate.go -- buildOpenFromSnapshot falls back to the plugin decode families -->
 
 ### Prefix Limits
 

@@ -6,9 +6,9 @@
     "unit-sha": "ec2ef64362a81f22",
     "claim-sha": "47d4cbf589ca5f12",
     "route": "mutant",
-    "producer": "internal/component/bgp/reactor/session_negotiate.go::buildOpen",
-    "producer-sha": "f937bc1380ae0377",
-    "break": "line 265: \"!settings.DisableASN4\" -\u003e \"false\""
+    "producer": "internal/component/bgp/reactor/session_negotiate.go::buildOpenFromSnapshot",
+    "producer-sha": "1b2458f60ca7e90f",
+    "break": "line 266: \"!settings.DisableASN4\" -\u003e \"false\""
   },
   {
     "rid": "RFC6793-4.1-1",
@@ -17,8 +17,8 @@
     "unit-sha": "735cab25880f788b",
     "claim-sha": "c5dd98bd1f684ec7",
     "route": "mutant",
-    "producer": "internal/component/bgp/reactor/session_negotiate.go::buildOpen",
-    "producer-sha": "f937bc1380ae0377",
-    "break": "line 265: \"!settings.DisableASN4\" -\u003e \"true\""
+    "producer": "internal/component/bgp/reactor/session_negotiate.go::buildOpenFromSnapshot",
+    "producer-sha": "1b2458f60ca7e90f",
+    "break": "line 266: \"!settings.DisableASN4\" -\u003e \"true\""
   }
 ]

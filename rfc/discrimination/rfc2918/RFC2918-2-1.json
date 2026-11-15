@@ -6,8 +6,8 @@
     "unit-sha": "0e7e69161396edf2",
     "claim-sha": "6b9e5b18d27e5cfb",
     "route": "revert",
-    "producer": "internal/component/bgp/reactor/session_negotiate.go::buildOpen",
-    "producer-sha": "f937bc1380ae0377",
-    "break": "body of buildOpen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer": "internal/component/bgp/reactor/session_negotiate.go::Session.buildOpenFromSnapshot",
+    "producer-sha": "1b2458f60ca7e90f",
+    "break": "body of Session.buildOpenFromSnapshot replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

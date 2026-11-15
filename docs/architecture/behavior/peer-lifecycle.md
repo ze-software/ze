@@ -167,7 +167,7 @@ down. Step-by-step:
    to raise `session-dropped` on the report bus.
 2. **Create and wire the session.** `NewSession` + `SetClock`,
    `SetDialer`, metric hookups, `onMessageReceived`, `onNotifSent`,
-   `onNotifRecv`, `SetSourceID`, `setPluginCapabilityGetter`,
+   `onNotifRecv`, `SetSourceID`, `setPluginCapabilitySnapshotGetter`,
    `setPluginFamiliesGetter`, `setOpenValidator`.
 3. **Publish the session on `p.session` under lock** so other API
    callers (`Teardown`, `acceptConnection`, metrics) can see it.
@@ -219,6 +219,26 @@ down. Step-by-step:
     immediate retry.
 
 <!-- source: internal/component/bgp/reactor/peer_run.go — runOnce -->
+
+### One plugin snapshot for each OPEN proposal
+
+`Peer.runOnce` installs one plugin snapshot getter on the session. The getter
+reads the injector once and derives both the raw declaration index and the
+capabilities encoded in OPEN from that read. It records raw values before
+applying the runtime GR restart bits, so expiration of the restart window does
+not look like a configuration change.
+<!-- source: internal/component/bgp/reactor/peer.go -- pluginCapabilitySnapshot -->
+<!-- source: internal/component/bgp/reactor/peer_run.go -- runOnce -->
+
+`prepareOpen` builds `localOpen` from that snapshot and retains its declaration
+index beside the message. The reload probe captures one candidate snapshot for
+both its declaration comparison and candidate OPEN construction. Publication
+and rollback between independent store reads therefore cannot pair the record
+of one generation with wire capabilities from another. A snapshot remains
+immutable after publication to the session.
+<!-- source: internal/component/bgp/reactor/session_negotiate.go -- prepareOpen, buildOpenFromSnapshot -->
+<!-- source: internal/component/bgp/reactor/peer_settings_negotiation.go -- negotiationOutcomeUnchanged, pluginCapabilitiesKept -->
+<!-- source: internal/component/bgp/reactor/session_plugin_capabilities.go -- pluginCapabilitySnapshot -->
 
 ## FSM state callback
 
@@ -574,6 +594,12 @@ This also applies in Established: the new connection is retained until the
 complete OPEN arrives, then receives Cease / Connection Collision. The existing
 session is not replaced. OpenSent and OpenConfirm use the same pending reader,
 which waits for OPEN before comparing identifiers.
+
+A pending OPEN whose outer parameter framing cannot be decoded receives OPEN
+Message Error (2/0), and only that pending connection closes. A correctly
+decoded OPEN that loses collision resolution retains Cease / Connection
+Collision (6/7).
+<!-- source: internal/component/bgp/reactor/reactor_connection.go -- handlePendingCollision, rejectPendingConnection -->
 
 Connect and Active use that same single pending slot while DelayOpen holds an
 OPEN-less existing connection. The pending reader has a ReceiveHoldTime

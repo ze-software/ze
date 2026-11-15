@@ -83,14 +83,13 @@ func (s *Session) negotiationOutcomeUnchanged(next *PeerSettings) bool {
 		return false
 	}
 
-	// Read BEFORE the candidate is built, as prepareOpen does, so the
-	// declaration compared is never newer than the OPEN the candidate carries.
-	nextDecls := s.pluginDeclarations()
-	if !pluginDeclarationsKept(sentDecls, nextDecls, peerCaps) {
+	plugins := s.pluginCapabilitySnapshot()
+	if !pluginDeclarationsKept(sentDecls, plugins.declarations, peerCaps) {
 		return false
 	}
 
-	nextOpen, err := s.buildOpen(next, next.Capabilities)
+	// RFC 5492 Section 1
+	nextOpen, err := s.buildOpenFromSnapshot(next, next.Capabilities, plugins)
 	if err != nil {
 		return false
 	}
@@ -156,10 +155,7 @@ func (s *Session) pluginCapabilitiesKept() bool {
 // pluginDeclarations reads the plugin declarations for this session's peer,
 // indexed by code. A session no Peer owns has no getter and declares nothing.
 func (s *Session) pluginDeclarations() map[uint8][]string {
-	if s.pluginDeclGetter == nil {
-		return nil
-	}
-	return pluginDeclarationIndex(s.pluginDeclGetter())
+	return s.pluginCapabilitySnapshot().declarations
 }
 
 // pluginDeclarationIndex maps each code to the sorted values declared for it,
@@ -304,7 +300,7 @@ func negotiatedCapabilitySettings(dst, src *PeerSettings) {
 // It qualifies for that reason and no other. RawCapabilityConfig holds the
 // block's values (parseCapabilitiesFromTree, config_capabilities.go). No OPEN
 // is built from it: a plugin's capabilities
-// enter the OPEN through pluginCapGetter, which reads the injector store the
+// enter the OPEN through pluginCapabilityGetter, which captures the injector store the
 // plugin wrote (Server.GetPluginCapabilitiesForSelectors). A reload replaces a
 // plugin's declaration there on its first apply, before the BGP participant
 // applies (config_tx_capabilities.go in the plugin server), so the store the

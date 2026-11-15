@@ -1,6 +1,6 @@
 // Design: docs/guide/graceful-restart.md -- what Ze advertises in the GR capability
 // RFC: rfc/short/rfc4724.md
-// Related: peer.go -- getPluginCapabilities, the one caller
+// Related: peer.go -- pluginCapabilitySnapshot, the one caller
 // Related: internal/component/bgp/grmarker -- the two bit edits this chooses between
 
 package reactor

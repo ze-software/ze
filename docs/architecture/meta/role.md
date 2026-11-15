@@ -336,7 +336,7 @@ Three readers resolve that entry, each from an identity it already holds:
 
 | Reader | Resolves from | Result for a peer of the group |
 |--------|---------------|--------------------------------|
-| `Peer.getPluginCapabilities` | `PeerSettings.GroupName`, the third link of its name → address → group chain | the OPEN carries capability 9 with the role the group states |
+| `Peer.pluginCapabilitySnapshot` | `PeerSettings.GroupName`, the third link of its name → address → group chain | the OPEN carries capability 9 with the role the group states |
 | `getFilterConfig` | `PeerFilterInfo.GroupName` | the RFC 9234 Section 5 OTC gates run, on the group's role |
 | `applyValidateOpen` | `rpc.ValidateOpenInput.Group` | the Section 4.2 role pair check runs, `strict` included |
 
@@ -353,6 +353,6 @@ by ending a sequence of separate lookups early.
 <!-- source: internal/component/bgp/configjson/traverse.go -- ForEachPeer, CapabilitySelector -->
 <!-- source: internal/component/bgp/plugins/role/config.go -- extractPeerRoleConfigs -->
 <!-- source: internal/component/bgp/plugins/role/role.go -- getFilterConfig, applyValidateOpen -->
-<!-- source: internal/component/bgp/reactor/peer.go -- getPluginCapabilities, capabilitySelectors -->
+<!-- source: internal/component/bgp/reactor/peer.go -- pluginCapabilitySnapshot, capabilitySelectors -->
 <!-- source: internal/component/bgp/config/resolve.go -- resolveDynamicGroup -->
 

@@ -199,17 +199,15 @@ func (s *Session) sendOpen(conn net.Conn) error {
 // prepareOpen builds the proposal once, before negotiation or transmission.
 // The caller MUST serialize initial OPEN work with openMu.
 func (s *Session) prepareOpen() error {
-	// Read BEFORE the build, so a declaration a reload installs in between can
-	// only make the record older than the OPEN, which the reload probe reads as
-	// a change and answers with a restart (fail-closed).
-	sentDecls := s.pluginDeclarations()
-	open, err := s.buildOpen(s.settings, s.configCapabilities())
+	plugins := s.pluginCapabilitySnapshot()
+	// RFC 5492 Section 1
+	open, err := s.buildOpenFromSnapshot(s.settings, s.configCapabilities(), plugins)
 	if err != nil {
 		return err
 	}
 	s.mu.Lock()
 	s.localOpen = open
-	s.sentPluginDecls = sentDecls
+	s.sentPluginDecls = plugins.declarations
 	if transport := s.transport.Load(); transport != nil {
 		transport.localAS.Store(open.ASN4)
 	}
@@ -230,8 +228,8 @@ func (s *Session) configCapabilities() []capability.Capability {
 	return s.settings.Capabilities
 }
 
-// buildOpen builds the OPEN message this session sends under the given settings
-// and configured capability list.
+// buildOpenFromSnapshot builds the OPEN message from the given settings,
+// configured capability list and captured plugin offer.
 //
 // It is the ONE producer of ze's OPEN. sendOpen writes what it returns, and the
 // reload swap decision calls it a second time with the settings a reload proposes
@@ -241,7 +239,10 @@ func (s *Session) configCapabilities() []capability.Capability {
 // configCaps is passed rather than read off settings.Capabilities because the two
 // have different lock rules: every other field this reads is set at construction
 // and never mutated, while Capabilities is replaced by a reload swap.
-func (s *Session) buildOpen(settings *PeerSettings, configCaps []capability.Capability) (*message.Open, error) {
+// RFC 5492 Section 1: "When a BGP speaker [RFC4271] that supports capabilities
+// advertisement sends an OPEN message to its BGP peer, the message MAY include
+// an Optional Parameter, called Capabilities."
+func (s *Session) buildOpenFromSnapshot(settings *PeerSettings, configCaps []capability.Capability, plugins pluginCapabilitySnapshot) (*message.Open, error) {
 	// Build capabilities in RFC-expected order:
 	// 1. Multiprotocol (from config OR plugin decode families - not both)
 	// 2. ASN4
@@ -270,9 +271,7 @@ func (s *Session) buildOpen(settings *PeerSettings, configCaps []capability.Capa
 	caps = append(caps, otherCaps...)
 
 	// Add plugin-declared capabilities (e.g., hostname from RFC 9234 plugin).
-	if s.pluginCapGetter != nil {
-		caps = append(caps, s.pluginCapGetter()...)
-	}
+	caps = append(caps, plugins.capabilities...)
 
 	// draft-abraitis-idr-addpath-paths-limit-04 Section 3: multiple families
 	// "MUST" be included "in a single instance of the PATHS-LIMIT capability."
