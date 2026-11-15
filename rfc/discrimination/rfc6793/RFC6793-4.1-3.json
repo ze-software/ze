@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC6793-4.1-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/session_open_as_asn4_test.go::TestOpenAdvertisedASFollowsLocalASN4",
+    "unit-sha": "58406d5dd54693d1",
+    "claim-sha": "84e7d31a2e9a944f",
+    "route": "mutant",
+    "producer": "internal/core/bgp/capability/identity.go::OpenPeerAS",
+    "producer-sha": "c5ffbb83a146061a",
+    "break": "line 73: \"return asn4.ASN\" -\u003e \"return uint32(myAS) + (asn4.ASN - asn4.ASN)\""
+  },
+  {
+    "rid": "RFC6793-4.1-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/session_open_as_asn4_test.go::TestOpenAdvertisedASFollowsLocalASN4",
+    "unit-sha": "58406d5dd54693d1",
+    "claim-sha": "dff0d4e31e22264b",
+    "route": "mutant",
+    "producer": "internal/core/bgp/capability/identity.go::OpenPeerAS",
+    "producer-sha": "c5ffbb83a146061a",
+    "break": "line 68: \"if !localASN4 {\" -\u003e \"if false \u0026\u0026 !localASN4 {\""
+  }
+]

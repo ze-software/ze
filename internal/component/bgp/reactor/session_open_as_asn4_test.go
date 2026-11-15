@@ -46,6 +46,9 @@ func receivedASN4Open(t *testing.T) *message.Open {
 // answers what openAdvertisedAS does.
 // PREVENTS: a reader that ignores the flag, which judged an asn4-disabled peer by a
 // four-octet AS the session never negotiated.
+//
+// RFC requirement: RFC6793-4.1-3 positive -- between NEW speakers the received OPEN's four-octet capability value supplies peer AS in lieu of My AS, through openAdvertisedAS and sessionPeerAS.
+// RFC requirement: RFC6793-4.1-3 negative -- a local speaker that does not advertise four-octet support uses My AS even when the received OPEN carries the capability; an OPEN without that capability also uses My AS.
 func TestOpenAdvertisedASFollowsLocalASN4(t *testing.T) {
 	withAS4 := receivedASN4Open(t)
 	plain := &message.Open{Version: 4, MyAS: 65001, HoldTime: 90, BGPIdentifier: 0x01020304}

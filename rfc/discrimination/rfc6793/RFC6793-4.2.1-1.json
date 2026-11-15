@@ -1,0 +1,45 @@
+[
+  {
+    "rid": "RFC6793-4.2.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc6793_as4_open_test.go::TestRFC6793OpenMyASIsASTransWithoutTwoOctetAS",
+    "unit-sha": "d7ed111b84530b38",
+    "claim-sha": "c27254773be47b52",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_negotiate.go::buildOpen",
+    "producer-sha": "f937bc1380ae0377",
+    "break": "line 304: \"openAS \u003e 65535\" -\u003e \"false\"",
+    "paired": [
+      {
+        "producer": "internal/component/bgp/message/open.go::writeFixedFields",
+        "producer-sha": "e94d74d2c4df693b",
+        "break": "line 120: \"o.ASN4 \u003e 0 \u0026\u0026 o.ASN4 \u003e 65535\" -\u003e \"false\""
+      }
+    ],
+    "solo": [
+      {
+        "producer": "internal/component/bgp/reactor/session_negotiate.go::buildOpen",
+        "break": "line 304: \"openAS \u003e 65535\" -\u003e \"false\"",
+        "seconds": 18,
+        "green": "ok  \tgithub.com/ze-software/ze/internal/component/bgp/reactor\t1.039s"
+      },
+      {
+        "producer": "internal/component/bgp/message/open.go::writeFixedFields",
+        "break": "line 120: \"o.ASN4 \u003e 0 \u0026\u0026 o.ASN4 \u003e 65535\" -\u003e \"false\"",
+        "seconds": 21,
+        "green": "ok  \tgithub.com/ze-software/ze/internal/component/bgp/reactor\t0.980s"
+      }
+    ]
+  },
+  {
+    "rid": "RFC6793-4.2.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc6793_as4_open_test.go::TestRFC6793OpenMyASIsRealASWhenMappable",
+    "unit-sha": "f34bb07fe0514173",
+    "claim-sha": "9cf891529aa23644",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/open.go::writeFixedFields",
+    "producer-sha": "e94d74d2c4df693b",
+    "break": "line 120: \"o.ASN4 \u003e 0 \u0026\u0026 o.ASN4 \u003e 65535\" -\u003e \"true\""
+  }
+]
