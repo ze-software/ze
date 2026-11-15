@@ -54,6 +54,9 @@ const injectAFUsage = cmdDebugInjectLSA + " type <ls-type> id <link-state-id> ad
 // debugInjectV3. The enablement is checked first, so a disarmed router refuses the command
 // whatever family it names, an unknown or idle one included: the double gate never depends
 // on the family. Safe for concurrent use (it reads the set under its lock).
+//
+// It MUST hand debugInjectV3 the arguments splitInjectAddressFamily left, never cmdArgs:
+// the inject parser (parseV3Inject) does not know the address-family keyword.
 func (m *v6EngineSet) debugInjectIntoAF(cmdArgs []string) (v3InjectResult, error) {
 	if !debugInjectIsEnabled() {
 		return v3InjectResult{}, errDebugInjectDisabled
@@ -108,8 +111,9 @@ func splitInjectAddressFamily(cmdArgs []string) (addressFamily, []string, error)
 }
 
 // debugInjectV3 validates and (if debug is enabled) originates or withdraws a crafted
-// OSPFv3 LSA in this engine's LSDB through the base origination seam. The arguments carry
-// no address-family keyword: debugInjectIntoAF took it out to choose this engine.
+// OSPFv3 LSA in this engine's LSDB through the base origination seam. The arguments MUST
+// carry no address-family keyword: it MUST be called with what debugInjectIntoAF left after
+// splitInjectAddressFamily took the keyword out to choose this engine.
 func (e *engine) debugInjectV3(args []string) (v3InjectResult, error) {
 	if !debugInjectIsEnabled() {
 		return v3InjectResult{}, errDebugInjectDisabled

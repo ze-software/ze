@@ -20,7 +20,6 @@ module ze-ospf-cmd {
         description "clear ospf neighbor and clear ospf process alone are refused; clear ospf neighbor all
              tears down every adjacency, and clear ospf process all also re-runs SPF.";
     }
-
     revision 2026-07-02 {
         description "Add the `request ospf graceful-restart` operator action (RFC 3623 planned
              restart trigger, spec-ospf-ext-9); add `show ospf instance` for OSPFv2

@@ -235,9 +235,10 @@ family and Instance ID.
 Every other `show ospf ipv6` view answers for each running address family: `neighbor`,
 `neighbor detail`, `interface`, `interface detail`, `spf`, `spf detail`, `route`,
 `graceful-restart`, `segment-routing` and the `database` views. Each row, or each database
-record, starts with the `address-family` and `instance-id` of the instance it came from, so
-`| table` shows them as the first two columns. Add `address-family <af>` to read one
-instance only:
+record, carries the `address-family` and `instance-id` of the instance it came from. Each of
+these views declares the two as its leading columns, so `| table` and `| text` show them
+first and the row's other keys after them in name order; `| json` and `| yaml` sort every
+key by name, as for any command. Add `address-family <af>` to read one instance only:
 
 ```
 show ospf ipv6 neighbor
@@ -245,16 +246,22 @@ show ospf ipv6 neighbor address-family ipv4-unicast
 show ospf ipv6 route address-family ipv4-unicast
 ```
 
-A neighbor row of the IPv4-unicast instance at Instance ID 64 starts
-`{"address-family":"ipv4-unicast","instance-id":64,"interface":"eth1",...}`. The keyword
+The `| table` header of `show ospf ipv6 route` reads `address-family`, `instance-id`,
+`area`, `metric`, `next-hops`, `origin`, `prefix`, `type`, and each row of the IPv4-unicast
+instance at Instance ID 64 starts `ipv4-unicast`, `64`. The keyword
 takes exactly the four names `ipv6-unicast`, `ipv6-multicast`, `ipv4-unicast` and
 `ipv4-multicast`, on every view and on `debug ipv6 ospf inject lsa`: the bare `ipv6` the
 config accepts is refused there, with the four names. An address
 family that is not running is refused with the running ones and the command that lists
 them, `show ospf ipv6 instance`. With no OSPFv3 address family configured, the list views
-answer an empty list and the database views the empty `ipv6-unicast` record.
+answer an empty list and the database views the empty `ipv6-unicast` record. The two
+segment-routing views (`show ospf ipv6 segment-routing` and `show ospf ipv6 database
+segment-routing`) are the exception: they answer one record, the IPv6 Segment Routing state
+of the OSPFv2 Router ID, which belongs to no OSPFv3 instance and so carries neither
+`address-family` nor `instance-id`.
 <!-- source: internal/plugins/ospf/register_multiaf.go -- selectInstances, afTaggedRow -->
-<!-- source: internal/plugins/ospf/debug_wiring.go -- v3Views, v6DatabaseDetail -->
+<!-- source: internal/plugins/ospf/debug_wiring.go -- v3Views, v6DatabaseDetail, v3SegmentRoutingView -->
+<!-- source: internal/plugins/ospf/register.go -- v3ViewDecls, v3ViewColumns -->
 <!-- source: internal/plugins/ospf/multiaf.go -- afFromCanonicalName -->
 <!-- source: internal/plugins/ospf/inject_v3.go -- splitInjectAddressFamily -->
 
@@ -516,7 +523,9 @@ The `scope` leaf-list selects the flooding scope(s) per RFC 7770 §2.7 (`link` /
 
 The Router Informational Capabilities TLV is always the first TLV in Instance 0 (RFC 7770 §2.4 MUST) and reflects live engine state, so it cannot advertise a capability the router lacks: bit 0/1 (graceful restart capable / helper) track the GR configuration, bit 2 (stub router) is set when max-metric is configured (RFC 6987), and bit 3 (traffic engineering) is set when TE is configured (RFC 3630). The bits describe the router in the scope the LSA floods to (RFC 7770 §2.4): graceful restart and stub router are router-wide, while the TE bit follows the scope. An AS-scope RI LSA sets it when any interface runs TE; a TE router address with no TE interface does not set it, because the router then originates no TE LSA anywhere. An area-scope RI LSA sets it only when an interface of that area runs TE, and in the backbone also when TE runs only on inter-AS links, because the TE Router-Address is then advertised there. A link-scope RI LSA sets it when that interface runs TE. The `ze_ospf_ri_capability_bits` gauge reports the router-wide (AS-scope) word. An empty Functional Capabilities TLV (type 2) is carried as a placeholder (the RFC functional registry is initially empty). A downstream consumer registers additional TLVs; the originator emits them after the type-1 TLV in ascending TLV-type order, and if they overflow one LSA they spill into subsequent Instance IDs (a receiver uses the smallest Instance ID for an unspecified-multi-instance TLV, RFC 7770 §3). A registered builder that panics is isolated and counted, and the RI LSA is still emitted.
 
-`show ospf database router-information` decodes the stored RI LSAs for both address families into the named capability bits and the TLV list. Its OSPFv3 entries come from every running OSPFv3 address family, each naming its `address-family` and `instance-id`; `address-family <af>` narrows that OSPFv3 part to one family and leaves the OSPFv2 entries whole, and `show ospf ipv6 database router-information` shows the OSPFv3 entries alone. RI activity is counted by `ze_ospf_ri_lsas{af,scope}`, `ze_ospf_ri_originations_total{af,scope}`, `ze_ospf_ri_received_total{af}`, `ze_ospf_ri_tlv_builder_errors_total`, and `ze_ospf_ri_capability_bits{bit}`.
+`show ospf database router-information` decodes the stored RI LSAs for both address families into the named capability bits and the TLV list. Its OSPFv3 entries come from every running OSPFv3 address family, each naming its `address-family` and `instance-id`; `address-family <af>` narrows that OSPFv3 part to one family and leaves the OSPFv2 entries whole, and `show ospf ipv6 database router-information` shows the OSPFv3 entries alone. Both views
+declare `af`, `address-family` and `instance-id` as their leading columns, so `| table` shows
+those three first, and an OSPFv2 entry leaves the two OSPFv3 cells empty. RI activity is counted by `ze_ospf_ri_lsas{af,scope}`, `ze_ospf_ri_originations_total{af,scope}`, `ze_ospf_ri_received_total{af}`, `ze_ospf_ri_tlv_builder_errors_total`, and `ze_ospf_ri_capability_bits{bit}`.
 <!-- source: internal/plugins/ospf/ri.go -- registerRIConsumer, deriveRICapabilities, riScopeHasTE, buildRIInstances, riMetrics -->
 <!-- source: internal/plugins/ospf/ri_registry.go -- registerRITLV, riTLVBuildersForScope -->
 <!-- source: internal/plugins/ospf/ri_show.go -- routerInformationView, riDatabaseSnapshot, riOSPFv3Instance -->

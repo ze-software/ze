@@ -118,7 +118,8 @@ func TestRIShowRender(t *testing.T) {
 // carrying its own engine's bits. The address-family keyword narrows the OSPFv3 part to one
 // instance; on the shared view it leaves the OSPFv2 part whole, and an OSPFv2 entry carries
 // neither identity key. Method: twoAFIdleSet plus one RI LSA per engine, read through the
-// v3Views entries OnExecuteCommand serves, compared as one summary line per entry.
+// two producers OnExecuteCommand's RI arms call (routerInformationView,
+// v3RouterInformationView; neither is in v3Views), compared as one summary line per entry.
 func TestRIViewOverEveryV6Engine(t *testing.T) {
 	resetOpaqueConsumers()
 	t.Cleanup(resetOpaqueConsumers)

@@ -838,11 +838,16 @@ func runOSPFEngine(conn net.Conn) int {
 // registry.Registration, which anything linking the composition root reads
 // without starting an engine, and the runner sends it in the Stage 1
 // registration message, which a running daemon reads.
+//
+// Every Name is a string literal or a package constant, because `./le cli dispatch check`
+// reads these literals from the source (pluginCommandDecls, internal/le/cli/dispatch) and
+// refuses a name it cannot read there. So each per-address-family OSPFv3 view is listed here
+// a second time beside its producer in v3Views (debug_wiring.go), which is the source, and
+// TestOSPFv3ViewDeclsMatchV3Views compares the two.
 func commandDecls() []sdk.CommandDecl {
 	return []sdk.CommandDecl{
 		{Name: "show ospf"},
 		{Name: "show ospf ipv6"},
-		{Name: "show ospf ipv6 interface"},
 		{Name: "show ospf instance"},
 		{Name: "show ospf neighbor"},
 		{Name: "show ospf interface"},
@@ -856,7 +861,7 @@ func commandDecls() []sdk.CommandDecl {
 		{Name: cmdShowDatabaseOpaqueLink},
 		{Name: cmdShowDatabaseOpaqueArea},
 		{Name: cmdShowDatabaseOpaqueAS},
-		{Name: cmdShowDatabaseRI},
+		{Name: cmdShowDatabaseRI, Shape: rpc.AnswerTypeTable, Columns: riViewColumns()},
 		{Name: "show ospf te-database"},
 		{Name: "show ospf route"},
 		{Name: "show ospf route fast-reroute"},
@@ -865,9 +870,7 @@ func commandDecls() []sdk.CommandDecl {
 		{Name: "show ospf spf"},
 		{Name: "show ospf ldp-sync"},
 		{Name: cmdShowGracefulRestart},
-		{Name: cmdShowIPv6GracefulRestart},
 		{Name: cmdShowSegmentRouting},
-		{Name: cmdShowIPv6SegmentRouting},
 		{Name: cmdClearProcess},
 		{Name: cmdClearNeighbor},
 		{Name: cmdClearCounters},
@@ -879,27 +882,53 @@ func commandDecls() []sdk.CommandDecl {
 		{Name: cmdShowSPFDetail},
 		{Name: cmdShowNeighborDetail},
 		{Name: cmdShowInterfaceDetail},
-		// spec-ospf-ext-14 IPv6 deep-introspection views.
-		{Name: cmdShowIPv6Database},
-		{Name: cmdShowIPv6DatabaseDetail},
-		{Name: cmdShowIPv6DatabaseRouterDetail},
-		{Name: cmdShowIPv6DatabaseScopeLink},
-		{Name: cmdShowIPv6DatabaseScopeArea},
-		{Name: cmdShowIPv6DatabaseScopeAS},
-		{Name: cmdShowIPv6DatabaseRI},
-		{Name: cmdShowIPv6DatabaseExtended},
-		{Name: cmdShowIPv6DatabaseSegmentRouting},
+		// spec-ospf-ext-14 IPv6 deep-introspection views not in v3Views.
+		{Name: cmdShowIPv6DatabaseRI, Shape: rpc.AnswerTypeTable, Columns: riViewColumns()},
 		{Name: cmdShowIPv6Instance},
-		{Name: cmdShowIPv6Neighbor},
-		{Name: cmdShowIPv6NeighborDetail},
-		{Name: cmdShowIPv6InterfaceDetail},
-		{Name: cmdShowIPv6SPF},
-		{Name: cmdShowIPv6SPFDetail},
-		{Name: cmdShowIPv6Route},
 		// spec-ospf-ext-14 guarded LSA injection (both families) + shared enablement.
 		{Name: cmdDebugInjectEnable},
 		{Name: cmdDebugInjectDisable},
 		{Name: cmdDebugInjectOpaque},
 		{Name: cmdDebugInjectLSA},
+		// The per-address-family OSPFv3 views, one entry per v3Views key (debug_wiring.go),
+		// each read against v3ViewColumns.
+		{Name: cmdShowIPv6Interface, Shape: rpc.AnswerTypeTable, Columns: v3ViewColumns()},
+		{Name: cmdShowIPv6Neighbor, Shape: rpc.AnswerTypeTable, Columns: v3ViewColumns()},
+		{Name: cmdShowIPv6NeighborDetail, Shape: rpc.AnswerTypeTable, Columns: v3ViewColumns()},
+		{Name: cmdShowIPv6InterfaceDetail, Shape: rpc.AnswerTypeTable, Columns: v3ViewColumns()},
+		{Name: cmdShowIPv6SPF, Shape: rpc.AnswerTypeTable, Columns: v3ViewColumns()},
+		{Name: cmdShowIPv6Route, Shape: rpc.AnswerTypeTable, Columns: v3ViewColumns()},
+		{Name: cmdShowIPv6GracefulRestart, Shape: rpc.AnswerTypeTable, Columns: v3ViewColumns()},
+		{Name: cmdShowIPv6SegmentRouting, Shape: rpc.AnswerTypeTable, Columns: v3ViewColumns()},
+		{Name: cmdShowIPv6DatabaseSegmentRouting, Shape: rpc.AnswerTypeTable, Columns: v3ViewColumns()},
+		{Name: cmdShowIPv6SPFDetail, Shape: rpc.AnswerTypeTable, Columns: v3ViewColumns()},
+		{Name: cmdShowIPv6Database, Shape: rpc.AnswerTypeTable, Columns: v3ViewColumns()},
+		{Name: cmdShowIPv6DatabaseDetail, Shape: rpc.AnswerTypeTable, Columns: v3ViewColumns()},
+		{Name: cmdShowIPv6DatabaseRouterDetail, Shape: rpc.AnswerTypeTable, Columns: v3ViewColumns()},
+		{Name: cmdShowIPv6DatabaseScopeLink, Shape: rpc.AnswerTypeTable, Columns: v3ViewColumns()},
+		{Name: cmdShowIPv6DatabaseScopeArea, Shape: rpc.AnswerTypeTable, Columns: v3ViewColumns()},
+		{Name: cmdShowIPv6DatabaseScopeAS, Shape: rpc.AnswerTypeTable, Columns: v3ViewColumns()},
+		{Name: cmdShowIPv6DatabaseExtended, Shape: rpc.AnswerTypeTable, Columns: v3ViewColumns()},
 	}
+}
+
+// v3ViewColumns leads the table of every v3Views answer with the instance a row came from,
+// in the order afTaggedRow.MarshalJSON writes the two keys. `| table` and `| text` put a key
+// no order names after the declared ones, sorted by name (pipe_table.go, declaredKeys), so
+// the rest of a row keeps the order it rendered in before the views read every address
+// family. `| json` and `| yaml` sort every key by name whatever a command declares.
+// It answers a fresh slice on each call, because the engine keeps the slice it is given.
+func v3ViewColumns() []string {
+	return []string{keywordAddressFamily, fieldInstanceID}
+}
+
+// riViewColumns leads each Router Information entry of the two Router Information views
+// (routerInformationView, v3RouterInformationView, ri_show.go) with its OSPF version and,
+// for an OSPFv3 entry, the instance it came from, in the order riRouterEntry writes them. An
+// OSPFv2 entry has no instance keys, and its two cells stay empty. Each view declares these
+// columns: without a declaration `show ospf ipv6 database router-information` would take the
+// order of `show ospf ipv6 database`, the longest declared prefix of its path. It answers a
+// fresh slice on each call, because the engine keeps the slice it is given.
+func riViewColumns() []string {
+	return []string{"af", keywordAddressFamily, fieldInstanceID}
 }

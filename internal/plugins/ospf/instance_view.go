@@ -26,20 +26,17 @@ func (m *v6EngineSet) instanceListing() []v3InstanceRow {
 	afs := m.runningAFs()
 	out := make([]v3InstanceRow, 0, len(afs))
 	for _, af := range afs {
-		e, ok := m.engineFor(af)
+		inst, ok := m.instanceFor(af)
 		if !ok {
 			continue
 		}
+		e := inst.eng
 		e.mu.Lock()
 		rid := e.cfg.RouterID.String()
 		e.mu.Unlock()
-		var instanceID uint8
-		if e.dispatch != nil {
-			instanceID = e.dispatch.currentInstanceID()
-		}
 		out = append(out, v3InstanceRow{
 			AddressFamily: af.String(),
-			InstanceID:    instanceID,
+			InstanceID:    inst.instanceID,
 			RouterID:      rid,
 			Areas:         e.areaCount(),
 			Neighbors:     len(e.neighborSnapshot()),

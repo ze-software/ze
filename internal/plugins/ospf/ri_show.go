@@ -194,14 +194,19 @@ func riGroupKeyOf(o riObservation) riGroupKey {
 }
 
 // riGroupKeyLess orders RI groups for a stable render: by af, then OSPFv3 Instance ID (RFC
-// 5838 range order, so ipv6-unicast first), scope, area and router. OSPFv2 groups all carry
-// the zero OSPFv3 identity, so among them the order falls through to scope, area and router.
+// 5838 range order, so ipv6-unicast first), then address family, scope, area and router.
+// The address family follows the Instance ID so the order is total over every field of the
+// key, whatever Instance IDs the families carry. OSPFv2 groups all carry the zero OSPFv3
+// identity, so among them the order falls through to scope, area and router.
 func riGroupKeyLess(a, b riGroupKey) bool {
 	if a.af != b.af {
 		return a.af < b.af
 	}
 	if a.ospfv3.InstanceID != b.ospfv3.InstanceID {
 		return a.ospfv3.InstanceID < b.ospfv3.InstanceID
+	}
+	if a.ospfv3.AddressFamily != b.ospfv3.AddressFamily {
+		return a.ospfv3.AddressFamily < b.ospfv3.AddressFamily
 	}
 	if a.scope != b.scope {
 		return a.scope < b.scope

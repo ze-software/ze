@@ -238,7 +238,11 @@ type afInstance struct {
 }
 
 // instanceFor answers the running engine of af with its own Instance ID (the one its
-// dispatcher demuxes on), or false when af has no running engine.
+// dispatcher demuxes on), or false when af has no running engine. Every OSPFv3 view, the AF
+// listings and the inject target read an instance's identity here, so they cannot disagree.
+// The dispatcher is never nil: every engine of the set is built by newEngineWithCodecAF
+// (spawn), which gives it one, so no zero Instance ID is ever answered in place of the real
+// one.
 func (m *v6EngineSet) instanceFor(af addressFamily) (afInstance, bool) {
 	e, ok := m.engineFor(af)
 	if !ok {
@@ -345,16 +349,19 @@ type afTaggedRow struct {
 }
 
 // MarshalJSON writes `address-family` and `instance-id` first, then the row's own keys in
-// their order, so `| table` shows the identity as the first columns. A key of the row that
-// repeats one of the two is dropped, because the engine's identity is the answer: the
-// interface detail of a v6 engine carries instance-id 0 whatever its AF's Instance ID
-// (instanceIDForV4). Every key and value is encoded by encoding/json; this only joins them.
+// their order, so the answer the plugin sends leads with the identity. The pipe renderers
+// do not keep that order: `| json` and `| yaml` sort keys by name,
+// and `| table` and `| text` lead with the two because each view declares them as its first
+// columns (v3ViewColumns, register.go). A key of the row that repeats one of the two is
+// dropped, because the engine's identity is the answer: the interface detail of a v6 engine
+// carries instance-id 0 whatever its AF's Instance ID (instanceIDForV4). Every key and value
+// is encoded by encoding/json; this only joins them.
 func (r afTaggedRow) MarshalJSON() ([]byte, error) {
 	body, err := json.Marshal(r.row)
 	if err != nil {
 		return nil, err
 	}
-	family, err := json.Marshal(r.addressFamily.String())
+	familyJSON, err := json.Marshal(r.addressFamily.String())
 	if err != nil {
 		return nil, err
 	}
@@ -366,9 +373,9 @@ func (r afTaggedRow) MarshalJSON() ([]byte, error) {
 	if open != json.Delim('{') {
 		return nil, errViewRowNotObject
 	}
-	out := make([]byte, 0, len(body)+len(family)+len(keywordAddressFamily)+len(fieldInstanceID)+16)
+	out := make([]byte, 0, len(body)+len(familyJSON)+len(keywordAddressFamily)+len(fieldInstanceID)+16)
 	out = append(out, `{"`+keywordAddressFamily+`":`...)
-	out = append(out, family...)
+	out = append(out, familyJSON...)
 	out = append(out, `,"`+fieldInstanceID+`":`...)
 	out = strconv.AppendUint(out, uint64(r.instanceID), 10)
 	for dec.More() {
@@ -418,16 +425,17 @@ func (m *v6EngineSet) afSummary() []afInstanceView {
 	afs := m.runningAFs()
 	out := make([]afInstanceView, 0, len(afs))
 	for _, af := range afs {
-		e, ok := m.engineFor(af)
+		inst, ok := m.instanceFor(af)
 		if !ok {
 			continue
 		}
+		e := inst.eng
 		e.mu.Lock()
 		rid := e.cfg.RouterID.String()
 		e.mu.Unlock()
 		out = append(out, afInstanceView{
 			AddressFamily: af.String(),
-			InstanceID:    e.dispatch.currentInstanceID(),
+			InstanceID:    inst.instanceID,
 			RouterID:      rid,
 			Neighbors:     len(e.neighborSnapshot()),
 			Interfaces:    len(e.interfaceSnapshot()),

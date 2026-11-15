@@ -346,12 +346,14 @@ func addressFamilyArgs(pluginCommand string, validated command.ValidatedArgs) ([
 	if len(spare) > 0 {
 		// A lone spare token the validator bound to the leaf is the family itself.
 		if _, bound := validated.Positional(keywordAddressFamily); !bound {
-			var problem, fix textbuf.Buffer
+			// The fix is the bare command, which answers every running family: which
+			// families run is the plugin's knowledge, so the daemon cannot spell a
+			// narrowed line that would answer.
+			var problem textbuf.Buffer
 			problem.Str("unexpected words ").Quoted(textbuf.Join(spare, " ")).Str(" for ").Str(pluginCommand)
-			fix.Str(pluginCommand).Str(" address-family <family>")
 			return nil, opererr.New(problem.String(),
-				"the command takes one optional keyword, address-family, and show ospf ipv6 instance lists the running families",
-				fix.String())
+				"the command takes one optional keyword, address-family, followed by a family that show ospf ipv6 instance lists",
+				pluginCommand)
 		}
 	}
 	family, found := validated.Value(keywordAddressFamily)
