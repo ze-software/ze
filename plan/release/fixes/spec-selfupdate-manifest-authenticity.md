@@ -34,7 +34,7 @@ running Ze box:
 | Daemon self-update, manual | `update system firmware download` and `apply` | The manifest server, and with no `sha256` in the manifest nobody: the binary is installed unverified |
 | Version check, notify only | `system update-check` without `auto-apply` | The manifest server, which can raise a false "newer firmware available" warning |
 | Appliance image push | `ze appliance push <name>` into gokrazy's `/update/*` handlers | Anyone holding the device's update token |
-| gokrazy code paths beside the push | gokrazy's `/divert` and `/uploadtemp`, and the same handlers through Ze's `/gokrazy/` web proxy | Anyone holding the token, and any authenticated Ze web user, because the proxy injects the token |
+| gokrazy code paths beside the push | gokrazy's `/divert` and `/uploadtemp`, and the update handlers through Ze's `/gokrazy/` web proxy | Anyone holding the token, and any Ze web account whose profile grants `update system firmware apply`, because the proxy adds the token to each request its gate forwards. The proxy never forwards `/divert` or `/uploadtemp` |
 
 Findings, each read at the producer on 2026-11-15:
 
@@ -48,6 +48,7 @@ Findings, each read at the producer on 2026-11-15:
    `CheckRedirect`, so it follows redirects to any host, `https` to `http`
    included. `internal/core/fetch` `sameOrigin` already refuses that for the
    installer and `ze init --from`.
+   Fixed by 5b800849ee: both now fetch through one client whose `CheckRedirect` is `fetch.SameOrigin` (AC-10).
 4. `isNewer` (`update.go`) is a second release comparator beside
    `version.CompareReleases` (`internal/core/version/version.go`).
 5. `ze update serve` (`internal/plugins/update-cmd/cmd/serve.go`
@@ -64,9 +65,11 @@ Findings, each read at the producer on 2026-11-15:
    partition shared by both slots, and `/divert` runs an uploaded binary. None
    of them checks who built the bytes.
 7. The token is gokrazy's HTTP password (`build_update.go` `gokUpdate`
-   `HTTPPassword`). It lives on the build host and on the device, and
-   `internal/component/gokrazy` `handlerWithAuth` forwards every path under
-   `/gokrazy/` to the management socket with that password injected.
+   `HTTPPassword`). It lives on the build host and on the device.
+   `internal/component/gokrazy` `handlerWithAuth` adds it to each request its
+   gate (`gate.go` `pageFor`) forwards to the management socket: `/update/...`
+   only for an account granted `update system firmware apply`, and never
+   `/divert`, `/uploadtemp` or `/poweroff`.
 8. `buildOne` (`internal/appliance/cmd_build.go`) stamps `ZeVersion: "dev"`
    into both build manifests, so an image carries no release order today.
 
@@ -139,7 +142,7 @@ statements, the lockdown spec for installer media.
 - [ ] `internal/appliance/manifest.go`, `cmd_build.go` - `BuildManifest`, `writeImageChecksum`, `buildOne`
 - [ ] `internal/appliance/build_update.go`, `cmd_init.go` - the update token is gokrazy's `HTTPPassword`, generated at init and stored with `WriteSecret`
 - [ ] `internal/appliance/doctor_checks.go` - `applianceDoctorChecks`
-- [ ] `internal/component/gokrazy/gokrazy.go` - `handlerWithAuth` proxies every path with the password injected
+- [ ] `internal/component/gokrazy/gokrazy.go`, `gate.go` - `handlerWithAuth` adds the password only to a request `pageFor` forwards for the account's authorization
 - [ ] `internal/core/fetch/fetch.go` - `sameOrigin`
 - [ ] `internal/core/version/version.go` - `CompareReleases`, `ImageInfo`
 - [ ] `internal/core/authorizedkeys/authorizedkeys.go` - OpenSSH public-key line parsing through `golang.org/x/crypto/ssh`
@@ -182,9 +185,9 @@ statements, the lockdown spec for installer media.
 | gokrazy patch series | `gokrazy/patches/`, `TestPinnedGokrazyRuntimeMatchesUpstream` | Applies reviewed diffs to the pinned runtime | Extends: a second patch, `signed-update.patch` |
 | gokrazy update handlers | pinned `update.go` | Write any payload a token holder sends; `/divert` runs uploaded code | Extends through the patch; `/divert` and `/uploadtemp` are replaced by a refusal |
 | gokrazy feature probe | `backend_gokrazy.go` `probe`, `featureNames` | Reads `/update/features` | Extends: doctor reads the `ze-signed` feature from it |
-| Ze's gokrazy web proxy | `internal/component/gokrazy` `handlerWithAuth` | Forwards every gokrazy path with the password | Does not apply: the device-side check covers every path that reaches the handlers, the proxy included |
+| Ze's gokrazy web proxy | `internal/component/gokrazy` `handlerWithAuth`, `gate.go` `pageFor` | Forwards a gokrazy page with the password only when the account's profile grants the Ze command that does the same: `/update/...` needs `update system firmware apply`. It never forwards `/divert`, `/uploadtemp` or `/poweroff` (`docs/guide/appliance.md`, "The gokrazy management UI") | Does not apply: the device-side check covers every path that reaches the handlers, a forwarded `/update/...` included |
 | SSH public-key parsing | `internal/core/authorizedkeys` `Parse` | Parses one OpenSSH key line at a time with `x/crypto/ssh` | Extends: the `trusted-key` leaf and the image key files are parsed by the same one-line rule |
-| Release GPG signing | `spec-release-build.md`, Signing row | GPG on a hardware key signs `checksums.txt` and RPMs for people, `install.sh` and package managers | Does not replace: device statements are a separate trust domain, verified without an OpenPGP stack on the device |
+| Release GPG signing | `spec-release-build.md`, Signing row | GPG on a hardware key signs `checksums.txt` and RPMs for people, `install.sh` and package managers | Does not replace: device statements are a separate trust domain, verified without an OpenPGP stack on the device. GPG stays for release checksums and RPMs (D-1) |
 | Release SBOM | `spec-release-distribution.md`, SPDX 2.3 via pinned Syft in CI | SBOMs for daemon packages | Does not apply to images: an operator's build host has no Syft; the format, SPDX 2.3 JSON, is shared |
 | Kernel image key | `spec-kernel-lockdown-hardening.md`, Key strategy | Signs the bzImage for `kexec_file_load` | Does not apply: another format and purpose |
 | Update doctor checks | `system/doctor.go` `checkUpdateCheckURL` | Probes the URL | Extends: two checks beside it, and a device check reading the feature probe |
@@ -288,11 +291,11 @@ A dev build carries the same compiled-in release keys (they are public) and, lik
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | `x/crypto/ssh` v0.58.0 verifies `sk-ssh-ed25519` signatures and exposes the flags byte | `vendor/golang.org/x/crypto/ssh/keys.go` `skEd25519PublicKey.Verify` | sk keys need a small verifier of their own in `pkg/updatesig` | Unit test over an `ssh-keygen -Y sign` fixture made with an sk key | unvalidated |
 | A-2 | The gokrazy init build can import `pkg/updatesig` through a `replace` in `gokrazy/ze/builddir` | `builddir/github.com/gokrazy/gokrazy/go.mod` requires only gokrazy today | The patch instead execs the running root's `ze` for verification (the alternative set aside) | Build a patched image in the QEMU OTA proof | unvalidated |
-| A-3 | No Ze workflow uses gokrazy `/divert` or `/uploadtemp` | grep of `internal/appliance`, `internal/le`, `docs`, `gokrazy/ze` found none | A developer workflow (`gok run`) breaks on Ze images | Grep at implementation; owner confirmation | unvalidated |
+| A-3 | No Ze workflow uses gokrazy `/divert` or `/uploadtemp` | grep of `internal/appliance`, `internal/le`, `docs`, `gokrazy/ze` found none | A Ze workflow that runs `gok run` stops working on Ze images. D-4 accepts that loss: a developer who needs it uses an image built without `signed-update.patch` | Grep at implementation | unvalidated |
 | A-4 | The boot payload fits in device memory for buffering | gokrazy boot FAT is bounded by the partition; the statement bounds it again | Buffer to a tmpfs file bounded by the signed size | QEMU OTA on the smallest supported RAM | unvalidated |
 | A-5 | The running binary can name its build flavor | `internal/core/version` exposes release and build date; no flavor accessor found | Add the stamp at build, beside the release stamp | Read `version` and the flavor build files | unvalidated |
 | A-6 | The patch may write `/perm/ze/image-statement.json`, outside the daemon's zefs store | `/perm/ze/build.json` is already a raw file under `/perm/ze`; the fs-persistence gate judges Ze daemon code | Store the floor through a zefs key the daemon owns | `./le arch fs-persistence check`; door review | unvalidated |
-| A-7 | An authenticated Ze web user reaches gokrazy's update handlers through `/gokrazy/` | `handlerWithAuth` sets the Authorization header on every proxied path | none: the device-side check is designed for it | Code read | confirmed (code) |
+| A-7 | A Ze web account granted `update system firmware apply` reaches gokrazy's update handlers through `/gokrazy/` | `gate.go` `forwardedPages` maps `/update/` to that command, and `handlerWithAuth` adds the password to each forwarded request | none: the device-side check is designed for it | Code read | confirmed (code) |
 | A-8 | There is no project-operated update feed | `spec-release-distribution.md` scope excludes one | The release key also needs a feed's own publication path | Spec read | confirmed (spec) |
 | A-9 | `ze appliance sign` can sign through `ssh-agent` with a hardware key | `x/crypto/ssh/agent` is vendored | Signing reads a key file only, and the release key cannot stay on hardware | Sign with a FIDO2 key through the agent | unvalidated |
 
@@ -342,7 +345,7 @@ A dev build carries the same compiled-in release keys (they are public) and, lik
 | AC-7 | Valid statement, binary changed after signing | Refused with "checksum mismatch", temp file removed |
 | AC-8 | Valid statement for an older or equal version | Refused as "not newer"; a signed old statement cannot downgrade |
 | AC-9 | Valid statement for another arch or flavor | Refused, naming both |
-| AC-10 | Server answers a redirect to another host | Refused, naming the redirect target (redacted) |
+| AC-10 | Server answers a redirect to another host | Refused, naming the redirect target (redacted). Implemented by 5b800849ee: update fetches use `fetch.SameOrigin`; `TestRedirectLeavingOriginRefused` and `TestUpdateCheckRedirectLeavingOriginRefused` were red before it and green after |
 | AC-11 | No trusted key at all | Every update command refuses with the `trusted-key` fix; doctor reports `doctor-update-no-trusted-key` |
 | AC-12 | Held binary changed before the maintenance window opens | Stage refuses; `.prev` and the running binary are untouched |
 | AC-13 | Unsigned newer manifest, check-only mode | No "newer firmware available" warning; doctor reports `doctor-update-signature-invalid` |
@@ -384,7 +387,8 @@ A dev build carries the same compiled-in release keys (they are public) and, lik
 | `TestManualPathsShareVerification` | `internal/component/config/system/selfupdate_test.go` | Download and apply refuse an unsigned manifest | |
 | `TestDownloadStopsAtSignedSize` | `internal/component/config/system/selfupdate_test.go` | Body longer than `size` refused | |
 | `TestStageRehashesHeldFile` | `internal/component/config/system/selfupdate_test.go` | AC-12 | |
-| `TestRedirectLeavingOriginRefused` | `internal/component/config/system/selfupdate_test.go` | AC-10 | |
+| `TestRedirectLeavingOriginRefused` | `internal/component/config/system/selfupdate_test.go` | AC-10, the self-updater | red before, green after 5b800849ee (`ze_distro` tag) |
+| `TestUpdateCheckRedirectLeavingOriginRefused` | `internal/component/config/system/update_test.go` | AC-10, the update checker | red before, green after 5b800849ee |
 | `TestDowngradeRefusedByCompareReleases` | `internal/component/config/system/selfupdate_test.go` | AC-8 | |
 | `TestConfiguredKeyReplacesReleaseKeys` | `internal/component/config/system/selfupdate_test.go` | A release-key signature is refused once a `trusted-key` is configured | |
 | `TestCheckerIgnoresUnsignedNewerVersion` | `internal/component/config/system/update_test.go` | AC-13 | |
@@ -564,11 +568,31 @@ Each row gives the first line, the why, and the fix line, per `ai/rules/user-fac
 | `paused` and `download-url` stay unsigned | Sign the whole manifest | A server can always withhold; the digest decides acceptance whatever the URL |
 | Downgrade: version strictly newer for binaries; signing time above a persisted floor for images | A signed expiry or TUF timestamp role | Version order already exists for releases; images are stamped `dev` and built many times per release, so signing time is their order. Freeze protection is not added: the server can withhold either way, and doctor already reports an unreachable server |
 | Device-side check in a gokrazy patch importing `pkg/updatesig` | Ze daemon fronts the update endpoints; the patch execs the running `ze` | Verification keeps working when the Ze daemon is down, which today's recovery relies on. An exec makes a CLI exit code an internal API and needs a command no operator should type |
-| Refuse `/divert` and `/uploadtemp` on Ze images | Require a signature on them too | They exist for `gok run` development; no Ze workflow uses them (A-3), and signing ad-hoc binaries would make every developer a release signer |
-| Configured `trusted-key` replaces the compiled-in release keys when present | Additive trust | An operator who runs their own feed should not also trust the project key for it, and a compromised release key is closed at once by configuring one |
+| Refuse `/divert` and `/uploadtemp` on Ze images (D-4) | Require a signature on them too | They exist for `gok run` development; no Ze workflow uses them (A-3), and signing ad-hoc binaries would make every developer a release signer. A developer who needs them uses an image built without `signed-update.patch` |
+| Configured `trusted-key` replaces the compiled-in release keys when present (D-2) | Additive trust | An operator who runs their own feed should not also trust the project key for it, and a compromised release key is closed at once by configuring one |
 | SPDX 2.3 JSON only, generated from Go build info and the kernel pin | CycloneDX as well, as VyOS ships; Syft | One format, the one `spec-release-distribution.md` chose; an operator's build host has no Syft, and `debug/buildinfo` lists exact module versions and sums |
 | The signer lives in `ze appliance` (build-host tooling) | A daemon command | A private key never belongs on the router; `internal/appliance` is already the host-only surface |
 | Official release statements are emitted by the same signer from `./le build release` | A second signer inside `le` | One producer for the format |
+
+## Owner Decisions
+
+Thomas handed the five choices only he could make to the main session on
+2026-11-15 ("Can you please resolve them?"). Each one is decided, and the
+design above follows it.
+
+| # | Decision | Reason |
+|---|----------|--------|
+| D-1 | Two signing mechanisms: GPG stays for release checksums and RPMs (`spec-release-build.md`), and SSHSIG signs device update statements. `spec-release-build.md` does not change | People and package managers check GPG. A device checks SSHSIG with the vendored `x/crypto/ssh` and carries no OpenPGP stack (Key Design Decisions, first row) |
+| D-2 | A configured `trusted-key` replaces the compiled-in release keys | An operator's own feed must not also accept payloads the project signed |
+| D-3 | One image signing key per appliance instance | A leaked key covers one device. The cost is one more key to back up per instance (R-1), and it is accepted |
+| D-4 | `gok run` and `/divert` (with `/uploadtemp`) are lost on Ze images: the patched device refuses them, as Ze's web proxy already does | They run code that no signature covers. A developer who needs them uses a development image built without `signed-update.patch`, and that image does not verify updates (AC-23 reports it). No build route makes such an image today, because every Ze image builds from the patched module cache (`docs/architecture/appliance/gokrazy-build-pins.md`), so the design names that route before the spec moves to `ready` |
+| D-5 | The spec stays P0 in `plan/release/fixes/` | Unauthenticated code replacement is a security defect in shipped behavior (Release reason) |
+
+The status stays `design`. These decisions settle the open choices, and they
+are not an approval of the whole design. The main session presents the design
+whole to Thomas (the choices, the alternatives set aside and the rulings it was
+checked against), and the spec moves to `ready` when he approves it
+(`ai/META-DECISIONS.md`, "How agents work").
 
 ## Known Limitations
 

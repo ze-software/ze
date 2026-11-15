@@ -91,6 +91,21 @@ selector has no device still defers as above.
 <!-- source: internal/component/iface/config_mirror.go -- mirrorSpecFor, mirrorDestination, newMirrorTargets, applyMirror -->
 <!-- source: internal/component/iface/interface_reference.go -- configuredInterfaceReference, configuredInterfaceNames, checkConfiguredInterface -->
 
+Which names must be declared follows what the leaf does with the name. A leaf
+that configures an interface Ze owns must name an interface the config
+declares: a mirror target, a bridge member, a tunnel's local interface, a PPPoE
+client's source interface, an unnumbered donor, a VRRP group's interface and a
+PPPoE server's interface. Every other leaf that names an interface, such as an
+OSPF, IS-IS, LDP or BFD interface, a server's `listen-interface`, a firewall
+match or VRRP `track interface`, may name a kernel device that no `interface`
+entry declares, because a config that runs a protocol with no `interface` tree
+is a supported mode (`iface.EnsureBackend`, below). Today the mirror leaves and
+the unnumbered donor enforce the first rule.
+
+<!-- source: internal/component/iface/interface_reference.go -- configuredInterfaceReference -->
+<!-- source: internal/component/iface/unnumbered.go -- resolveUnnumbered, pickDonorAddress -->
+<!-- source: internal/component/iface/backend.go -- EnsureBackend -->
+
 An entry whose selector names no present device is UNBOUND, and every phase
 skips it. No phase falls back to the logical name: that fallback is what let an
 aliased entry configure whatever else carried its name, and it is the same

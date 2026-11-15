@@ -304,8 +304,13 @@ in the table, a path that is not clean (`..`, a doubled slash) and a write to a
 read-only page are refused too. `divert` and `uploadtemp` start a program
 uploaded through the browser, outside the image the appliance was built from,
 so no profile grants them: to change the software, push an image with
-`./ze-host appliance push <name>`. No Ze command powers off the device, so
-`poweroff` is refused as well. A refusal names the Ze command the page needs,
+`./ze-host appliance push <name>`. `poweroff` is refused for every account,
+`admin` included, because no Ze command powers off the device, so no profile
+entry can grant it. To take the device down, restart it with `request reboot`,
+or use the device's own power control. `stop` and `restart` act on a program
+gokrazy supervises, and on the appliance that program is Ze. Stopping it is
+what `request shutdown` does there, so that one command grants both pages.
+A refusal names the Ze command the page needs,
 so an administrator knows which entry to allow (see
 [authorization.md](authorization.md)).
 <!-- source: internal/component/gokrazy/gate.go -- forwardedPages, refusedPages, pageFor -->

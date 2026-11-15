@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-08 |
+| Updated | 2026-11-15 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -59,9 +59,17 @@ credentials.
   `https` with a host, accepts `http` only to `loopbackFetchHosts`, and refuses
   every other form.
 - [ ] `internal/component/config/archive/archive.go` - `ToHTTP` POSTs the config
-  to the location URL with `http.DefaultClient`, so userinfo becomes Basic
-  auth; `archiveToLocation` dispatches `http` and `https` alike. Upload errors
-  redact the URL.
+  to the location URL through `archiveClient`, so userinfo becomes Basic auth;
+  `archiveToLocation` dispatches `http` and `https` alike. Since a941813b03 the
+  client follows no redirect, same host included (`refuseArchiveRedirect`): a
+  3xx that names a Location fails with the status, the Location (password
+  redacted) and the `set system archive <name> location` command that
+  configures it, and `ze doctor` reports a destination that redirects as
+  `doctor-archive-redirected` with the same fix. Upload errors redact the URL.
+  → Constraint: the Basic auth the planned credential leaves add goes only to
+  the configured URL, because `archiveClient` follows no redirect. The leaves
+  set the header on a request that client sends, never on a client that
+  follows one.
 - [ ] `internal/component/config/schema.go` - `SensitiveKeys` keys sensitive
   leaves by leaf name.
 - `docs/guide/config-archive.md` documents `http://host/path` as a valid form
@@ -87,7 +95,7 @@ credentials.
 | Archive location check | `internal/component/config/validators_archive.go` `ValidateArchiveLocation` | Scheme check for commit and the manual command | Extends: adds the userinfo refusal and the plain-HTTP host rule |
 | Sensitive leaves | `ze:sensitive`, `internal/component/config/schema.go` `SensitiveKeys`, `secret_text.go` `EncodeSecrets` | Stores and prints a value as `$9$`, masks it on every surface | Extends: the new password leaf uses it |
 | URL redaction | `internal/core/redact`, `archive.go` `RedactURL` | Hides userinfo in messages | Does not apply as the fix: redaction covers messages only, not storage or display |
-| HTTP uploader | `internal/component/config/archive/archive.go` `ToHTTP` | POSTs to the location | Extends: sets Basic auth from the new leaves |
+| HTTP uploader | `internal/component/config/archive/archive.go` `ToHTTP`, `archiveClient` | POSTs to the location and follows no redirect (a941813b03) | Extends: sets Basic auth from the new leaves on a request `archiveClient` sends, so the credential reaches only the configured URL |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 

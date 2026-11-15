@@ -49,8 +49,8 @@ The scope is widened to two parts:
 
 | Part | Leaves | State |
 |------|--------|-------|
-| 1 | `mirror ingress`, `mirror egress` (AC-1 to AC-5) | AC-1, AC-2 and AC-3 implemented, awaiting the owed runs. AC-4 and AC-5 unchanged behavior, with AC-4 extended to a VLAN-unit target |
-| 2 | Every other leaf that names an interface (AC-6 to AC-9) | Design below. Blocked on one owner question: what "exists" means for an interface the `interface` tree does not declare |
+| 1 | `mirror ingress`, `mirror egress` (AC-1 to AC-5) | Implemented: AC-1 and AC-2 in b2bb71058e, AC-3 and the mirrors installed after the per-entry loop in 38906b1d12. AC-4 and AC-5 unchanged behavior, with AC-4 extended to a VLAN-unit target. The two privileged `.ci` tests passed as root in Ze's QEMU guest on 2026-11-15 |
+| 2 | Every other leaf that names an interface (AC-6 to AC-9) | Design below, decided 2026-11-15 (Option B): a leaf that configures an interface Ze owns becomes a reference, and a protocol or match leaf keeps naming kernel devices. Not implemented |
 
 ## Required Reading
 
@@ -60,6 +60,7 @@ The scope is widened to two parts:
   → Constraint: "a name with NO selector is its own kernel device", and for a VRRP `track interface` "a name the interface tree does not carry must still resolve to the kernel device wearing it"
   → Constraint: "A consumer that can run without one (an OSPF-only, IS-IS-only or LDP-only config) calls `iface.EnsureBackend`": a config naming interfaces under a protocol with no `interface` tree is a supported mode today
   → Decision: the page's mirror paragraph changed in the same work (done)
+  → Decision: the page states which interface names must be declared and which may name a kernel device (Option B, done)
 - [x] `docs/architecture/config/yang-config-design.md` - the `ze:reference` row, "Layer 1" (the whole-tree instance check), "Where a validator actually runs"
   → Constraint: `Validator.ValidateReferences` runs over the whole tree inside `ValidateCustomSections`, which `ze config validate`, the daemon's load and reload, and the editor's commit share, so one declaration gives one verdict on every path, order-independent
 
@@ -94,7 +95,7 @@ The scope is widened to two parts:
 | Dynamic kinds | `internal/component/iface/declared_dynamic.go` `DeclaredDynamicNames` | Names the declared kinds whose device exists only part of the time (`pppoe-client`) | Part 2: a declared dynamic name stays a declared name, and the source accepts it |
 | Interface usage map (VPP) | `plan/release/fixes/spec-vpp-interface-in-use.md`, AC-6 and AC-9 | Designed, not built: VPP mirror destinations as references that block deletion | extends: the reference check is backend-neutral, so that spec's mirror deletion rows are met by this one, and its role-conflict checks stay its own |
 | Absent mirror destination retry | `plan/release/fixes/spec-network-services-one-off-defects.md`, AC-22 | Designed: an absent destination is reported and retried, not a whole-commit abort | does not apply: that spec owns a declared target whose device is absent. This spec owns an undeclared one |
-| VRRP track completion | `internal/plugins/vrrp/register.go` `trackInterfaceValidator` (`RegisterSuggestion`) | Completion-only: offers kernel devices and refuses nothing, by design | Part 2: the leaf that most clearly names an interface Ze does not configure; the owner question decides it |
+| VRRP track completion | `internal/plugins/vrrp/register.go` `trackInterfaceValidator` (`RegisterSuggestion`) | Completion-only: offers kernel devices and refuses nothing, by design | does not apply: the leaf that most clearly names an interface Ze does not configure, and Option B keeps it naming kernel devices |
 
 ## Data Flow (MANDATORY)
 
@@ -132,8 +133,8 @@ No wire changes. The config grammar is unchanged: the same leaves take the same 
 |-------------|---|--------------|------|
 | `ze config validate` with an undeclared mirror target | → | `configuredInterfaceReference` through `ValidateReferences` | `test/parse/iface-mirror-target-undeclared.ci` |
 | SIGHUP reload adding a mirror toward an undeclared target | → | the same check on the daemon's reload | `test/reload/iface-mirror-target-undeclared-refused.ci` |
-| SIGHUP reload deleting a live mirror target, then removing mirror and target together | → | the same check, then `removeStaleMirrors` on the netlink backend | `test/reload/tx-iface-mirror-target-delete-refused.ci` (written, not yet run) |
-| Boot apply of a mirror toward a VLAN unit of a `mac match` entry | → | `mirrorDestination` through `newMirrorTargets`, after the Phase 2 VLAN loop | `test/plugin/iface-mirror-vlan-target-selector.ci` (written, not yet run) |
+| SIGHUP reload deleting a live mirror target, then removing mirror and target together | → | the same check, then `removeStaleMirrors` on the netlink backend | `test/reload/tx-iface-mirror-target-delete-refused.ci` (PASS as root in Ze's QEMU guest, 2026-11-15) |
+| Boot apply of a mirror toward a VLAN unit of a `mac match` entry | → | `mirrorDestination` through `newMirrorTargets`, after the Phase 2 VLAN loop | `test/plugin/iface-mirror-vlan-target-selector.ci` (PASS as root in Ze's QEMU guest, 2026-11-15) |
 
 ## 🧪 TDD Test Plan
 
@@ -143,12 +144,12 @@ No wire changes. The config grammar is unchanged: the same leaves take the same 
 | `TestConfiguredInterfaceReferenceNames` | `internal/component/iface/interface_reference_test.go` | the declared-name set: entries, veth peer, VLAN unit; nothing for a plain unit or the loopback | written |
 | `TestConfiguredInterfaceReferenceCheck` | `internal/component/iface/interface_reference_test.go` | AC-1: offered names accepted, undeclared name and VLAN unit refused with the fix | written |
 | `TestConfiguredInterfaceKindsAreTheSchemaLists` | `internal/component/iface/interface_reference_test.go` | the kind list equals the lists under the schema's `interface` container | written |
-| `TestMirrorToAVLANUnitFollowsItsParentsSelector` | `internal/component/iface/config_mirror_test.go` | AC-3: the filter points at `<bound device>.<vlan-id>`, not at the decoy carrying the unit's logical name | written, not yet run |
-| `TestMirrorToAVLANUnitDefersWhenItsParentIsUnbound` | `internal/component/iface/config_mirror_test.go` | AC-4 for a VLAN-unit target: nothing installed, the apply succeeds | written, not yet run |
-| `TestMirrorTowardALaterEntrysVLANWaitsForTheVLAN` | `internal/component/iface/config_mirror_test.go` | the mirror installs after the VLAN it names exists, whatever the entry order (fake `mirrorNeedsDestination`) | written, not yet run |
+| `TestMirrorToAVLANUnitFollowsItsParentsSelector` | `internal/component/iface/config_mirror_test.go` | AC-3: the filter points at `<bound device>.<vlan-id>`, not at the decoy carrying the unit's logical name | red against the previous code, green with 38906b1d12 |
+| `TestMirrorToAVLANUnitDefersWhenItsParentIsUnbound` | `internal/component/iface/config_mirror_test.go` | AC-4 for a VLAN-unit target: nothing installed, the apply succeeds | red against the previous code, green with 38906b1d12 |
+| `TestMirrorTowardALaterEntrysVLANWaitsForTheVLAN` | `internal/component/iface/config_mirror_test.go` | the mirror installs after the VLAN it names exists, whatever the entry order (fake `mirrorNeedsDestination`) | red against the previous code, green with 38906b1d12 |
 | `TestMirrorDestinationFollowsItsSelector`, `TestMirrorDefersWhenItsDestinationIsAbsent` | `internal/component/iface/config_mirror_test.go` | AC-5 and AC-4 for an entry target (existing) | existing |
 
-## Part 2: every leaf that names an interface (design, awaiting the owner)
+## Part 2: every leaf that names an interface (design, Option B decided)
 
 ### The leaves (from the YANG, 2026-11-15)
 
@@ -162,7 +163,7 @@ No wire changes. The config grammar is unchanged: the same leaves take the same 
 | `ze-vrrp-conf` | group `interface`, `track interface` | The group parent is configured; `track` deliberately accepts kernel-only devices (logical-name-resolution.md) |
 | `ze-static-conf`, `ze-pppoe-conf`, `ze-ipsec-conf`, `ze-traffic-control-conf`, `ze-traffic-usage-conf`, `ze-flowexport-conf`, `ze-vpp-conf`, `ze-system-conf` | next-hop `interface`, PPPoE server `interface`, IPsec `interface`, traffic-control and usage `interface` lists, sampling `interface`, VPP `interface`, system `interface` and `device` leaves | Mixed: configured interfaces, kernel devices and runtime devices |
 
-### The owner question
+### The question, and the decision
 
 What does "exists" mean for a name the `interface` tree does not declare? The
 code gives two answers that conflict, and the check must read the config alone
@@ -174,7 +175,18 @@ boot):
 | A: "exists" means declared in the `interface` tree, for every leaf | `ospf { area 0 { interface eth1 } }` with no `interface ethernet eth1` is refused, naming `set interface ethernet eth1` | Departs from the documented OSPF-only, IS-IS-only and LDP-only mode and from VRRP `track`; converts about 190 `.ci` configs and the guides; needs the exemptions below |
 | B: declared for the leaves that configure an interface Ze owns (mirror, bridge member, tunnel local, pppoe-client source, unnumbered, VRRP group parent, PPPoE server), while a protocol or match leaf keeps naming kernel devices | Part 1 behavior extends to the `ze-iface-conf` leaves; `ospf interface eth1` keeps working undeclared | Leaves a mistyped OSPF or firewall name committing, which the ruling forbids unless the owner reads "exists" as "declared where Ze configures it" |
 
-Exemptions either option needs, each with its own test: the loopback (`lo`, whose
+**Decided 2026-11-15: Option B.** Thomas handed the question to the main
+session ("Can you please resolve them?"). The design
+(`docs/architecture/iface/logical-name-resolution.md`) deliberately lets a
+protocol config name kernel devices with no `interface` tree: the OSPF-only,
+IS-IS-only and LDP-only mode, and VRRP `track`. Option A would contradict that
+page and convert about 190 `.ci` configs. Under Option B the leaves that
+configure an interface Ze owns become `configured-interface` references (AC-6),
+and every protocol and match leaf keeps naming kernel devices, so
+`ospf { area 0 { interface eth1 } }` with no `interface` tree still commits.
+The page states the rule in the same work.
+
+Exemptions Option B keeps, each with its own test: the loopback (`lo`, whose
 config name is `loopback`), a firewall wildcard (`prefix*`, matching runtime
 L2TP and PPP sessions), devices Ze creates at runtime under no declared name
 (L2TP and PPPoE server sessions, XFRM), and a declared dynamic name
@@ -192,10 +204,10 @@ first.
 | AC-3 | `mirror egress` names a VLAN unit of an ethernet entry bound by `mac match` to a veth | The tc mirred filter points at `<bound device>.<vlan-id>` | none |
 | AC-4 | A declared target whose device is absent | The commit succeeds, the mirror is not installed, and a warning names it | the deferred mirror, by the page's rule for unbound settings |
 | AC-5 | A target declared and present | The mirror is installed as today | the mirror |
-| AC-6 | (Part 2, after the owner answers) each leaf the chosen option covers names an undeclared interface | Refused at validate, reload and commit, naming the path and the fix | none |
+| AC-6 | (Part 2, Option B) a leaf that configures an interface Ze owns (bridge `member`, tunnel `local interface`, pppoe-client `source-interface`, unit `ipv4 unnumbered`, VRRP group `interface`, PPPoE server `interface`) names an undeclared interface | Refused at validate, reload and commit, naming the path and the fix | none |
 | AC-7 | (Part 2) a referenced interface is declared later in the file than its user | Accepted | none |
 | AC-8 | (Part 2) each kept exemption: `lo`, a firewall wildcard, a runtime-created device, a declared `pppoe-client` | Accepted, one test each | the exemption |
-| AC-9 | (Part 2) every repository config, `.ci`, fixture and guide naming an interface the chosen option refuses | Converted in the same work | none |
+| AC-9 | (Part 2) every repository config, `.ci`, fixture and guide naming an interface Option B refuses | Converted in the same work | none |
 
 ### Tests that prove each AC
 
@@ -204,8 +216,8 @@ first.
 | AC-1 | `test/parse/iface-mirror-target-undeclared.ci` (undeclared name, undeclared VLAN unit, declared-later positive with a veth peer and a VLAN unit) | `ze config validate` |
 | AC-1, AC-2 | `test/reload/iface-mirror-target-undeclared-refused.ci` (a reload adding a mirror toward an undeclared name is refused) | config reload through the daemon |
 | AC-1, AC-2 | `TestConfiguredInterfaceReferenceNames`, `TestConfiguredInterfaceReferenceCheck`, `TestConfiguredInterfaceKindsAreTheSchemaLists` in `internal/component/iface/interface_reference_test.go` | the reference source |
-| AC-2 | `test/reload/tx-iface-mirror-target-delete-refused.ci`, `option=needs-linux:caps=net-admin` (implemented, not yet run): a veth pair, a refused reload deleting the live target with the tc mirred filter still copying to it, then the reload removing mirror and target with no tc filter left on the source. Driver `reload/tx-iface-mirror-target-delete-refused` in `internal/test/fixture/iface_mirror_fixture_linux.go` | config reload through the daemon |
-| AC-3 | `test/plugin/iface-mirror-vlan-target-selector.ci`, `option=needs-linux:caps=net-admin` (implemented, not yet run): reads the egress mirred action of the source over netlink, against a decoy device carrying the unit's logical name; the source entry precedes the target, so it also proves the post-loop install. Unit: `TestMirrorToAVLANUnitFollowsItsParentsSelector` | config commit through the daemon |
+| AC-2 | `test/reload/tx-iface-mirror-target-delete-refused.ci`, `option=needs-linux:caps=net-admin` (PASS as root in Ze's QEMU guest on 2026-11-15, `./le test qemu ci test <path>`): a veth pair, a refused reload deleting the live target with the tc mirred filter still copying to it, then the reload removing mirror and target with no tc filter left on the source. Driver `reload/tx-iface-mirror-target-delete-refused` in `internal/test/fixture/iface_mirror_fixture_linux.go` | config reload through the daemon |
+| AC-3 | `test/plugin/iface-mirror-vlan-target-selector.ci`, `option=needs-linux:caps=net-admin` (PASS as root in Ze's QEMU guest on 2026-11-15, `./le test qemu ci test <path>`): reads the egress mirred action of the source over netlink, against a decoy device carrying the unit's logical name; the source entry precedes the target, so it also proves the post-loop install. Unit: `TestMirrorToAVLANUnitFollowsItsParentsSelector` | config commit through the daemon |
 | AC-4, AC-5 | `TestMirrorDefersWhenItsDestinationIsAbsent`, `TestMirrorToAVLANUnitDefersWhenItsParentIsUnbound`, `TestMirrorDestinationFollowsItsSelector` in `internal/component/iface/config_mirror_test.go`, plus AC-3's `.ci` | `mirrorSpecFor` |
 
 ## Files to Modify
@@ -221,7 +233,7 @@ first.
 ## Files to Create
 - `internal/component/iface/interface_reference.go`, `register_interface_reference.go`, `interface_reference_test.go` (done)
 - `test/parse/iface-mirror-target-undeclared.ci`, `test/reload/iface-mirror-target-undeclared-refused.ci` (done)
-- `test/reload/tx-iface-mirror-target-delete-refused.ci`, `test/plugin/iface-mirror-vlan-target-selector.ci` (done, not yet run or stress-proven)
+- `test/reload/tx-iface-mirror-target-delete-refused.ci`, `test/plugin/iface-mirror-vlan-target-selector.ci` (done; both PASS as root in Ze's QEMU guest on 2026-11-15; no stress run recorded)
 - `internal/test/fixture/register_iface_mirror_linux.go`, `iface_mirror_fixture_linux.go` (done)
 
 ### Documentation Update Checklist (BLOCKING)
@@ -231,37 +243,38 @@ first.
 | 12 | Internal architecture changed? | Yes | `docs/architecture/iface/logical-name-resolution.md` (done) |
 
 ## Implementation Steps
-1. **Phase: Wiring** -- the failing `.ci` tests (done for AC-1, AC-2)
-2. **Phase: Verify check** -- AC-1, AC-2 (done)
-3. **Phase: Unit target binding** -- AC-3 (done, awaiting the owed runs)
-4. **Phase: Part 2** -- after the owner answers the question above
+1. **Phase: Wiring** -- the failing `.ci` tests (done for AC-1, AC-2: b2bb71058e)
+2. **Phase: Verify check** -- AC-1, AC-2 (done: b2bb71058e)
+3. **Phase: Unit target binding** -- AC-3 (done: 38906b1d12; both privileged `.ci` tests pass in Ze's QEMU guest)
+4. **Phase: Part 2** -- Option B, decided 2026-11-15: the references AC-6 names, the exemptions (AC-8) and the conversions (AC-9)
 
 ## Implementation Summary
 
-### What Was Implemented (2026-11-15, uncommitted, awaiting the owed runs)
+### What Was Implemented (2026-11-15, committed as b2bb71058e)
 - The `configured-interface` reference source in iface: it offers every declared entry, veth peer and VLAN unit, and its `Check` refuses any other name with the set command that declares it and at most eight declared choices
 - `ze:reference "configured-interface"` on `mirror ingress` and `mirror egress`
 - No dead path removed: the "mirror deferred" warning serves a declared ethernet whose selector has no device, which the refusal cannot see
 - Repository users converted: `test/parse/iface-vpp-accepts-mirror.ci` and `TestBackendGateVppMirror` mirrored toward an undeclared `eth1` and `xe1`, now declared. `internal/le/test/deployment/vppifacescenarios.go` already declares its target
 
-### What Was Implemented (2026-11-15, second pass, uncommitted, awaiting the owed runs)
+### What Was Implemented (2026-11-15, second pass, committed as 38906b1d12)
 - AC-3: a VLAN-unit target binds through its parent entry. `newMirrorTargets` indexes every declared VLAN unit by its `<entry>.<vlan-id>` name (`unitOSName` of the logical name, the text the reference source offers); `mirrorDestination` binds the parent with `deviceFor` and returns `unitOSName` of the parent's device, or empty (deferred, with the existing warning) when the parent is unbound. An ethernet entry named like a unit stays an entry
 - Found while proving AC-3, fixed in this work: the mirrors were installed inside the Phase 2 loop, so a mirror toward a VLAN of a later entry failed at `SetupMirror` and rolled the apply back. `applyConfigPass` now installs them after the loop
-- The AC-2 privileged reload test, and the AC-3 privileged boot test, with their netlink drivers. Neither `.ci` has run: the main thread owes the run and the ze-test stress proof
+- The AC-2 privileged reload test, and the AC-3 privileged boot test, with their netlink drivers. Both ran as root in Ze's QEMU guest on 2026-11-15 (`./le test qemu ci test <path>`) and passed. No ze-test stress run is recorded
+- Evidence: the parse and reload `.ci` tests of b2bb71058e are red with the two `ze:reference` lines removed and green with them; the three unit tests of 38906b1d12 are red against the previous code and green with it
 
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] `./le test bgp parse` and `./le test bgp reload` for the new `.ci` files; the iface unit package through `./le test unit pkg path`
-- [ ] The two privileged `.ci` files (`tx-iface-mirror-target-delete-refused`, `iface-mirror-vlan-target-selector`) run on Linux with CAP_NET_ADMIN, and each passes the ze-test stress run
+- [ ] `./le test bgp parse` and `./le test bgp reload` for the new `.ci` files; the iface unit package through `./le test unit pkg path` (Part 1: the parse and reload `.ci` files red without the `ze:reference` lines and green with them, b2bb71058e; the iface package passes, 38906b1d12)
+- [ ] The two privileged `.ci` files (`tx-iface-mirror-target-delete-refused`, `iface-mirror-vlan-target-selector`) run on Linux with CAP_NET_ADMIN, and each passes the ze-test stress run (Part 1: both PASS as root in Ze's QEMU guest on 2026-11-15; no stress run recorded)
 
 ### TDD
 - [x] Tests written
-- [ ] Tests FAIL (paste output)
-- [ ] Tests PASS (paste output)
+- [ ] Tests FAIL (paste output) (Part 1: red before the fix, recorded in b2bb71058e and 38906b1d12)
+- [ ] Tests PASS (paste output) (Part 1: green in the same commits, and the two QEMU runs above)
 
 ## Owned journal rows
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
-| `validate-accepts-what-start-refuses.md` | 2026-11-08 | mirror target is an unchecked free string |
+| `validate-accepts-what-start-refuses.md` | 2026-11-08 | mirror target is an unchecked free string (fixed: b2bb71058e, 38906b1d12) |
