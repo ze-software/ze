@@ -26,9 +26,9 @@ const frrReceivedVersionKey = "receivedSoftwareVersion"
 // checkSoftwareVersionFRR drives the owner decision D-13 against FRR 10.3.1.
 // ze's peer legacy sends the length-prefixed form over IPv4 and ze's peer
 // draft the draft's bare form over IPv6, so one ze and one FRR hold both
-// sessions. Both are configured from startup: a plugin declares its
-// capabilities once, at stage 3, so a reload cannot switch the form a running
-// ze sends. A control run with peer draft set to `encoding legacy` reaches
+// sessions. Both are configured from startup; this scenario compares encodings
+// and does not exercise capability replacement by reload. A control run with
+// peer draft set to `encoding legacy` reaches
 // Established, so the encoding is the only thing that separates the two peers.
 func checkSoftwareVersionFRR(ctx context.Context, check *interoplab.CheckContext) error {
 	if !check.Network.IPv4.IsValid() {

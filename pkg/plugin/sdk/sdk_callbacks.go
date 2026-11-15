@@ -579,7 +579,8 @@ func (p *Plugin) OnConfigApply(fn ConfigApplyHandler) {
 
 // DeclareAppliesNothing states that this plugin consumes its config roots and
 // holds nothing a reload can apply: it reads no leaf, or only capability
-// leaves, whose change DeclareCapabilitiesFrom refuses at config-verify. The
+// leaves, whose candidate DeclareCapabilitiesFrom sends for the engine to
+// install when the transaction applies. The
 // apply is accepted and a debug line names the plugin, the changed roots and
 // reason, so an accepted reload that changed nothing in the plugin says why.
 // It is the explicit form of an apply handler, never a default: a plugin that

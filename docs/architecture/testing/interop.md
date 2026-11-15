@@ -20,6 +20,7 @@ This page is the infrastructure it is owed against.
 | IPsec (IKEv2, EAP, MOBIKE) | Docker: strongSwan | `test/interop-ipsec/` | `./le test integration interop-ipsec` |
 | L2TP | Docker | `test/interop-l2tp/` | `./le test deployment l2tp`, and `./le test deployment l2tp-ppp` for the full PPP and NCP path |
 | PPPoE (Ze as client) | Docker: accel-ppp | `test/interop-pppoe/` | `./le test deployment docker-pppoe-accel` |
+| PPPoE VPP mechanism (manual Phase 0 proof) | Source-built patched VPP, pppd 2.5.5 and an independent traffic host | Native plain, namespace and VLAN plans in `internal/le/test/deployment/vpppppoe/` | `./le test deployment vpp-pppoe run`, through `./le test qemu docker-lab lab "test deployment vpp-pppoe run"` on Ze's kernel |
 | RADIUS (admin login: PAP, CHAP, EAP, Filter-Id) | Docker: FreeRADIUS | `test/interop-radius/scenarios/` | `./le test integration interop-radius` |
 | RADIUS (subscriber: accounting, CoA and Disconnect) | Docker: FreeRADIUS, an xl2tpd + pppd LAC | `test/interop-radius-subscriber/scenarios/` | `./le test integration interop-radius-subscriber` |
 | RSVP-TE (Ze as transit) | Docker: freeRouter, ingress and egress | `test/interop-rsvpte/scenarios/` | `./le test integration interop-rsvpte` |
@@ -2456,6 +2457,25 @@ unchanged, and `sendZone` returning `""` with `pinsToLink` returning false
 <!-- source: test/interop/scenarios/bfd-link-local-frr/ -- ze.conf, frr.conf -->
 <!-- source: test/interop/scenarios/bfd-link-local-two-links-frr/ -- ze.conf, frr.conf -->
 <!-- source: internal/le/interoplab/bgp/prepare_bfd_link_local.go -- bfdLinkLocalTwoLinksZePrestart, bfdLinkLocalTwoLinksFRRPrestart -->
+
+### Plugin capability replacement by reload
+
+`bgp-role-reload-frr` and `bgp-role-reload-frr-forked` keep FRR configured as
+Customer in non-strict mode. Ze starts without a Role, adds Provider through
+SIGHUP, then removes it through a second SIGHUP. Each reload must advance
+`show reload-status` by one applied generation. FRR must report a new
+established-session generation and the received `remoteRole` at each step:
+`undefined`, `provider`, then `undefined`. The two scenarios use the same
+checker over the internal plugin and real TLS connect-back transports.
+<!-- source: internal/le/interoplab/bgp/check_role_reload.go -- checkRoleReload -->
+<!-- source: internal/le/interoplab/bgp/register_role_reload.go -- init -->
+
+FRR 10.7.1's `bgp_role_violation` accepts an absent Role in non-strict mode
+and a Customer/Provider pair. Its `bgp_show_peer` writes `remoteRole` from the
+Role received in OPEN; `bgp_get_name_by_role` supplies the names above. The
+checker reads those foreign observations after the applied-generation barrier,
+so a reload that leaves the startup declaration in place cannot pass.
+<!-- source: internal/le/interoplab/bgp/check_role_reload.go -- checkRoleReload -->
 
 ### Live attach and BFD opt-in without a session reset
 
