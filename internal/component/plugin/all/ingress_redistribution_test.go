@@ -47,6 +47,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -105,7 +106,10 @@ func TestNoIngressFilterGatesAPeerRouteOnRedistributionConfig(t *testing.T) {
 		{"bgp-role", "otc-ingress"},
 		{"bgp-gr", "llgr-ingress"},
 	}
-	configs := []plugin.PluginConfig{{Name: "bgp-rib", Internal: true, Encoder: "json"}}
+	configs := []plugin.PluginConfig{
+		{Name: "bgp-rib", Internal: true, Encoder: "json"},
+		{Name: policy.PluginName, Internal: true, Encoder: "json"},
+	}
 	for _, member := range migrated {
 		reg := registry.Lookup(member.plugin)
 		require.NotNil(t, reg, "missing migrated plugin %s", member.plugin)
@@ -114,8 +118,8 @@ func TestNoIngressFilterGatesAPeerRouteOnRedistributionConfig(t *testing.T) {
 			configs = append(configs, plugin.PluginConfig{Name: member.plugin, Internal: true, Encoder: "json"})
 		}
 	}
-	// bgp-gr declares bgp-rib as a runtime dependency. Start its real
-	// engine as well, using the server/manager lifecycle used by the
+	// bgp-gr declares bgp-rib and policy as runtime dependencies. Start their
+	// real engines as well, using the server/manager lifecycle used by the
 	// recovery-delivery integration harness. No TCP peers are needed here.
 	srv := ingressRedistributionServer(t, configs)
 	for _, member := range migrated {
