@@ -498,6 +498,15 @@ in the spec or commit it applies to.
   --no-autostash` when its tree is clean; when the tree is dirty the agent
   stops and reports what it found, and never stashes, discards or overwrites
   to get past it.
+- When Thomas names the machine or checkout where work is to land ("on my
+  laptop", "on the server"), the agent finds out which machine it is on
+  before its first edit, from `uname -sm` and `hostname`, and its first line
+  says so when it is not the one he named. It never does the work where it
+  happens to be and mentions the difference afterwards. The work still
+  travels by git only, a commit here and a pull there, and it is not
+  delivered, and nothing is reported as done, until the checkout he named
+  holds the commit. A pull that refuses there is reported at once, with what
+  blocks it.
 - `sudo` is allowed only for the stress harness (`./le test integration
   stress`): one root run at a time, alone on the host, removing what it
   created, and leaving anything in a shared location usable by the owner's
