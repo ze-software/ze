@@ -2,12 +2,12 @@
   "note": "TestOpenAdvertisedASFollowsLocalASN4 decodes a received OPEN with My AS 23456, capability AS 4200000000 and Open.ASN4 unset. It asserts that openAdvertisedAS and sessionPeerAS select the capability value between NEW speakers, select My AS when the local speaker does not advertise ASN4, and select My AS when the peer sends no capability. These are distinct conforming controls for the complete field-selection obligation in RFC 6793 Section 4.1. Both recorded OpenPeerAS mutants fail this tagged test at the relevant assertions: substituting My AS fails the NEW-to-NEW controls, and bypassing the local-advertisement guard fails the OLD-local controls. Source tracing confirms validateOpenPeerAS uses the same OpenPeerAS producer before handleOpen accepts the peer, and negotiateWith publishes the identity through judgedPeerAS and sessionPeerAS. Existing TestOpenPeerASIsMyASWhenZeDoesNotAdvertiseASN4 additionally asserts handleOpen acceptance and OpenConfirm for the capability AS, rejection of AS_TRANS on a NEW session, and the opposite outcomes on an OLD-local session; TestASN4DisabledSessionReadersJudgeMyAS asserts the negotiated identity and reader controls. Those supplemental tests were source-reviewed, not run by this audit. The new tags and recorded breaks prove shared-reader field selection; they do not themselves constitute a peer OPEN sent through the socket read loop or a complete session-establishment integration test.",
   "requirement_sha": "7e3eef6fcdb9171b",
   "tests": {
-    "internal/component/bgp/reactor/session_open_as_asn4_test.go::TestOpenAdvertisedASFollowsLocalASN4": "0d22a878183c77d2",
-    "internal/component/bgp/reactor/session_open_as_asn4_test.go::TestOpenAdvertisedASFollowsLocalASN4#2": "0d22a878183c77d2"
+    "internal/component/bgp/reactor/rfc6793_session_open_as_asn4_test.go::TestOpenAdvertisedASFollowsLocalASN4": "0d22a878183c77d2",
+    "internal/component/bgp/reactor/rfc6793_session_open_as_asn4_test.go::TestOpenAdvertisedASFollowsLocalASN4#2": "0d22a878183c77d2"
   },
   "units": {
-    "internal/component/bgp/reactor/session_open_as_asn4_test.go::TestOpenAdvertisedASFollowsLocalASN4": "a4ae39cc11b7318f",
-    "internal/component/bgp/reactor/session_open_as_asn4_test.go::TestOpenAdvertisedASFollowsLocalASN4#2": "a4ae39cc11b7318f"
+    "internal/component/bgp/reactor/rfc6793_session_open_as_asn4_test.go::TestOpenAdvertisedASFollowsLocalASN4": "a4ae39cc11b7318f",
+    "internal/component/bgp/reactor/rfc6793_session_open_as_asn4_test.go::TestOpenAdvertisedASFollowsLocalASN4#2": "a4ae39cc11b7318f"
   },
   "verdict": "enforced"
 }
