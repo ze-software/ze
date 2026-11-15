@@ -442,10 +442,13 @@ func TestCollectFlagsAStaleSkeletonAndNothingElse(t *testing.T) {
 	}
 }
 
-// TestCollectDetectsTheSpecSet reads the set out of the filename.
+// TestCollectDetectsTheSpecSet reads the set out of the filenames. The sibling
+// rib-arch-4 is what makes rib-arch-3 a set member: one numbered file alone is
+// no set (TestOneGroupingFunctionAnswersEveryReader).
 func TestCollectDetectsTheSpecSet(t *testing.T) {
 	root := planTree(t, map[string]string{
 		"spec-rib-arch-3-something.md": templateShapedSpec("ready", "2026-08-20"),
+		"spec-rib-arch-4-other.md":     templateShapedSpec("ready", "2026-08-20"),
 		"spec-standalone.md":           templateShapedSpec("ready", "2026-08-20"),
 	})
 	inventory, _ := collect(t, root, fixedNow)

@@ -113,6 +113,7 @@ func Collect(ctx context.Context, root, revision string) (Snapshot, error) {
 	identities := make(map[string]string, len(entries))
 	digest := sha256.New()
 	var corpus *rfcCorpus
+	population := make([]specstatus.Spec, 0, len(entries))
 	for index, entry := range entries {
 		// A malformed cell the parser left out still reaches the reader: its
 		// warning becomes this item's diagnostic.
@@ -125,6 +126,7 @@ func Collect(ctx context.Context, root, revision string) (Snapshot, error) {
 			return Snapshot{}, fmt.Errorf("%w: %s and %s", ErrDuplicate, previous, entry.path)
 		}
 		identities[parsed.Name] = entry.path
+		population = append(population, parsed)
 		// Hash writes cannot fail. Length framing prevents path/content ambiguity.
 		fmt.Fprintf(digest, "%d:%s%d:", len(entry.path), entry.path, len(blobs[index])) //nolint:errcheck // hash.Hash writes cannot fail.
 		digest.Write(blobs[index])                                                      //nolint:errcheck // hash.Hash writes cannot fail.
@@ -132,7 +134,7 @@ func Collect(ctx context.Context, root, revision string) (Snapshot, error) {
 			Name: parsed.Name, Title: parsed.Title, Path: parsed.Path, Bucket: parsed.Bucket,
 			Status: parsed.Status, Depends: parsed.Depends, Phase: parsed.Phase,
 			Priority: parsed.Priority, ReleaseReason: parsed.ReleaseReason,
-			Set: parsed.Set, Updated: parsed.Updated, SourceURL: sourceURL(resolved, entry.path),
+			Updated: parsed.Updated, SourceURL: sourceURL(resolved, entry.path),
 			RFCGaps:     parsed.RFCGaps,
 			Profiles:    make([]string, 0),
 			Diagnostics: warnings,
@@ -155,6 +157,13 @@ func Collect(ctx context.Context, root, revision string) (Snapshot, error) {
 		} else {
 			snapshot.Counts.NiceToHave++
 		}
+	}
+	// A spec's set depends on the other files of the snapshot, so it is
+	// answered once every spec is parsed, by the grouping the inventory and the
+	// closure detector read too.
+	sets := specstatus.GroupSets(population)
+	for index := range snapshot.Items {
+		snapshot.Items[index].Set = sets.Name(snapshot.Items[index].Path)
 	}
 	// The rfc/ corpus the Profiles column read is an input too, so a change
 	// to it changes the digest even when no spec changed.

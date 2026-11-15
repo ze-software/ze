@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P1 |
 | Release reason | Release-independent development tooling: it changes how the main thread is told about context size and agent cost and changes no shipped binary. |
@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-14 |
+| Updated | 2026-11-15 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -143,7 +143,7 @@ Harness questions, answered from the harness documentation on 2026-11-14 except 
 - An umbrella is never raised to a closure candidate from a child's closure record: that false positive stays removed.
 - A set none of whose children was ever claimed or closed is still an idea, reported as today.
 - Closure agents claim under their own agent id, and up to three closures run at once: the second-claim warning keys on the main session alone.
-- The close-only claim above the cap keeps working.
+- A claim taken only to close a spec needs no route above a limit: the open limit judges only a claim that starts a spec, and a spec whose work is committed is already started, so claiming it adds nothing to the open count. The active limit binds it like any other claim.
 - No hook judges wording.
 
 **Behavior to change:**
@@ -227,7 +227,7 @@ wire.
 | AC-1 | The main thread spawns an agent while its last recorded context is above 600k | The hook tells it the size and to write the state file and hand off | Below the threshold it reports nothing: a message on every spawn is the noise this removes |
 | AC-2 | An editing agent finishes | The main thread is told that agent's call count | A read-only agent has no counter and reports none |
 | AC-3 | An editing agent reaches 60 and 80 counted calls | It is told its count, its target of 60 and its budget of 100 | The call itself passes |
-| AC-4 | A main session claims a second spec after releasing a first | The claim answers with a warning naming the first spec and the fresh-session rule | Agent claims and the close-only claim are not warned |
+| AC-4 | A main session claims a second spec after releasing a first | The claim answers with a warning naming the first spec and the fresh-session rule | Agent claims are not warned |
 | AC-5 | `ze-implement`, `ze-review`, `ze-close`, `ze-rfc` | Each body holds every step it held, and its branch-only reference text sits in a page the step names | None lost: every moved sentence is one read away |
 | AC-6 | A phase that owes several test judgments | One judge agent takes them in one brief | A judgment that must not see another's context stays alone |
 | AC-7 | `./le ai tokens` over a window of transcripts | Reports the umbrella's baseline figures | None |
@@ -243,7 +243,7 @@ wire.
 | AC-18 | A commit that removes a tracked handover whose name carries the prefix of a live set, or the stem of an open spec | The commit is refused, naming the set and its open children | A handover of a set whose children are all closed, and one of a closed spec, are removed freely |
 | AC-19 | A claim marker whose session has no directory left, and the marker of an agent that has finished | The reaper removes the first; the Agent call's after-hook removes the second | A marker of a live session or a running agent stays |
 | AC-20 | The inventory, the roadmap and the closure detector | Each takes a spec's set from one grouping function, which reads a prefix holding digits and does not take a lone numbered name for a set | A set of one file with no umbrella and no sibling is not a set |
-| AC-21 | The claim refusal at a limit | It names what to close or who holds the live claims, and prints no setting that raises a limit | The close-only claim keeps its documented route |
+| AC-21 | The claim refusal at a limit | It names what to close or who holds the live claims, and prints no setting that raises a limit | A claim of a spec that is already started is never refused by the open limit, so the close-only route needs no setting |
 | AC-15 | The implement skill's review loop | It states the round limit the planning rule states: five rounds are the session's, the sixth is the owner's | The sentence that each round covers less than the one before stays |
 
 ## 🧪 TDD Test Plan
@@ -256,7 +256,18 @@ wire.
 | `TestStatusReportsAStartedSetNobodyHoldsAsStalled` | `internal/le/spec/status/` | AC-8, AC-9 | |
 | `TestStopLeavingAClaimedSpecHalfDoneIsRefused` | `internal/le/hookruntime/` | AC-11 | |
 | `TestClaimIsRefusedAtTheOpenLimitAndNamesWhatToClose` | `internal/le/spec/` | AC-13 | |
-| others | named at design | AC-2, AC-3, AC-7, AC-10, AC-12, AC-16, AC-17 | |
+| `TestTheMainThreadIsToldAnAgentsCallCount` | `internal/le/hookruntime/` | AC-2 | |
+| `TestAnAgentIsWarnedAtSixtyAndEightyCallsAndTheCallPasses` | `internal/le/hookruntime/` | AC-3 | |
+| `TestTheTokenReportCarriesEveryUmbrellaFigure` | `internal/le/ai/tokens/` | AC-7, over a fixture transcript window | |
+| `TestReleaseNamesTheChildrenThatRemain` | `internal/le/spec/` | AC-10 | |
+| `TestAnUmbrellaWhoseChildrenAreAllClosedOwesItsClosure`, `TestAChildsClosureRecordAloneNeverMakesTheUmbrellaACandidate` | `internal/le/spec/status/` | AC-12 | |
+| `TestClaimIsRefusedAtTheActiveLimitAndNamesTheHolders`, `TestTheActiveLimitSaysWhenLivenessCannotBeJudged` | `internal/le/spec/` | AC-16 | |
+| `TestTheWIPReportShowsBothCounts` | `internal/le/spec/` | AC-17 | |
+| `TestAHandoverOfALiveSetCannotBeRemoved`, `TestAHandoverOfAClosedSetIsRemoved` | `internal/le/commit/` | AC-18 | |
+| `TestAMarkerWithNoSessionDirectoryIsReaped`, `TestALiveSessionsMarkerIsKept` | `internal/le/session/` | AC-19 | |
+| `TestOneGroupingFunctionAnswersEveryReader` (a prefix holding a digit, a lone numbered name that is no set, an umbrella with no number) | `internal/le/spec/status/` | AC-20 | |
+| `TestAClaimOfAStartedSpecIsNeverRefusedByTheOpenLimit`, `TestTheLimitRefusalPrintsNoSetting` | `internal/le/spec/` | AC-13, AC-21 | |
+| A check that every sentence moved out of a skill body is named by a step of that skill | found or added by package 10 | AC-5, AC-6, AC-14, AC-15 | |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
@@ -268,17 +279,41 @@ wire.
 
 ## Implementation Steps
 
-1. **Phase: Wiring (MANDATORY FIRST)** -- the three probes, recorded; the failing wiring tests
-2. **Phase: the context-size and call-count reports**
-3. **Phase: the claim warning**
-4. **Phase: the spec set** -- the derived state first, then each reader of it: status view, session-start summary, release, WIP list, closure detector, stop hook; then the two rules and the workflow page
-5. **Phase: skill bodies and test-judge batching**
-6. **Phase: the kept measure**
+The audit of 2026-11-15 found nothing built (6 criteria partly present, 15
+missing) and split the work into the packages below. Each is one editing
+agent on the development tier, compiles on its own and lands as its own
+commit. Every package but 10 and 11 touches a package under the hook source
+seal and owes an independent review before the seal is refreshed.
+
+| # | Package | Criteria | Where |
+|---|---------|----------|-------|
+| 1 | The one grouping function; `detectSet`, its pattern and the sibling-stem test deleted | AC-20 | `internal/le/spec/status`; `docs/contributing/spec-workflow.md`, "Spec sets" |
+| 2 | The removed-spec record and its cache | AC-8 (source) | the removal judgement moved out of `internal/le/commit` to a package both it and `spec/status` import; the cache in `spec/status` |
+| 3 | Claim enumeration, liveness, markers with no directory | AC-19 (reaper half) | `internal/le/le/path`, `internal/le/session` |
+| 4 | The derived set state and its two views | AC-8, AC-9 | `spec/status`, the session-start summary |
+| 5 | The two limits, and every user of the old cap converted | AC-13, AC-16, AC-17, AC-21 | `internal/le/spec`, the three hookruntime tests that set the old cap, every rule, skill, page and spec that names it |
+| 6 | The release answer and the second-claim warning | AC-10, AC-4 | `internal/le/spec` |
+| 7 | Umbrella closure, the stop refusal, the two rules; F21 retired | AC-12, AC-11, AC-14 | the closure detector, the stop hook, the planning point file, `.claude/rules/session-start.md` |
+| 8 | The handover removal refusal | AC-18 | `internal/le/commit` |
+| 9 | The agent after-hook and the budget notices | AC-1, AC-2, AC-3, AC-19 (agent half) | the lifecycle hook, the budget, `ai/agents/ze-work.md` |
+| 10 | Skill bodies | AC-5, AC-6, AC-15 | four skill bodies, `ai/rationale/`, the test-judge skill |
+| 11 | The kept measure | AC-7 | `internal/le/ai/tokens` |
+
+Packages 1 to 8 run in that order. Packages 9, 10 and 11 are independent of
+the chain. Package 7's stop refusal waits on the owner's answer recorded
+under "Open with the owner".
 
 ## Open Questions for Design
-- The three probes above decide whether the reports are additional context or a refusal at the next spawn.
 - Whether AC-7's measure is a new action or an extension of the existing token report.
-- The SubagentStop payload, to record at phase 1.
+- The SubagentStop payload, to record in package 9. It is the one probe this spec owes; the other harness questions are answered.
+
+### Open with the owner
+
+The harness fires its stop event at the end of every turn, not only when a
+session ends. AC-11 as written therefore refuses a session that pauses to ask
+the owner a question in the middle of a spec, until it commits a handover.
+The stop hook cannot tell a pause from an abandonment. Package 7 builds
+everything else and leaves the stop at today's warning until he chooses.
 
 Settled by the owner on 2026-11-14, and no longer open:
 
@@ -298,6 +333,13 @@ The landing commit records the measured count as the limit's first value, so the
 | A claim is live when the reaper's judgment says its session is, and for an agent when the agent has not finished | A new liveness test by marker age | Age cannot tell a long task from a dead session, and the reaper already holds the judgment |
 | The stop refusal of AC-11 recognises "where it stands" by a tracked handover whose name carries the spec's stem or its set's prefix, or by the spec's Status moved to `blocked` | Read the handover's text | A hook judges what a file is, never its wording. The set prefix is accepted because the agent-economy handover was named for the set |
 | No acknowledgement file for AC-11 | Copy the closure refusal's file | Nothing in the tooling writes that file and the refusal prints the command that creates it, so it is a self-bypass. Whether the closure refusal keeps its own is not changed here |
+| A claim that starts no spec is outside the open limit, so the close-only route has no setting. The decisions file's sentence that names `ZE_SPEC_WIP_CAP` is rewritten in package 5 to say so | A second setting that lifts the open limit for one claim | Today's claim already judges only a `ready` spec, so the setting never mattered for a spec whose work is committed; under two limits there is nothing left for it to lift |
+| The judgement of which commit closed a spec moves out of `internal/le/commit` into a package below both it and `spec/status` | Call it from `spec/status` | `commit` imports `spec/status`, so the call would be an import cycle |
+| When the reaper cannot judge liveness (no projects directory), the active limit says it cannot tell and does not refuse | Count every marker as live; count none | A refusal on a count nobody could take is a wrong answer, and so is a silent zero |
+| The removed-spec cache is one file shared by every session under `tmp/session/`. The session-start summary reads it and runs no git: when the cache was computed at another commit than HEAD, the summary prints the state it holds and names that commit. Any `./le spec status` call extends it | A cache per session; a walk at session start | A new session's own scratch is empty, and the session-start hook has a time budget a history walk does not fit |
+| The umbrella's owed closure reaches a session three ways: the release of the last child names it, the session-start summary and the status view report it, and the stop hook judges it only when the umbrella itself is claimed | The stop hook judging the set of the last released claim | A released claim leaves nothing for the stop hook to read |
+| An agent's claim marker is removed when its agent stops, from the SubagentStop event | Remove it in the Agent call's after-hook | A background agent's Agent call returns at launch (observed 2026-11-15: the call answered while the agent ran), so the after-hook would remove a running agent's marker |
+| The transcript tail reader of AC-1 lives in a package under the hook source seal | Extend `internal/le/ai/tokens` and import it from the hook | That package is outside the seal, and what decides a hook's output is sealed |
 | The one cap is deleted and every user of it is converted in this work: the claim, the report, the tests, and each rule, skill, page and spec that names `ZE_SPEC_WIP_CAP` or "the WIP cap" | Keep the cap and add a second limit beside it | The owner's two limits count different things, and a third number that counts neither would stay in the tree |
 
 The set, as the grouping function answers it:
@@ -311,6 +353,9 @@ The set, as the grouping function answers it:
 | Held | For each open child and the umbrella: the holder, and whether that claim is live |
 | State | idea, live, stalled or children closed |
 | Next | The lowest-numbered open child whose Depends are met, or the spec outside the set that blocks it |
+
+Measured 2026-11-15: 10 specs `in-progress` against the cap of 12; 68 claim
+markers under `tmp/session/` against 53 session directories.
 
 Owner decisions (2026-11-14), no longer open:
 

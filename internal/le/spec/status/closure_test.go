@@ -25,14 +25,14 @@ func TestClosureTurnsRedOnlyForCommittedExactEvidence(t *testing.T) {
 		t.Fatal(err)
 	}
 	learned := []learnedFile{{path: "plan/learned/900-widget.md", slug: "widget", tokens: []string{"widget"}}}
-	green, err := inspectClosureSpec(root, path, learned, map[string]bool{}, nil, map[string]bool{"widget": true})
+	green, err := inspectClosureSpec(root, path, learned, map[string]bool{}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if green.CompletedNotClosed {
 		t.Fatalf("untracked evidence made closure red: %#v", green)
 	}
-	red, err := inspectClosureSpec(root, path, learned, map[string]bool{"plan/learned/900-widget.md": true}, nil, map[string]bool{"widget": true})
+	red, err := inspectClosureSpec(root, path, learned, map[string]bool{"plan/learned/900-widget.md": true}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +59,7 @@ func TestJournalEvidenceNeedsAFinishedReviewGate(t *testing.T) {
 		t.Fatal(err)
 	}
 	evidence := map[string]string{"widget": "plan/journal/gate.md"}
-	one, err := inspectClosureSpec(root, path, nil, nil, evidence, map[string]bool{"widget": true})
+	one, err := inspectClosureSpec(root, path, nil, nil, evidence, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,7 +69,7 @@ func TestJournalEvidenceNeedsAFinishedReviewGate(t *testing.T) {
 	if err := os.WriteFile(path, []byte(base+"\n## Review Gate\n- [x] re-run shows 0 BLOCKER, 0 ISSUE\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	one, err = inspectClosureSpec(root, path, nil, nil, evidence, map[string]bool{"widget": true})
+	one, err = inspectClosureSpec(root, path, nil, nil, evidence, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,7 +96,7 @@ func TestClosureConsumesNormalizedJournalEvidence(t *testing.T) {
 	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	one, err := inspectClosureSpec(root, path, nil, nil, evidence, map[string]bool{"widget": true})
+	one, err := inspectClosureSpec(root, path, nil, nil, evidence, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

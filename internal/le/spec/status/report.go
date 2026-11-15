@@ -30,9 +30,12 @@ type Spec struct {
 	ReleaseReason string `json:"release-reason"`
 	Depends       string `json:"depends"`
 	Phase         string `json:"phase"`
-	Set           string `json:"set"`
-	Updated       string `json:"updated"`
-	GitModified   string `json:"git-modified"`
+	// Set is the prefix of the spec set the spec belongs to, or NoSet. It is a
+	// fact about the population, so Collect fills it from GroupSets and Parse
+	// leaves it empty.
+	Set         string `json:"set"`
+	Updated     string `json:"updated"`
+	GitModified string `json:"git-modified"`
 	// RFCGaps is what the `RFC gaps` Meta cell names: the requirement ids
 	// (RFC2661-5.4-1) and summary stems (rfc7947) of the RFC gaps the spec
 	// closes, in written order. Empty when the cell is `-` or the row is

@@ -1,5 +1,6 @@
 // Design: docs/architecture/core-design.md -- native spec lifecycle checks
 // Related: closure_report.go -- structured closure findings
+// Related: specset.go -- the grouping that answers which spec is an umbrella
 
 package specstatus
 
@@ -53,24 +54,41 @@ func closureInventory(root string) (ClosureReport, []string, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("match active specs: %w", err)
 	}
-	paths := make([]string, 0, len(relatives))
-	for _, relative := range relatives {
-		paths = append(paths, filepath.Join(root, filepath.FromSlash(relative)))
+	report, err := inspectClosurePopulation(root, relatives, learned, tracked, journalEvidence)
+	if err != nil {
+		return nil, malformed, err
 	}
-	stems := make(map[string]bool, len(paths))
-	for _, path := range paths {
-		stems[specpath.Stem(filepath.Base(path))] = true
-	}
+	return report, malformed, nil
+}
 
-	report := make(ClosureReport, 0, len(stems))
-	for _, path := range paths {
-		one, err := inspectClosureSpec(root, path, learned, tracked, journalEvidence, stems)
+// inspectClosurePopulation judges every spec of a population against the
+// closure evidence. Which spec is an umbrella is answered by GroupSets over the
+// same population, the function the inventory's Set column and the `set` field
+// of the roadmap snapshot read, so none of them can disagree about a set. relatives are slash paths under root.
+func inspectClosurePopulation(root string, relatives []string, learned []learnedFile, tracked map[string]bool, journalEvidence map[string]string) (ClosureReport, error) {
+	specs := make([]Spec, 0, len(relatives))
+	for _, relative := range relatives {
+		data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative))) //nolint:gosec // a spec path specpath matched under the checkout
 		if err != nil {
-			return nil, malformed, err
+			return nil, fmt.Errorf("read %s: %w", relative, err)
+		}
+		spec, err := Parse(data, relative, nil)
+		if err != nil {
+			return nil, err
+		}
+		specs = append(specs, spec)
+	}
+	sets := GroupSets(specs)
+
+	report := make(ClosureReport, 0, len(relatives))
+	for _, relative := range relatives {
+		one, err := inspectClosureSpec(root, filepath.Join(root, filepath.FromSlash(relative)), learned, tracked, journalEvidence, sets)
+		if err != nil {
+			return nil, err
 		}
 		report = append(report, one)
 	}
-	return report, malformed, nil
+	return report, nil
 }
 
 // CheckClosure checks one spec spelling. An absent spec is a clean answer.
@@ -109,7 +127,10 @@ func CheckClosure(root, spec string) (ClosureReport, []string, error) {
 	return ClosureReport{}, malformed, nil
 }
 
-func inspectClosureSpec(root, path string, learned []learnedFile, tracked map[string]bool, journalEvidence map[string]string, allStems map[string]bool) (closureSpec, error) {
+// inspectClosureSpec judges one spec. sets is the population's grouping, which
+// says whether the spec is an umbrella: an umbrella is never raised to a
+// closure candidate, because its stem matches its children's closure records.
+func inspectClosureSpec(root, path string, learned []learnedFile, tracked map[string]bool, journalEvidence map[string]string, sets SpecSets) (closureSpec, error) {
 	body, err := os.ReadFile(path) //nolint:gosec // path is a spec file this walk found under the checkout
 	if err != nil {
 		return closureSpec{}, fmt.Errorf("read %s: %w", path, err)
@@ -130,23 +151,7 @@ func inspectClosureSpec(root, path string, learned []learnedFile, tracked map[st
 		UncheckedCloseBox: uncheckedPattern.MatchString(text),
 	}
 	stemTokens := strings.Split(stem, "-")
-	one.IsUmbrella = strings.Contains("-"+stem+"-", "-umbrella-")
-	if !one.IsUmbrella {
-		prefix := stem + "-"
-		for other := range allStems {
-			if other == stem {
-				continue
-			}
-			if !strings.HasPrefix(other, prefix) {
-				continue
-			}
-			rest := strings.TrimPrefix(other, prefix)
-			if startsWithDigit(rest) {
-				one.IsUmbrella = true
-				break
-			}
-		}
-	}
+	one.IsUmbrella = sets.IsUmbrella(rel)
 
 	for _, file := range learned {
 		if !tracked[file.path] {
@@ -217,16 +222,6 @@ func contiguousTokens(needle, haystack []string) bool {
 		}
 	}
 	return false
-}
-
-func startsWithDigit(value string) bool {
-	if value == "" {
-		return false
-	}
-	if value[0] < '0' {
-		return false
-	}
-	return value[0] <= '9'
 }
 
 func closureGateFinished(one closureSpec) bool {

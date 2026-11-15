@@ -1,4 +1,5 @@
 // Design: docs/architecture/core-design.md -- le's spec inventory
+// Related: specset.go -- the grouping that answers each spec's Set
 //
 // Package specstatus reads the metadata table at the top of every spec
 // specpath names and answers the inventory `./le spec status` prints: one
@@ -251,18 +252,6 @@ func StatusOrder(status string) int {
 	return 9
 }
 
-// setRE matches the spec-set pattern in a filename: "spec-<prefix>-<N>-<name>.md".
-var setRE = regexp.MustCompile(`^spec-([a-z]+(?:-[a-z]+)*)-\d+-.*\.md$`)
-
-// detectSet returns the spec set from the filename pattern, or "-" if no match.
-func detectSet(filename string) string {
-	m := setRE.FindStringSubmatch(filename)
-	if m == nil {
-		return "-"
-	}
-	return m[1]
-}
-
 // gitDate returns git's last-modified date for a file (YYYY-MM-DD), falling
 // back to "unknown" if git is unavailable or the file is untracked.
 //
@@ -306,6 +295,8 @@ func loadSpec(ctx context.Context, root, rel string, warn func(string)) (Spec, e
 
 // Parse reads metadata from source bytes without consulting the filesystem or clock.
 // Missing dates remain empty so historical callers cannot invent current dates.
+// Set is left empty: which set a spec belongs to depends on the other files of
+// its population, so the caller answers it through GroupSets, as Collect does.
 func Parse(data []byte, rel string, warn func(string)) (Spec, error) {
 	bucket, placed := specpath.Bucket(rel)
 	if !placed {
@@ -338,7 +329,6 @@ func parseMetadata(data []byte, rel, bucket string, warn func(string)) Spec {
 		Depends:       metaField(rows, "Depends"),
 		Phase:         metaField(rows, "Phase"),
 		Updated:       metaField(rows, "Updated"),
-		Set:           detectSet(base),
 		RFCGaps:       rfcGaps(metaField(rows, "RFC gaps"), rel, warn),
 	}
 	for line := range strings.SplitSeq(content, "\n") {
@@ -528,7 +518,11 @@ func Collect(ctx context.Context, root string, now time.Time, warn func(string))
 		specs = append(specs, s)
 	}
 
+	// A spec's set is a fact about the population, never about one file, so it
+	// is answered once every spec is read.
+	sets := GroupSets(specs)
 	for i := range specs {
+		specs[i].Set = sets.Name(specs[i].Path)
 		specs[i].Category = Category(specs[i].Status)
 		specs[i].Stale = specs[i].Category == Idea && skeletonStale(specs[i].Updated, now)
 	}

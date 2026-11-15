@@ -272,6 +272,44 @@ func TestRoadmapBucketAccounting(t *testing.T) {
 	}
 }
 
+// TestRoadmapTakesEachSpecsSetFromTheGroupingFunction proves the roadmap's set
+// column reads the snapshot through specstatus.GroupSets, the grouping the
+// inventory and the closure detector read, rather than one file name at a time.
+//
+// VALIDATES: a prefix holding a digit is a set, a lone numbered name is none,
+// and a number-less parent belongs to the set of its numbered children.
+// PREVENTS: the roadmap keeping a per-file pattern that disagrees with the
+// inventory, as the deleted detectSet did for bcp194 and flow-export.
+func TestRoadmapTakesEachSpecsSetFromTheGroupingFunction(t *testing.T) {
+	root := fixtureRepository(t)
+	revision := fixtureCommit(t, root, map[string]string{
+		"plan/immediate/spec-bcp194-0-umbrella.md":           fixtureSpec("Umbrella", "design", "-"),
+		"plan/immediate/spec-bcp194-2-role-policy.md":        fixtureSpec("Child", "ready", "-"),
+		"plan/immediate/spec-flow-export-3-sampled-scale.md": fixtureSpec("Lone", "ready", "-"),
+		"plan/immediate/spec-lifecycle.md":                   fixtureSpec("Parent", "ready", "-"),
+		"plan/immediate/spec-lifecycle-1-plugin-process.md":  fixtureSpec("Child", "ready", "-"),
+	})
+	snapshot, err := Collect(t.Context(), root, revision)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]string{
+		"bcp194-0-umbrella":           "bcp194",
+		"bcp194-2-role-policy":        "bcp194",
+		"flow-export-3-sampled-scale": specstatus.NoSet,
+		"lifecycle":                   "lifecycle",
+		"lifecycle-1-plugin-process":  "lifecycle",
+	}
+	if len(snapshot.Items) != len(want) {
+		t.Fatalf("items = %d, want %d", len(snapshot.Items), len(want))
+	}
+	for _, item := range snapshot.Items {
+		if item.Set != want[item.Name] {
+			t.Errorf("the set of %s = %q, want %q", item.Name, item.Set, want[item.Name])
+		}
+	}
+}
+
 // Moves and state changes coexist; renamed stems have no guessed identity, and a
 // transient item between endpoints cannot be counted as observed throughput.
 func TestRoadmapComparisonIsNotCompletion(t *testing.T) {

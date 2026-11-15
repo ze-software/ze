@@ -191,13 +191,35 @@ A related set of specs shares a prefix and a number.
 | Part | Example |
 |------|---------|
 | Naming | `spec-<prefix>-<N>-<name>.md` |
-| Umbrella | `spec-utp-0-umbrella.md` |
+| Umbrella | `spec-utp-0-umbrella.md`, or a parent with no number, `spec-utp.md`, when the set has no `-0-umbrella` |
 | Children | `spec-utp-1-event-format.md`, `spec-utp-2-command-format.md` |
 | Done path | Removal of the spec after its completed contents are preserved in commit A; journal rows attribute occurrences and are not completion evidence |
 
-`inspectClosureSpec` in `internal/le/spec/status/closure.go` treats a stem
-containing `-umbrella-` as an umbrella, and never raises it to a high-confidence
-closure candidate.
+One function reads this naming, `GroupSets` in
+`internal/le/spec/status/specset.go`. The `Set` column of `./le spec status`,
+the `set` field of the roadmap snapshot and the closure detector's umbrella verdict all
+take their answer from it, so they cannot disagree about a set.
+
+- **A member's number** is the first token of its stem made only of digits,
+  with a token before and after it. The prefix is everything before that token,
+  so a prefix may hold a digit inside a token: `spec-bcp194-2-role-policy.md`
+  belongs to set `bcp194`. A token such as `1b` is not a number.
+- **The umbrella** is the member named exactly `<prefix>-0-umbrella`. A longer
+  name after `0`, such as `spec-knowledge-0-umbrella-deferred-x.md`, is a child
+  numbered 0, not an umbrella, and neither is a name that merely holds the word
+  `umbrella` elsewhere. A set with no `-0-umbrella` takes as its umbrella the
+  spec whose whole stem is the prefix: `spec-single-owner-lifecycle.md` beside
+  `spec-single-owner-lifecycle-1-plugin-process.md`. Where a `-0-umbrella`
+  exists, a number-less file of the same prefix is not a member at all.
+- **A set** is a prefix whose files hold an umbrella, or at least two numbered
+  children. An umbrella alone is a set, because its children may all have
+  closed and it still owes its own criteria. One numbered file with no umbrella
+  and no numbered sibling is no set, and its `Set` column reads `-`.
+
+The closure detector never raises an umbrella to a high-confidence closure
+candidate, because an umbrella's stem matches its children's closure records.
+<!-- source: internal/le/spec/status/specset.go -- GroupSets -->
+<!-- source: internal/le/spec/status/closure.go -- inspectClosurePopulation -->
 
 ## What each closure gate reads
 
