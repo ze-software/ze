@@ -1,3 +1,4 @@
+// Design: docs/architecture/api/commands.md -- typed BGP notification arguments and refusals.
 package peer
 
 import (
@@ -204,7 +205,15 @@ func TestHandlerNotifyHexRefusals(t *testing.T) {
 	// naming octets rather than a text, for a caller that skips the model.
 	_, err := command.ValidateModelArgs(notifyPath, []string{"3", "1", "hex", strings.Repeat("00", message.MaxNotificationDataLen+1)}, notifySelector)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "length 8152 out of range 0..8150: give hex a value of 0..8150 characters")
+	fault, ok := errors.AsType[*command.ValueArgumentError](err)
+	require.True(t, ok, "the model must refuse the oversized hex as a typed value fault: %v", err)
+	assert.Equal(t, "hex", fault.Leaf)
+	assert.Contains(t, fault.Problem(), "hex: ")
+	assert.True(t, strings.HasSuffix(fault.Problem(), "is outside the accepted length (8152 characters)"))
+	assert.Equal(t, "hex accepts 0..8150 characters", fault.Why())
+	assert.Equal(t, "<0..8150 characters>", fault.Correction())
+	assert.Contains(t, err.Error(), "\nfix: request peer notify")
+	assert.Contains(t, err.Error(), "hex <0..8150 characters>")
 	_, err = notifyData(3, 1, "", false, strings.Repeat("00", message.MaxNotificationDataLen+1), true)
 	require.ErrorIs(t, err, errNotifyHex)
 	assert.Contains(t, err.Error(), "give 4075 octets (8150 hex digits) or fewer")
