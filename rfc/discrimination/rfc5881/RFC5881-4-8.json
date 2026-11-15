@@ -7,8 +7,8 @@
     "claim-sha": "a2632ed998968b2f",
     "route": "revert",
     "producer": "internal/component/bfd/engine/echo.go::sendEchoLocked",
-    "producer-sha": "2212bba65a2ab7fc",
-    "break": "body of sendEchoLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "39b0481150b6181e",
+    "break": "body of sendEchoLocked replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5881-4-8",

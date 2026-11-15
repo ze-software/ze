@@ -18,7 +18,7 @@
     "claim-sha": "7642656931c055f3",
     "route": "revert",
     "producer": "internal/plugins/ldp/register.go::sendHello",
-    "producer-sha": "491c506c341a4af8",
-    "break": "body of sendHello replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "e61bbe035d4627c2",
+    "break": "body of sendHello replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

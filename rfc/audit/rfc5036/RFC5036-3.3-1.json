@@ -3,8 +3,8 @@
   "requirement_sha": "726151364760073b",
   "tests": {
     "internal/plugins/ldp/rfc5036_init_unknown_tlv_test.go::TestLDPInitUnknownTLVUClearNotifies": "112888c88dd09a42",
-    "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036UnknownTLVWithUBitClearIsRefused": "e02b8145e25cce65",
-    "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036UnknownTLVWithUBitSetIsSkipped": "e02b8145e25cce65"
+    "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036UnknownTLVWithUBitClearIsRefused": "9109f76fa674b619",
+    "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036UnknownTLVWithUBitSetIsSkipped": "9109f76fa674b619"
   },
   "units": {
     "internal/plugins/ldp/rfc5036_init_unknown_tlv_test.go::TestLDPInitUnknownTLVUClearNotifies": "f91ef148b4981816",

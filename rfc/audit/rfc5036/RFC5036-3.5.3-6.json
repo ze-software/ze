@@ -2,8 +2,8 @@
   "note": "Re-read both reserved-bit tests and EncodeInit/DecodeInit. Transmission requires all six reserved bits zero. Reception sets all six, requires neither A nor D set, processes Initialization plus peer KeepAlive to Operational, pins negotiated 30s and now requires a deadline timeout for silence (EOF fails). The initialization guard continues to accept the conforming message types; reserved bits do not change negotiation.",
   "requirement_sha": "38160fab47d2e744",
   "tests": {
-    "internal/plugins/ldp/rfc5036_sessionparams_test.go::TestRFC5036InitReservedBitsIgnoredOnReceipt": "c0aa8fdb104978d5",
-    "internal/plugins/ldp/rfc5036_sessionparams_test.go::TestRFC5036InitReservedBitsZeroOnTransmission": "c0aa8fdb104978d5"
+    "internal/plugins/ldp/rfc5036_sessionparams_test.go::TestRFC5036InitReservedBitsIgnoredOnReceipt": "9771ce3d2e2a50d4",
+    "internal/plugins/ldp/rfc5036_sessionparams_test.go::TestRFC5036InitReservedBitsZeroOnTransmission": "9771ce3d2e2a50d4"
   },
   "units": {
     "internal/plugins/ldp/rfc5036_sessionparams_test.go::TestRFC5036InitReservedBitsIgnoredOnReceipt": "31017477865d6d4b",

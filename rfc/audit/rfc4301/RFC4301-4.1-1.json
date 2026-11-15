@@ -3,7 +3,7 @@
   "requirement_sha": "db38daf7ff5cee61",
   "tests": {
     "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "e37080524641dd96",
-    "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAPerDestinationWithOSPFSelector": "ef2210b72b5a1430"
+    "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAPerDestinationWithOSPFSelector": "2e49c226bd39207a"
   },
   "units": {
     "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "2a472ab8d65d410d",

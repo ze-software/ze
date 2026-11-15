@@ -7,7 +7,7 @@
     "claim-sha": "d408295e9b25b147",
     "route": "revert",
     "producer": "internal/component/bfd/engine/loop.go::tick",
-    "producer-sha": "5ead7356e7201c32",
+    "producer-sha": "8c3e44fbe04ccea6",
     "break": "body of tick replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "d01def31b4766578",
     "route": "revert",
     "producer": "internal/component/bfd/engine/loop.go::tick",
-    "producer-sha": "5ead7356e7201c32",
+    "producer-sha": "8c3e44fbe04ccea6",
     "break": "body of tick replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -29,7 +29,7 @@
     "claim-sha": "80c2c4acff2e833e",
     "route": "revert",
     "producer": "internal/component/bfd/engine/loop.go::tick",
-    "producer-sha": "5ead7356e7201c32",
+    "producer-sha": "8c3e44fbe04ccea6",
     "break": "body of tick replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -40,7 +40,7 @@
     "claim-sha": "13de804e5d0fa73b",
     "route": "revert",
     "producer": "internal/component/bfd/engine/loop.go::tick",
-    "producer-sha": "5ead7356e7201c32",
+    "producer-sha": "8c3e44fbe04ccea6",
     "break": "body of tick replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -51,7 +51,7 @@
     "claim-sha": "9337a5dd854e2d5b",
     "route": "revert",
     "producer": "internal/component/bfd/engine/loop.go::tick",
-    "producer-sha": "5ead7356e7201c32",
+    "producer-sha": "8c3e44fbe04ccea6",
     "break": "body of tick replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

@@ -3,12 +3,12 @@
     "rid": "RFC5036-3.1-1",
     "polarity": "positive",
     "unit": "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036DistinctLSRIDFormsAdjacency",
-    "unit-sha": "5f1ecc33e6195feb",
+    "unit-sha": "7c65b7a563f7692d",
     "claim-sha": "9fd31c3bf0e1f793",
     "route": "revert",
     "producer": "internal/plugins/ldp/register.go::sendHello",
-    "producer-sha": "491c506c341a4af8",
-    "break": "body of sendHello replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "e61bbe035d4627c2",
+    "break": "body of sendHello replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5036-3.1-1",
@@ -18,7 +18,7 @@
     "claim-sha": "63300cb9957dc732",
     "route": "revert",
     "producer": "internal/plugins/ldp/register.go::processDiscoveryPacket",
-    "producer-sha": "ad52d61db5448d2d",
-    "break": "body of processDiscoveryPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "8753b04a3c84e4ed",
+    "break": "body of processDiscoveryPacket replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
