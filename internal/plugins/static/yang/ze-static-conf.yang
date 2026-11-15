@@ -26,8 +26,8 @@ module ze-static-conf {
         uses policy:rib-import-filter;
         description "Ze programs each route into the kernel through netlink, or into the VPP dataplane, and
             marks it with the static protocol number. A route the backend cannot program is skipped and
-            logged, and the rest of the section still applies. Only a forward route in the default table
-            reaches the redistribute bus, where BGP can announce it.";
+            logged, and the rest of the section still applies. Every route in the default table, forward,
+            blackhole and reject alike, reaches the redistribute bus, where BGP can announce it.";
         ze:help "Static route configuration.";
 
         list table {
@@ -110,14 +110,15 @@ module ze-static-conf {
                 choice action {
                     mandatory true;
                     description "One case is required. Ze stops the load for a route that names none of next,
-                        blackhole and reject, and it names the prefix in the error. Only the forward case
-                        reaches the redistribute bus.";
+                        blackhole and reject, and it names the prefix in the error. Every case reaches the
+                        redistribute bus.";
                     ze:help "What to do with matching packets.";
 
                     case forward {
                         description "The case holds the next container, which carries gateway next hops and
                             interface next hops. Two or more next hops of either kind become one ECMP
-                            route. A redistribute consumer sees this case alone.";
+                            route. A redistribute consumer sees this route only while one of its next
+                            hops is active.";
                         ze:help "Send the packet on toward a next hop.";
 
                         container next {
