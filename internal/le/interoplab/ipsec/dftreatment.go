@@ -16,6 +16,7 @@ import (
 
 // The tunnel-df-treatment scenario's inner addresses and probe size. They sit inside
 // the Child SA's selectors, 10.2.0.0/24 on Ze's side and 10.1.0.0/24 on strongSwan's.
+// enumeration: exempt (the scenario chooses DF set and clear as packet observations, independently of CLI verbs)
 const (
 	dfZeInner   = "10.2.0.1"
 	dfSwanInner = "10.1.0.1"

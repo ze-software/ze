@@ -21,6 +21,7 @@ type commandOwner struct {
 	plugin    string
 }
 
+// enumeration: exempt (the migration chooses these ownership moves; discovering every registered plugin would move unrelated modules)
 var commandOwners = []commandOwner{
 	{"aaa", "aaa-cmd"},
 	{"bfd", "bfd"},
@@ -41,6 +42,7 @@ var commandOwners = []commandOwner{
 
 // intrinsicCommandOwners are components whose command modules stay in their
 // own yang/ directory: the command belongs to the component, not a -cmd plugin.
+// enumeration: exempt (the migration keeps these component-owned modules in place; it does not inventory plugins)
 var intrinsicCommandOwners = []string{"doctor", "firewall", "iface", "ike", "mtu", "ping", "traceroute"}
 
 var commandReferenceDirs = []string{

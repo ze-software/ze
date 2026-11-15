@@ -80,6 +80,7 @@ const (
 
 // The link types a lab asks the kernel for. Each is also the name of the
 // kernel module that provides the type, which is what probeVRRPKernel loads.
+// enumeration: exempt (these are kernel device and module names used by the labs, not the interface-migration command's allowed types)
 const (
 	linkTypeBridge  = "bridge"
 	linkTypeDummy   = "dummy"

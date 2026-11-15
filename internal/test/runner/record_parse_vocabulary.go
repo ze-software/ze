@@ -19,6 +19,7 @@ import (
 // better answer here for the same reason the lists exist: the case label and
 // the list entry are then the SAME declaration. directiveTypeBGP
 // (record_parse.go) is the first of them.
+// enumeration: exempt (these are allowed .ci directive kinds; the log backend enumeration does not define the test language)
 const (
 	directiveTypeFile   = "file"
 	directiveTypeKey    = "key"

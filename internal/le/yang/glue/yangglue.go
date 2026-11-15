@@ -159,6 +159,7 @@ func registerSource(modules []string, module string, dependencies []string) []by
 // acronyms are the words whose Go spelling is not their title case. A word this
 // table does not hold is title-cased, so adding one is the whole cost of a new
 // module whose name carries an initialism.
+// enumeration: exempt (this table chooses Go identifier capitalization; plugin membership does not determine spelling)
 var acronyms = map[string]string{
 	"aaa":        "AAA",
 	"api":        "API",

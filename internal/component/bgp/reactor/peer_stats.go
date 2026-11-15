@@ -24,6 +24,7 @@ import (
 // a series nothing ever created, so a removed peer kept its two refresh
 // counters forever under a `peer` label an operator can recreate with
 // different config.
+// enumeration: exempt (these are allowed metric labels, including eor and refresh; the decode command's type enumeration does not define them)
 const (
 	msgTypeUpdate       = "update"
 	msgTypeKeepalive    = "keepalive"

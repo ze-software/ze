@@ -19,6 +19,7 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
+// enumeration: exempt (the import rollback proof chooses an OSPF source and owns a policy root; these are fixture inputs, not a plugin inventory)
 const (
 	importDaemonLink       = "zeimpgw"
 	importConnectedLink    = "zeimpc"

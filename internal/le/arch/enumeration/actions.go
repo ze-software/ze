@@ -19,10 +19,12 @@ import (
 	pathpkg "path"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
+	"github.com/ze-software/ze/internal/le/plugin/gatedtable"
 	repochanged "github.com/ze-software/ze/internal/le/repo/changed"
 )
 
@@ -259,6 +261,22 @@ func walkCheckout() (Findings, int) {
 	corpora, err := readCorpora()
 	if err != nil {
 		leaction.ReportError(err)
+		return nil, 2
+	}
+	table, err := gatedtable.Check(tree)
+	if err != nil {
+		leaction.ReportError(opererr.Wrap(err,
+			"arch enumeration check could not read the generated plugin list",
+			"the list must match its registered source before the check can use it",
+			"./le plugin gated-table update"))
+		return nil, 2
+	}
+	corpora, err = verifiedPluginCorpora(corpora, table)
+	if err != nil {
+		leaction.ReportError(opererr.Wrap(err,
+			"arch enumeration check could not verify the generated plugin list",
+			"an unverified list cannot declare which plugin names exist",
+			"./le plugin gated-table update"))
 		return nil, 2
 	}
 	return walkTree(tree, corpora, scanFloor)

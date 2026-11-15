@@ -59,10 +59,10 @@ type Corpus struct {
 	// Floor is the least distinct keys the registry must answer, across every
 	// group, before the gate believes it read the registry at all.
 	Floor int
-	// Declarations are the Go symbols that WRITE this registry's set down: the
-	// package directory and the top-level symbol whose literal builds it. Only
-	// those symbols are excused, because the rest of the declaring package is
-	// as much a copy as the package next door.
+	// Declarations are the symbols that write this registry's set, or whose
+	// generated content a native producer check verified from that declaration.
+	// Each names one package directory and top-level symbol. The rest of that
+	// package remains subject to the check.
 	//
 	// A corpus whose keys never appear as a Go literal declares none. Every
 	// plugin name and every family name enters its registry through a
@@ -197,10 +197,11 @@ func pluginNames() Corpus {
 		Name:     "plugin names",
 		Producer: "registry.All()",
 		Floor:    floorPlugins,
-		// No Go literal declares this set. Each plugin's own package registers
+		// No hand-written Go literal declares this set. Each plugin's package registers
 		// one member, through a registrar call declarationRanges already
 		// excuses, and the registry package holds the map rather than the
-		// names.
+		// names. verifiedPluginCorpora adds the generated compile-out tables
+		// only after their native producer proves their complete content.
 		WrittenWhole: true,
 		Groups:       []Group{{Name: "plugin names", Keys: names}},
 	}

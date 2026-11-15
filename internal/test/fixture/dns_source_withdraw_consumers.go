@@ -22,6 +22,7 @@ var (
 	withdrawDHCPServer = netip.MustParseAddr("198.51.100.1")
 )
 
+// enumeration: exempt (the withdrawal proofs choose the DHCP server and pool as consumers; they do not inventory plugins)
 const (
 	// The consumer names the DHCP server and the l2tp pool publish under
 	// (dhcpserver dhcpConsumer, pool poolConsumer).

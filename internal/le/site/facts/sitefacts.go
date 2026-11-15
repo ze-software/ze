@@ -176,6 +176,7 @@ type interopScenario struct {
 
 // Reviewed primary-area aliases partition the shared suite. Cross-protocol
 // cases belong to their primary area, never to every protocol they mention.
+// enumeration: exempt (this editorial policy assigns each scenario prefix to one primary test area, not to every registered plugin)
 var interopSharedPrefixes = map[string]string{
 	"bgp": "bgp", "addpath": "bgp", "as": "bgp", "frr": "bgp", "local": "bgp",
 	"no": "bgp", "peer": "bgp", "show": "bgp", "shutdown": "bgp",

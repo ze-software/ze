@@ -460,6 +460,13 @@ because a local le binary linked them. `TestGatedRowsKeepTheCommittedManifest`
 proves a dirty manifest cannot change the gate attached to a committed plugin.
 <!-- source: internal/le/plugin/gatedtable/gatedtable.go -- Derive, rowsOf -->
 
+The enumeration gate runs that same byte-for-byte check before it treats
+`gatedPluginTags`, `gatedConfigRoots` and `gatedDataPlaneWriters` as derived
+declarations. A stale, missing or unreadable table refuses the gate. No other
+symbol in the generated file or its package receives that exemption.
+<!-- source: internal/le/arch/enumeration/actions.go -- walkCheckout -->
+<!-- source: internal/le/arch/enumeration/generated.go -- verifiedPluginCorpora -->
+
 The same committed inventory retains `Registration.DataPlane`. The generated
 table maps each gated forwarding backend to its declared writer, so startup
 can identify a provider absent from the live registry without guessing a plugin

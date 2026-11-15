@@ -54,6 +54,7 @@ type harness struct {
 
 // harnesses is the harness table. Codex, OpenCode and Pi read one shared stub
 // directory; Claude Code reads its own.
+// enumeration: gated by TestTheModelsAgentValuesAreTheHarnessTable
 var harnesses = []harness{
 	{name: "claude", title: "Claude Code", configDefault: ".claude", configVariable: "CLAUDE_CONFIG_DIR", ownSkills: true, hookFile: "settings.json"},
 	{name: "codex", title: "Codex", configDefault: ".codex", configVariable: "CODEX_HOME", hookFile: "hooks.json", hookTrustByPosition: true},

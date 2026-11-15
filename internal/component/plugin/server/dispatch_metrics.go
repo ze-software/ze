@@ -22,6 +22,7 @@ import (
 const metricsPublishEncodedMax = 16 << 20
 
 // Refusal items, as rpc.MetricRefusal.Item names them.
+// enumeration: exempt (the metrics RPC permits these refusal item kinds; they do not enumerate CLI verbs)
 const (
 	metricItemDeclare = "declare"
 	metricItemDelete  = "delete"

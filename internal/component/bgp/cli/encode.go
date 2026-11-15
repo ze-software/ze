@@ -45,6 +45,7 @@ var (
 
 // The YANG leaves of show bgp encode that select what is answered, and the
 // names of the message parts the answer can carry.
+// enumeration: gated by TestEncodePartsMatchTheModel
 const (
 	leafEncodeFamily       = "family"
 	leafEncodeLocalAS      = "local-as"

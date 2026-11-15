@@ -114,6 +114,7 @@ func failureGroupTarget(suite string, rec *Record) groupTarget {
 }
 
 func usesFullNameGrouping(suite string) bool {
+	// enumeration: exempt (this policy selects suites whose failures group by the full test name, not by plugin membership)
 	switch suite {
 	case decodeSuite, editorSuite, "firewall", "install", "l2tp", "managed", "parse", "policy", "ui", "web":
 		return true

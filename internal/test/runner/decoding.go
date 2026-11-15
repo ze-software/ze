@@ -28,6 +28,7 @@ var (
 )
 
 // Message type constants.
+// enumeration: exempt (the legacy decode test language permits these modes, including standalone nlri; it is not the show bgp decode type leaf)
 const (
 	msgTypeUpdate       = "update"
 	msgTypeOpen         = "open"

@@ -240,6 +240,7 @@ func nodeProofs(node liveNode) []liveProof {
 			}
 		}
 	}
+	// enumeration: exempt (these are the adjacency proofs this lab supports, not a plugin inventory)
 	return []liveProof{
 		{"bgp", "show bgp", "established", "bgp.json", bgp},
 		{"ospf", "show ospf neighbor", "full", "ospf-neighbor.json", ospf},

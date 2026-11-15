@@ -21,6 +21,7 @@ const typeBGP = "bgp"
 // Supports IPv4/IPv6 unicast and FlowSpec families.
 func isSupportedFamily(family string) bool {
 	normalized := strings.ReplaceAll(strings.ToLower(family), " ", "/")
+	// enumeration: exempt (JSON validation deliberately supports these four envelope families, not every registered family)
 	switch normalized {
 	case "ipv4/unicast", "ipv6/unicast", "ipv4/flow", "ipv6/flow":
 		return true

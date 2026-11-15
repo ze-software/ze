@@ -68,6 +68,7 @@ func init() {
 }
 
 func fixture06Registration(name string) *sdk.Registration {
+	// enumeration: exempt (the explicit-plugin-config fixture declares only the codecs it simulates, independently of the daemon's family registry)
 	switch name {
 	case "plugin/enricher-external-show-checker":
 		return &sdk.Registration{}

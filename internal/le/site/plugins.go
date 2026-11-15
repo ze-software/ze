@@ -42,6 +42,7 @@ const testPluginPrefix = "internal/test/"
 
 // pluginAcronyms keep a group label readable. The grouping itself still comes
 // from config roots and source paths; this only spells a label.
+// enumeration: exempt (this spelling policy selects acronym capitalization; plugin membership is still read from the registry)
 var pluginAcronyms = map[string]string{
 	"afi": "AFI", "api": "API", "as112": "AS112", "bfd": "BFD", bgpGroup: "BGP",
 	"copp": "CoPP", "ddos": "DDoS", "dhcp": "DHCP", "fib": "FIB", "igp": "IGP",

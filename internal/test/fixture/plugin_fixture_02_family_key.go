@@ -16,6 +16,7 @@ import (
 // familyKeyFamilies02 names the families test/plugin/family-key-merge-event.ci
 // sends an UPDATE for, each carrying an announce and a withdrawal of that one
 // family.
+// enumeration: exempt (the scenario supplies exactly IPv4 and IPv6 unicast; unrelated registered families supply no input to this proof)
 var familyKeyFamilies02 = []string{"ipv6/unicast", "ipv4/unicast"}
 
 // familyKeyMergeEvent02 waits for one received UPDATE event per family in

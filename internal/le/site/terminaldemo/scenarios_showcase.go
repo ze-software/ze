@@ -58,6 +58,7 @@ const (
 
 // The names of the showcase fixtures and peers: a control verb names the
 // fixture, and the BGP answers name the peer by the same word.
+// enumeration: exempt (the showcase chooses these fixtures, peers, tools and observations; it does not inventory plugins)
 const (
 	showcaseFRR           = "frr"
 	showcaseCustomerPeer  = "customer"

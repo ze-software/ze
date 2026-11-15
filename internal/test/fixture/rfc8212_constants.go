@@ -5,6 +5,7 @@ package fixture
 // Values the RFC 8212 drivers share. The values shared with other fixtures
 // (addrLoopbackSecond, directionExport, eventActionDel, ...) live in
 // constants.go.
+// enumeration: exempt (the RFC 8212 scenarios choose IPv4 and IPv6 unicast as test traffic, not as an inventory of address families)
 const (
 	// addrLoopbackFourth is the eBGP peer that carries no policy in either
 	// direction.

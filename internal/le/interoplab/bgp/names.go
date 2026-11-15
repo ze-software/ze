@@ -157,6 +157,7 @@ const gobgpDetailEstablished = "BGP state = SESSION_STATE_ESTABLISHED"
 
 // ip(8) words. The scenarios break and restore a link, read an address, and
 // read the IPsec state with them.
+// enumeration: exempt (the lab permits these iproute2 operations; these words do not declare Ze CLI verbs)
 const (
 	containerInterface = "eth0"
 	ipActionAdd        = "add"

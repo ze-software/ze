@@ -137,6 +137,7 @@ func (r *Runner) validateJSON(rec *Record) error {
 // nlriFamilyKeys are the family keys a plugin-format JSON object can carry, in
 // both the slash and the space spelling a .ci file writes.
 func nlriFamilyKeys() []string {
+	// enumeration: exempt (content matching supports unicast prefixes and FlowSpec rules in these two accepted spellings)
 	return []string{
 		"ipv4/unicast", "ipv6/unicast", "ipv4 unicast", "ipv6 unicast",
 		"ipv4/flow", "ipv6/flow", "ipv4 flow", "ipv6 flow",

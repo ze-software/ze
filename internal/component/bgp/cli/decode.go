@@ -18,6 +18,7 @@ import (
 )
 
 // Message type constants.
+// enumeration: gated by TestDecodeTypesMatchTheModel
 const (
 	msgTypeOpen         = "open"
 	msgTypeUpdate       = "update"

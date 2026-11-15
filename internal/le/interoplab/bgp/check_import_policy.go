@@ -12,6 +12,7 @@ import (
 	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
+// enumeration: exempt (these scenarios choose IS-IS, OSPF and static route sources to compare; they do not inventory plugins)
 const (
 	isisImportPolicyScenario = "isis-import-policy-frr"
 	ospfImportPolicyScenario = "ospf-import-policy-bird"
