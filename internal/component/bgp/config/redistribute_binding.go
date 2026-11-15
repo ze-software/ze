@@ -55,7 +55,11 @@ func wireRedistributeDelivery(tree *config.Tree, settings []*reactor.PeerSetting
 	aigp := false
 	for _, peer := range settings {
 		aigp = aigp || peer.AIGPEnabled()
-		flowSpec = flowSpec || hasFlowSpecFamily(peer)
+		peerFlowSpec, err := hasFlowSpecFamily(peer)
+		if err != nil {
+			return err
+		}
+		flowSpec = flowSpec || peerFlowSpec
 	}
 	locRIB, orchestrator := false, false
 	for i := range rules {

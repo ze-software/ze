@@ -10,6 +10,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 func requireRIBDelivery(plugins []plugin.PluginConfig, peers []*reactor.PeerSettings, feature string, internalOnly bool) error {
@@ -28,7 +29,11 @@ func requireRIBDelivery(plugins []plugin.PluginConfig, peers []*reactor.PeerSett
 				continue
 			}
 			for _, peer := range peers {
-				if !hasFlowSpecFamily(peer) {
+				flowSpec, err := hasFlowSpecFamily(peer)
+				if err != nil {
+					return err
+				}
+				if !flowSpec {
 					continue
 				}
 				for i := range peer.ProcessBindings {
@@ -63,11 +68,19 @@ func requireRIBDelivery(plugins []plugin.PluginConfig, peers []*reactor.PeerSett
 	return nil
 }
 
-func hasFlowSpecFamily(peer *reactor.PeerSettings) bool {
-	for _, name := range [...]string{"ipv4/flow", "ipv6/flow", "ipv4/flow-vpn", "ipv6/flow-vpn"} {
-		if _, configured := peer.PrefixMaximum[name]; configured {
-			return true
+func hasFlowSpecFamily(peer *reactor.PeerSettings) (bool, error) {
+	flowSpec := false
+	for name := range peer.PrefixMaximum {
+		registered, known := family.LookupFamily(name)
+		if !known {
+			return false, fmt.Errorf("peer %s: configured family %q is not registered", peer.Name, name)
+		}
+		// Only the two FlowSpec SAFIs require the selecting-RIB replay boundary.
+		//exhaustive:ignore
+		switch registered.SAFI {
+		case family.SAFIFlowSpec, family.SAFIFlowSpecVPN:
+			flowSpec = true
 		}
 	}
-	return false
+	return flowSpec, nil
 }
