@@ -9074,7 +9074,7 @@
             "type": "uint16"
           },
           {
-            "description": "monitor is the default and is the only action Ze performs. redistribute is\naccepted by the schema and is not implemented: Ze writes a warning in the log and acts\nas monitor. Under monitor the routes of a BMP Route Monitoring message go to the BMP\nRIB, which show bmp rib reads. They reach neither BGP best-path selection nor the\nFIB.",
+            "description": "monitor is the default and the only value. The routes of a BMP Route\nMonitoring message go to the BMP RIB, which show bmp rib reads. They reach neither\nBGP best-path selection nor the FIB, because a BMP receiver is a monitoring station:\nRFC 7854 defines no use of the routes it is told about. Any other value is refused\nwhen the config loads. The leaf stays with one value on purpose: a value removed\nfrom the enumeration is refused, while a removed leaf would be skipped in silence.",
             "kind": "leaf",
             "name": "route-action",
             "short-help": "Action for received BMP Route Monitoring messages",
@@ -9084,10 +9084,6 @@
               {
                 "name": "monitor",
                 "short-help": "Store in BMP RIB for visibility (show bmp rib), isolated from BGP best-path and FIB"
-              },
-              {
-                "name": "redistribute",
-                "short-help": "Store in BMP RIB and redistribute into BGP best-path selection"
               }
             ]
           },
@@ -12605,7 +12601,7 @@
                 "name": "vlan-id",
                 "short-help": "VLAN identifier",
                 "source": "config",
-                "type": "uint16"
+                "type": "vlan-id"
               },
               {
                 "description": "Ze creates no VRF device and enslaves no interface, so a unit cannot use a\nrouting table other than the main table. The leaf stays in the schema so\nthat the refusal can say why. It becomes functional when VRF support ships.",
@@ -12616,7 +12612,7 @@
                 "type": "string"
               }
             ],
-            "description": "The cos plugin adds the class-of-service leaf and the inline\ningress-qos-map and egress-qos-map lists to the unit. The class-of-service value of the unit\noverrides the value of the interface, and 'none' stops the inheritance. Ze refuses a unit that\ncarries a profile and an inline map together. Both routes need vlan-id on the unit, because the\nmap reaches the kernel 802.1Q subinterface.",
+            "description": "The cos plugin adds a profile reference to the unit. Its value\noverrides the interface reference, and 'none' stops inheritance. Inline maps belong to\nze-iface-conf and remain available without this plugin. A profile and an inline map cannot\nbe used together, and both need vlan-id.",
             "kind": "list[name]",
             "name": "unit",
             "short-help": "Logical interface unit.",
@@ -13611,7 +13607,7 @@
                 "name": "vlan-id",
                 "short-help": "VLAN identifier",
                 "source": "config",
-                "type": "uint16"
+                "type": "vlan-id"
               },
               {
                 "description": "Ze creates no VRF device and enslaves no interface, so a unit cannot use a\nrouting table other than the main table. The leaf stays in the schema so\nthat the refusal can say why. It becomes functional when VRF support ships.",
@@ -13622,7 +13618,7 @@
                 "type": "string"
               }
             ],
-            "description": "The cos plugin adds the class-of-service leaf and the inline\ningress-qos-map and egress-qos-map lists to the unit. The class-of-service value of the unit\noverrides the value of the interface, and 'none' stops the inheritance. Ze refuses a unit that\ncarries a profile and an inline map together. Both routes need vlan-id on the unit, because the\nmap reaches the kernel 802.1Q subinterface.",
+            "description": "The cos plugin adds a profile reference to the unit. Its value\noverrides the interface reference, and 'none' stops inheritance. Inline maps belong to\nze-iface-conf and remain available without this plugin. A profile and an inline map cannot\nbe used together, and both need vlan-id.",
             "kind": "list[name]",
             "name": "unit",
             "short-help": "Logical interface unit.",
@@ -14609,7 +14605,7 @@
                 "name": "vlan-id",
                 "short-help": "VLAN identifier",
                 "source": "config",
-                "type": "uint16"
+                "type": "vlan-id"
               },
               {
                 "description": "Ze creates no VRF device and enslaves no interface, so a unit cannot use a\nrouting table other than the main table. The leaf stays in the schema so\nthat the refusal can say why. It becomes functional when VRF support ships.",
@@ -14620,7 +14616,7 @@
                 "type": "string"
               }
             ],
-            "description": "The cos plugin adds the class-of-service leaf and the inline\ningress-qos-map and egress-qos-map lists to the unit. The class-of-service value of the unit\noverrides the value of the interface, and 'none' stops the inheritance. Ze refuses a unit that\ncarries a profile and an inline map together. Both routes need vlan-id on the unit, because the\nmap reaches the kernel 802.1Q subinterface.",
+            "description": "The cos plugin adds a profile reference to the unit. Its value\noverrides the interface reference, and 'none' stops inheritance. Inline maps belong to\nze-iface-conf and remain available without this plugin. A profile and an inline map cannot\nbe used together, and both need vlan-id.",
             "kind": "list[name]",
             "name": "unit",
             "short-help": "Logical interface unit.",
@@ -15191,7 +15187,7 @@
                 "name": "vlan-id",
                 "short-help": "VLAN identifier",
                 "source": "config",
-                "type": "uint16"
+                "type": "vlan-id"
               },
               {
                 "description": "Ze creates no VRF device and enslaves no interface, so a unit cannot use a\nrouting table other than the main table. The leaf stays in the schema so\nthat the refusal can say why. It becomes functional when VRF support ships.",
@@ -15369,6 +15365,23 @@
           {
             "children": [
               {
+                "description": "After each IPv6CP Configure-Request, wait this many milliseconds\nbefore retrying. The default of three seconds follows RFC 1661\nSection 4.6. A shorter timer can exhaust retries on a lossy link.",
+                "kind": "leaf",
+                "name": "restart-timer",
+                "short-help": "Milliseconds before retrying an unanswered IPv6CP request.",
+                "source": "config",
+                "type": "uint16"
+              }
+            ],
+            "description": "IPv6CP configures the IPv6 link independently of IPCP. Its Restart\ntimer controls retries while IPv6CP negotiates, including after an\nLCP restart. A timing-only change takes effect on the next session.\nThe setting is retained even while IPv6 is disabled.",
+            "kind": "container",
+            "name": "ipv6cp",
+            "short-help": "IPv6CP Configure-Request retransmission timer.",
+            "source": "config"
+          },
+          {
+            "children": [
+              {
                 "description": "The session ends when this many Echo-Requests in a row have no\nEcho-Reply. The range is 1 to 255 and the default is 3, so the\ndefault detection time is about 30 seconds.",
                 "kind": "leaf",
                 "name": "failures",
@@ -15389,6 +15402,31 @@
             "kind": "container",
             "name": "keepalive",
             "short-help": "Dead-peer detection by LCP Echo-Request (RFC 1661 Section 5.8).",
+            "source": "config"
+          },
+          {
+            "children": [
+              {
+                "description": "The number of unanswered LCP Configure-Requests allowed before\nnegotiation ends. The first request counts toward this limit.\nRFC 1661 Section 4.6 recommends the default of ten requests.",
+                "kind": "leaf",
+                "name": "max-configure",
+                "short-help": "Maximum LCP Configure-Requests without a valid negotiation reply.",
+                "source": "config",
+                "type": "uint8"
+              },
+              {
+                "description": "The timer starts after each LCP Configure-Request. Expiry sends\nanother request while the request budget remains. The default is\nthree seconds, as RFC 1661 Section 4.6 recommends.",
+                "kind": "leaf",
+                "name": "restart-timer",
+                "short-help": "Milliseconds to wait before retransmitting an unanswered LCP request.",
+                "source": "config",
+                "type": "uint16"
+              }
+            ],
+            "description": "LCP retransmits an unanswered Configure-Request after restart-timer\nmilliseconds and ends negotiation after max-configure unanswered\nrequests. A valid negotiation reply renews the request budget. A\ntiming-only change keeps the running session and takes effect on the\nnext session, including its later LCP renegotiations.",
+            "kind": "container",
+            "name": "lcp",
+            "short-help": "LCP Configure-Request retransmission timer and request limit.",
             "source": "config"
           },
           {
@@ -16877,7 +16915,7 @@
                 "name": "vlan-id",
                 "short-help": "VLAN identifier",
                 "source": "config",
-                "type": "uint16"
+                "type": "vlan-id"
               },
               {
                 "description": "Ze creates no VRF device and enslaves no interface, so a unit cannot use a\nrouting table other than the main table. The leaf stays in the schema so\nthat the refusal can say why. It becomes functional when VRF support ships.",
@@ -17883,7 +17921,7 @@
                 "name": "vlan-id",
                 "short-help": "VLAN identifier",
                 "source": "config",
-                "type": "uint16"
+                "type": "vlan-id"
               },
               {
                 "description": "Ze creates no VRF device and enslaves no interface, so a unit cannot use a\nrouting table other than the main table. The leaf stays in the schema so\nthat the refusal can say why. It becomes functional when VRF support ships.",
@@ -17894,7 +17932,7 @@
                 "type": "string"
               }
             ],
-            "description": "The cos plugin adds the class-of-service leaf and the inline\ningress-qos-map and egress-qos-map lists to the unit. The class-of-service value of the unit\noverrides the value of the interface, and 'none' stops the inheritance. Ze refuses a unit that\ncarries a profile and an inline map together. Both routes need vlan-id on the unit, because the\nmap reaches the kernel 802.1Q subinterface.",
+            "description": "The cos plugin adds a profile reference to the unit. Its value\noverrides the interface reference, and 'none' stops inheritance. Inline maps belong to\nze-iface-conf and remain available without this plugin. A profile and an inline map cannot\nbe used together, and both need vlan-id.",
             "kind": "list[name]",
             "name": "unit",
             "short-help": "Logical interface unit.",
@@ -18595,7 +18633,7 @@
                 "name": "vlan-id",
                 "short-help": "VLAN identifier",
                 "source": "config",
-                "type": "uint16"
+                "type": "vlan-id"
               },
               {
                 "description": "Ze creates no VRF device and enslaves no interface, so a unit cannot use a\nrouting table other than the main table. The leaf stays in the schema so\nthat the refusal can say why. It becomes functional when VRF support ships.",
@@ -19225,7 +19263,7 @@
                 "name": "vlan-id",
                 "short-help": "VLAN identifier",
                 "source": "config",
-                "type": "uint16"
+                "type": "vlan-id"
               },
               {
                 "description": "Ze creates no VRF device and enslaves no interface, so a unit cannot use a\nrouting table other than the main table. The leaf stays in the schema so\nthat the refusal can say why. It becomes functional when VRF support ships.",
@@ -19250,10 +19288,10 @@
         "source": "config"
       }
     ],
-    "description": "This container merges into ze-iface-conf. Remove the cos plugin and\nevery QoS leaf disappears from the interfaces.",
+    "description": "This container merges profile references into ze-iface-conf. Removing\nthe cos plugin removes these references; inline QoS maps remain owned by the interface component.",
     "kind": "container",
     "name": "interface",
-    "short-help": "Interface-level class-of-service bindings and inline QoS maps.",
+    "short-help": "Interface-level class-of-service profile bindings.",
     "source": "both"
   },
   "isis": {
@@ -20281,6 +20319,47 @@
         "short-help": "Unanswered HELLO intervals tolerated before the peer is declared dead.",
         "source": "config",
         "type": "uint8"
+      },
+      {
+        "children": [
+          {
+            "description": "Maximum Configure-Request transmissions without a valid Configure-Ack, Configure-Nak or Configure-Reject. Changes apply to new sessions only.",
+            "kind": "leaf",
+            "name": "max-configure",
+            "short-help": "Unanswered Configure-Request transmission limit, 1 to 255, default 10.",
+            "source": "config",
+            "type": "uint8"
+          },
+          {
+            "description": "Configure-Naks sent without a Configure-Ack before unacceptable options are rejected and desired options are no longer appended. Changes apply to new sessions only.",
+            "kind": "leaf",
+            "name": "max-failure",
+            "short-help": "Configure-Nak limit before rejecting unacceptable options, 1 to 255, default 5.",
+            "source": "config",
+            "type": "uint8"
+          },
+          {
+            "description": "Maximum Terminate-Request transmissions without a Terminate-Ack, including the first request. Changes apply to new sessions only.",
+            "kind": "leaf",
+            "name": "max-terminate",
+            "short-help": "Unanswered Terminate-Request transmission limit, 1 to 255, default 2.",
+            "source": "config",
+            "type": "uint8"
+          },
+          {
+            "description": "Wait after each Configure-Request or Terminate-Request, and after zeroing the Restart counter. A shorter interval increases per-session wakeups. Changes apply to new sessions only.",
+            "kind": "leaf",
+            "name": "restart-timer",
+            "short-help": "LCP Restart timer in milliseconds, 100 to 60000, default 3000.",
+            "source": "config",
+            "type": "uint16"
+          }
+        ],
+        "description": "LCP retransmission settings for new sessions. Established sessions retain their admitted values.",
+        "kind": "container",
+        "name": "lcp",
+        "short-help": "LCP retransmission timer and limits for new sessions.",
+        "source": "config"
       },
       {
         "description": "Maximum concurrent PPP logins tracked by the CQM observer. The value controls the size of the\npre-allocated sample ring pool. When the maximum is exceeded, the least recently used login's data\nis evicted.",
@@ -24893,7 +24972,7 @@
             "type": "string"
           },
           {
-            "description": "Certificate revocation lists this CA issued, each an 'X509 CRL' PEM document or\nbase64-encoded DER. EAP-TLS on TLS 1.3 checks the revocation status of every certificate on a\npeer's chain except the trust anchor. RFC 9190 Section 5.4 makes that check mandatory. An\nEAP-TLS peer that validates against this CA and finds no current list here is refused. Publish\na fresh list before the nextUpdate of the one here passes: an expired list answers nothing\nabout the present and refuses the same peers. A list that revokes nothing is a valid answer\nand is what a CA publishes while it has withdrawn no certificate.",
+            "description": "Certificate revocation lists this CA issued, each an 'X509 CRL' PEM document or\nbase64-encoded DER. EAP-TLS on TLS 1.3 checks the revocation status of every certificate on a\npeer's chain except the trust anchor. RFC 9190 Section 5.4 makes that check mandatory. An\nEAP-TLS peer that validates against this CA and finds no current list here is refused. IKE\ncertificate authentication also checks every certificate on a peer's chain, except the trust\nanchor, against the lists of each ca entry whose certificate is on that chain, once any such\nentry holds a list: a revoked certificate, or one whose issuer has no current list, is refused.\nAn intermediate CA a peer's chain passes through is added as a ca entry with its own lists.\nPublish a fresh list before the nextUpdate of the one here passes: an expired list answers\nnothing about the present and refuses the same peers. A list that carries a critical extension\nZe cannot process (a delta CRL indicator, an issuing distribution point, a critical entry\nextension) answers nothing either, per RFC 5280 Section 5.2. A list that revokes nothing is a\nvalid answer and is what a CA publishes while it has withdrawn no certificate.",
             "kind": "leaf-list",
             "name": "crl",
             "short-help": "Certificate revocation lists this CA issued, each a PEM document or base64-encoded DER.",
@@ -24987,7 +25066,7 @@
             ]
           },
           {
-            "description": "States what you expect ze to do when this plugin's process exits. The plugin itself declares\nwhether it may be started again, and this leaf is a request inside that declaration. With no leaf\nhere the plugin's own declaration decides. With 'false' the plugin is left stopped even when it\nwould have been started again. With 'true' against a plugin that declares it must not be\nrestarted, ze refuses to start, and the error names the plugin and the policy it declared: ze\nhonors neither side in silence. The spelling comes from ExaBGP, whose process block carries the\nsame leaf. A restart is bounded at 5 in 60 seconds and 20 in the life of the daemon, after which\nthe plugin is disabled and 'show health' reports plugin-down.",
+            "description": "States what you expect ze to do when this plugin's process exits. The plugin itself declares\nwhether it may be started again, and this leaf is a request inside that declaration. With no leaf\nhere the plugin's own declaration decides. With 'false' the plugin is left stopped even when it\nwould have been started again. With 'true' against a plugin that declares it must not be\nrestarted, ze refuses to start, and the error names the plugin and the policy it declared: ze\nhonors neither side in silence. The spelling comes from ExaBGP, whose process block carries the\nsame leaf. A restart is bounded at 5 in 60 seconds and 20 in the life of the daemon, after which\nthe plugin is disabled and 'show health' reports doctor-plugin-stopped.",
             "kind": "leaf",
             "name": "respawn",
             "short-help": "Respawn on exit",
@@ -26368,6 +26447,47 @@
         "source": "config"
       },
       {
+        "children": [
+          {
+            "description": "Maximum Configure-Request transmissions without a valid Configure-Ack, Configure-Nak or Configure-Reject. Changes apply to new sessions only.",
+            "kind": "leaf",
+            "name": "max-configure",
+            "short-help": "Unanswered Configure-Request transmission limit, 1 to 255, default 10.",
+            "source": "config",
+            "type": "uint8"
+          },
+          {
+            "description": "Configure-Naks sent without a Configure-Ack before unacceptable options are rejected and desired options are no longer appended. Changes apply to new sessions only.",
+            "kind": "leaf",
+            "name": "max-failure",
+            "short-help": "Configure-Nak limit before rejecting unacceptable options, 1 to 255, default 5.",
+            "source": "config",
+            "type": "uint8"
+          },
+          {
+            "description": "Maximum Terminate-Request transmissions without a Terminate-Ack, including the first request. Changes apply to new sessions only.",
+            "kind": "leaf",
+            "name": "max-terminate",
+            "short-help": "Unanswered Terminate-Request transmission limit, 1 to 255, default 2.",
+            "source": "config",
+            "type": "uint8"
+          },
+          {
+            "description": "Wait after each Configure-Request or Terminate-Request, and after zeroing the Restart counter. A shorter interval increases per-session wakeups. Changes apply to new sessions only.",
+            "kind": "leaf",
+            "name": "restart-timer",
+            "short-help": "LCP Restart timer in milliseconds, 100 to 60000, default 3000.",
+            "source": "config",
+            "type": "uint16"
+          }
+        ],
+        "description": "LCP retransmission settings for new sessions. Established sessions retain their admitted values.",
+        "kind": "container",
+        "name": "lcp",
+        "short-help": "LCP retransmission timer and limits for new sessions.",
+        "source": "config"
+      },
+      {
         "description": "The 16-bit session ID range limits the count to 1 through\n65535.",
         "kind": "leaf",
         "name": "max-sessions",
@@ -26458,6 +26578,76 @@
     "name": "redistribute",
     "short-help": "Route redistribution between protocols.",
     "source": "config"
+  },
+  "request": {
+    "children": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "description": "One JSON object carries the operation and its session selection\nor opaque token. This internal transaction is carried through authenticated command dispatch.",
+                "kind": "leaf",
+                "name": "transaction",
+                "short-help": "JSON transaction operation, selection or token.",
+                "source": "config",
+                "type": "string"
+              }
+            ],
+            "description": "The RADIUS owner prepares a change, applies its maps, then commits\nit after every owner succeeds. Rollback restores the maps captured before prepare.",
+            "kind": "container",
+            "name": "session",
+            "short-help": "Change one subscriber's VLAN marking maps.",
+            "source": "config"
+          }
+        ],
+        "description": "These actions apply a named profile to a subscriber's access VLAN.",
+        "kind": "container",
+        "name": "class-of-service",
+        "short-help": "Apply subscriber class-of-service policy.",
+        "source": "config"
+      },
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "children": [
+                  {
+                    "description": "A JSON object carries the operation and token, or the interface and rates for prepare.",
+                    "kind": "leaf",
+                    "name": "transaction",
+                    "short-help": "JSON transaction operation and values.",
+                    "source": "config",
+                    "type": "string"
+                  }
+                ],
+                "description": "Prepare captures the complete last successfully programmed shaping state.\nApply changes both directions. Rollback restores that state, and commit releases the transaction.\nTokens belong to the source peer and an owner retains only one pending transaction.",
+                "kind": "container",
+                "name": "rate",
+                "short-help": "Manage a subscriber rate transaction.",
+                "source": "config"
+              }
+            ],
+            "description": "The shaper confirms backend application before a rate change succeeds.",
+            "kind": "container",
+            "name": "shaper",
+            "short-help": "Subscriber shaping operations.",
+            "source": "config"
+          }
+        ],
+        "description": "Operations on live subscriber sessions use the running daemon.",
+        "kind": "container",
+        "name": "l2tp",
+        "short-help": "L2TP runtime operations.",
+        "source": "both"
+      }
+    ],
+    "description": "Operational actions that change the running subscriber policy.",
+    "kind": "container",
+    "name": "request",
+    "short-help": "Request an operation on running state.",
+    "source": "both"
   },
   "rib": {
     "children": [
@@ -30968,6 +31158,34 @@
                 ]
               },
               {
+                "description": "The ICMP code, one number or an inclusive range written start-end, such\nas 0-3. RFC 4301 Section 4.4.1.1 allows 'a single type and a range of\ncodes, a single type and ANY code, and ANY type and ANY code', so a code\nneeds icmp-type, and commit refuses a range whose start is above its\nend.\n\nThe kernel selector matches a value under a mask, so Ze installs a\ncode range as the fewest mask-aligned blocks that cover exactly that\nrange, one kernel policy per block, all added and removed together.\nNo code outside the range matches.",
+                "kind": "leaf",
+                "name": "icmp-code",
+                "short-help": "ICMP code or start-end code range the selector matches, or any.",
+                "source": "config",
+                "type": "union",
+                "values": [
+                  {
+                    "name": "any",
+                    "short-help": "Every ICMP code of the type."
+                  }
+                ]
+              },
+              {
+                "description": "The ICMP message type of RFC 4301 Section 4.4.1.1: 'If the Next Layer\nProtocol value is ICMP, then there is a 16-bit selector for the ICMP\nmessage type and code.' It needs protocol 1 (ICMP) or 58 (ICMPv6), and\ncommit refuses it under any other protocol or beside a port other\nthan any.\n\nAn ICMP message has one type whichever way it travels, so a both entry\ninstalls the same type in each direction. With action discard and\ndirection in, the entry rejects that type of ICMP arriving in the\nclear at this node from the remote prefix: the per-type control of\nRFC 4301 Sections 6.1.1 and 6.1.2.\n\nAn ICMP message arriving on a Child SA is decided by that SA's peer\non Linux. When its icmp-error-check is true (the default), the\nkernel delivers a message this entry refuses whenever the header the\nmessage carries after its ICMP header, with addresses and ports\nreversed, matches the SA it arrived on, whatever the ICMP type. So\ncommit refuses a discard entry, in or both, matching ICMP in a family\nsuch a peer's selectors carry, whatever its type and prefixes. In the\nother direction the kernel sends an ICMP error this router generates\ninto a Child SA of such a peer even where a bypass entry would carry\nit in clear, so commit refuses a bypass entry, out or both, with type\nany or an ICMP error type (IPv4 3, 4, 5, 11, 12; IPv6 1, 2, 3, 4:\nthe types Linux 7.3 sends through its return-SA lookup, listed in\nicmp_overlap.go) and a remote prefix overlapping that peer's remote\nselectors. With icmp-error-check false on that peer, this entry\ndecides. A peer with vti bind meets neither refusal: its Child SA\npolicies carry the xfrm interface's if_id, which neither kernel\npath compares with this entry.\n\nThe VPP dataplane compares no ICMP type or code, so it refuses an\nentry that names one rather than matching every ICMP message.\n\nLinux classifies every IP fragment as type 0 code 0, and it\nclassifies forwarded traffic before reassembling it, so commit\nrefuses type 0 with an icmp-code that includes 0 on an out or both\nentry: its outbound half would also take every forwarded ICMP\nfragment between the prefixes. Use direction in, or an icmp-code\nrange starting at 1.",
+                "kind": "leaf",
+                "name": "icmp-type",
+                "short-help": "ICMP message type the selector matches, or any.",
+                "source": "config",
+                "type": "union",
+                "values": [
+                  {
+                    "name": "any",
+                    "short-help": "Every ICMP message type."
+                  }
+                ]
+              },
+              {
                 "children": [
                   {
                     "description": "One exact port, or any for every port. RFC 4301 Section 4.4.1.1 defines\nthe selector as a list of ranges; the kernel selector Ze programs carries a\nport and a mask, which expresses every port or one exact port and no\nrange between them. A range is refused rather than widened to any,\nbecause widening would bypass or discard traffic the operator did not\nname.",
@@ -31615,12 +31833,56 @@
                     ]
                   },
                   {
+                    "description": "What this peer's tunnel-mode Child SAs write into the DF bit of the\nouter IPv4 header they build.\n\nRFC 4301 Section 8.1: 'This means that it MUST be possible to\nconfigure the implementation's treatment of the DF bit (set,\nclear, copy from inner header) for each SA.  This applies to SAs\nwhere both inner and outer headers are IPv4.' The default copy\nis the option the same section makes mandatory.\n\nClear lets a router on the path fragment a tunnel packet that\nexceeds its link, at the cost of reassembly at the far end. With\ncopy, a router returns Fragmentation Needed for a DF-set packet\nand the tunnel's path MTU is learned and aged; with clear no path\nMTU is learned from the tunnel's packets, and the tunnel's MTU is\nits outer route's. Commit\nrefuses clear or set on a transport-mode peer, which builds no\nouter header, and on a peer whose local-address or remote-address\nis IPv6, whose header has no DF bit. Commit refuses set on every\ndataplane today: the Linux kernel copies or clears the bit and has\nno flag that sets it, and VPP's ESP encrypt path ignores its set\nflag. A change restarts the peer.",
+                    "kind": "leaf",
+                    "name": "df-bit",
+                    "short-help": "DF bit of the tunnel header: copy, clear or set.",
+                    "source": "config",
+                    "type": "enumeration",
+                    "values": [
+                      {
+                        "name": "clear",
+                        "short-help": "Write a clear DF bit, so routers on the path may fragment the tunnel packet."
+                      },
+                      {
+                        "name": "copy",
+                        "short-help": "Copy the DF bit of each inner IPv4 header into the tunnel header."
+                      },
+                      {
+                        "name": "set",
+                        "short-help": "Write a set DF bit whatever the inner header carries."
+                      }
+                    ]
+                  },
+                  {
+                    "description": "The DSCP this peer's tunnel-mode Child SAs write into the outer\nheader they build: copy, or one value 0 to 63 for every packet.\n\nRFC 4301 Section 5.1.2.1 constructs the outer DS Field as 'copied\nfrom inner hdr (5)', and note 5 says: 'If the packet will\nimmediately enter a domain for which the DSCP value in the outer\nheader is not appropriate, that value MUST be mapped to an\nappropriate value for the domain'. A value here is that mapping\nfor a domain that gives all of this tunnel's traffic one class.\n\nThe Linux kernel can copy or write 0 and nothing else, so on the\nLinux dataplane commit refuses a value from 1 to 63, and so does\nthe Child SA install; VPP writes any value. Commit refuses a value on a\ntransport-mode peer, which builds no outer header. A change\nrestarts the peer.",
+                    "kind": "leaf",
+                    "name": "dscp-map",
+                    "short-help": "DSCP of the tunnel header: copy, or 0 to 63.",
+                    "source": "config",
+                    "type": "union",
+                    "values": [
+                      {
+                        "name": "copy",
+                        "short-help": "Copy the DSCP of each inner header into the tunnel header."
+                      }
+                    ]
+                  },
+                  {
                     "description": "The group MUST be declared under vpn ipsec esp-group, and commit refuses a\nname no group carries. It supplies the ESP proposals Ze offers for this\npeer's Child SAs and the lifetime those SAs run under.",
                     "kind": "leaf",
                     "name": "esp-group",
                     "short-help": "Reference to an ESP group name.",
                     "source": "config",
                     "type": "leafref"
+                  },
+                  {
+                    "description": "Whether this peer's Child SAs carry the ICMP error processing of\nRFC 4301 Section 6.2.\n\nWhen true, an ICMP error that arrives on a Child SA with IP and\nICMP headers this peer's traffic selectors do not cover is checked\nagainst the header of the packet that triggered it, with source and\ndestination addresses and ports reversed, and is dropped unless that\nheader matches the selectors of the SA it arrived on. An outbound\nICMP error that no SA and no Security Policy Database entry would\ncarry is sent through the Child SA that carries the return traffic\nof the packet it reports.\n\nWhen false, neither happens: an ICMP error is carried only where a\ntraffic selector or a Security Policy Database entry covers its own\nheaders, and every other one is dropped unread. RFC 4301 Section 6.2\nnames that as the way to carry ICMP errors without inspecting their\npayload: configure an entry that explicitly carries them.\n\nThe Linux XFRM dataplane performs both for an ICMP error addressed\nto Ze itself and for one Ze generates. For a forwarded ICMP error\nthe kernel reaches the payload check only when no forward policy\nmatches the error's own headers, and Ze's catch-all entry always\ndoes: a forwarded error that arrives on a Child SA with headers the\nselectors do not cover is dropped, whatever this leaf says. A\nforwarded error leaving towards a Child SA is mapped to the return\nSA only when the outbound lookup passes it untransformed: under\n`unmatched bypass` the catch-all lets it through and the kernel then\nmaps it, while under `unmatched discard` the catch-all drops it\nfirst. Linux cannot tell a bypass entry from no entry here: an\nerror that a vpn ipsec policy bypass entry, or the catch-all under\n`unmatched bypass`, would carry in clear is still mapped to the\nreturn SA, although Section 6.2 maps it only 'if no SPD entry would\nallow carriage of this outbound ICMP error message'. And an ICMP\nmessage arriving on a Child SA that an inbound discard entry\nrefuses is delivered whenever its embedded header matches the SA.\nSo while this leaf is true, commit refuses `unmatched bypass`, a\nbypass entry that would carry an ICMP error to this peer's remote\nselectors, and an inbound discard entry matching ICMP in a family\nthe selectors carry, naming this leaf false as one fix; a\nconfiguration the daemon starts with logs the conflict at start\ninstead. A peer with vti bind is exempt from these refusals:\nits Child SA policies carry the xfrm interface's if_id, which\nneither kernel path compares with an operator entry. The VPP\ndataplane, reached only through the test override\nze.test.ike.dataplane, performs neither, so commit refuses this\nleaf true there and names icmp-error-check false as the fix.",
+                    "kind": "leaf",
+                    "name": "icmp-error-check",
+                    "short-help": "Check the payload of an ICMP error a Child SA carries.",
+                    "source": "config",
+                    "type": "boolean"
                   },
                   {
                     "description": "The group MUST be declared under vpn ipsec ike-group, and commit refuses a\nname no group carries. It supplies the IKE proposals, the IKE SA lifetime\nand the Dead Peer Detection timers of this peer.",
@@ -31695,7 +31957,7 @@
                       {
                         "children": [
                           {
-                            "description": "Local port of the selector.\n\nRFC 7296 Section 3.13.1 requires the port fields to be 0 and\n65535 whenever the protocol is 0 or defines no port, so a\nvalue other than any needs the protocol leaf to name a\nprotocol that has ports.",
+                            "description": "Local port of the selector.\n\nRFC 7296 Section 3.13.1 requires the port fields to be 0 and\n65535 whenever the protocol is 0 or defines no port, so a\nvalue other than any needs the protocol leaf to name a\nprotocol that has ports. Linux accepts specific TCP, UDP,\nSCTP and UDP-Lite ports. A DCCP-specific port is refused\nbecause XFRM cannot select it. For ICMP the number is\ntype times 256 plus code; for Mobility Header protocol\n135 it is Type times 256, with a zero low octet, so MH\nType 5 has wire value 1280. Ze refuses every specific MH\nType because the Linux receive-flow decoder does not\nextract it for exact classification; port any remains\nusable. VPP also refuses constrained MH and UDP-Lite\nselectors because its SPD ignores those fields.",
                             "kind": "leaf",
                             "name": "port",
                             "short-help": "Local port of the selector.",
@@ -31734,7 +31996,7 @@
                       {
                         "children": [
                           {
-                            "description": "It follows the same rule as the local port: a value other\nthan any needs the protocol leaf.",
+                            "description": "It follows the same rule as the local port: a value other\nthan any needs the protocol leaf. The ICMP type/code,\nMH high-octet Type encoding and backend limits stated\non the local port apply here too.",
                             "kind": "leaf",
                             "name": "port",
                             "short-help": "Remote port of the selector.",
@@ -31817,7 +32079,7 @@
             "source": "config"
           },
           {
-            "description": "The disposition of the catch-all entry Ze installs last in the\nSecurity Policy Database, in every direction and for both address\nfamilies. RFC 4301 Section 5: 'If no policy is found in the SPD\nthat matches a packet (for either inbound or outbound traffic),\nthe packet MUST be discarded.' The catch-all is that policy, so\na packet no other entry names always meets one.\n\nThe default is discard, the entry RFC 4301 Section 4.4.1 asks\nfor: 'Every SPD SHOULD have a nominal, final entry that matches\nanything that is otherwise unmatched, and discards it.' It also\ndrops the router's own traffic where it crosses in the clear:\nBGP, SSH, DNS, NTP, ICMP (ping, traceroute, show mtu probes and\npath-MTU errors) and IPv6 neighbor discovery, which is ICMPv6\n(protocol 58). So write a bypass entry under\npolicy for every flow that must still cross in the clear, or set\nbypass to pass all of it. A commit that would turn the discard\non while this leaf is unset is refused until the leaf is\nwritten. The IKE control plane keeps its own bypass at order 100\neither way.",
+            "description": "The disposition of the catch-all entry Ze installs last in the\nSecurity Policy Database, in every direction and for both address\nfamilies. RFC 4301 Section 5: 'If no policy is found in the SPD\nthat matches a packet (for either inbound or outbound traffic),\nthe packet MUST be discarded.' The catch-all is that policy, so\na packet no other entry names always meets one.\n\nThe default is discard, the entry RFC 4301 Section 4.4.1 asks\nfor: 'Every SPD SHOULD have a nominal, final entry that matches\nanything that is otherwise unmatched, and discards it.' It also\ndrops the router's own traffic where it crosses in the clear:\nBGP, SSH, DNS, NTP, ICMP (ping, traceroute, show mtu probes and\npath-MTU errors) and IPv6 neighbor discovery, which is ICMPv6\n(protocol 58). So write a bypass entry under\npolicy for every flow that must still cross in the clear, or set\nbypass to pass all of it. A commit that would turn the discard\non while this leaf is unset is refused until the leaf is\nwritten. The IKE control plane keeps its own bypass at order 100\neither way.\n\nbypass carries ICMP errors in clear, and Linux would still send\none about a tunnelled packet into the Child SA of a site-to-site\npeer whose icmp-error-check is true, so commit refuses bypass\nbeside such a peer; set icmp-error-check false on it. An ICMP\nbypass entry under policy meets the same refusal. A peer with\nvti bind is exempt: its Child SA policies carry the xfrm\ninterface's if_id, which the kernel's error mapping never\nlooks up.",
             "kind": "leaf",
             "name": "unmatched",
             "short-help": "Disposition of traffic no SPD entry matches: discard or bypass.",
