@@ -35,12 +35,29 @@ type Report struct {
 	// and left in place, repository-relative and sorted. A sync fills it, and
 	// nothing else does.
 	Left []string `json:"left,omitempty"`
+	// AgentPayloads holds one row per agent source, in the order of Agents:
+	// how that agent starts and the rule payload it starts with. The command's
+	// check fills it (checkWithPayloads), and nothing else does.
+	AgentPayloads []AgentPayload `json:"agent-payloads,omitempty"`
 }
 
 // Fresh reports whether the checkout's mirrors match their sources. It is the
 // check's verdict, so the command's exit code reads it rather than re-deriving
 // it from the page.
 func (r Report) Fresh() bool { return len(r.Stale) == 0 }
+
+// payloadsText renders the agent rows under a heading of their own, or
+// nothing when the run carries none.
+func (r Report) payloadsText(tb *textbuf.Buffer) {
+	if len(r.AgentPayloads) == 0 {
+		return
+	}
+	tb.Str("agent payloads (the rules each definition under ").Str(agentSources).Str(" starts with, read from ").
+		Str(claudeAgents).Str("):\n")
+	for _, row := range r.AgentPayloads {
+		row.text(tb)
+	}
+}
 
 // Text renders the report for a person, in the words the script printed before
 // it was a command. It ends in a newline.
@@ -54,12 +71,14 @@ func (r Report) Text() string {
 		return tb.String()
 	case modeCheck:
 		if r.Fresh() {
-			return tb.Str("generated agent files in sync\n").String()
+			tb.Str("generated agent files in sync\n")
+		} else {
+			for _, path := range r.Stale {
+				tb.Str("stale: ").Str(path).Byte('\n')
+			}
+			tb.Str("generated agent files are stale -- run: ./le ai sync update\n")
 		}
-		for _, path := range r.Stale {
-			tb.Str("stale: ").Str(path).Byte('\n')
-		}
-		tb.Str("generated agent files are stale -- run: ./le ai sync update\n")
+		r.payloadsText(&tb)
 		return tb.String()
 	default:
 		tb.Str("synced ").Int(int64(len(r.Skills))).Str(" skill(s) + ").

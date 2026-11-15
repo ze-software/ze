@@ -325,7 +325,20 @@ finds the same parts through the same reader, the child package
 and names the every-agent range that `AgentDecisions` answers, so the range it
 names to an agent is the text this report measures. The hook source seal
 watches that package, not the generator around it.
-<!-- source: internal/le/ai/rules/artifacts.go -- Payload, readAgentRuleSet, agentRuleSetParts -->
+
+Which agent starts with the agent rule set is decided in the same package:
+`ReadAgentStart` reads a definition's frontmatter in the mirror
+`.claude/agents/` and answers whether it omits the instruction files
+(`omitClaudeMd` set to any value but a bare `false`), loads them, or names no
+agent of its own name and is read as omitting. The start hook sends the rule
+set on that answer, and `./le ai sync check` prints, for each definition under
+`ai/agents/`, the payload the same answer gives it: the agent rule set's total
+or the always-loaded payload's, both taken from this report
+(`docs/contributing/claude-code-cheatsheet.md`). The agent rule set's budget is
+`agentTokenBudget` in `internal/le/ai/rules/artifacts.go`.
+<!-- source: internal/le/ai/rules/artifacts.go -- Payload, readAgentRuleSet, agentRuleSetParts, agentTokenBudget -->
+<!-- source: internal/le/ai/rules/ruleset/agentstart.go -- ReadAgentStart, OmitInstructionsKey -->
+<!-- source: internal/le/ai/sync/agentpayload.go -- agentPayloads -->
 <!-- source: internal/le/ai/rules/ruleset/ruleset.go -- HardBans, AgentDecisions, DecisionsAgentPartHeading, DecisionsMainPartHeading -->
 
 The decisions file has a third part, after the main-session part: `Rules for

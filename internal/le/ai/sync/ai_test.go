@@ -34,8 +34,10 @@ const (
 	specFrontmatter  = "---\nname: ze-spec\ndescription: write a spec\n---\n"
 )
 
-// fixture builds a checkout with two skills, one agent and an instructions
-// file.
+// fixture builds a checkout with two skills, one agent, an instructions file
+// and the rule files a session loads beside it. The agent loads the
+// instruction files, so the check's row for it measures the always-loaded
+// payload, which these files complete.
 func fixture(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
@@ -43,8 +45,22 @@ func fixture(t *testing.T) string {
 	write(t, root, "ai/skills/ze-spec.md", specFrontmatter+specBody+"\n")
 	write(t, root, "ai/agents/ze-work.md", "---\nname: ze-work\n---\nagent\n")
 	write(t, root, "ai/INSTRUCTIONS.md", "instructions for every agent\n")
+	writeRuleFiles(t, root)
 	return root
 }
+
+// The rule files of the fixture, beside ai/INSTRUCTIONS.md. The decisions
+// file holds its three parts, so every part the payload report reads from it
+// is present; the main-session part is the longest, so the always-loaded
+// payload and the agent rule set measure different totals.
+const (
+	fixtureDecisions = "# Decisions\n\n# Rules for every agent\n\n- every agent reads this\n\n" +
+		"# Rules for the main session\n\n- only the main session reads this, and it is long enough to tell the sets apart\n" +
+		"- a second main-session rule, so the always-loaded payload is the larger set\n\n" +
+		"# Rules for one kind of work\n\n## Labs\n\nRead before: building a lab.\n\n- a lab rule\n"
+	fixtureTriggers = "# Trigger Index\n\n| Rule | When |\n|------|------|\n| `ai/rules/x.md` | always |\n"
+	fixtureCore     = "# Core\n\n## A rule\n\nA directive every agent keeps.\n"
+)
 
 func write(t *testing.T, root, rel, body string) {
 	t.Helper()

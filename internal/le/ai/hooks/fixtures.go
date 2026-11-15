@@ -531,11 +531,39 @@ var (
 	// Re-sealed 2026-11-14 for the same spec, phase 2: hookSubagentContext's
 	// start text for a payload with no session id, and where it prints the
 	// identity sentence. Sealed after an independent review.
+	//
+	// Re-sealed 2026-11-15 for the same spec, phase 6, and for
+	// spec-agent-economy-4-supervision, package 1: the start hook lists the
+	// decisions sections an agent reads only before the work each names
+	// (ruleset.SituationalDecisions, agentRuleSet), and one function decides
+	// what a spec set is (specstatus.GroupSets). Sealed after two independent
+	// reviews of each.
+	//
+	// Re-sealed 2026-11-15 for both specs. The predicate that reads an agent
+	// definition's frontmatter moved from hookruntime to ruleset
+	// (ReadAgentStart), a move with the same answer for every input. The
+	// after-hook of an Agent call tells the main thread its context size past
+	// the handoff threshold (hookAgentSpawned, contextsize.Last), and
+	// internal/le/ai/tokens/contextsize joins the watched packages. The
+	// judgement of which commit closed a spec moved from commit to specpath
+	// (ClosedStems), and specstatus keeps the record of closed specs
+	// (LoadClosedSpecs, ReadClosedSpecs) and lists a set's closed children.
+	// internal/le/derived, whose atomic writer saves that record, and
+	// internal/le/repo/objects, which reads the blobs the judgement compares,
+	// are imported helpers and not direct producers, so they stay outside
+	// hookSourcePackages, as gitenv does. The reaper calls a session dead only
+	// on proof, keeps one written within session.IdleAge or whose claim
+	// marker it cannot read, refuses to judge with no Claude CLI visible, and
+	// removes the markers of a dead session that owns no directory
+	// (session.judge, ListClaims, lepath.ParseSpecClaimMarker). Sealed after
+	// independent reviews: one round for the move, two for the notice, four
+	// for the record and three for the reaper, whose three changed test
+	// inputs an independent judge approved.
 	hookSourcesDigest = [sha256.Size]byte{
-		0x62, 0x96, 0xe9, 0x17, 0x18, 0x50, 0x28, 0xe9,
-		0x09, 0x92, 0x5d, 0x4e, 0x86, 0xf1, 0x87, 0xbb,
-		0xf3, 0xc7, 0x51, 0x36, 0x50, 0xc9, 0x5c, 0xd9,
-		0xc1, 0x68, 0xbd, 0xc5, 0x5f, 0x79, 0x30, 0xf0,
+		0xe4, 0xa6, 0x0e, 0x8b, 0xc0, 0x33, 0xba, 0xbf,
+		0x61, 0x1b, 0xd1, 0x78, 0x7d, 0x32, 0x5e, 0x28,
+		0x9e, 0xb1, 0x2d, 0x2c, 0x96, 0x82, 0x33, 0x05,
+		0x38, 0x19, 0x41, 0x06, 0x10, 0x4b, 0xb1, 0x23,
 	}
 )
 

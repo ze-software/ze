@@ -934,9 +934,9 @@ func TestSubagentStartAddsTheAgentRuleSetForAnAgentThatOmitsTheInstructions(t *t
 		name        string
 		frontmatter string
 	}{
-		{"omits", "name: ze-read\n" + omitInstructionsKey + ": true\n"},
-		{"name-differs-from-type", "name: other\n" + omitInstructionsKey + ": false\n"},
-		{"uniformly-indented-frontmatter", "  name: ze-read\n  " + omitInstructionsKey + ": true\n"},
+		{"omits", "name: ze-read\n" + ruleset.OmitInstructionsKey + ": true\n"},
+		{"name-differs-from-type", "name: other\n" + ruleset.OmitInstructionsKey + ": false\n"},
+		{"uniformly-indented-frontmatter", "  name: ze-read\n  " + ruleset.OmitInstructionsKey + ": true\n"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			root := writeRuleSetTree(t, test.frontmatter, ruleSetInstructions, ruleSetDecisions)
@@ -980,10 +980,10 @@ func TestSubagentStartAddsNoRuleSetForAnAgentThatLoadsTheInstructions(t *testing
 		agentType   string
 	}{
 		{"no-omit-line", "name: ze-read\n", "ze-read"},
-		{"omit-false", "name: ze-read\n" + omitInstructionsKey + ": false\n", "ze-read"},
-		{"no-definition", "name: ze-read\n" + omitInstructionsKey + ": true\n", "general-purpose"},
-		{"path-type", "name: ze-read\n" + omitInstructionsKey + ": true\n", "../" + ruleset.AgentDefinitionsDir + "/ze-read"},
-		{"plugin-type", "name: ze-read\n" + omitInstructionsKey + ": true\n", "plugin:ze-read"},
+		{"omit-false", "name: ze-read\n" + ruleset.OmitInstructionsKey + ": false\n", "ze-read"},
+		{"no-definition", "name: ze-read\n" + ruleset.OmitInstructionsKey + ": true\n", "general-purpose"},
+		{"path-type", "name: ze-read\n" + ruleset.OmitInstructionsKey + ": true\n", "../" + ruleset.AgentDefinitionsDir + "/ze-read"},
+		{"plugin-type", "name: ze-read\n" + ruleset.OmitInstructionsKey + ": true\n", "plugin:ze-read"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -1007,7 +1007,7 @@ func TestSubagentStartAddsNoRuleSetForAnAgentThatLoadsTheInstructions(t *testing
 // whole rather than a range.
 // PREVENTS: a missing rule file leaving an agent with no bans and no pointer.
 func TestSubagentStartSurvivesAMissingRuleFile(t *testing.T) {
-	root := writeRuleSetTree(t, "name: ze-read\n"+omitInstructionsKey+": true\n", "", "")
+	root := writeRuleSetTree(t, "name: ze-read\n"+ruleset.OmitInstructionsKey+": true\n", "", "")
 	text := subagentStartText(t, root, map[string]any{"session_id": "context-parent", "agent_id": "agent-1", "agent_type": "ze-read"})
 	for _, want := range []string{
 		agentRuleSetHeading,
@@ -1047,7 +1047,7 @@ func TestSubagentStartSendsTheWholeDecisionsFileWhenAPartHeadingIsMissing(t *tes
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			root := writeRuleSetTree(t, "name: ze-read\n"+omitInstructionsKey+": true\n", ruleSetInstructions, test.decisions)
+			root := writeRuleSetTree(t, "name: ze-read\n"+ruleset.OmitInstructionsKey+": true\n", ruleSetInstructions, test.decisions)
 			text := subagentStartText(t, root, map[string]any{"session_id": "context-parent", "agent_id": "agent-1", "agent_type": "ze-read"})
 			for _, want := range []string{ruleset.DecisionsFile + " whole: its every-agent part cannot be found", test.want} {
 				if !strings.Contains(text, want) {
@@ -1088,7 +1088,7 @@ func TestSubagentStartSendsTheWholeDecisionsFileWhenItsSectionsCannotBeListed(t 
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			root := writeRuleSetTree(t, "name: ze-read\n"+omitInstructionsKey+": true\n", ruleSetInstructions, test.decisions)
+			root := writeRuleSetTree(t, "name: ze-read\n"+ruleset.OmitInstructionsKey+": true\n", ruleSetInstructions, test.decisions)
 			text := subagentStartText(t, root, map[string]any{"session_id": "context-parent", "agent_id": "agent-1", "agent_type": "ze-read"})
 			for _, want := range []string{ruleset.DecisionsFile + " whole: ", test.want} {
 				if !strings.Contains(text, want) {
@@ -1116,7 +1116,7 @@ func TestSubagentStartCutsALongSectionHeading(t *testing.T) {
 	heading := strings.Repeat("h", 300)
 	decisions := "# Owner Meta Decisions\n\n## " + ruleset.DecisionsAgentPartHeading + "\n- A.\n\n## " + ruleset.DecisionsMainPartHeading + "\n- B.\n" +
 		"\n## " + ruleset.DecisionsSituationalPartHeading + "\n\n### " + heading + "\n" + ruleset.SituationPrefix + "running a lab.\n- " + fixtureSituationalDecision + "\n"
-	root := writeRuleSetTree(t, "name: ze-read\n"+omitInstructionsKey+": true\n", ruleSetInstructions, decisions)
+	root := writeRuleSetTree(t, "name: ze-read\n"+ruleset.OmitInstructionsKey+": true\n", ruleSetInstructions, decisions)
 	text := subagentStartText(t, root, map[string]any{"session_id": "context-parent", "agent_id": "agent-1", "agent_type": "ze-read"})
 	want := "\n- " + heading[:startTextErrorMax] + "... (lines 11-13, offset 11, limit 3): running a lab.\n"
 	if !strings.Contains(text, want) {
@@ -1313,114 +1313,6 @@ func TestStartTextBoundedCutsOnARuneBoundary(t *testing.T) {
 	}
 }
 
-// writeAgentDefinition writes one mirrored definition named agentType.md
-// with the given frontmatter, and answers the checkout root.
-func writeAgentDefinition(t *testing.T, agentType, frontmatter string) string {
-	t.Helper()
-	root := t.TempDir()
-	writeHookFixture(t, root, filepath.Join(ruleset.AgentDefinitionsDir, agentType+".md"), "---\n"+frontmatter+"---\n\nBody.\n")
-	return root
-}
-
-// TestAgentOmitsInstructionsReadsTheFrontmatterTheHarnessReads holds the
-// frontmatter reader to the values YAML gives the harness.
-//
-// VALIDATES: a trailing comment, a capitalised or quoted true, a quoted name,
-// and an indented key inside a multi-line description (for name and for
-// omitClaudeMd) are each read as an agent that omits the instruction files;
-// so are an indented "---" inside a description, which does not close the
-// block, a quoted key, and a repeated key any occurrence of which is not a
-// bare false; so is a definition at the type's path whose name the reader
-// cannot match (another name, a name only indented, uniformly indented
-// frontmatter, no name), whatever its omitClaudeMd; absent and false under a
-// matching name, with or without a comment or repeated, are read as loading
-// them. Method: each row writes one definition and asks
-// agentOmitsInstructions, so a reader that took one occurrence of a repeated
-// key, read an indented line as a key or as the closing line, kept a key's
-// quotes or compared the raw text would turn a row red.
-// PREVENTS: an agent that starts without the instruction files given no ban
-// because its definition spells the value in another valid way.
-func TestAgentOmitsInstructionsReadsTheFrontmatterTheHarnessReads(t *testing.T) {
-	const key = omitInstructionsKey
-	tests := []struct {
-		name        string
-		frontmatter string
-		omits       bool
-	}{
-		{"comment-after-true", "name: ze-read\n" + key + ": true # see the spec\n", true},
-		{"capitalised-true", "name: ze-read\n" + key + ": True\n", true},
-		{"quoted-true", "name: ze-read\n" + key + ": \"true\"\n", true},
-		{"quoted-name", "name: \"ze-read\"\n" + key + ": true\n", true},
-		{"single-quoted-name", "name: 'ze-read'\n" + key + ": true\n", true},
-		{"indented-name-in-description", "name: ze-read\ndescription: |\n  Reads.\n  name: x\n" + key + ": true\n", true},
-		{"indented-false-in-description", key + ": true\nname: ze-read\ndescription: >\n  Reads.\n  " + key + ": false\n", true},
-		{"tab-indented-false", "name: ze-read\n" + key + ": true\n\t" + key + ": false\n", true},
-		{"repeated-key-true-then-false", "name: ze-read\n" + key + ": true\n" + key + ": false\n", true},
-		{"repeated-key-false-then-true", "name: ze-read\n" + key + ": false\n" + key + ": true\n", true},
-		{"indented-closing-line-in-description", "name: ze-read\ndescription: |\n  a\n  ---\n" + key + ": true\n", true},
-		{"quoted-key", "name: ze-read\n\"" + key + "\": true\n", true},
-		{"single-quoted-key", "name: ze-read\n'" + key + "': true\n", true},
-		{"repeated-false", "name: ze-read\n" + key + ": false\n" + key + ": false\n", false},
-		{"crlf-lines", "name: ze-read\r\n" + key + ": true\r\n", true},
-		{"absent", "name: ze-read\n", false},
-		{"false", "name: ze-read\n" + key + ": false\n", false},
-		{"false-with-comment", "name: ze-read\n" + key + ": false # loads them\n", false},
-		// A definition at the type's path whose name the reader cannot match
-		// cannot be read for sure, so it takes the side that sends the rule set.
-		{"name-differs", "name: other\n" + key + ": false\n", true},
-		{"indented-name-only", "description: |\n  name: ze-read\n" + key + ": false\n", true},
-		{"uniformly-indented-frontmatter", "  name: ze-read\n  " + key + ": true\n", true},
-		{"no-name", key + ": false\n", true},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := writeAgentDefinition(t, "ze-read", test.frontmatter)
-			omits, err := agentOmitsInstructions(root, "ze-read")
-			if err != nil {
-				t.Fatalf("agentOmitsInstructions: %v", err)
-			}
-			if omits != test.omits {
-				t.Errorf("agentOmitsInstructions = %v, want %v for:\n%s", omits, test.omits, test.frontmatter)
-			}
-		})
-	}
-}
-
-// TestValidAgentTypeAdmitsOnlyAFileName holds the guard that keeps a payload's
-// agent type from naming a path outside the mirror.
-//
-// VALIDATES: letters, digits, '-' and '_' up to agentTypeLengthMax are
-// admitted; a dot segment, a separator, a plugin scope, non-ASCII, one
-// character over the bound and the empty type are refused.
-// PREVENTS: a hostile agent type reading a file outside .claude/agents, or a
-// type the harness could not report reaching the reader.
-func TestValidAgentTypeAdmitsOnlyAFileName(t *testing.T) {
-	tests := []struct {
-		agentType string
-		valid     bool
-	}{
-		{"ze-read", true},
-		{"ze_work2", true},
-		{"ZE-Read", true},
-		{strings.Repeat("a", agentTypeLengthMax), true},
-		{"", false},
-		{strings.Repeat("a", agentTypeLengthMax+1), false},
-		{"..", false},
-		{"ze.read", false},
-		{"../ze-read", false},
-		{"agents/ze-read", false},
-		{"ze\\read", false},
-		{"plugin:ze-read", false},
-		{"zé-read", false},
-		{"ze read", false},
-	}
-	for _, test := range tests {
-		if got := validAgentType(test.agentType); got != test.valid {
-			t.Errorf("validAgentType(%q) = %v, want %v", test.agentType, got, test.valid)
-		}
-	}
-}
-
 // TestSubagentStartNamesTheFilesWhenTheDefinitionCannotBeRead drives the hook
 // for an agent type whose definition path is a directory, which exists and
 // cannot be read as a file.
@@ -1492,15 +1384,15 @@ func TestAgentDefinitionsCarryTheHardBansOfTheInstructions(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		fields := frontmatterFields(string(body))
+		fields := ruleset.FrontmatterFields(string(body))
 		// Every definition is judged here, before the omit filter: one whose
 		// name the reader cannot read (indented frontmatter, an unclosed
 		// block) also yields no omitClaudeMd, so the filter would skip it.
-		if stem := strings.TrimSuffix(filepath.Base(definition), ".md"); len(fields["name"]) != 1 || frontmatterUnquoted(fields["name"][0]) != stem {
+		if stem := strings.TrimSuffix(filepath.Base(definition), ".md"); len(fields["name"]) != 1 || ruleset.FrontmatterUnquoted(fields["name"][0]) != stem {
 			t.Errorf("%s: the hook's frontmatter reader reads name %q, not the file stem %q, so the hook cannot tell whether this agent loads the instruction files", definition, fields["name"], stem)
 			continue
 		}
-		if !frontmatterOmits(fields[omitInstructionsKey]) {
+		if !ruleset.FrontmatterOmits(fields[ruleset.OmitInstructionsKey]) {
 			continue
 		}
 		omitting++
@@ -1528,7 +1420,7 @@ func TestAgentDefinitionsCarryTheHardBansOfTheInstructions(t *testing.T) {
 		}
 	}
 	if omitting == 0 {
-		t.Fatalf("no definition under ai/agents sets %s: true", omitInstructionsKey)
+		t.Fatalf("no definition under ai/agents sets %s: true", ruleset.OmitInstructionsKey)
 	}
 }
 

@@ -28,7 +28,8 @@ var actions = leaction.New(area,
 		Writes: true,
 		Answer: syncHere},
 	leaction.Action{Verb: "check", Summary: "name generated agent files that no longer match", Why: "name every generated agent file that no longer matches its source." +
-		" All of them are gitignored, so git can never show this drift",
+		" All of them are gitignored, so git can never show this drift." +
+		" Then name, for each agent definition, whether it omits the instruction files and the rule payload it starts with in tokens",
 		Answer: checkHere},
 	leaction.Action{
 		Verb:    "preview",
@@ -82,18 +83,23 @@ func syncHere() (any, int) {
 	return report, 0
 }
 
-// checkHere compares this checkout's mirrors against their sources.
+// checkHere compares this checkout's mirrors against their sources, and names
+// the rule payload each agent definition starts with.
 //
 // A stale tree answers 1. The native check action and the session hook both
 // read that code. A tree that was not JUDGED also answers 1 and states the
 // reason on stderr because an incomplete check does not establish freshness.
+// So does a payload that cannot be measured: a row with a missing part would
+// print a figure for a set no agent starts with. A definition that loads the
+// instruction files is a reported fact, never a failure: an agent may be meant
+// to load them.
 func checkHere() (any, int) {
 	mirror, err := here()
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	report, err := mirror.Check()
+	report, err := mirror.checkWithPayloads()
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1

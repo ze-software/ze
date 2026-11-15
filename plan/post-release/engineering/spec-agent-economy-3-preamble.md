@@ -347,8 +347,9 @@ every test and every generator.
 
 ### Remaining before closure
 - The probe: A-3 only. A-1 and A-4 are validated. A-3 needs a session started after a temporary definition with no `Skill` in its tools is synced, because definitions load at session start
-- The R-6 `./le ai sync check` report of the agent payload per definition
-- The agent rule set's budget value (AC-12) and the AC-13 figure, both from the probe
+- The agent rule set's budget value (AC-12) and the AC-13 figure, both the owner's with the measurements now in hand: an agent's rule set is 21,329 tokens against a budget of 12,000 set without a basis (`agentTokenBudget` in `internal/le/ai/rules/artifacts.go`), and over 2026-11-01 to 2026-11-15 a subagent's first call carried a median 56.9k tokens of context against AC-13's 35k (`./le ai tokens report from 2026-11-01 days 14`). Those two weeks are almost all before the lean start landed, so the figure to judge AC-13 on is the same report over the weeks after 2026-11-15
+
+Built 2026-11-15: R-6. `./le ai sync check` prints one row per agent definition: whether it omits the instruction files and the rule payload it therefore starts with, each figure taken from the one payload measure (`ze-read` and `ze-work`: the agent rule set, 21,329 tokens; `lsp-probe`: the always-loaded payload, 27,246). A definition that loads the files is a reported fact; the check fails only when a payload a row needs cannot be measured. The predicate that reads a definition's frontmatter moved to `ruleset.ReadAgentStart`, so the check and the start hook use one. Reviewed by an independent strongest-tier agent: the move answers the same for every input; an independent judge approved the three test units that moved with it
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -418,7 +419,7 @@ agent; phase 1 probes each before the design relies on it):
 - The skill listing for the main session is the owner's setting (which bundled and plugin skills his account lists). This spec changes only what a phase agent carries.
 - The system door (11KB, read by every editing agent) is left whole: the door gate exists because agents designed from habit, and a shortened door risks the failure the gate stops. Revisit only with the umbrella's measurement after this child lands.
 - The trigger-index and per-stage views of `plan/post-release/engineering/spec-rules-situation-index.md` are not built here.
-- R-6 says `./le ai sync check` reports the agent payload per definition. That report is not built; it is owed in this spec before closure.
+- R-6 says `./le ai sync check` reports the agent payload per definition. That report was built on 2026-11-15 (see "Remaining before closure").
 - The 24KB core target of AC-8 was set before the points were read: most points hold a prohibition and a procedure in one paragraph, so the target could not be met without hiding a prohibition. The owner withdrew it on 2026-11-14.
 - `./le ai rules report payload` reports the agent rule set at 23,772 tokens against a budget of 12,000, so it says EXCEEDED. The implementing agent chose 12,000 without a basis. The budget is owed a value with a basis, set when phase 6 lands and the probe has measured an agent's real first turn; until then AC-12's "each against its own budget" is met in form and its number is not meaningful.
 

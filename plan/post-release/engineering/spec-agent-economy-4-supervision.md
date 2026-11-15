@@ -303,6 +303,18 @@ Packages 1 to 8 run in that order. Packages 9, 10 and 11 are independent of
 the chain. Package 7's stop refusal waits on the owner's answer recorded
 under "Open with the owner".
 
+Where the packages stand (2026-11-15):
+
+| # | State |
+|---|-------|
+| 1 | Landed, 81ace1d673. Two review rounds |
+| 2 | Implemented and reviewed three rounds. → Decision: set membership comes from the spec files alone; the record of closed specs only adds closed children to a set the files form, so every reader agrees on the sets whether or not it read the record. → Constraint: a number-less parent whose numbered children are all closed is therefore not recognisable as a set; only a `-0-umbrella` file is a set on its own. Package 7's umbrella closure reaches the `-0-umbrella` shape only. → Constraint: nothing calls `LoadClosedSpecs` or `ReadClosedSpecs` yet; package 4 wires them, and its session-start line prints the command that computes the record beside "not computed" |
+| 3 | Implemented; the reaper half of AC-19. → Decision: a session is called dead only on proof and is kept, with the verdict cannot tell, when its directory tree or one of its own flat markers was written within one day, the rule the store trim already applied. → Decision: with no Claude process visible the reaper refuses to judge and removes nothing, as the trim does; the three reaper tests whose inputs changed were approved by an independent judge. → Constraint: `ListClaims` and `Judge` walk the tree of every unproven idle directory, so package 4 must measure them before calling them inside the session-start time budget. → Constraint: `spec-le-session-clean-preserves-active-harnesses.md` owns the same surface; this package meets its AC-2, AC-3 and AC-4 and only partly its AC-1 (a quiet live peer of another harness is kept only while it wrote within a day) |
+| 4 to 8 | Not started |
+| 9 | AC-1 implemented and reviewed: past 600,000 tokens of context, an agent spawn tells the main thread its size and the fresh-session rule. AC-3 (the notices at 60 and 80 calls) is written as a patch and NOT applied: it needs two hunks in `internal/le/hookruntime/runtime.go`, the permission layer refused that edit to the agent, and the main thread does not apply a refused edit on an agent's request. The patch and its two documentation hunks are in the session scratch as `ac3-budget-notice.patch` and `ac3-docs.patch`; the owner decides. AC-2 and the agent half of AC-19 need the SubagentStop event: record one payload first |
+| 10 | Landed, 3909e97f96. Two review rounds. The honest saving is 0.8 to 1.9KB a skill: nearly all their text is instruction, and instructions stayed |
+| 11 | Implemented and reviewed three rounds as an extension of `./le ai tokens report`: a window (`from`, `days`) and every figure of the umbrella's criteria and baseline table. → Constraint: queue wait per agent or session is not recordable from existing data; the job record has no session or agent column |
+
 ## Open Questions for Design
 - Whether AC-7's measure is a new action or an extension of the existing token report.
 - The SubagentStop payload, to record in package 9. It is the one probe this spec owes; the other harness questions are answered.

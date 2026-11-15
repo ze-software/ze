@@ -5,15 +5,12 @@ import (
 	"bytes"
 	stdcontext "context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -593,7 +590,7 @@ func hookSubagentContext(ctx context, out io.Writer) int {
 	}
 	subagentCallRules(&text)
 	text.Str("\nYou are a subagent under ai/rules/planning.md. Report grounded facts, read routed rules before acting, never weaken tests, and write scratch only under ./le session scratch ensure.\n")
-	omits, err := agentOmitsInstructions(ctx.root, ctx.payload.AgentType)
+	start, err := ruleset.ReadAgentStart(ctx.root, ctx.payload.AgentType)
 	switch {
 	case err != nil:
 		text.Str("\nCannot read your agent definition (").Str(startTextBounded(err.Error())).
@@ -601,7 +598,7 @@ func hookSubagentContext(ctx context, out io.Writer) int {
 			Str(ruleset.InstructionsFile).Str(" is not in your context, read its \"# ").Str(ruleset.HardBansHeading).
 			Str("\" section, ").Str(ruleset.CoreFile).Str(", ").Str(ruleset.TriggersFile).Str(" and ").Str(ruleset.DecisionsFile).
 			Str(" before acting.\n")
-	case omits:
+	case start.Omits():
 		agentRuleSet(&text, ctx.root)
 	}
 	response := map[string]any{"hookSpecificOutput": map[string]any{"hookEventName": "SubagentStart", "additionalContext": text.String()}}
@@ -635,22 +632,6 @@ func subagentCallRules(text *textbuf.Buffer) {
 // their reader are internal/le/ai/rules/ruleset's, the same reader the payload
 // report measures with.
 const agentRuleSetHeading = "Agent rule set"
-
-// omitInstructionsKey is the frontmatter key the harness reads to start a
-// subagent without the project instruction files. The definitions it is read
-// from are the mirror `./le ai sync update` writes (ruleset.AgentDefinitionsDir).
-const omitInstructionsKey = "omitClaudeMd"
-
-// omitInstructionsLoads is the one omitClaudeMd value read as an agent that
-// loads the instruction files. Every other value, quoted, capitalised or
-// unknown, is read as omitting: the rule set sent to an agent that did load the
-// files costs it a few thousand characters, while nothing sent to one that did
-// not leaves it with no ban.
-const omitInstructionsLoads = "false"
-
-// agentTypeLengthMax bounds an agent type joined to a path. Every definition
-// name in ai/agents is far shorter.
-const agentTypeLengthMax = 64
 
 // startTextErrorMax bounds, in bytes, a value the start text echoes that a
 // payload or the checkout chooses: a claim, an error naming a path, the branch,
@@ -690,135 +671,6 @@ func startTextBounded(value string) string {
 		end--
 	}
 	return value[:end] + "..."
-}
-
-// agentOmitsInstructions reports whether the agent the start payload names
-// starts without the project instruction files: its definition in the mirror
-// names that agent in its frontmatter and sets omitClaudeMd to any value other
-// than false. The harness reports a custom agent's type as its frontmatter
-// name, not its file name, so the two must match; a definition at the type's
-// path whose frontmatter names no such agent, as this reader reads it, is
-// read as omitting, the side that sends the rule set.
-//
-// It sees only the mirror this checkout writes. A type that cannot name a file
-// there (a plugin agent's scoped name, a path) and a type with no definition
-// in it (a built-in agent, or a user-level or plugin agent defined outside the
-// checkout) answer false: this start text adds no rule set for them, whether
-// or not their own definition sets omitClaudeMd. A definition that exists and
-// cannot be read is an error: the caller cannot tell which start the agent had.
-func agentOmitsInstructions(root, agentType string) (bool, error) {
-	if !validAgentType(agentType) {
-		return false, nil
-	}
-	path := filepath.Join(root, ruleset.AgentDefinitionsDir, agentType+".md")
-	body, err := os.ReadFile(path) //nolint:gosec // agentType is validated as a file name above
-	// refuse-by-default: guards hookSubagentContext -- a type with no definition in the mirror gets no rule set; the definitions this checkout writes are the only ones it can read
-	if errors.Is(err, fs.ErrNotExist) {
-		return false, nil
-	}
-	if err != nil {
-		return false, err
-	}
-	fields := frontmatterFields(string(body))
-	// A definition at the type's path whose name the reader cannot match
-	// (another name, frontmatter indented as a whole, no closed block) cannot
-	// be read for sure, so it takes the side that sends the rule set.
-	if !slices.ContainsFunc(fields["name"], func(name string) bool { return frontmatterUnquoted(name) == agentType }) {
-		return true, nil
-	}
-	return frontmatterOmits(fields[omitInstructionsKey]), nil
-}
-
-// frontmatterOmits reports whether the omitClaudeMd values a definition sets
-// read as an agent that omits the instruction files: any occurrence other
-// than the bare loading value. A repeated key cannot be read for sure, so it
-// takes the side that sends the rule set. No occurrence reads as loading.
-func frontmatterOmits(values []string) bool {
-	return slices.ContainsFunc(values, func(value string) bool { return value != omitInstructionsLoads })
-}
-
-// validAgentType reports whether an agent type can name a file in the mirror:
-// letters, digits, '-' and '_' only, so no separator, dot segment or plugin
-// scope (a plugin agent's type holds a colon) reaches the path.
-func validAgentType(agentType string) bool {
-	if agentType == "" {
-		return false
-	}
-	if len(agentType) > agentTypeLengthMax {
-		return false
-	}
-	for _, char := range agentType {
-		switch {
-		case 'a' <= char && char <= 'z':
-		case 'A' <= char && char <= 'Z':
-		case '0' <= char && char <= '9':
-		case char == '-', char == '_':
-		default:
-			return false
-		}
-	}
-	return true
-}
-
-// frontmatterFields reads the top-level key: value lines between a
-// definition's opening and closing "---" lines, each value with its trailing
-// " #" comment removed and its quotes kept, and every occurrence of a key kept
-// in file order. A key is read without one pair of quotes around it. An
-// indented line belongs to the value above it (a multi-line description), so
-// it is never read as a key and never closes the block. A definition with no
-// closed frontmatter has no fields, so an unterminated block is never read as
-// configuration.
-func frontmatterFields(body string) map[string][]string {
-	fields := map[string][]string{}
-	lines := strings.Split(body, "\n")
-	if strings.TrimSpace(lines[0]) != "---" {
-		return fields
-	}
-	for _, line := range lines[1:] {
-		line = strings.TrimRight(line, "\r")
-		if line == "" || line[0] == ' ' || line[0] == '\t' {
-			continue
-		}
-		if strings.TrimSpace(line) == "---" {
-			return fields
-		}
-		key, value, found := strings.Cut(line, ":")
-		if !found {
-			continue
-		}
-		key = frontmatterUnquoted(strings.TrimSpace(key))
-		fields[key] = append(fields[key], frontmatterValue(value))
-	}
-	return map[string][]string{}
-}
-
-// frontmatterValue answers a frontmatter value without its surrounding blanks
-// and its trailing comment: a '#' at the value's start or after a blank opens
-// a YAML comment.
-func frontmatterValue(raw string) string {
-	value := strings.TrimSpace(raw)
-	if strings.HasPrefix(value, "#") {
-		return ""
-	}
-	for at := range len(value) {
-		if value[at] == '#' && (value[at-1] == ' ' || value[at-1] == '\t') {
-			return strings.TrimSpace(value[:at])
-		}
-	}
-	return value
-}
-
-// frontmatterUnquoted answers a value without one pair of matching quotes
-// around it, as YAML reads "ze-read" and 'ze-read' as ze-read.
-func frontmatterUnquoted(value string) string {
-	if len(value) < 2 {
-		return value
-	}
-	first, last := value[0], value[len(value)-1]
-	if first == last && (first == '"' || first == '\'') {
-		return value[1 : len(value)-1]
-	}
-	return value
 }
 
 // agentRuleSet writes what an agent that starts without the project

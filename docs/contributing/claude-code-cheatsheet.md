@@ -135,6 +135,29 @@ marker line its caller supplies.
 <!-- source: internal/core/skillstub/skillstub.go -- At, Write, OwnedBy, RemoveOwnedBy, Frontmatter -->
 <!-- source: internal/le/ai/sync/report.go -- Report.Text -->
 
+After its verdict, `./le ai sync check` prints one row per agent definition
+under `ai/agents/`: its name, whether it omits the project instruction files,
+and the rule payload it therefore starts with, in tokens. A definition whose
+frontmatter sets `omitClaudeMd` starts with the agent rule set the start hook
+hands it; one that does not loads the whole always-loaded payload. A new
+definition that forgets the line costs that size at every start, and the row
+shows it.
+
+The row is read from the mirror in `.claude/agents/`, the copy the harness and
+the start hook read, through the hook's own predicate (`ReadAgentStart`), and
+each figure is the total `./le ai rules report payload` measures, never a
+second count. A definition whose frontmatter names no agent of its own name
+reads as omitting, the side that sends the rule set, and its row says so. A
+source not yet mirrored gets a row with no figure and the command that writes
+it. Loading the instruction files is a reported fact, never a failure: an
+agent may be meant to load them. The check fails only when a payload some row
+needs cannot be measured, because a part of it is missing, so no row prints a
+figure for a set no agent starts with. `| json` carries the rows under
+`agent-payloads`, each with `name`, `start`, `payload` and `tokens`.
+<!-- source: internal/le/ai/sync/agentpayload.go -- checkWithPayloads, agentPayloads, payloadRow, AgentPayload -->
+<!-- source: internal/le/ai/rules/ruleset/agentstart.go -- ReadAgentStart, AgentStart -->
+<!-- source: internal/le/ai/rules/artifacts.go -- Payload -->
+
 A skill body holds every step, instruction, prohibition, command and gate the
 agent runs, because the whole body loads into that agent. The reasons, history
 and examples behind a step may live in `ai/rationale/<name>.md`, the page named
