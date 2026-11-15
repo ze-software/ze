@@ -473,6 +473,12 @@ Responsibilities:
 <!-- source: internal/component/l2tp/plugins/authradius/coa_transaction.go -- confirmCoA -->
 - Clean up TC rules on `(l2tp, session-down)`.
 
+The hidden transaction command is registered by `commandDecls` and validates
+its keyword, bounded JSON value and authenticated source in `rateOperation`.
+The configuration module holds the persistent `l2tp shaper` settings.
+<!-- source: internal/component/l2tp/plugins/shaper/register.go -- commandDecls -->
+<!-- source: internal/component/l2tp/plugins/shaper/yang/ze-l2tp-shaper-conf.yang -- container l2tp -->
+
 ### 6.4 l2tp-stats (telemetry)
 
 ```go
