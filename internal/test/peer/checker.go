@@ -824,6 +824,14 @@ func (c *Checker) nextSendAction() (bool, string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	// The last send consumed ended this connection's script, and
+	// updateMessagesIfRequired already loaded the next connection's sequence:
+	// its sends belong to that connection, so none is sent on this one. Init
+	// clears the flag when the next connection starts.
+	if c.connectionJustEnded {
+		return false, ""
+	}
+
 	if len(c.messages) == 0 {
 		return false, ""
 	}

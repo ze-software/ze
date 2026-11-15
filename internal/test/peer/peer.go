@@ -1065,6 +1065,13 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn, senderAS uint3
 			}
 		}
 
+		// The sends just made ended this connection's script: the rest belongs
+		// to the next connection, so this one ends here, as it does when its
+		// script holds only sends (above the loop).
+		if p.checker.sequenceEnded() {
+			return p.endSequence(ctx, conn)
+		}
+
 		// Check for close action after sends (send → close sequence).
 		if p.checker.nextCloseAction() {
 			p.printf("\nclosing connection (action=close)\n")
