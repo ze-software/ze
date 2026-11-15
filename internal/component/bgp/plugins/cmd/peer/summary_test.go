@@ -1147,9 +1147,8 @@ func TestChildCommandsDoNotInheritTheSummaryOrder(t *testing.T) {
 	healthPeers := command.ColumnOrder{"peer", "state", "as", "uptime"}
 	irrEntries := command.ColumnOrder{
 		"asn", "as-set", "status", "error",
-		"ipv4-count", "ipv6-count", "last-refresh", "peers",
+		"ipv4-count", "ipv6-count", "server", "generation", "checked-at", "refreshed-at", "peers",
 	}
-	irrEnvelope := command.ColumnOrder{"server", "last-refresh", "next-refresh", "entries"}
 
 	// The branches cmdBgpChildren blocks, each at its shallowest path.
 	branches := []commandOrder{
@@ -1158,7 +1157,7 @@ func TestChildCommandsDoNotInheritTheSummaryOrder(t *testing.T) {
 		{command: "show bgp encode"},
 		{command: "show bgp health", orders: []command.ColumnOrder{healthPeers}},
 		{command: "show bgp healthcheck"},
-		{command: "show bgp irr", orders: []command.ColumnOrder{irrEntries, irrEnvelope}},
+		{command: "show bgp irr", orders: []command.ColumnOrder{irrEntries}},
 		{command: "show bgp peer"},
 		{command: "show bgp rib", orders: []command.ColumnOrder{ribRoutes}},
 		{command: "show bgp rpki"},
