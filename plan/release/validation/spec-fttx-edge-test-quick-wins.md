@@ -31,7 +31,7 @@ Input: the "implemented, untested" bin produced by
 
 The spec ranks the candidates first, then writes the tests in that order.
 
-One OS-met family joined on 2026-11-15 from a comparison with osvbng's fixes:
+One OS-met family joined on 2026-11-15:
 ICMP error translation through NAT, on both firewall backends. No `.ci`,
 integration or lab check sends a fragmentation-needed, port-unreachable or
 time-exceeded error through a NAT Ze installed. On nft the translation is

@@ -40,8 +40,8 @@ stores a RADIUS Framed-IP-Address with `fromPool: false` and never marks it in
 the pool bitmap, so an address RADIUS assigns inside a configured range can be
 allocated by `ipv4Pool.allocate` to another subscriber while the first holds it.
 
-Two more defects of the same ownership question joined on 2026-11-15, from a
-comparison with osvbng's fixes; each was read at its producer.
+Two more defects of the same ownership question joined on 2026-11-15; each was
+read at its producer.
 
 - **An answer no session receives leaks its address.** `startPoolDrain`
   (`internal/component/l2tp/drain.go`) and `startPPPoEPoolDrain`

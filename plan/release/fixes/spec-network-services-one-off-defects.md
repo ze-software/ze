@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | verify |
-| Updated | 2026-11-14 |
+| Updated | 2026-11-15 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -59,7 +59,7 @@ the 2026-08-11 row is present.
 - [ ] `internal/plugins/geodns/config.go` - `parseTTL`, `parseSOA`
 - [ ] `internal/plugins/ntp/ntp.go` - `syncWorker.doSync`
 - [ ] `internal/component/gnmi/get.go` - `Server.Get`
-- [ ] `internal/component/sysrib/sysrib.go` - `recomputeBest`
+- [ ] `internal/component/sysrib/sysrib.go` - `recomputeBest` (no function of that name at HEAD on 2026-11-15; `recomputeForwarding` and `cascadeRecompute` are the recompute paths now, and which one AC-13 means is settled when the row is reproduced)
 - [ ] `internal/plugins/flowexport/enrichbgp.go` - `bgpEnrichBuilder.Start`
 - [ ] `internal/component/ping/cmd/` - `handleResolvePing`
 - [ ] `internal/plugins/iface/dhcp/dhcp_v4_linux.go` - `removeV4Route` (AC-28)
@@ -67,6 +67,7 @@ the 2026-08-11 row is present.
 - [ ] `internal/plugins/iface/dhcp/dhcp_v4_exchange_linux.go` - `nclient4Exchanger.acquire` hands each DHCPOFFER and DHCPACK to the vendored `nclient4`, whose receive loop decodes with `dhcpv4.FromBytes`; `FromBytes` reads `sname` and `file` as NUL-terminated strings and never consults option 52, so an option a server places in an overloaded field is lost (AC-31; read 2026-11-14)
 - [ ] `internal/component/iface/cmd/monitor_netlink_linux.go` - `ifName`, `linkUpdateToEvent` (AC-30)
 - [ ] `internal/plugins/dhcpserver/config.go` - the range parse checks start and stop with `prefix.Contains` and order only; the server-identifier parse beside it refuses the network and broadcast address through `isHostAddress` (`segment.go`) (AC-32; read 2026-11-15)
+- [ ] `internal/component/firewall/config.go` `parseNATSpec` and the `snat`, `dnat` and `masquerade` parse beside it - check the target's syntax, range order and range family only; `internal/component/firewall/validate.go` `validateAction` has no NAT case, so no chain hook, chain type or table family is checked for a NAT action (AC-33; read 2026-11-15)
 
 ## Existing Mechanisms (MANDATORY)
 
@@ -80,6 +81,7 @@ the producer its AC names; none adds a parallel path.
 | VPP name map existence check | `internal/plugins/iface/vpp/naming.go` `nameMap.lookupIndex`; `ensureWireguardInterface` and the loopback create use it | WireGuard and loopback creates return the existing index instead of creating again | Extends: AC-29 applies the same check to the GRE, IPIP and VXLAN creates |
 | Server-side option overload interpreter (row added 2026-11-14, read at its producer) | `internal/plugins/dhcpserver/options.go` `findOption`, `overloadValue` | Finds an option in the options field first, then in `file` and then `sname` as the options field's option 52 says; an option 52 inside `file` or `sname` is never consulted | Not stated in this spec; AC-31 owes the same interpretation on the client's receive path |
 | Host-address test (row added 2026-11-15) | `internal/plugins/dhcpserver/segment.go` `isHostAddress`, used by the server-identifier parse and the ciaddr check | Answers whether an address is neither the prefix's network address nor, below /31, its broadcast address | Extends: AC-32 applies it to a range's start and stop |
+| Placement check against the kernel's own validator (row added 2026-11-15) | `internal/component/firewall/validate.go` `validateClampTCPMSSToPMTU`, `baseChainReaching`, `routeMSSHook` | Refuses `tcp-mss-clamp-to-pmtu` in every family and hook `nft_rt_validate` refuses, checking a regular chain against each base chain that reaches it by jump or goto, with a message naming the term and the hook to move it to | Extends: AC-33 adds the NAT actions to `validateAction` with the same shape, its hook, chain-type and family rules taken from `nft_nat_validate` |
 | Link-message name cache | `internal/component/iface/cmd/monitor_netlink_linux.go` `ifNameCache`, written only by `linkUpdateToEvent` (58ce054f7e) | A reused index is never cached under the old link | Extends: AC-30 binds a route or address event's name to the link it belongs to, not a lookup by index after the fact |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
@@ -152,7 +154,8 @@ The iface owned-device and owned-address registries, the RIB event bus, the fire
 | AC-29 | vpp tunnel creates (moved from `spec-typed-identity-keys`, 2026-11-14) | Repeated applies of a config with GRE, IPIP and VXLAN interfaces create each VPP interface once; deleting one releases the index its ze name holds, and the name map holds no stale reverse entry |
 | AC-30 | netlink monitor late event (moved from `spec-typed-identity-keys`, 2026-11-14) | After `RTM_DELLINK` and a new link on the same index, a route or address event still in flight for the old link carries no name of the new link |
 | AC-31 | DHCPv4 client option overload, RFC2131-4.1-7 and RFC2131-4.1-15 (the client half of two `{partial}` rows, owned here from 2026-11-14) | A DHCPOFFER or DHCPACK whose options field carries option 52 with value 1, 2 or 3 is parsed with the options placed in `file`, in `sname`, or in both: the options field first, then `file`, then `sname`, and only the option 52 found in the options field opens a field. An option carried only in an overloaded field (the lease time, the router, the server identifier) reaches the lease the client installs. RFC 2131 Section 4.1: "The options in the 'options' field MUST be interpreted first, so that any 'option overload' options may be interpreted." and "The 'file' field MUST be interpreted next (if the 'option overload' option indicates that the 'file' field contains DHCP options), followed by the 'sname' field." Evidence: RFC-tagged units for both ids through the client's receive path (the decode `acquire` and `extend` read server replies through), positive and negative, each with its `./le rfc record` discrimination record; a QEMU integration test in which a server's overloaded reply yields a lease carrying the overloaded options; and the interop scenario `ai/rules/interop-and-goal-validation.md` requires, against a third-party DHCP server whose source is read and quoted for the overload it sends |
-| AC-32 | DHCPv4 server range holding the subnet's network or broadcast address (added 2026-11-15, from a comparison with osvbng's fixes) | A range whose start or stop, or any address between them, is the network address or, below /31, the broadcast address of its subnet is refused at verify with an error naming the range, the address and the fix; a range of host addresses is accepted as today, and no lease ever carries either address |
+| AC-32 | DHCPv4 server range holding the subnet's network or broadcast address (added 2026-11-15) | A range whose start or stop, or any address between them, is the network address or, below /31, the broadcast address of its subnet is refused at verify with an error naming the range, the address and the fix; a range of host addresses is accepted as today, and no lease ever carries either address |
+| AC-33 | nft NAT action placement (added 2026-11-15) | Before writing the check, `nft_nat_validate` (`net/netfilter/nft_nat.c`, and the masquerade and redirect validators beside it) is read in the kernel source Ze's kernel builds and quoted, to confirm which shapes it refuses. Each shape it refuses is refused at verify with a message naming the table, chain and term, why, and the fix (`ai/rules/user-facing-errors.md`): snat or masquerade outside postrouting or input, dnat outside prerouting or output, a NAT action in a `type filter` chain, a NAT target whose address family differs from the table's; a regular chain is judged by every base chain that reaches it, as `validateClampTCPMSSToPMTU` does. A shape the kernel accepts is accepted. Evidence: a unit per refused shape and its accepted neighbour, and an nft integration test proving a refused shape never reaches the kernel and an accepted one applies |
 
 ## 🧪 TDD Test Plan
 
@@ -230,6 +233,7 @@ The iface owned-device and owned-address registries, the RIB event bus, the fire
 | `identifier-reused-after-its-owner-is-gone` | 2026-08-19 | AC-29: vpp `createGRETunnel`, `createIPIPTunnel`, `createVxlanTunnel` create on every apply |
 | `identifier-reused-after-its-owner-is-gone` | 2026-08-18 | AC-30: netlink monitor names a late event for a deleted index after the index's new link |
 | `guard-added-to-one-half-of-a-pair` | 2026-11-15 | AC-32: DHCPv4 server range may hold the subnet's network or broadcast address |
+| `validate-accepts-what-start-refuses` | 2026-11-15 | AC-33: firewall NAT action placement (hook, chain type, family) not checked at verify |
 
 ## Rows found already fixed
 
