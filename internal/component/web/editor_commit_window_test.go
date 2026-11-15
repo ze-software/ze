@@ -27,6 +27,23 @@ type nopRecorder struct{}
 func (nopRecorder) Save(confirm.Pending) error { return nil }
 func (nopRecorder) Clear() error               { return nil }
 
+// errWindowRecordSave is the store refusing a save of the window's record.
+var errWindowRecordSave = errors.New("injected record save failure")
+
+// laterSaveFailsRecorder persists nothing and fails its failFrom-th save and
+// every one after it, counting the first save as 1. Its Save runs on the
+// window's worker only.
+type laterSaveFailsRecorder struct{ saved, failFrom int }
+
+func (r *laterSaveFailsRecorder) Save(confirm.Pending) error {
+	r.saved++
+	if r.saved >= r.failFrom {
+		return errWindowRecordSave
+	}
+	return nil
+}
+func (r *laterSaveFailsRecorder) Clear() error { return nil }
+
 // newWindowEditorManager is a promoting manager wired to a daemon window whose
 // revert stages the rollback and promotes it, as the hub's confirmRevert does.
 // The committed config carries the bgp leaves YANG marks mandatory, with values
@@ -34,13 +51,20 @@ func (nopRecorder) Clear() error               { return nil }
 // window decides it.
 func newWindowEditorManager(t *testing.T) (*EditorManager, *config.Schema, *confirm.Window) {
 	t.Helper()
+	return newWindowEditorManagerRecorded(t, nopRecorder{})
+}
+
+// newWindowEditorManagerRecorded is newWindowEditorManager whose window keeps
+// its record in record.
+func newWindowEditorManagerRecorded(t *testing.T, record confirm.Recorder) (*EditorManager, *config.Schema, *confirm.Window) {
+	t.Helper()
 	mgr, schema := newPromotingEditorManagerOver(t, windowCommittedConfig)
 	window := confirm.NewWindow(func(rollback []byte) error {
 		if _, err := storage.WriteCandidateVersion(mgr.store, mgr.configPath, rollback, time.Now()); err != nil {
 			return err
 		}
 		return storage.PromoteCandidate(mgr.store, mgr.configPath)
-	}, nopRecorder{})
+	}, record)
 	t.Cleanup(window.Stop)
 	mgr.SetConfirmWindow(func() *confirm.Window { return window })
 	return mgr, schema, window
@@ -125,6 +149,35 @@ func TestWebTerminalCommitThroughDaemonWindow(t *testing.T) {
 	assert.Contains(t, webCommit(schema, mgr, "alice", "verify"), "valid")
 	assert.Equal(t, 1, mgr.ChangeCount("alice"), "commit verify applied the change")
 	requireCommitted(t, mgr, "", "10.0.0.4")
+}
+
+// TestWebCommitConfirmedDeadlineNotRecordedIsApplied proves a web `commit
+// confirmed` whose window could not record its post-apply deadline is
+// answered as the commit it is: applied, its countdown shown, with the
+// store's refusal as a warning that names `commit accept` and `commit abort`
+// (ErrDeadlineNotRecorded's text).
+// METHOD: the recorder fails every save from the second on, so the record
+// saved before the apply lands and the one after it fails
+// (confirm.Window.applyArmed); the commit goes through runCommit, the path
+// the terminal, the CLI bar and the commit modal share.
+// PREVENTS: the web reporting a failed commit while the commit applied and
+// its revert countdown runs.
+func TestWebCommitConfirmedDeadlineNotRecordedIsApplied(t *testing.T) {
+	mgr, _, window := newWindowEditorManagerRecorded(t, &laterSaveFailsRecorder{failFrom: 2})
+
+	require.NoError(t, mgr.SetValue("alice", []string{"bgp"}, "router-id", "10.0.0.2"))
+	req := contract.CommitRequest{Action: contract.CommitConfirmed, Seconds: 60}
+	answer, err := mgr.runCommit("alice", req, nil)
+	require.NoError(t, err, "a commit that applied is not answered as a failure")
+	assert.True(t, answer.applied, "the answer is the applied one")
+	assert.Contains(t, answer.message, terminalOutputCommitSuccessful)
+	assert.Contains(t, answer.message, contract.ConfirmWithin(60))
+	assert.Contains(t, answer.message, "(warning: "+confirm.ErrDeadlineNotRecorded.Error())
+	assert.Contains(t, answer.message, errWindowRecordSave.Error())
+	requireCommitted(t, mgr, "10.0.0.2", "")
+	status, open := window.Status()
+	require.True(t, open, "the window is open and counting down")
+	assert.Equal(t, "alice", status.User)
 }
 
 // TestWebTerminalCommitConfirmedNeedsDaemonWindow proves a web editor with no

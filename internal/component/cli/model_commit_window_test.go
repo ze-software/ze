@@ -29,17 +29,30 @@ import (
 	"github.com/ze-software/ze/internal/component/config/storage"
 )
 
-// memoryRecorder keeps the window's record in memory.
-type memoryRecorder struct{ saved int }
+// errRecordSave is the store refusing a save of the window's record.
+var errRecordSave = errors.New("injected record save failure")
 
-func (r *memoryRecorder) Save(confirm.Pending) error { r.saved++; return nil }
-func (r *memoryRecorder) Clear() error               { return nil }
+// memoryRecorder keeps the window's record in memory. A failFrom above zero
+// fails that save and every one after it, counting the first save as 1. Its
+// Save runs on the window's worker; a test sets failFrom before the commit
+// that reaches the worker.
+type memoryRecorder struct{ saved, failFrom int }
+
+func (r *memoryRecorder) Save(confirm.Pending) error {
+	r.saved++
+	if r.failFrom > 0 && r.saved >= r.failFrom {
+		return errRecordSave
+	}
+	return nil
+}
+func (r *memoryRecorder) Clear() error { return nil }
 
 // windowFixture is one store, its daemon window, and a Model per user.
 type windowFixture struct {
 	store      storage.Storage
 	configPath string
 	window     *confirm.Window
+	recorder   *memoryRecorder
 	reloadErr  error
 }
 
@@ -55,7 +68,8 @@ func newWindowFixture(t *testing.T) *windowFixture {
 		}
 		return storage.PromoteCandidate(f.store, configPath)
 	}
-	f.window = confirm.NewWindow(revert, &memoryRecorder{})
+	f.recorder = &memoryRecorder{}
+	f.window = confirm.NewWindow(revert, f.recorder)
 	t.Cleanup(f.window.Stop)
 	return f
 }
@@ -295,6 +309,37 @@ func TestSessionCommitConfirmedForceNests(t *testing.T) {
 	assert.Contains(t, f.active(t), "6.6.6.6", "accept keeps the applied commit")
 	assert.NotContains(t, f.active(t), "5.5.5.5", "accept applies nothing more")
 	assert.Contains(t, alice.editor.WorkingContent(), "5.5.5.5", "the uncommitted edit stays pending")
+}
+
+// TestSessionCommitConfirmedDeadlineNotRecordedIsApplied proves a session
+// `commit confirmed` whose window could not record its post-apply deadline is
+// answered as the commit it is: applied, its countdown shown, the view
+// rebuilt and the window watched, with the store's refusal as a warning that
+// names `commit accept` and `commit abort` (ErrDeadlineNotRecorded's text).
+// METHOD: the recorder fails every save from the second on, so the record
+// saved before the apply lands and the one after it fails
+// (confirm.Window.applyArmed), over a real window and store.
+// PREVENTS: the editor reporting a failed commit while the commit applied and
+// its revert countdown runs.
+func TestSessionCommitConfirmedDeadlineNotRecordedIsApplied(t *testing.T) {
+	f := newWindowFixture(t)
+	f.recorder.failFrom = 2
+	alice := f.model(t, "alice")
+
+	require.NoError(t, alice.editor.SetValue([]string{"bgp"}, "router-id", "9.9.9.9"))
+	result, err := alice.cmdCommitRequest(confirmedRequest(60, false))
+	require.NoError(t, err, "a commit that applied is not answered as a failure")
+	assert.Contains(t, result.statusMessage, "Session committed: 1 change(s) applied")
+	assert.Contains(t, result.statusMessage, contract.ConfirmWithin(60))
+	assert.Contains(t, result.statusMessage, "(warning: "+confirm.ErrDeadlineNotRecorded.Error())
+	assert.Contains(t, result.statusMessage, errRecordSave.Error())
+	assert.True(t, result.refreshConfig, "the view is rebuilt over the applied commit")
+	assert.NotNil(t, result.windowWatch, "the editor watches the window it opened")
+	assert.Contains(t, f.active(t), "9.9.9.9", "the commit applied")
+	assert.False(t, alice.editor.Dirty(), "nothing is left pending")
+	status, open := f.window.Status()
+	require.True(t, open, "the window is open and counting down")
+	assert.Equal(t, "alice", status.User)
 }
 
 // TestSessionCommitConfirmedFailedOpensNoWindow: a commit the daemon refuses

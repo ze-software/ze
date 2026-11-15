@@ -105,20 +105,28 @@ func (m *EditorManager) runCommit(username string, req contract.CommitRequest, o
 		}
 		return notAppliedAnswer(req, result), nil
 	}
+	// An answer wrapping confirm.ErrDeadlineNotRecorded is a commit that
+	// applied with its window counting down: it is answered as one, with
+	// the error as a warning naming what the owner may do.
 	if err != nil {
-		return webCommitAnswer{}, err
+		if !errors.Is(err, confirm.ErrDeadlineNotRecorded) {
+			return webCommitAnswer{}, err
+		}
 	}
 	answer := m.appliedAnswer(username, req)
 	answer.applied = true
 	answer.message = cli.WithSkippedWarnings(forced, skipped, answer.message)
-	if result != nil && len(result.Warnings) > 0 {
-		// The SSH editor's words for what the applied commit warns of,
-		// a forced commit's failed discard among them.
-		var tb textbuf.Buffer
-		tb.Str(answer.message)
+	// The SSH editor's words for what the applied commit warns of, a forced
+	// commit's failed discard and an unrecorded deadline among them.
+	var tb textbuf.Buffer
+	tb.Str(answer.message)
+	if result != nil {
 		cli.AppendCommitWarnings(&tb, result.Warnings)
-		answer.message = tb.String()
 	}
+	if err != nil {
+		cli.AppendCommitWarnings(&tb, []string{err.Error()})
+	}
+	answer.message = tb.String()
 	return answer, nil
 }
 

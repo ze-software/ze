@@ -139,14 +139,24 @@ func (m *Model) cmdCommitWindowRequest(window *confirm.Window, req contract.Comm
 
 // cmdCommitConfirmedWindow runs `commit confirmed <seconds> [force]`: the
 // window snapshots the running config, applies the commit, and counts down.
+// An answer wrapping confirm.ErrDeadlineNotRecorded is a commit that applied
+// with its window counting down, so it is answered as one, with the error as
+// a warning naming what the owner may do.
 func (m *Model) cmdCommitConfirmedWindow(commit WindowCommit, req contract.CommitRequest) (commandResult, error) {
 	var result commandResult
-	if err := commit.Run(req, m.applySessionCommit(req, &result)); err != nil {
-		return windowCommitAnswer(result, err)
+	err := commit.Run(req, m.applySessionCommit(req, &result))
+	if err != nil {
+		if !errors.Is(err, confirm.ErrDeadlineNotRecorded) {
+			return windowCommitAnswer(result, err)
+		}
 	}
 	result.windowWatch = WatchWindow(commit.Window)
 	var tb textbuf.Buffer
-	result.statusMessage = tb.Str(result.statusMessage).Str(". ").Str(contract.ConfirmWithin(int64(req.Seconds))).String()
+	tb.Str(result.statusMessage).Str(". ").Str(contract.ConfirmWithin(int64(req.Seconds)))
+	if err != nil {
+		AppendCommitWarnings(&tb, []string{err.Error()})
+	}
+	result.statusMessage = tb.String()
 	return result, nil
 }
 

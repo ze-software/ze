@@ -798,10 +798,14 @@ saved again with the deadline the countdown started at. If that save fails,
 the commit stays applied and its window stays open and counting down, the
 record saved before the apply still makes a restart revert the commit, and
 the commit answers with the store's error and says to run `commit accept` or
-`commit abort`. A commit whose apply met a Ze defect keeps the deadline it was
+`commit abort`. The SSH session editor and the web editor report such a commit
+as committed, with its countdown, and show that answer as a warning after it.
+A commit whose apply met a Ze defect keeps the deadline it was
 given before the apply began, so a part-applied commit reverts no later than
 the countdown you asked for.
 <!-- source: internal/component/config/confirm/confirm.go -- Window.applyArmed, ErrDeadlineNotRecorded -->
+<!-- source: internal/component/cli/model_commit_window.go -- cmdCommitConfirmedWindow -->
+<!-- source: internal/component/web/editor_commit_window.go -- runCommit -->
 
 If the revert at the deadline fails, the window stays open and its record
 stays in the store. The daemon logs each failure and retries with a doubling
