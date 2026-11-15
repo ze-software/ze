@@ -927,9 +927,11 @@ module ze-bgp-conf {
                     }
                 }
                 default "auto";
-                description "auto rewrites the next hop for an eBGP peer, and preserves it for an iBGP peer. self always rewrites
-                    the next hop to the local address. unchanged never rewrites it, so the original next hop is
-                    preserved. An IP address sets the next hop to that address.";
+                description "auto rewrites the next hop for an ordinary eBGP peer, and preserves it for an iBGP peer or
+                    route-server client. self rewrites to the session's connected local address. If no usable self
+                    address exists, Ze withholds the announcement and withdraws a previously advertised route.
+                    unchanged preserves the received next hop when its wire form is usable. An IP address sets
+                    the next hop to that address.";
                 ze:help "Next-hop rewriting policy for a forwarded UPDATE (RFC 4271 Section 5.1.3).";
             }
 

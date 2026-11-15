@@ -717,6 +717,13 @@ paths read this decision from the destination's precomputed forwarding facts.
 Auto preserves the received next hop toward iBGP peers and route-server
 clients, subject to the wire-form checks below. Explicit `unchanged`, `self`,
 and address modes retain their configured behavior.
+<!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- precomputeNextHop -->
+
+The `bgp-nexthop-auto-ebgp-frr` interop scenario omits the ordinary eBGP
+recipient's next-hop setting. FRR must select the forwarded route with Ze's
+connected address as its accessible next hop. Separate Unchanged eBGP and
+default iBGP recipients must retain the source's next hop.
+<!-- source: internal/le/interoplab/bgp/check_nexthop_auto_ebgp.go -- checkNextHopAutoEBGP, requireNextHopAutoFRR -->
 
 A relayed route under `next-hop unchanged`, or under a preserving `auto`
 destination, keeps its effective next hop only if its wire form is usable.
@@ -832,8 +839,11 @@ relayed the received one: RFC 2545 Section 3 puts the Global address in the
 field, and the draft's Section 3 calls a Link-Local-only Next Hop "received
 without the Link-Local Next Hop Capability having been negotiated" "not
 conformant with [RFC2545]". A next-hop rewrite
-(`self`, a filter) replaces the address before the question is asked, so it
-passes. Rewriting to self under `auto` towards an external peer is not done yet.
+(`self`, a filter, or `auto` toward an ordinary eBGP peer) replaces the address
+before the question is asked. The resulting address must still pass the
+destination's next-hop checks.
+<!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- precomputeNextHop -->
+<!-- source: internal/component/bgp/reactor/forward_next_hop.go -- egressNextHopLinkLocalOnlyOffLink -->
 
 ## Withheld routes are withdrawn
 
