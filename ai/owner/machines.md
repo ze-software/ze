@@ -69,22 +69,34 @@ Report a down tunnel to Thomas and don't work around it: only he can bring it
 up, with `rex-claude start` on the Mac. Never run the test on the server
 instead.
 
-A test runs in a pane of a Rex session on the Mac. Name the session after the
-work, wait for the run, read the pane, then close the session. A pane's shell
-does not read the profile either, so take Go from Homebrew's directory:
+A test runs in a tab of a Rex session on the Mac, and every `run` opens a new
+tab in the interface Thomas is working in. Keep a task to one tab:
+
+- Put every step of the task into one command. Never send one `run` per step.
+- Never pass `--keep-open`: it leaves the tab behind after the command ends.
+- Send the output back to the server over SSH, which the Mac can reach, and
+  read it there. No tab then has to stay open to be read.
+
+Name the session after the work, wait for the run, close the session, then read
+the log on the server. A tab's shell does not read the profile either, so take
+Go from Homebrew's directory:
 
 ```sh
 X='rex -S laptop'
+LOG="$PWD/$(./le session scratch ensure)/mac-run.log"   # absolute, on the server
 $X new ze-unit-bgp --json
-$X run -s ze-unit-bgp --label tests --keep-open --focus=false --json --wait -- sh -c \
-  'export PATH=/opt/homebrew/bin:$HOME/go/bin:$PATH &&
-   cd /Users/thomas/Code/github.com/ze-software/ze/main &&
-   git pull --rebase --no-autostash claude:Code/github.com/ze-software/ze/main main &&
-   ./le test unit <package>'
-$X capture -s ze-unit-bgp -b <block_ids[0] from run> --trim
+$X run -s ze-unit-bgp --label tests --focus=false --json --wait -- sh -c \
+  "{ export PATH=/opt/homebrew/bin:\$HOME/go/bin:\$PATH &&
+     cd /Users/thomas/Code/github.com/ze-software/ze/main &&
+     git pull --rebase --no-autostash claude:Code/github.com/ze-software/ze/main main &&
+     ./le test unit <package>; echo \"exit=\$?\"; } 2>&1 |
+   ssh -o BatchMode=yes claude 'cat > $LOG'"
 $X kill ze-unit-bgp
+cat "$LOG"
 ```
 
-`run --wait` exits with the command's status. A pane keeps about 64 MiB of
-output, so a long run writes its log to a file and you read that file.
+The command's output is piped, so `run --wait` returns the status of the `ssh`
+that carried the log, not of the test: read the `exit=` line the command wrote
+last. Rex keeps a tab whose command failed quickly, so close the session after
+a failure too.
 `rex __internal skill` prints the full Rex guide.
