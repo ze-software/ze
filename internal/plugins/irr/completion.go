@@ -176,7 +176,7 @@ func daemonKnownASSets() []knownASSet {
 	if err == nil {
 		return known
 	}
-	// refuse-by-default: guards the completion -- a process with no store
+	// refuse-by-default: guards asSetValues -- a process with no store
 	// (an offline tool, a test without one) holds no stored AS-SET, so it
 	// offers none and the editor prints the leaf's type hint. It is not a
 	// fault, so it is not logged on every keystroke.

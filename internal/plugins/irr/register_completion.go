@@ -53,10 +53,12 @@ func asSetValues() []string {
 // claim it could not check.
 func asSetHelp(value string) string {
 	name, err := store.ASSetName(value)
+	// refuse-by-default: guards configyang.RegisterSuggestion -- its DescribeFn permits no description; the completer then prints its generic label.
 	if err != nil {
 		return ""
 	}
 	_, found, err := daemonStore{}.StateGet(context.Background(), store.PointerKey(name))
+	// refuse-by-default: guards configyang.RegisterSuggestion -- its DescribeFn permits no description; the completer then prints its generic label.
 	if err != nil {
 		return ""
 	}

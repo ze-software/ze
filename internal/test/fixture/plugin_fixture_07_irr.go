@@ -481,7 +481,11 @@ func firewallIRRRefusedCommit07(table string) ObserverScenario {
 		if err := os.WriteFile("observer.ready", []byte("ok"), 0o600); err != nil {
 			return err
 		}
-		if !Poll(ctx, 200, 100*time.Millisecond, func() bool { _, err := os.Stat("reload.done"); return err == nil }) {
+		if !Poll(ctx, 200, 100*time.Millisecond, func() bool {
+			_, err := os.Stat("reload.done")
+			// refuse-by-default: guards Poll -- only a successful marker read opens readiness; exhaustion fails the scenario.
+			return err == nil
+		}) {
 			return errors.New("reload trigger never created reload.done marker")
 		}
 		if result := done07(ctx, p, "show firewall ruleset "+table); result.status == statusDone {
