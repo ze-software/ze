@@ -4,8 +4,8 @@ package site
 
 // homeTemplate is the homepage under <main>, as its author wrote it.
 //
-// The hero, the proof block, the why-Ze cards, the quickstart terminal and the
-// try-safely panel are bespoke homepage copy: there is nothing repeated here to
+// The hero, the proof block, the why-Ze cards and the quickstart terminal are
+// bespoke homepage copy: there is nothing repeated here to
 // model as data, and the retired renderer held them as a literal template for
 // the same reason. The placeholders are the parts that ARE data.
 // home.go fills each one:
@@ -16,8 +16,7 @@ package site
 //	{tour_demo_href}               the browser showcase's demonstration link
 //	{web_demo_poster} {web_demo_transcript}
 //	                              verified browser screenshot and transcript
-//	{whats_new}                    the newest article, the newest week, the note
-//	{run_cards} {who_cards}        website/data/audience.json, in its own order
+//	{run_cards}                    website/data/audience.json Run entries, in order
 //	{interop_other_row}            nonzero scenarios outside named protocol rows
 //	{category_links}               the feature count under each category
 //	{feature_overview}             every feature destination, by category
@@ -44,7 +43,7 @@ const homeTemplate = `        <div class="site-home">
                                     <span>Appliance option</span>
                                     <span>ExaBGP compatible</span>
                                 </p>
-                                <p class="hero-intro">Ze is built on a <a href="architecture/">configuration and plugin engine</a>, with <a href="reference/plugins/">pre-installed plugins</a> for <a href="guides/bgp-peering/">BGP</a>, <a href="guides/ospf/">OSPF</a>, <a href="guides/isis/">IS-IS</a>, <a href="guides/ipsec/">VPNs</a>, <a href="features/interfaces/">interfaces</a>, <a href="features/dns-resolver/">DNS</a>, <a href="reference/plugins/dhcpserver/">DHCP</a> and <a href="features/">other network functions</a>. Its single <a href="reference/configuration/">YANG-defined configuration</a> can be managed through Ze’s own <a href="features/cli-commands/">SSH server, CLI</a>, <a href="features/web-interface/">web interface</a>, <a href="features/mcp-integration/">MCP</a> and <a href="features/api-commands/">APIs</a>. You can <a href="developers/plugins/">develop your own plugins in any programming language</a> and run Ze as a <a href="guides/ubuntu-build-install/">Linux daemon</a> or an <a href="guides/appliance/">appliance with a read-only operating system</a>.</p>
+                                <p class="hero-intro">Ze is built on a <a href="architecture/">configuration and plugin engine</a>, with <a href="reference/plugins/">pre-installed plugins</a> for <a href="guides/bgp-peering/">BGP</a>, <a href="guides/ospf/">OSPF</a>, <a href="guides/isis/">IS-IS</a>, <a href="guides/ipsec/">VPNs</a>, <a href="features/interfaces/">interfaces</a>, <a href="features/dns-resolver/">DNS</a>, <a href="reference/plugins/dhcpserver/">DHCP</a> and <a href="features/">other network functions</a>. Its single <a href="reference/configuration/">YANG-defined configuration</a> can be managed through Ze’s own <a href="features/cli-commands/">SSH server, CLI</a>, <a href="features/web-interface/">web interface</a>, <a href="features/mcp-integration/">MCP</a> and <a href="features/api-commands/">APIs</a>. You can <a href="developers/plugins/">develop your own plugins in any programming language</a> and run Ze as a <a href="guides/ubuntu-build-install/">Linux daemon</a> or an <a href="guides/appliance/">immutable OS</a>.</p>
                                 <p class="hero-project-intro"><a href="project/why-ze/">Why Ze exists →</a> · Ask questions and follow development on <a href="https://discord.gg/T8s7CjPDne" target="_blank" rel="noopener">Discord</a>.</p>
                                 <div class="hero-actions">
                                     <a class="button primary" href="guides/quickstart/">Try the BGP quickstart <span aria-hidden="true">↗</span></a>
@@ -113,19 +112,6 @@ const homeTemplate = `        <div class="site-home">
                                 </figure>
                                 </div>
                             </div>
-                            <div class="hero-capabilities" aria-label="Networking and management capabilities">
-                                <p>Ze is built on a configuration and protocol engine.
-                                    It keeps a single configuration, defined in <a href="features/bgp-configuration/">YANG</a>,
-                                    which you manage through its own built-in SSH server,
-                                    <a href="features/web-interface/">web interface</a>,
-                                    <a href="features/cli-commands/">CLI</a>, <a href="features/mcp-integration/">MCP</a>
-                                    and <a href="features/api-commands/">APIs</a>:
-                                    <a href="guides/api/#rest-endpoints">REST</a>,
-                                    <a href="guides/api/#grpc-services">gRPC</a> and <a href="guides/gnmi/">gNMI</a>.
-                                    You can extend Ze with plugins for automation and services of your own,
-                                    and run it as a <a href="architecture/">background service (daemon)</a> or as an
-                                    <a href="guides/appliance/">appliance with a read-only operating system</a>.</p>
-                            </div>
                         </div>
                         <div class="hero-action-row">
                             <div class="hero-release-callout">
@@ -175,6 +161,72 @@ const homeTemplate = `        <div class="site-home">
                             <a href="license/">AGPLv3 source</a>
                         </div>
                     </aside>
+                </div>
+            </section>
+
+            <section id="try" class="home-section-panel home-section-panel-try" aria-labelledby="try-title">
+                <div class="section-head reveal cat-meta">
+                    <h2 id="try-title">Getting started with Ze.</h2>
+                    <p>Run the two-peer BGP lab by hand, or ask Claude Code or Codex to run it with Ze’s bundled skill. Both paths start on a Linux lab host with Go and Git.</p>
+                </div>
+                <div class="terminal-panel reveal">
+                    <div class="terminal" aria-label="Quick start commands">
+                        <div class="terminal-dots">
+                            <span></span><span></span><span></span>
+                            <h3 class="terminal-title">By hand</h3>
+                        </div>
+                        <div class="terminal-body">
+                            <pre><span class="term-comment"># build from source</span>
+<span class="term-prompt">$</span> <span class="term-cmd">git clone</span> https://github.com/ze-software/ze.git
+<span class="term-prompt">$</span> <span class="term-cmd">cd</span> ze && ./ze version
+
+<span class="term-comment"># copy the supplied local lab configuration</span>
+<span class="term-prompt">$</span> mkdir -p lab/r1 lab/r2
+<span class="term-prompt">$</span> cp examples/quickstart/r1.conf lab/r1/ze.conf
+<span class="term-prompt">$</span> cp examples/quickstart/r2.conf lab/r2/ze.conf
+
+<span class="term-comment"># one peer in each terminal</span>
+<span class="term-prompt">$</span> ./ze <span class="term-cmd">start</span> lab/r1/ze.conf
+<span class="term-prompt">$</span> ./ze <span class="term-cmd">start</span> lab/r2/ze.conf
+
+<span class="term-comment"># inspect received routes from a third terminal</span>
+<span class="term-prompt">$</span> ZE_SSH_PASSWORD=lab ./ze <span class="term-cmd">cli</span> --remote 127.0.0.1:2221 --user lab -c "show bgp rib | received"</pre>
+                        </div>
+                    </div>
+                    <div class="terminal" aria-label="AI setup and lab prompt">
+                        <div class="terminal-dots">
+                            <span></span><span></span><span></span>
+                            <h3 class="terminal-title">With AI</h3>
+                        </div>
+                        <div class="terminal-body">
+                            <pre><span class="term-comment"># build from source</span>
+<span class="term-prompt">$</span> <span class="term-cmd">git clone</span> https://github.com/ze-software/ze.git
+<span class="term-prompt">$</span> <span class="term-cmd">cd</span> ze &amp;&amp; ./ze version
+
+<span class="term-comment"># make ze available to your agent</span>
+<span class="term-prompt">$</span> export PATH="$PWD:$PATH"
+<span class="term-prompt">$</span> ze <span class="term-cmd">create agent skill</span>
+<span class="term-prompt">$</span> ze <span class="term-cmd">show agent skill</span>
+
+<span class="term-comment"># start Claude Code or Codex from this shell</span>
+<span class="term-comment"># in Codex, trust Ze's hook with /hooks</span></pre>
+                        </div>
+                        <div class="terminal-dots">
+                            <span class="terminal-title">Then ask your agent</span>
+                        </div>
+                        <div class="terminal-body">
+                            <pre>Use the ze skill and docs/guide/quickstart.md
+to run the local two-peer lab.
+
+Validate both configurations, start both peers,
+and verify that the session is established.
+Check that r1 receives 198.51.100.0/24 and
+r2 receives 192.0.2.0/24. Show me the results.
+
+Stop only the lab processes you started.
+Keep the logs if a check fails.</pre>
+                        </div>
+                    </div>
                 </div>
             </section>
 
@@ -269,9 +321,6 @@ const homeTemplate = `        <div class="site-home">
                     </article>
                 </div>
             </section>
-
-
-{whats_new}
 
             <section id="proof" class="home-proof-block index4-evidence reveal" aria-labelledby="proof-title">
                 <div class="index4-evidence-heading">
@@ -405,11 +454,13 @@ const homeTemplate = `        <div class="site-home">
                 <div class="capability-grid">
 {feature_overview}
                     <aside class="capability capability-guide">
-                        <span class="cat">Find the right page</span>
-                        <h3>Keep the reference close.</h3>
-                        <p>The documentation index groups guides by the job you want to do. The feature catalogue includes maturity filters.</p>
-                        <a href="docs/">Open documentation →</a>
-                        <a href="features/">Browse the feature catalogue →</a>
+                        <div class="capability-guide-card">
+                            <span class="cat">Find the right page</span>
+                            <h3>Keep the reference close.</h3>
+                            <p>The documentation index groups guides by the job you want to do. The feature catalogue includes maturity filters.</p>
+                            <a href="docs/">Open documentation →</a>
+                            <a href="features/">Browse the feature catalogue →</a>
+                        </div>
                     </aside>
                 </div>
             </section>
@@ -439,85 +490,6 @@ const homeTemplate = `        <div class="site-home">
                 <p class="index4-try-note">The quickstart builds from source and needs Go and Git. It checks the BGP control plane; receiving routes does not establish forwarding connectivity. For a live topology that also checks kernel routes and traffic, use the netlab guide.</p>
             </section>
 
-            <section class="home-section-panel home-section-panel-usecases" aria-labelledby="audience-title">
-                <div class="section-head reveal">
-                    <h2 id="audience-title">Safe ways to try Ze before the first release.</h2>
-                    <p>
-                        Feedback from trying Ze can still influence its design.
-                        A lab, a migrated ExaBGP script or spare hardware gives
-                        you a way to try it before relying on it in production.
-                    </p>
-                </div>
-                <div class="audience home-usecase-grid reveal">
-{who_cards}
-                </div>
-            </section>
-
-            <section id="try" class="home-section-panel home-section-panel-try" aria-labelledby="try-title">
-                <div class="section-head reveal cat-meta">
-                    <h2 id="try-title">Getting started with Ze.</h2>
-                    <p>You can start with the BGP lab, try your ExaBGP configuration, or install the appliance on spare hardware.</p>
-                </div>
-                <div class="terminal-panel reveal">
-                    <div class="terminal" aria-label="Quick start commands">
-                        <div class="terminal-dots">
-                            <span></span><span></span><span></span>
-                            <span class="terminal-title">quickstart.sh</span>
-                        </div>
-                        <div class="terminal-body">
-                            <pre><span class="term-comment"># build from source</span>
-<span class="term-prompt">$</span> <span class="term-cmd">git clone</span> https://github.com/ze-software/ze.git
-<span class="term-prompt">$</span> <span class="term-cmd">cd</span> ze && ./ze version
-
-<span class="term-comment"># copy the supplied local lab configuration</span>
-<span class="term-prompt">$</span> mkdir -p lab/r1 lab/r2
-<span class="term-prompt">$</span> cp examples/quickstart/r1.conf lab/r1/ze.conf
-<span class="term-prompt">$</span> cp examples/quickstart/r2.conf lab/r2/ze.conf
-
-<span class="term-comment"># one peer in each terminal</span>
-<span class="term-prompt">$</span> ./ze <span class="term-cmd">start</span> lab/r1/ze.conf
-<span class="term-prompt">$</span> ./ze <span class="term-cmd">start</span> lab/r2/ze.conf
-
-<span class="term-comment"># inspect received routes from a third terminal</span>
-<span class="term-prompt">$</span> ZE_SSH_PASSWORD=lab ./ze <span class="term-cmd">cli</span> --remote 127.0.0.1:2221 --user lab -c "show bgp rib | received"</pre>
-                        </div>
-                    </div>
-                    <div class="terminal-note">
-                        <span class="tag">Good starting points</span>
-                        <p>
-                            The <a href="guides/quickstart/">complete two-peer tutorial</a>
-                            explains the local lab credentials, success checks and cleanup.
-                            If you already run BGP, trying a lab peer, an ExaBGP
-                            configuration or a looking glass can help you judge
-                            how Ze fits your network. Reports of what went wrong
-                            help us improve it.
-                        </p>
-                        <div class="link-list">
-                            <a href="labs/bgp-interop/"
-                                >BGP interop lab
-                                <span>FRR, BIRD, and GoBGP in Docker</span></a
-                            >
-                            <a href="use-cases/exabgp-migration/"
-                                >ExaBGP migration
-                                <span>try an existing config and process script</span></a
-                            >
-                            <a href="guides/appliance/"
-                                >Appliance install
-                                <span>ISO media, PXE provisioning, spare hardware</span></a
-                            >
-                            <a href="guides/public-looking-glass/"
-                                >Looking glass
-                                <span>publish read-only BGP visibility</span></a
-                            >
-                            <a href="features/ai-first/"
-                                >AI-assisted operations
-                                <span>MCP exposes Ze commands to tools</span></a
-                            >
-                        </div>
-                    </div>
-                </div>
-            </section>
-
             <section class="home-section-panel home-section-panel-momentum" aria-labelledby="blog-teaser-title">
                 <div class="section-head reveal">
                     <h2 id="blog-teaser-title">Recent engineering notes.</h2>
@@ -534,57 +506,5 @@ const homeTemplate = `        <div class="site-home">
                 </div>
             </section>
 
-            <section id="try-safely" class="home-section-panel home-section-panel-safe" aria-labelledby="try-safely-title">
-                <div class="status-panel try-safely-panel reveal">
-                    <div class="status-copy">
-                        <span class="tag">Try safely</span>
-                        <h2 id="try-safely-title">Try Ze before the first release.</h2>
-                        <p>
-                            Start where a mistake cannot affect a live network.
-                        </p>
-                        <div class="actions">
-                            <a class="button primary" href="labs/bgp-interop/">Run a BGP lab</a>
-                            <a class="button" href="guides/quickstart/">Read the quickstart</a>
-                        </div>
-                    </div>
-                    <div class="status-table" aria-label="Safe starting points">
-                        <div class="status-row">
-                            <strong>Release</strong>
-                            <span
-                                >Expected Q4 2026. No stable release has shipped
-                                yet, and configuration may change.</span
-                            >
-                        </div>
-                        <div class="status-row">
-                            <strong>BGP lab</strong>
-                            <span
-                                >Exercise Ze against FRR, BIRD, and GoBGP
-                                without touching a production router.</span
-                            >
-                        </div>
-                        <div class="status-row">
-                            <strong>Migration</strong>
-                            <span
-                                >Try the ExaBGP migration path against an
-                                existing config before changing automation.</span
-                            >
-                        </div>
-                        <div class="status-row">
-                            <strong>Appliance</strong>
-                            <span
-                                >Boot Ze on spare hardware with the same binary
-                                and configuration model as daemon mode.</span
-                            >
-                        </div>
-                        <div class="status-row">
-                            <strong>Source</strong>
-                            <span
-                                >Read the code, generated docs, standards checks, and
-                                test results before deciding where Ze belongs.</span
-                            >
-                        </div>
-                    </div>
-                </div>
-            </section>
         </div>
 `

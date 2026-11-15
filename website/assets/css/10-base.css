@@ -49,6 +49,13 @@ a {
     outline-offset: 3px;
 }
 
+/* <main> takes focus only as the target of the skip link and of the brand
+   link (#top), so the next Tab starts inside the content. It is not a
+   control, so it draws no focus ring of its own. */
+main[tabindex="-1"]:focus {
+    outline: none;
+}
+
 .sr-only {
     position: absolute;
     width: 1px;

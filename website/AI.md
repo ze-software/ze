@@ -485,13 +485,12 @@ Thomas requested this correction on 11 November 2026:
 
 The opening paragraph describes the configuration and plugin engine, its
 pre-installed network functions, management surfaces and deployment options,
-with links on the technical terms. Detailed configuration information sits
-beside the demonstration on desktop and below the player on smaller screens.
+with links on the technical terms. The primary introduction sits beside the
+demonstration on desktop and above the player on smaller screens.
 The metric band has three line-count figures and no inventory note; their
 definitions remain on the activity page and in this build reference.
 <!-- source: internal/le/site/homebody.go -- homeTemplate -->
 <!-- source: website/assets/css/30-components.css -- .site-home .hero-start-intro.hero-grid -->
-<!-- source: website/assets/css/30-components.css -- .site-home .hero-capabilities -->
 <!-- source: website/assets/css/60-responsive.css -- .site-home .hero-start-intro.hero-grid -->
 
 Thomas requested this layout refinement on 2026-11-12:
@@ -523,7 +522,7 @@ the separator spacing produced by the layout rule instead of a hardcoded gap.
 The introduction names the pre-installed routing and network functions. It
 explains that one YANG-defined configuration can be managed through Ze’s own
 SSH server, CLI, web interface, MCP and APIs. Custom plugins can use any
-programming language, and Ze can run as a Linux daemon or a read-only appliance.
+programming language, and Ze can run as a Linux daemon or an immutable OS.
 Links in the hero are never underlined, in any state. One rule covers every
 link the hero holds, so a link added later is not underlined either. A text
 link, one inside a paragraph or a caption, is a brighter blue than the muted
@@ -559,15 +558,16 @@ requested these changes on 2026-11-11:
 <!-- source: internal/le/site/homebody.go -- homeTemplate -->
 <!-- source: website/assets/css/30-components.css -- .site-home .hero-release-callout p -->
 
-The management walkthrough follows the hero before news and evidence. The
+Getting started follows the hero, then the management walkthrough, news and
+evidence. The
 evidence section keeps RFC populations and counting history, an interoperability
 scenario table split by primary protocol, the bounded list of 13 test images,
 and the three other test layers. Every figure comes from the facts snapshot.
 These are inventory counts, not passing-run totals or individual assertions.
 The trial choices come from `audience.json` Run entries. Each has five rows:
 badge and optional recommendation, title, description, success or availability
-check, and primary plus optional secondary action. The Who grid keeps its
-existing audience-card presentation. The other-paths strip retains the lab and
+check, and primary plus optional secondary action. The authored Who inventory
+remains in the data file but is not rendered on the homepage. The other-paths strip retains the lab and
 deployment destinations beside these four choices.
 <!-- source: internal/le/site/homebody.go -- homeTemplate -->
 
@@ -630,9 +630,31 @@ After reading the complete revised paragraph, he approved replacement and links:
 
 > cool - now replace make sure all the keyword are links like now
 
+On 15 November 2026, Thomas requested removal of the entire secondary paragraph
+beginning "Ze is built on a configuration and protocol engine. It keeps a single
+configuration". He replaced "appliance with a read-only operating system" with
+"immutable OS", retaining the appliance guide link.
+
+He also specified:
+
+> Find the right page used to be boxed - keep it that way but add a horizontal sep above like above Setup, Secure, etc
+>
+> remove Safe ways to try Ze before the first release.
+>
+> move Getting started with Ze.
+> before Why Ze
+>
+> remove Try Ze before the first release.
+>
+> space is missing before Capabilities and current limitations.
+
+The guide keeps its boxed inner card and the category separator above it.
+Getting started follows the hero before Why Ze. Both named trial-reminder
+sections are removed; the hero retains its release notice and planned date.
+
 The approved wording is:
 
-> Ze is built on a configuration and plugin engine, with pre-installed plugins for BGP, OSPF, IS-IS, VPNs, interfaces, DNS, DHCP and other network functions. Its single YANG-defined configuration can be managed through Ze’s own SSH server, CLI, web interface, MCP and APIs. You can develop your own plugins in any programming language and run Ze as a Linux daemon or an appliance with a read-only operating system.
+> Ze is built on a configuration and plugin engine, with pre-installed plugins for BGP, OSPF, IS-IS, VPNs, interfaces, DNS, DHCP and other network functions. Its single YANG-defined configuration can be managed through Ze’s own SSH server, CLI, web interface, MCP and APIs. You can develop your own plugins in any programming language and run Ze as a Linux daemon or an immutable OS.
 
 `TestHomeOpeningKeepsLinkedCapabilities` and `TestHomeIntroMergesLinkedRouting`
 pin the wording and linked destinations in the rendered opening.
@@ -704,11 +726,20 @@ Keep these actions and the recording controls within the initial laptop
 viewport. On phones, compact the copy and place the recording before the
 interface selector so its preview and Play action are visible before scrolling.
 The project metrics, release callout and product map follow the opening row.
-The detailed configuration paragraph retains the REST, gRPC and gNMI
-destinations beside the recording. No capability content is collapsed or hidden.
+The primary introduction links the management surfaces and custom-plugin guide.
+The former secondary configuration paragraph is removed.
 The outer hero alone paints the shared navy gradient. Its inner panel and
 showcase chrome remain transparent in both themes, without an inner shadow
 that creates seams at the left and right edges.
+<!-- source: internal/le/site/homebody.go -- homeTemplate -->
+
+The homepage's Getting started section presents the same two-peer lab as
+"By hand" and "With AI". The manual commands remain visible beside the agent
+setup commands and a separate prompt. The AI path uses the installed Ze skill,
+checks the established session and both received prefixes, and stops only the
+processes the agent started. Both paths use the existing terminal grid, which
+stacks on narrow screens. Shared tutorial, setup and alternative-use links
+follow the two paths.
 <!-- source: internal/le/site/homebody.go -- homeTemplate -->
 
 Testing evidence follows Latest news, after the management walkthrough. Its
@@ -756,7 +787,8 @@ command and plugin cards carry the published counts. The explanation of how YANG
 and command definitions keep the reference aligned with the documented build
 sits beneath those cards. The directory presents every feature in flat category
 groups, with four columns on wide screens and three, two or one as space narrows.
-A small guide card links to documentation and the maturity-filtered catalogue.
+A boxed inner guide card links to documentation and the maturity-filtered
+catalogue. Its outer category keeps the same top separator as other groups.
 Category color stays behind the compact group name; links remain one per line.
 <!-- source: internal/le/site/homebody.go -- homeTemplate -->
 <!-- source: internal/le/site/home.go -- homeFeatureOverview -->

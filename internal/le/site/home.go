@@ -53,17 +53,15 @@ const (
 // The homepage leaves the full introduction to the linked article.
 const homeSummaryRunes = 108
 
-// audienceData is website/data/audience.json: the two card grids the homepage
-// shows, each in the file's own order.
-//
-// Run is the "Choose how to try Ze" grid and Who is the "Safe ways to try Ze" grid. The
-// order is the author's, so nothing here sorts.
+// audienceData is website/data/audience.json. Run supplies the homepage trial
+// choices in authored order. Who retains the audience inventory but is not
+// rendered on the homepage.
 type audienceData struct {
 	Run []audienceCard `json:"run"`
 	Who []audienceCard `json:"who"`
 }
 
-// audienceCard is one card of either grid.
+// audienceCard is one authored audience entry.
 //
 // Category identifies the Who card subject; omission is neutral. Who links
 // are optional. Run cards require a label, success check and primary link;
@@ -123,9 +121,6 @@ func renderHome(paths Paths) ([]string, error) {
 	}
 	if len(audience.Run) == 0 {
 		return nil, fmt.Errorf("data/%s states no run path, so the homepage would show an empty grid", audienceDataFile)
-	}
-	if len(audience.Who) == 0 {
-		return nil, fmt.Errorf("data/%s states no use case, so the homepage would show an empty grid", audienceDataFile)
 	}
 	var whatsNew whatsNewData
 	if err := readSourceJSON(paths.Source, whatsNewDataFile, &whatsNew); err != nil {
@@ -283,14 +278,6 @@ func homeBody(audience *audienceData, whatsNew *whatsNewData, features featureDa
 	if err != nil {
 		return "", err
 	}
-	whoCards, err := audienceCards(audience.Who)
-	if err != nil {
-		return "", err
-	}
-	news, err := whatsNewBand(whatsNew, articles, weeks)
-	if err != nil {
-		return "", err
-	}
 	categoryLinks, err := featureCategoryLinks(snapshot)
 	if err != nil {
 		return "", err
@@ -301,10 +288,8 @@ func homeBody(audience *audienceData, whatsNew *whatsNewData, features featureDa
 	}
 	slots := append([]string(nil), hero...)
 	slots = append(slots,
-		"{whats_new}", news,
 		"{run_cards}", runCards,
 		"{interop_other_row}", otherRow,
-		"{who_cards}", whoCards,
 		"{category_links}", categoryLinks,
 		"{feature_overview}", homeFeatureOverview(features),
 		"{blog_teaser_cards}", blogTeaserCards(weeks),
@@ -426,7 +411,7 @@ func homeRunCards(cards []audienceCard) (string, error) {
 	return out.String(), nil
 }
 
-// audienceCards renders one grid of the homepage, in the data file's own order.
+// audienceCards renders the retained audience inventory in authored order.
 func audienceCards(cards []audienceCard) (string, error) {
 	rendered := make([]string, 0, len(cards))
 	for index := range cards {
@@ -458,7 +443,7 @@ func validateAudienceCard(card *audienceCard) error {
 	return nil
 }
 
-// audienceCardHTML renders one card of a homepage grid.
+// audienceCardHTML renders one retained audience card.
 //
 // A card with no title or no body is refused by name. The retired renderer
 // raised a KeyError on the first and published an empty paragraph for the

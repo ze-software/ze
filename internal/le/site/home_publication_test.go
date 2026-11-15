@@ -9,11 +9,11 @@ import (
 )
 
 // TestHomepagePutsManagementBeforeEvidence follows the complete rendered page
-// to ensure the management walkthrough comes immediately after the hero.
+// to ensure getting started precedes management, which precedes evidence.
 func TestHomepagePutsManagementBeforeEvidence(t *testing.T) {
 	page, _ := renderHomeFixture(t)
 	previous := -1
-	for _, marker := range []string{`class="hero"`, `id="why-ze"`, `class="whats-new reveal"`, `id="proof"`, `id="features-summary"`} {
+	for _, marker := range []string{`class="hero"`, `id="try"`, `id="why-ze"`, `class="whats-new reveal"`, `id="proof"`, `id="features-summary"`} {
 		at := strings.Index(page, marker)
 		if at < 0 {
 			t.Fatalf("homepage lacks %s", marker)
@@ -118,6 +118,62 @@ func TestHomepageRunFieldsEscapeAuthoredText(t *testing.T) {
 	for _, text := range []string{"&lt;title&gt;", "&lt;badge&gt;", "&lt;body&gt;", "&lt;success&gt;", "&lt;check&gt;", "&lt;recommended&gt;", "&lt;primary&gt;", "&lt;secondary&gt;", "?a=1&amp;b=2"} {
 		if !strings.Contains(fragment, text) {
 			t.Errorf("trial choice did not escape %s", text)
+		}
+	}
+}
+
+// TestHomepageOmitsRetiredAudienceSection checks the public page no longer
+// renders the removed audience grid while retaining the authored Run choices.
+func TestHomepageOmitsRetiredAudienceSection(t *testing.T) {
+	page, _ := renderHomeFixture(t)
+	for _, retired := range []string{"home-section-panel-usecases", `id="audience-title"`, "Safe ways to try Ze before the first release."} {
+		if strings.Contains(page, retired) {
+			t.Errorf("homepage retains removed audience section %q", retired)
+		}
+	}
+	if !strings.Contains(page, `id="run-title">Choose how to try Ze.</h2>`) {
+		t.Error("homepage lost the current trial choices")
+	}
+}
+
+// TestHomepageGuideKeepsItsBox checks the guide has an inner card while the
+// outer category element remains available for the shared top separator.
+func TestHomepageGuideKeepsItsBox(t *testing.T) {
+	page, _ := renderHomeFixture(t)
+	root, err := xhtml.Parse(strings.NewReader(page))
+	if err != nil {
+		t.Fatal(err)
+	}
+	guide := metricNodeWithClass(root, "capability-guide")
+	if guide == nil {
+		t.Fatal("homepage has no guide category")
+	}
+	card := metricNodeWithClass(guide, "capability-guide-card")
+	if card == nil {
+		t.Fatal("homepage guide has no inner card")
+	}
+	if card.Parent != guide {
+		t.Error("homepage guide card is not directly inside the category")
+	}
+	for _, target := range []string{"docs/", "features/"} {
+		if !strings.Contains(sliceBetween(t, page, `<div class="capability-guide-card">`, "</aside>"), `href="`+target+`"`) {
+			t.Errorf("homepage guide card lost %s", target)
+		}
+	}
+}
+
+// TestHomepageOmitsRetiredSafetySection checks the bottom trial reminder is
+// removed while the hero still carries its release state and planned date.
+func TestHomepageOmitsRetiredSafetySection(t *testing.T) {
+	page, _ := renderHomeFixture(t)
+	for _, retired := range []string{`id="try-safely"`, "home-section-panel-safe", "Try Ze before the first release."} {
+		if strings.Contains(page, retired) {
+			t.Errorf("homepage retains removed safety section %q", retired)
+		}
+	}
+	for _, retained := range []string{"No stable release yet.", "Planned release", "Q4 2026"} {
+		if !strings.Contains(page, retained) {
+			t.Errorf("homepage lost hero release information %q", retained)
 		}
 	}
 }

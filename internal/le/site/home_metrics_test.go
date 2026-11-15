@@ -149,8 +149,8 @@ func TestHomeProjectMetricsMirrorIsReadable(t *testing.T) {
 	}
 }
 
-// TestHomeOpeningKeepsLinkedCapabilities requires the complete existing
-// capability information in the opening composition beside the demonstration.
+// TestHomeOpeningKeepsLinkedCapabilities checks the approved primary intro
+// and its destinations after the duplicate secondary paragraph was removed.
 func TestHomeOpeningKeepsLinkedCapabilities(t *testing.T) {
 	paths := metricHomeFixture(t)
 	if _, err := renderHome(paths); err != nil {
@@ -192,20 +192,26 @@ func TestHomeOpeningKeepsLinkedCapabilities(t *testing.T) {
 	}
 	collect(opening)
 	for _, href := range []string{
-		"guides/bgp-peering/", "guides/isis/", "guides/ospf/", "features/interfaces/",
-		"guides/ipsec/", "reference/plugins/", "reference/plugins/dhcpserver/",
-		"features/bgp-configuration/", "features/web-interface/", "features/cli-commands/",
-		"features/mcp-integration/", "features/api-commands/", "guides/api/#rest-endpoints",
-		"guides/api/#grpc-services", "guides/gnmi/", "architecture/", "guides/appliance/",
+		"architecture/", "reference/plugins/", "guides/bgp-peering/", "guides/ospf/", "guides/isis/",
+		"guides/ipsec/", "features/interfaces/", "features/dns-resolver/", "reference/plugins/dhcpserver/", "features/",
+		"reference/configuration/", "features/cli-commands/", "features/web-interface/",
+		"features/mcp-integration/", "features/api-commands/", "developers/plugins/",
+		"guides/ubuntu-build-install/", "guides/appliance/",
 	} {
 		if !links[href] {
 			t.Errorf("opening lacks useful capability link %s", href)
 		}
 	}
-	for _, text := range []string{"It keeps a single configuration", "plugins for automation and services of your own"} {
+	for _, text := range []string{"configuration and plugin engine", "pre-installed plugins", "YANG-defined configuration can be managed", "develop your own plugins in any programming language", "Linux daemon or an immutable OS"} {
 		if !strings.Contains(metricNodeText(opening), text) {
 			t.Errorf("opening lacks capability information %q", text)
 		}
+	}
+	if metricNodeWithClass(opening, "hero-capabilities") != nil {
+		t.Error("opening retains the removed secondary paragraph")
+	}
+	if strings.Contains(metricNodeText(opening), "Ze is built on a configuration and protocol engine") {
+		t.Error("opening retains the removed secondary copy")
 	}
 }
 
@@ -249,7 +255,7 @@ func TestHomeIntroMergesLinkedRouting(t *testing.T) {
 			t.Errorf("introduction lacks useful link %s", href)
 		}
 	}
-	want := "Ze is built on a configuration and plugin engine, with pre-installed plugins for BGP, OSPF, IS-IS, VPNs, interfaces, DNS, DHCP and other network functions. Its single YANG-defined configuration can be managed through Ze’s own SSH server, CLI, web interface, MCP and APIs. You can develop your own plugins in any programming language and run Ze as a Linux daemon or an appliance with a read-only operating system."
+	want := "Ze is built on a configuration and plugin engine, with pre-installed plugins for BGP, OSPF, IS-IS, VPNs, interfaces, DNS, DHCP and other network functions. Its single YANG-defined configuration can be managed through Ze’s own SSH server, CLI, web interface, MCP and APIs. You can develop your own plugins in any programming language and run Ze as a Linux daemon or an immutable OS."
 	if got := strings.Join(strings.Fields(metricNodeText(intro)), " "); got != want {
 		t.Errorf("introduction = %q, want %q", got, want)
 	}

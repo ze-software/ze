@@ -378,8 +378,7 @@ func TestAFactTheSnapshotLostStopsTheHomepage(t *testing.T) {
 	}
 }
 
-// VALIDATES: both card grids keep the data file's own order, and every card
-// carries its category, its chips and its call to action.
+// VALIDATES: the homepage trial choices keep the data file's own order.
 //
 // The order is the author's argument about what a reader should try first. A
 // sort here would reorder it whenever a card's title changed.
@@ -390,12 +389,11 @@ func TestTheHomepageCardsKeepTheDataFilesOwnOrder(t *testing.T) {
 	if err := readSourceJSON(paths.Source, audienceDataFile, &audience); err != nil {
 		t.Fatal(err)
 	}
-	if len(audience.Run) != 4 || len(audience.Who) != 7 {
-		t.Fatalf("the published audience file holds %d run cards and %d use cases, want 4 and 7",
-			len(audience.Run), len(audience.Who))
+	if len(audience.Run) != 4 {
+		t.Fatalf("the audience file holds %d run cards, want 4", len(audience.Run))
 	}
 	previous := 0
-	for _, card := range append(append([]audienceCard{}, audience.Run...), audience.Who...) {
+	for _, card := range audience.Run {
 		at := strings.Index(page, ">"+card.Title+"</h3>")
 		if at < 0 {
 			at = strings.Index(page, ">"+card.Title+"</a></h3>")
@@ -407,9 +405,6 @@ func TestTheHomepageCardsKeepTheDataFilesOwnOrder(t *testing.T) {
 			t.Errorf("the card %q is published before the one that precedes it in the data file", card.Title)
 		}
 		previous = at
-	}
-	if got := strings.Count(page, `class="card audience-card`); got != 7 {
-		t.Errorf("the homepage shows %d use-case cards, want 7", got)
 	}
 }
 
@@ -794,7 +789,7 @@ func TestTheHomepageShowcaseKeepsItsImagesAndRecording(t *testing.T) {
 	if !strings.Contains(page, `aria-controls="product-terminal" aria-pressed="true"`) {
 		t.Error("the recording's tab is not the one selected when the page opens")
 	}
-	for _, phrase := range []string{"its own built-in SSH server", "without a host SSH service or shell"} {
+	for _, phrase := range []string{"SSH server, CLI", "without a host SSH service or shell"} {
 		if !strings.Contains(page, phrase) || !strings.Contains(mirror, phrase) {
 			t.Errorf("the page and its mirror do not explain %q", phrase)
 		}

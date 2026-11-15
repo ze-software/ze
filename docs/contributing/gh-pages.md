@@ -358,15 +358,19 @@ inventory. Plugin and CLI counts appear in the generated reference cards.
 The hero keeps Why Ze exists and Discord as text links alongside the existing
 demo and search paths. Its opening explains the configuration and plugin engine,
 pre-installed network functions, shared management model and deployment options,
-with links on the technical terms. Detailed configuration information sits
-beside the demo on desktop and below it on mobile. The management walkthrough
-follows the hero, then news and testing evidence. The evidence section states
+with links on the technical terms. The primary introduction describes a Linux
+daemon or an immutable OS and links the latter to the appliance guide. The
+duplicate secondary configuration paragraph is removed. Getting started follows
+the hero, then Why Ze with its management walkthrough, news and testing evidence. The evidence section states
 RFC populations and counting history, scenario counts by primary protocol,
 the bounded list of 13 test images and the other test layers. These counts
 describe inventory, not current passing runs or individual assertions.
 The four trial choices use Run entries in `audience.json`, including success
 checks, an optional recommendation and an optional secondary link. The Who
-entries retain their audience-card presentation.
+entries remain as authored inventory but are not rendered on the homepage. The
+former audience grid and bottom trial reminder are removed; the hero retains
+its release state. The feature directory guide keeps a boxed inner card beneath
+the category separator.
 <!-- source: internal/le/site/homebody.go -- homeTemplate -->
 <!-- source: internal/le/site/home.go -- homeRunCards -->
 <!-- source: internal/le/site/facts.go -- factsFromRepositoryFile -->
