@@ -150,7 +150,9 @@ func writeReadyFile() {
 // Run executes the hub with the given config file path and optional CLI plugins.
 // store is the daemon's lifetime-owned live store, or nil for stdin discovery.
 // chaosSeed > 0 enables chaos self-test mode; chaosRate < 0 means "use default".
-// Returns exit code.
+// Returns the exit code: 0 for a clean stop, 1 for a refused startup or a stop
+// a plugin's failure caused. A forced stop never returns: exitForced ends the
+// process with exit 1.
 func Run(store storage.Storage, configPath string, plugins []string, chaosSeed int64, chaosRate float64, webEnabled bool, webListenAddr string, insecureWeb bool, mcpAddr, mcpToken string, cliAttach ...bool) int {
 	return run(store, configPath, plugins, chaosSeed, chaosRate, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken, len(cliAttach) > 0 && cliAttach[0], nil)
 }
@@ -1593,6 +1595,11 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	doneCh := make(chan struct{})
 	go waitForServerDone(apiServer, doneCh)
 	stopSig := waitLoop(stopCh, hupCh, reloadCh, doneCh, func(sig os.Signal) { announceSignal(apiServer, sig) })
+	// The stop is under way from here, whatever started it. Marking it now,
+	// before the fence and the drain, means a fatal plugin that exits while
+	// the stop runs is read as an effect of the stop, never as its cause
+	// (stopUnderWay), so an operator's clean stop still exits 0.
+	apiServer.SignalShutdownRequested()
 	// The stop starts here: the drain ceiling is counted from this instant,
 	// so the config fence below spends from it.
 	stopStart := time.Now()
@@ -1677,6 +1684,16 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		}
 	}
 
+	// A stop a plugin's failure caused (a fatal policy, or a respawn the
+	// plugin declares it cannot meet) exits 1, as a refused startup does, so
+	// a service manager restarting on failure and an operator's script see
+	// the failure rather than a clean shutdown. It is printed the way a
+	// refused startup is.
+	if failure := apiServer.StopFailure(); failure != nil {
+		var tb textbuf.Buffer
+		tb.Str("error: ").Err(failure).Byte('\n').StdErr() //nolint:errcheck // the process exits next; a lost line does not change the exit status
+		return 1
+	}
 	return 0
 }
 

@@ -131,9 +131,12 @@ type DrainRound struct {
 // It also ends respawning: from here the stop is terminal, so a plugin that
 // exits during the drain stays down until teardown (ProcessManager.Respawn
 // answers ErrDaemonStopping), rather than coming back and announcing again
-// what its drain made unattractive. The hub MUST call it once, on the stop
-// path, before it runs or skips the round.
+// what its drain made unattractive. It marks the stop as under way
+// (SignalShutdownRequested), so a fatal plugin that exits during the drain is
+// not read as the cause of the stop (stopUnderWay). The hub MUST call it
+// once, on the stop path, before it runs or skips the round.
 func (s *Server) BeginDrain() *DrainRound {
+	s.SignalShutdownRequested()
 	if pm := s.procManager.Load(); pm != nil {
 		pm.RefuseRespawns()
 	}

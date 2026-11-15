@@ -48,7 +48,7 @@ func TestLastStopRecordWrittenAndCleared(t *testing.T) {
 	fatal, err := NewServer(&ServerConfig{}, nil)
 	require.NoError(t, err)
 	fatal.shutdownFunc = func() {}
-	fatal.stopDaemonForPlugin("p1", "the plugin declares that its failure stops ze")
+	fatal.stopDaemonForPlugin("p1", pluginStopFatalPolicy, "the plugin declares that its failure stops ze")
 	RecordStopCleanupLate("bgp", "the reactor's cleanup did not finish before the stop deadline")
 
 	record, found, err := ReadLastStop()

@@ -8,11 +8,13 @@
 # directive, 2026-09-06): configuring a plugin is accepting its terms.
 #
 # VALIDATES: AC-3 -- a fatal plugin's exit stops the daemon, and the log names
-# the plugin and the reason.
+# the plugin and the reason, and ze exits 1 so a service manager and a script
+# see a failure, never a clean stop.
 # PREVENTS: fatal being implemented as a log line. The daemon runs until
 # something ends the wait in waitLoop (cmd/ze/hub/main.go), so a policy that only
 # logs leaves the router up without the plugin its operator was told it could not
-# run without.
+# run without. Also a fatal stop that exits 0, which systemd's
+# Restart=on-failure reads as a clean shutdown.
 
 tmpfs=ze-bgp.conf:terminator=EOF_CONF
 plugin {
@@ -24,7 +26,9 @@ plugin {
 EOF_CONF
 
 cmd=foreground:seq=1:exec=ze start ze-bgp.conf:timeout=30s
-expect=exit:code=0
+expect=exit:code=1
+expect=stderr:contains=error: ze stopped because plugin failure-fatal failed
+expect=stderr:contains=the plugin's failure policy says ze must not keep running without it, so ze exits 1
 expect=stderr:contains=FIXTURE: failure-fatal is exiting
 expect=stderr:contains=stopping ze because a plugin failed
 expect=stderr:contains=the plugin declares that its failure stops ze

@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"sync/atomic"
 	"testing"
@@ -14,6 +15,8 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -177,17 +180,20 @@ func TestPluginThatExitsStaysDownWhenItDeclaredNothing(t *testing.T) {
 		"the plugin was started again although it declared nothing")
 	assert.Same(t, first, pm.GetProcess(name), "the manager must keep the stopped process")
 	assert.False(t, stopped(), "an ignored failure must not stop the daemon")
+	assert.Nil(t, s.StopFailure(), "an ignored failure must not make the daemon exit 1")
 }
 
 // TestPluginThatExitsStopsTheDaemonWhenItDeclaredFatal verifies the third
 // outcome: a plugin whose author said its failure ends ze does end ze.
 //
 // VALIDATES: AC-3 -- a fatal plugin's exit signals the shutdown Server.Wait
-// reads and calls the daemon's own shutdown function.
+// reads and calls the daemon's own shutdown function, and StopFailure then
+// answers the operator error naming the plugin, which makes the daemon exit 1.
 // PREVENTS: fatal being implemented as a log line. The daemon keeps running
 // until something ends the wait in waitLoop (cmd/ze/hub/main.go), so a policy
 // that only logs leaves the router up with the plugin its operator said it could
-// not run without.
+// not run without. Also a fatal stop exiting 0, which a service manager
+// (systemd Restart=on-failure) and an operator's script read as a clean stop.
 func TestPluginThatExitsStopsTheDaemonWhenItDeclaredFatal(t *testing.T) {
 	snap := registry.Snapshot()
 	registry.Reset()
@@ -207,13 +213,125 @@ func TestPluginThatExitsStopsTheDaemonWhenItDeclaredFatal(t *testing.T) {
 	require.Equal(t, int64(1), starts.Load(), "startup must spawn the plugin once")
 
 	s.dispatcher.Registry().Freeze()
+	require.Nil(t, s.StopFailure(), "a running daemon reported a failed stop before the plugin exited")
 
 	close(crash)
 
 	require.Eventually(t, stopped, failureWait, 10*time.Millisecond,
 		"a fatal plugin's exit did not signal the daemon shutdown Server.Wait reads")
 	assert.True(t, signaled(), "a fatal plugin's exit must reach the daemon's own shutdown function")
+	// The daemon's exit status reads this (runYANGConfig, cmd/ze/hub/main.go):
+	// false here is a fatal stop exiting 0, read as a clean shutdown.
+	failure := s.StopFailure()
+	require.NotNil(t, failure, "a fatal plugin's stop must make the daemon exit 1")
+	assert.Contains(t, failure.Problem(), name, "the stop failure must name the plugin")
+	assert.Contains(t, failure.Error(), "the plugin declares that its failure stops ze", "the stop failure must carry the reason")
 	assert.Equal(t, int64(1), starts.Load(), "a fatal plugin must not be started again")
+}
+
+// TestFatalPluginExitDuringAStopIsNotItsCause verifies that a fatal plugin
+// exiting once the daemon's stop is under way does not turn that stop into a
+// failure. Method: the stop is begun by each route that marks it (an accepted
+// stop request, and the drain), then the plugin exits; the daemon's shutdown
+// function must never be called again, StopFailure must stay nil and no
+// last-stop record may be written.
+//
+// VALIDATES: an operator's clean stop exits 0 and `ze doctor` names no fatal
+// stop for it, even when a fatal plugin exits during the drain or teardown.
+// PREVENTS: a plugin that exits on its own after `request shutdown` or during
+// the drain being recorded as the cause of the stop, so the clean stop exits 1
+// and the next `ze doctor` names a fatal stop that never happened.
+func TestFatalPluginExitDuringAStopIsNotItsCause(t *testing.T) {
+	tests := []struct {
+		name  string
+		begin func(*Server)
+	}{
+		{"after an accepted stop request", func(s *Server) { s.SignalShutdownRequested() }},
+		{"after the drain began", func(s *Server) { s.BeginDrain() }},
+	}
+	for i, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			snap := registry.Snapshot()
+			registry.Reset()
+			t.Cleanup(func() { registry.Restore(snap) })
+			useLastStopStore(t)
+
+			name := fmt.Sprintf("failure-fatal-stopping-%d", i)
+			commandName := fmt.Sprintf("show failure fatal stopping %d", i)
+
+			crash := make(chan struct{})
+			starts := registerCrashingPlugin(t, name, commandName, rpc.FailureFatal, crash)
+
+			s, _ := newLifecycleStartupServer(t)
+			signaled, _ := watchDaemonStop(s)
+			require.NoError(t, s.runPluginPhase([]plugin.PluginConfig{
+				{Name: name, Internal: true, Encoder: plugin.EncodingJSON},
+			}))
+			require.Equal(t, int64(1), starts.Load(), "startup must spawn the plugin once")
+			s.dispatcher.Registry().Freeze()
+
+			tt.begin(s)
+			close(crash)
+
+			// The crash must have been handled: applyFailurePolicy raises the
+			// crash report just before it acts on the policy. Without this the
+			// absences below would also pass for a crash nobody processed.
+			require.Eventually(t, func() bool { return crashReported(name) }, failureWait, 10*time.Millisecond,
+				"the plugin's exit was never handled by its failure policy")
+			assert.Never(t, signaled, failureSettle, 50*time.Millisecond,
+				"a fatal plugin that exited during the stop was read as its cause")
+			assert.Nil(t, s.StopFailure(), "a clean stop must not exit 1 because a plugin exited during it")
+			_, found, err := ReadLastStop()
+			require.NoError(t, err)
+			assert.False(t, found, "a clean stop must leave no fatal-stop record for ze doctor")
+		})
+	}
+}
+
+// crashReported reports whether the report bus holds the crash report
+// applyFailurePolicy raises for plugin name (ProcessManager.ReportCrash).
+func crashReported(name string) bool {
+	for _, issue := range report.Errors(0) {
+		if issue.Code == diagnostic.CodeDoctorPluginCrashed && issue.Subject == name {
+			return true
+		}
+	}
+	return false
+}
+
+// TestPluginStopFailureNamesTheFixOfItsCause verifies the error ze prints at
+// exit after a plugin stopped it: each cause has its own why and fix, and a
+// refused record does not send the operator to a doctor that cannot answer.
+//
+// VALIDATES: the fatal policy points at ze doctor, or at the log when the
+// record was refused; the respawn disagreement names the config change the
+// startup refusal names; every form names the plugin and keeps the reason.
+// PREVENTS: one wording for every stop, which told the operator of a respawn
+// disagreement that the plugin forbade something, and sent them to ze doctor
+// when no record existed.
+func TestPluginStopFailureNamesTheFixOfItsCause(t *testing.T) {
+	const name = "p1"
+	tests := []struct {
+		name     string
+		cause    pluginStopCause
+		recorded bool
+		why      string
+		fix      string
+	}{
+		{"fatal, recorded", pluginStopFatalPolicy, true, "failure policy says ze must not keep running without it", "ze doctor"},
+		{"fatal, record refused", pluginStopFatalPolicy, false, "ze doctor cannot name it", "read the ze log lines that name p1"},
+		{"respawn disagreement", pluginStopRespawnDisagreement, true, "asks to restart a plugin that declares it cannot be restarted", respawnDisagreementFix()},
+		{"respawn disagreement, record refused", pluginStopRespawnDisagreement, false, "asks to restart a plugin that declares it cannot be restarted", respawnDisagreementFix()},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			failure := pluginStopFailure(name, tt.cause, "the evidence", tt.recorded)
+			assert.Contains(t, failure.Problem(), name, "the error must name the plugin")
+			assert.Contains(t, failure.Why(), tt.why)
+			assert.Equal(t, tt.fix, failure.Fix())
+			assert.Contains(t, failure.Error(), "the evidence", "the error must keep the reason as its evidence")
+		})
+	}
 }
 
 // TestRespawnFalseKeepsAPluginThatCanRestartDown verifies that a block declining
@@ -288,6 +406,9 @@ func TestRespawnRequestAgainstAPluginThatCannotRestartStopsTheDaemon(t *testing.
 
 	assert.True(t, stopped(), "the disagreement must stop the daemon")
 	assert.True(t, signaled(), "the disagreement must reach the daemon's own shutdown function")
+	failure := s.StopFailure()
+	require.NotNil(t, failure, "a daemon that refused to start must exit 1")
+	assert.Equal(t, respawnDisagreementFix(), failure.Fix(), "the stop must name the config change, as the startup refusal does")
 	assert.Equal(t, int64(1), starts.Load(), "the refused plugin must not be spawned twice")
 }
 
@@ -334,6 +455,7 @@ func TestStartupFailureOfAFatalPluginStopsTheDaemon(t *testing.T) {
 	require.Error(t, err, "the plugin refused its configuration, so the phase must fail")
 	assert.True(t, stopped(), "a fatal plugin that fails startup must stop the daemon")
 	assert.True(t, signaled(), "the stop must reach the daemon's own shutdown function")
+	assert.NotNil(t, s.StopFailure(), "a fatal plugin that fails startup must make the daemon exit 1")
 }
 
 // TestStartupFailureOfASilentPluginLeavesTheDaemonRunning is the polarity that
@@ -375,6 +497,7 @@ func TestStartupFailureOfASilentPluginLeavesTheDaemonRunning(t *testing.T) {
 
 	require.Error(t, err, "the plugin refused its configuration, so the phase must fail")
 	assert.False(t, stopped(), "a plugin that declared nothing must not stop the daemon")
+	assert.Nil(t, s.StopFailure(), "a plugin that declared nothing must not make the daemon exit 1")
 }
 
 // newFailurePolicyProcess builds a process carrying one declaration and one

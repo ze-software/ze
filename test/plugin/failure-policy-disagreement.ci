@@ -26,7 +26,10 @@ plugin {
 EOF_CONF
 
 cmd=foreground:seq=1:exec=ze start ze-bgp.conf:timeout=30s
-expect=exit:code=0
+expect=exit:code=1
+expect=stderr:contains=error: ze stopped because plugin failure-disagree cannot be restarted as its configuration asks
+expect=stderr:contains=the configuration asks to restart a plugin that declares it cannot be restarted, so ze exits 1: the configuration and the plugin disagree about respawn
+expect=stderr:contains=fix: remove the respawn leaf, or run a plugin that declares
 expect=stderr:pattern=plugin .*failure-disagree.* declares failure-policy .*ignore
 expect=stderr:contains=its configuration block asks for respawn
 expect=stderr:contains=stopping ze because a plugin failed

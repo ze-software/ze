@@ -65,7 +65,7 @@ func TestFatalBootFailureRecordsOneEntry(t *testing.T) {
 	require.NoError(t, err)
 	s.shutdownFunc = func() {}
 
-	s.stopDaemonForPlugin("fatal-boot", "the plugin declares that its failure stops ze, and its startup ended: stage 1 refused")
+	s.stopDaemonForPlugin("fatal-boot", pluginStopFatalPolicy, "the plugin declares that its failure stops ze, and its startup ended: stage 1 refused")
 	s.startupErr = errors.New("fatal-boot: stage 1 refused")
 	s.settleLastStop()
 

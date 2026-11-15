@@ -258,6 +258,20 @@ for the answers. The wait ends at the latest 60 s after the stop began. Only
 then does teardown start, and BGP sends Cease (Administrative Shutdown) to every
 peer. With no drain-registered plugin the stop is as fast as it was.
 
+`ze start` exits 0 after a stop nothing failed in. A stop a plugin caused
+exits 1, as a refused startup does: a plugin under the `fatal` policy failed,
+or a plugin declares it must not be restarted while its block asks for
+`respawn true`. The error ze writes to stderr names the plugin and the reason,
+so `Restart=on-failure` restarts ze and a script sees the failure. For a
+`fatal` plugin its fix is `ze doctor`; when the store could not record the
+stop, doctor cannot name it, and the error sends you to the ze log lines that
+name the plugin instead. For the respawn disagreement the fix is the config
+change: remove the `respawn` leaf, or run a plugin that declares `restart`. A fatal plugin that fails on every boot therefore restarts
+ze in a loop under `Restart=on-failure` until systemd's start limit
+(`StartLimitBurst` within `StartLimitIntervalSec`) stops it. A plugin that
+exits after the stop has begun does not change its exit status. A forced exit
+(a signal during teardown) is also 1.
+
 `ze signal restart`, `ze signal reboot` and `request reboot` drain with kind
 `restart`: BGP sessions are dropped without a Cease so peers keep the routes for
 graceful restart. Any IGP wait during that drain runs while BGP peers hold the

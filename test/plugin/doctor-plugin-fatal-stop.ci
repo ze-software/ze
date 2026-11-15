@@ -57,7 +57,10 @@ EOF_CONF
 # A foreground program that is neither ze nor the test peer is a helper
 # (stepArmHelper), and runOrchestrated calls owned.Wait() on it before the next
 # step. `exec` makes the ze process the helper process itself, so the wait is
-# on ze's own exit, and exit=0 asserts its status. The script's `ze` is this
+# on ze's own exit, and exit=1 asserts its status: a stop a fatal plugin
+# caused is a failure, so ze exits 1 (StopFailure, runYANGConfig). The
+# stderr line below is printed only at the end of an orderly stop, so with it
+# exit=1 still refuses a forced exit or an early error. The script's `ze` is this
 # run's binary: the runner puts its shim directory first on every child's PATH
 # (setupBinShims, childPathEnv, runner.go), and every child gets the test's
 # store choice and option=env entries (dutEnv, record_dut_store.go).
@@ -77,7 +80,10 @@ EOF_SCRIPT
 # `created memory store (test build)` instead). The stop log line is written
 # after recordStop (stopDaemonForPlugin, server/failure_policy.go), and the
 # reject proves the record write did not fail (recordLastStopLogged logs that).
-cmd=foreground:seq=1:exec=sh run-daemon.sh:exit=0
+cmd=foreground:seq=1:exec=sh run-daemon.sh:exit=1
+expect=stderr:contains=error: ze stopped because plugin failure-fatal failed
+expect=stderr:contains=the plugin's failure policy says ze must not keep running without it, so ze exits 1: the plugin declares that its failure stops ze
+expect=stderr:contains=fix: ze doctor
 expect=stderr:contains=created live store:
 expect=stderr:contains=FIXTURE: failure-fatal is exiting
 expect=stderr:contains=stopping ze because a plugin failed

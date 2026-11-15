@@ -323,7 +323,9 @@ Every stop enters the hub the same way. `request shutdown`, `quit`, SSH `stop`
 and a plugin failure under the `fatal` policy stop nothing themselves: they
 hand the stop to the hub through the daemon shutdown function, so BGP sends
 its Cease from teardown, after the drain. Those stops, and SIGTERM, carry kind
-`stop`. `request reboot`, SSH `restart` and SSH `reboot` record kind `restart`
+`stop`. When teardown completes, `run` returns 1 if the plugin server caused
+the stop because a plugin failed (`Server.StopFailure`), and 0 for every
+other stop. `request reboot`, SSH `restart` and SSH `reboot` record kind `restart`
 with the cause `in-place` (SSH `restart`) or `reboot` before they stop BGP in
 silence for graceful restart. From the start of the drain the stop is
 terminal: a plugin that exits is not started again.

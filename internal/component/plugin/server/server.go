@@ -27,6 +27,7 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/ipc"
 	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/syncutil"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -124,6 +125,14 @@ type Server struct {
 	// lastStopRecorded is true once this server wrote the last-stop record
 	// (last_stop.go), so its own startup end does not delete it as a clean start.
 	lastStopRecorded atomic.Bool
+	// stopFailure is the operator error of the first plugin failure that
+	// stopped the daemon (stopDaemonForPlugin), nil while none has. The daemon
+	// exits 1 and prints it when it is set (StopFailure, cmd/ze/hub/main.go).
+	stopFailure atomic.Pointer[opererr.Error]
+	// stopCauseClaimed is won, once, by the first plugin failure that stops
+	// the daemon (stopDaemonForPlugin), so a second plugin failing at the same
+	// time overwrites neither the last-stop record nor the stop failure.
+	stopCauseClaimed atomic.Bool
 	startupErr       error // non-nil when a config-path plugin fails during startup
 
 	configLoader          ConfigLoader   // Loads new config tree for ReloadFromDisk
@@ -899,14 +908,42 @@ func (s *Server) replyContext() context.Context {
 // the ordered shutdown. The command handlers in system.go call it, and so does
 // every transport that accepts a lifecycle command outside the dispatcher (the
 // SSH exec `stop`, `restart` and `reboot`, cmd/ze/hub/service_ssh.go). A stop
-// that skips it leaves the daemon running after it reported success. Safe for
-// concurrent use; calls after the first do nothing.
+// that skips it leaves the daemon running after it reported success. The hub
+// also calls it when an operator's signal starts the stop (runYANGConfig), and
+// BeginDrain calls it, so a closed shutdownRequested is the one fact that says
+// the stop is under way (stopUnderWay). Safe for concurrent use; calls after
+// the first do nothing.
 func (s *Server) SignalShutdownRequested() {
 	s.shutdownRequestedOnce.Do(func() {
 		if s.shutdownRequested != nil {
 			close(s.shutdownRequested)
 		}
 	})
+}
+
+// stopUnderWay reports whether the daemon's stop has begun: shutdownRequested
+// is closed (SignalShutdownRequested). A plugin that fails after that point is
+// one of the stop's effects, never its cause, so the failure policy does not
+// record it as a fatal stop (stopDaemonForPlugin). Safe for concurrent use.
+func (s *Server) stopUnderWay() bool {
+	if s.shutdownRequested == nil {
+		return false
+	}
+	select {
+	case <-s.shutdownRequested:
+		return true
+	default:
+		return false
+	}
+}
+
+// StopFailure answers the operator error of the plugin failure that stopped
+// the daemon (stopDaemonForPlugin), or nil when no plugin failure caused the
+// stop. The daemon prints it and exits 1 when it is set (runYANGConfig,
+// cmd/ze/hub/main.go), so a service manager and an operator's script can tell
+// this stop from a clean one. Safe for concurrent use.
+func (s *Server) StopFailure() *opererr.Error {
+	return s.stopFailure.Load()
 }
 
 // Stop signals the server to stop and cleans up resources.

@@ -128,7 +128,7 @@ what its own failure means, and ze does that.
 |---------------------|----------------------------|
 | `restart` | starts the plugin again, up to 5 times in 60 seconds and 20 in the life of the daemon |
 | `ignore` | logs it and carries on without the plugin |
-| `fatal` | stops ze |
+| `fatal` | stops ze, which exits 1 so a service manager sees a failure |
 | nothing | logs it and carries on, the same as `ignore` |
 
 `fatal` is open to any plugin, including one you wrote or one you downloaded.

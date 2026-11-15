@@ -5,7 +5,8 @@
 # VALIDATES: spec-daemon-drain-before-stop AC-8 (plugin failure): the stop a
 #            failed fatal plugin causes enters the hub with kind stop, and the
 #            other drain-registered plugin receives the drain and answers
-#            before its connection closes; the daemon exits 0.
+#            before its connection closes; the daemon exits 1, because a
+#            stop a failed plugin caused is a failure (StopFailure).
 # PREVENTS:  a plugin-failure stop bypassing the drain.
 
 tmpfs=ze-bgp.conf:terminator=EOF_CONF
@@ -22,7 +23,9 @@ plugin {
 EOF_CONF
 
 cmd=foreground:seq=1:exec=ze start ze-bgp.conf:timeout=30s
-expect=exit:code=0
+expect=exit:code=1
+expect=stderr:contains=error: ze stopped because plugin failure-fatal failed
+expect=stderr:contains=the plugin's failure policy says ze must not keep running without it, so ze exits 1
 expect=stderr:contains=FIXTURE: failure-fatal is exiting
 expect=stderr:contains=stopping ze because a plugin failed
 expect=stderr:contains=drain-fixture: drain received kind=stop

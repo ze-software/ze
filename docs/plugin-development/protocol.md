@@ -199,7 +199,7 @@ is none of the three fails the whole registration, so ze never guesses.
 |-------------|---------|---------------------------------|
 | `restart` | starts the plugin again, bounded at 5 in 60 seconds and 20 in the life of the daemon | Yes |
 | `ignore` | logs it and carries on without the plugin | No |
-| `fatal` | stops ze | No |
+| `fatal` | stops ze, which exits 1 | No |
 
 `fatal` is open to any plugin, whether ze ships it or you wrote it (owner
 directive, 2026-09-06). An operator who configures your plugin accepts its

@@ -834,7 +834,7 @@ when the plugin fails a startup stage after it has declared.
 |-------|-------------------|------------------------------|
 | `restart` | The engine starts the plugin again | Yes |
 | `ignore` | The engine logs and carries on without it | No |
-| `fatal` | The daemon stops | No |
+| `fatal` | The daemon stops, and `ze` exits 1 | No |
 
 The declaration is VOLUNTARY. A plugin that omits the field is read as `ignore`,
 which is what the engine did before the field existed, so silence is never read
@@ -851,6 +851,28 @@ leaf the declaration decides. With `respawn false` a plugin that would have been
 started again is left stopped. With `respawn true` against a plugin that
 declares it must not be restarted, the daemon stops at startup and the error
 names the plugin, the policy it declared and the leaf.
+
+A stop a plugin causes, under `fatal` or through that disagreement, is a
+failure, and `ze` exits 1 once the stop has completed, as it does for a refused
+startup. Only a stop nothing failed in exits 0, so a service manager that
+restarts on failure (systemd `Restart=on-failure`) and an operator's script
+see the fatal stop for what it is. ze writes an error to stderr at the end of
+the stop, naming the plugin and the reason. Its fix depends on the cause:
+
+| Cause | Fix the error names |
+|-------|---------------------|
+| `fatal`, last-stop record written | `ze doctor`, which reads the plugin, the reason and the time from the record |
+| `fatal`, the store refused the record | the ze log lines that name the plugin, because doctor cannot name this stop |
+| The respawn disagreement | the config change the startup refusal names: remove the `respawn` leaf, or run a plugin that declares `restart` |
+
+Only the first failure counts, and only before the stop begins. When two
+plugins fail at once, the first is the cause, so the stderr error and the
+record name the same plugin. Once a stop is under way (an accepted `request shutdown`, a signal, the drain), a fatal
+plugin that exits is an effect of that stop, not its cause: it is logged, no
+record is written, and the stop exits 0.
+<!-- source: internal/component/plugin/server/server.go -- (*Server).StopFailure, stopUnderWay -->
+<!-- source: internal/component/plugin/server/failure_policy.go -- (*Server).stopDaemonForPlugin, pluginStopFailure, respawnDisagreementFix -->
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
 
 A restart is bounded: `RespawnLimit` restarts in `RespawnWindow`, and
 `MaxTotalRespawns` over the life of the daemon. Past either bound the plugin is

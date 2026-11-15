@@ -13,6 +13,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -97,9 +98,16 @@ func refuseRespawnDisagreement(name string, asked plugin.RespawnRequest, declare
 		return nil
 	}
 	return fmt.Errorf("%w: plugin %q declares failure-policy %q, so it must not be started again, "+
-		"and its configuration block asks for respawn: remove the respawn leaf, "+
-		"or run a plugin that declares %q",
-		errRespawnDisagreement, name, declaredPolicyName(declared), rpc.FailureRestart)
+		"and its configuration block asks for respawn: %s",
+		errRespawnDisagreement, name, declaredPolicyName(declared), respawnDisagreementFix())
+}
+
+// respawnDisagreementFix is the config change that resolves a respawn
+// disagreement. The startup refusal (refuseRespawnDisagreement) and the stop
+// error ze prints at exit (pluginStopFailure) both use it, so the operator
+// reads one fix in both places.
+func respawnDisagreementFix() string {
+	return fmt.Sprintf("remove the respawn leaf, or run a plugin that declares %q", rpc.FailureRestart)
 }
 
 // declaredPolicyName is how a declaration is named in a message to an operator.
@@ -160,7 +168,7 @@ func (s *Server) applyFailurePolicy(proc *process.Process) {
 				"plugin", name, "error", err, "code", diagnostic.CodeDoctorPluginStopped)
 		}
 	case rpc.FailureFatal:
-		s.stopDaemonForPlugin(name, "the plugin declares that its failure stops ze")
+		s.stopDaemonForPlugin(name, pluginStopFatalPolicy, "the plugin declares that its failure stops ze")
 	case rpc.FailureIgnore, rpc.FailureUnspecified:
 		pm.RecordStopped(name, process.PluginStop{Cause: process.StopPolicyExit, Policy: policy.String(), ExitStatus: exitStatus})
 	default:
@@ -212,7 +220,7 @@ func (s *Server) stopDaemonOnRemovalFailure(proc *process.Process, attempt *plug
 			return
 		}
 		pm.ReportCrash(proc.Name(), proc.ExitStatus(), pluginFailurePolicy(proc).String())
-		s.stopDaemonForPlugin(proc.Name(), "the fatal plugin failed before acknowledging removal")
+		s.stopDaemonForPlugin(proc.Name(), pluginStopFatalPolicy, "the fatal plugin failed before acknowledging removal")
 	})
 	return true
 }
@@ -233,7 +241,7 @@ func (s *Server) stopDaemonOnRemovalFailure(proc *process.Process, attempt *plug
 // without it is what the plugin declared must not happen.
 func (s *Server) stopDaemonOnStartupFailure(ctx context.Context, proc *process.Process, cause error) {
 	if errors.Is(cause, errRespawnDisagreement) {
-		s.stopDaemonForPlugin(proc.Name(), errRespawnDisagreement.Error())
+		s.stopDaemonForPlugin(proc.Name(), pluginStopRespawnDisagreement, errRespawnDisagreement.Error())
 		return
 	}
 	if scope, scoped := s.pluginConfigureConfig(proc); scoped && scope.recovering {
@@ -251,7 +259,7 @@ func (s *Server) stopDaemonOnStartupFailure(ctx context.Context, proc *process.P
 			"plugin", proc.Name(), "error", cause, "code", diagnostic.CodeDoctorPluginStopped)
 		return
 	}
-	s.stopDaemonForPlugin(proc.Name(), "the plugin declares that its failure stops ze, and its startup ended: "+
+	s.stopDaemonForPlugin(proc.Name(), pluginStopFatalPolicy, "the plugin declares that its failure stops ze, and its startup ended: "+
 		cause.Error()+"; correct that failure and start ze again")
 }
 
@@ -306,12 +314,83 @@ func startupEndedOutsidePlugin(ctx context.Context, cause error) bool {
 //
 // The reason is written to the last-stop record first (last_stop.go), because
 // nothing else survives the stop and the next `ze doctor` names it from there.
-func (s *Server) stopDaemonForPlugin(name, reason string) {
-	s.recordStop(LastStopEntry{Reason: LastStopFatalPolicy, Plugin: name, Detail: reason})
+// The same stop sets the server's stop failure (StopFailure), so the daemon
+// prints it and exits 1 once its stop completes: a fatal stop is never read
+// as a clean shutdown by a service manager or a script.
+//
+// Only the first plugin failure is the cause. A plugin that fails once the
+// stop is under way (stopUnderWay: an accepted `request shutdown`, a signal,
+// the drain), or while another plugin's failure is already stopping ze
+// (stopCauseClaimed), is an effect of that stop: it is logged and nothing is
+// recorded. So an operator's clean stop exits 0, and when two plugins fail at
+// once the stderr error and the record `ze doctor` reads name the same one.
+func (s *Server) stopDaemonForPlugin(name string, cause pluginStopCause, reason string) {
+	if s.stopUnderWay() {
+		logger().Info("a plugin failed while ze was already stopping, so it is not the cause of the stop",
+			"plugin", name, "reason", reason)
+		return
+	}
+	if !s.stopCauseClaimed.CompareAndSwap(false, true) {
+		logger().Info("a plugin failed while another plugin's failure was already stopping ze, so it is not the cause of the stop",
+			"plugin", name, "reason", reason)
+		return
+	}
+	recorded := s.recordStop(LastStopEntry{Reason: LastStopFatalPolicy, Plugin: name, Detail: reason})
+	s.stopFailure.Store(pluginStopFailure(name, cause, reason, recorded))
 	logger().Error("stopping ze because a plugin failed; run ze doctor after the restart for the recorded cause",
 		"plugin", name, "reason", reason, "code", diagnostic.CodeDoctorPluginFatalStop)
 	if s.shutdownFunc != nil {
 		s.shutdownFunc()
 	}
 	s.SignalShutdownRequested()
+}
+
+// pluginStopCause is which rule made a plugin stop ze. It picks the why and
+// the fix of the error ze prints at exit (pluginStopFailure). Only Ze code
+// produces it, so a switch over it lists every value.
+type pluginStopCause uint8
+
+const (
+	pluginStopUnspecified pluginStopCause = iota
+	// pluginStopFatalPolicy: the plugin declares failure-policy fatal and
+	// failed, at startup, at runtime or during its removal.
+	pluginStopFatalPolicy
+	// pluginStopRespawnDisagreement: the plugin's block asks for respawn true,
+	// and the plugin declares it must not be started again
+	// (refuseRespawnDisagreement).
+	pluginStopRespawnDisagreement
+)
+
+// pluginStopFailure is the operator error ze prints when plugin name stopped
+// it. reason is the error's evidence, because its startup form carries the
+// plugin's own failure text, which opererr.New must not be given.
+//
+// For a fatal policy the fix is `ze doctor` when the last-stop record was
+// written, because doctor reads the plugin, the reason and the time from it.
+// When the store refused the record, doctor cannot answer, so the error says
+// that and points at the log lines instead. For a respawn disagreement the fix
+// is the config change, the same one the startup refusal names, whether or not
+// the record was written.
+func pluginStopFailure(name string, cause pluginStopCause, reason string, recorded bool) *opererr.Error {
+	evidence := errors.New(reason)
+	switch cause {
+	case pluginStopFatalPolicy:
+		problem := "ze stopped because plugin " + name + " failed"
+		if recorded {
+			return opererr.Wrap(evidence, problem,
+				"the plugin's failure policy says ze must not keep running without it, so ze exits 1",
+				"ze doctor")
+		}
+		return opererr.Wrap(evidence, problem,
+			"the plugin's failure policy says ze must not keep running without it, so ze exits 1; "+
+				"the store refused the record of this stop, so ze doctor cannot name it",
+			"read the ze log lines that name "+name)
+	case pluginStopRespawnDisagreement:
+		return opererr.Wrap(evidence, "ze stopped because plugin "+name+" cannot be restarted as its configuration asks",
+			"the configuration asks to restart a plugin that declares it cannot be restarted, so ze exits 1",
+			respawnDisagreementFix())
+	case pluginStopUnspecified:
+		panic("BUG: pluginStopFailure called with an unspecified cause for plugin " + name)
+	}
+	panic("BUG: pluginStopFailure called with an unknown cause for plugin " + name)
 }

@@ -227,29 +227,33 @@ func clearLastStop() error {
 
 // recordLastStopLogged writes entry and logs a failure at Warn, under the
 // entry's own doctor code: the stop goes on, and without the record the next
-// `ze doctor` cannot name its cause.
+// `ze doctor` cannot name its cause. It reports whether the record was
+// written, so a caller that tells the operator to run `ze doctor` can say
+// instead that doctor cannot answer.
 //
 // Each reason's line names its code as a constant, so the doctor-coverage
 // gate reads which check declares it.
-func recordLastStopLogged(entry LastStopEntry) {
+func recordLastStopLogged(entry LastStopEntry) bool {
 	err := RecordLastStop(entry)
 	if err == nil {
-		return
+		return true
 	}
 	if entry.Reason == LastStopCleanupLate {
 		logger().Warn("could not record why ze is stopping, so the next ze doctor cannot name it; run ze init if this daemon has no store",
 			"plugin", entry.Plugin, "detail", entry.Detail, "error", err, "code", diagnostic.CodeDoctorPluginStopCleanupLate)
-		return
+		return false
 	}
 	logger().Warn("could not record why ze is stopping, so the next ze doctor cannot name it; run ze init if this daemon has no store",
 		"plugin", entry.Plugin, "detail", entry.Detail, "error", err, "code", diagnostic.CodeDoctorPluginFatalStop)
+	return false
 }
 
 // recordStop is recordLastStopLogged for a stop this server causes, and marks
-// the server so the end of its own startup does not delete the record.
-func (s *Server) recordStop(entry LastStopEntry) {
+// the server so the end of its own startup does not delete the record. It
+// reports whether the record was written.
+func (s *Server) recordStop(entry LastStopEntry) bool {
 	s.lastStopRecorded.Store(true)
-	recordLastStopLogged(entry)
+	return recordLastStopLogged(entry)
 }
 
 // settleLastStop runs when startup completes. A server that already recorded

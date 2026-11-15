@@ -42,7 +42,9 @@ EOF_CONF
 
 cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze start ze-bgp.conf:timeout=25s
-expect=exit:code=0
+expect=exit:code=1
+expect=stderr:contains=error: ze stopped because plugin fatal-live-peer failed
+expect=stderr:contains=the plugin's failure policy says ze must not keep running without it, so ze exits 1
 expect=stderr:contains=FIXTURE: fatal owner exiting after peer1 initial-sync EOR reached the wire
 expect=stderr:contains=stopping ze because a plugin failed
 expect=stderr:contains=the plugin declares that its failure stops ze
