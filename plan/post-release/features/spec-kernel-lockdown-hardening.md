@@ -7,7 +7,7 @@
 | Release reason | Adds a security policy or hardening capability; the source does not establish a current fail-open or data-loss defect. |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-06-30 |
+| Updated | 2026-11-15 |
 
 > NOTE (2026-06-30): This spec is a **design deliverable, not scheduled for implementation**.
 > It is written to be implementation-ready and has been critically reviewed (see
@@ -36,6 +36,29 @@ This is the **in-memory / runtime half** of an integrity story. The **at-rest ha
 Secure Boot, signed boot chain, dm-verity root) is an explicit follow-on (see Known
 Limitations). Lockdown alone is defense-in-depth: it raises the bar substantially but does
 not, by itself, stop an attacker who can rewrite the boot media.
+
+### Installer media authenticity (amendment, 2026-11-15)
+
+This spec also owns the authenticity of installer media: the installer ISO,
+the installer kernel and initrd it boots, and the image `ze install disk`
+writes, over PXE or HTTP or from the ISO. It was homed here by
+`plan/release/fixes/spec-selfupdate-manifest-authenticity.md`, which
+authenticates what reaches a running Ze box and anchors that trust in the
+running image. At install time no running trusted image exists, so the anchor
+belongs to the boot-chain work this spec carries as its Secure Boot follow-on.
+What checks installer bytes today, read on 2026-11-15:
+
+| Path | Producer | What checks the bytes today |
+|------|----------|-----------------------------|
+| PXE or HTTP install | `internal/install/disk/run.go` `runHTTP` | It fetches `<image>.sha256` from the same image server over plain `http://`. When that fetch fails it logs "no image checksum available, skipping verification", and `fetch.ToDisk` streams the image to disk with no digest check |
+| ISO install | `internal/install/disk/iso.go` `localImageToDisk` | It compares the image with the `.sha256` on the same medium, so it detects corruption, never substitution |
+| ISO build | `internal/appliance/cmd_iso.go` `readRequiredImageChecksum`, `verifyImageChecksumRequired` | It refuses an image without a matching `.sha256` sidecar. The installer kernel and initrd it packs carry no signature |
+| Image server | `internal/plugins/imageserver/handler.go` `serveImage`, `serveBoot`; `internal/plugins/imageserver/register.go` | It serves the image directory and the boot files by name, and warns when no `build.json` confirms the identity of the image it serves |
+
+The verification design for these paths (which key signs installer media,
+where the installer finds its trust root, and what the installer does when no
+signature verifies) is owed in this spec, with its acceptance criteria, before
+the spec moves to `ready`.
 
 ### Reference Material (authoritative sources for this spec)
 
@@ -142,6 +165,28 @@ stable-key path as primary per the gate decision; the fallback remains a one-lin
 - Any kernel module that loads at runtime must be signed by the per-build key (or built in).
 - Runtime kernel image is signed; kexec verifies the signature.
 - Both kernels get KASLR + dmesg restriction.
+
+## Existing Mechanisms
+
+Read from the code on 2026-11-15. The build engine the sections below cite as
+`tools/kernel-builder/build.py` and `run.py`, later
+`internal/le/deployment/hostkernel.go` and `gokrazykernel.go`, is now
+`internal/appliance/kernelbuilder/worker.go`, and the updater the Key strategy
+names as `updater.go` is the vendored gokrazy updater.
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Kernel profiles and fragments | `internal/appliance/kernelreg.go` `RuntimeKernelLayers`, `resolveKernelProfileFrom`; `docs/architecture/appliance/kernel-profiles.md` | Resolves a kernel profile into its ordered config fragments and their `.require` manifests | Extends: the hardening symbols go into the runtime and installer fragments; the amd64-only image-signing fragment needs the per-arch selection Files to Modify names as a gap to design |
+| Kernel build and `=y` floor | `internal/appliance/kernelbuilder/worker.go` `enforceRequiredSymbols`; `internal/appliance/kernelreq.go` `enforceKernelRequirements` | Builds the kernel, and fails when a symbol a `.require` manifest lists is not `=y` in the resolved config | Extends: the floor gains the arch-common hardening symbols and the signing steps join the build. A string or `=n` symbol stays outside the floor (R-7) |
+| Appliance doctor checks | `internal/appliance/doctor_checks.go` `applianceDoctorChecks`; `internal/core/diagnostic/doctor_registry.go` `RegisterDoctorCheck`; `internal/core/diagnostic/codes.go` | Registers the build-host checks (kernel, initrd and GRUB artifacts) with their codes | Extends: `doctor-appliance-lockdown` registers the same way, gated to a running appliance (C-8) |
+| kexec reboot | pinned gokrazy `reboot_amd64.go` | Calls `kexec_file_load` on the new kernel and falls back to a full reboot on any error | Keeps unchanged: a signed image lets the kexec path pass under lockdown (AC-6) |
+| Push reboot mode | `vendor/github.com/gokrazy/updater/updater.go` `WithKexec`; `internal/appliance/cmd_push.go` calls `Reboot` with no option | The updater defaults to kexec, and `WithKexec(false)` asks for a full reboot | Keeps: that option is the full-reboot escape hatch of Key strategy |
+| Boot module load | pinned gokrazy `modules.go` `loadModules`, called from `gokrazy.go` | Loads the boot modules; a failure does not stop the boot (A-2, confirmed by code read) | Keeps: an unsigned module refused under lockdown leaves the boot running |
+| TCX traffic accounting | `internal/plugins/trafficusage/attach_linux.go` | Attaches networking BPF through `link.AttachTCX` | Keeps: integrity mode does not restrict it (A-1) |
+| DPDK VFIO load | `internal/component/vpp/dpdk_linux.go` `loadModuleLinux` | Loads the VFIO modules when DPDK interfaces are configured | Replaces the runtime load: VFIO is built in, so nothing waits on a signed module (R-6) |
+| Image checksum sidecar | `internal/appliance/manifest.go` `writeImageChecksum`; `internal/appliance/cmd_iso.go` `readRequiredImageChecksum`; `internal/install/disk/iso.go` `localImageToDisk` | Writes a SHA-256 beside each image, requires it for an ISO, and checks an ISO install against it | Extends, for installer media: the integrity check their authenticity builds on; it authenticates nothing today |
+| Installer HTTP fetch | `internal/install/disk/run.go` `runHTTP`; `internal/core/fetch/fetch.go` `ToDisk`, `sameOrigin` | Takes an optional digest from the same server and follows only same-origin redirects | Extends, for installer media: the path the owed installer-media design must cover |
+| Device update statements | `plan/release/fixes/spec-selfupdate-manifest-authenticity.md`, Trust roots | Designed: SSHSIG statements for self-update binaries and pushed images, verified against the running image | Does not apply: its anchor is a running image, which install time lacks, and its keys are not the kernel image key of Key strategy |
 
 ## Data Flow (MANDATORY)
 

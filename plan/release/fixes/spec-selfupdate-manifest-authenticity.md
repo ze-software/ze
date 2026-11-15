@@ -85,8 +85,9 @@ running trusted image exists there to anchor a key. Release packages, their GPG
 signatures and the daemon release SBOM stay in
 `plan/release/delivery/spec-release-build.md` and
 `plan/release/delivery/spec-release-distribution.md`. That spec's Excluded list
-names appliance images, installer kernels, initrds and ISOs without an owner;
-this spec owns appliance images and the update statements.
+names appliance images, installer kernels, initrds and ISOs, and since
+2026-11-15 it names their owners: this spec for appliance images and the update
+statements, the lockdown spec for installer media.
 
 ## Required Reading
 
@@ -576,8 +577,7 @@ Each row gives the first line, the why, and the fix line, per `ai/rules/user-fac
 
 | Item | Destination | State of the destination |
 |------|-------------|--------------------------|
-| Authenticity of installer media: ISO, installer kernel and initrd, and the image `ze install disk` writes over PXE or HTTP (today an optional SHA-256 from the same server, skipped with a warning when absent) | `plan/post-release/features/spec-kernel-lockdown-hardening.md` | Its Task does not yet name this item. On 2026-11-15 the spec edit gate refused the amendment, because that spec has no `## Existing Mechanisms` section; the main thread owes the amendment |
-| A pointer from the Excluded list of `plan/release/delivery/spec-release-distribution.md` to this spec and to the lockdown spec | `plan/release/delivery/spec-release-distribution.md` | Refused by the same gate on 2026-11-15 (no `## Existing Mechanisms` section, and an unresolvable cited name `ze/release-evidence-v1`); the main thread owes it |
+| Authenticity of installer media: ISO, installer kernel and initrd, and the image `ze install disk` writes over PXE or HTTP (today an optional SHA-256 from the same server, skipped with a warning when absent) | `plan/post-release/features/spec-kernel-lockdown-hardening.md` | Named in its Task since 2026-11-15 ("Installer media authenticity"), with what checks those bytes today; its verification design and acceptance criteria are owed there before it moves to `ready` |
 
 ## RFC Documentation (Scope: protocol)
 

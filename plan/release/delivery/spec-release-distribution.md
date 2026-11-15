@@ -7,11 +7,33 @@
 | Release reason | Required release artifacts, safe installation or appliance/runtime-kernel delivery and their outstanding boot evidence. |
 | Depends | `spec-release-evidence-gate.md`, `spec-release-audit-0-umbrella.md` |
 | Phase | - |
-| Updated | 2026-07-10 |
+| Updated | 2026-11-15 |
 
 ## Task
 
 Own the safe lifecycle and authentication of the first-release direct packages and downloads. Consume every approved artifact from spec-release-build, including archives, DEB/RPM, Homebrew, install.sh and changelog; retain this specification’s SBOMs, provenance, manifests and signatures. The 2026-09-28 amendment remains controlling over superseded version/build/signing mechanisms. No approved artifact is removed. Repository hosting, nightly channels and their retention have a separate owner; stable direct-release retention, monitoring, restoration and freeze rules remain here.
+
+## Existing Mechanisms
+
+The rows name what Ze already has for this slice, read from the code on
+2026-11-15. The historical record below cites some producers that have since
+moved or been deleted; each such row says where the behavior lives now.
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Release identity | `internal/core/version/version.go` `Stamp`, `Release`, `CompareReleases`, `IsValidRelease` | Holds the release and build date stamped at link time, and orders two releases | Extends: the release build stamps the tag's release and the tagged commit's date, in the form the 2026-09-28 amendment set |
+| Release build and GPG signing | `plan/release/delivery/spec-release-build.md`, the Signing row and `./le build release` (no release action exists under `internal/le/build/` yet) | Designed: builds the archives, DEB, RPM, Homebrew formula, `install.sh` and `checksums.txt`, GPG-signed on the maintainer's hardware key | Extends: this spec consumes those artifacts and adds SBOMs, provenance, manifests, publication and the package lifecycle, as the 2026-09-28 amendment states |
+| Interactive bootstrap | `internal/plugins/init/main.go` (`ze init`) | Writes the zefs store from the credentials it is given; no `--automatic` mode exists | Extends: `ze init --automatic` is a mode of the same plugin (AC-11, AC-12) |
+| systemd install and unit | `internal/plugins/systemd/cmd_install.go`, `unit.go` `buildUnitFile` | `ze install systemd` writes the admin unit that `buildUnitFile` renders and installs the service | Extends: the package's vendor unit keeps the `buildUnitFile` contract (Behavior to preserve) |
+| Service doctor check | `internal/plugins/systemd/doctor.go` `serviceDoctorCheck`, `checkServiceInstall` | Reads one unit file, the default path or the env override, and checks its executable and its stop behavior. The historical record's `internal/component/doctor/checks_platform.go` now holds the platform check only | Extends: the check validates the unit systemd reports as effective, vendor or admin (AC-18) |
+| Update backend registry | `internal/component/config/system/backend.go` `registerBackend`, `NewBackend`, `ActiveBackend`; `backend_ze_distro.go` `newZeBackend` | Picks one `UpdateBackend` by platform: `ze-self-update` off gokrazy, `gokrazy-ab` on it | Extends: a package-managed backend registers into the same registry, and the install marker selects it before the platform (AC-19), with no switch gaining a case |
+| In-place self-update | `internal/component/config/system/selfupdate.go` | Downloads a binary and renames it over the running executable | Does not apply to a package install, whose backend refuses every mutation so APT or RPM owns `/usr/bin/ze`. Its authenticity is `plan/release/fixes/spec-selfupdate-manifest-authenticity.md` |
+| Update commands | `internal/plugins/update-cmd/cmd/firmware.go` | Every handler calls `system.ActiveBackend()` | Keeps: the package-managed answer arrives through the same dispatch |
+| Update server | `internal/plugins/update-cmd/cmd/serve.go` `newUpdateServeContent`, `updateServeContent.handler` (the historical record's `cmd/ze/update_serve.go` was deleted) | Serves a manifest and the binary of its own executable | Does not apply: kept as it is (Excluded list); its signed form is `plan/release/fixes/spec-selfupdate-manifest-authenticity.md` |
+| Device update statements | `plan/release/fixes/spec-selfupdate-manifest-authenticity.md`, Trust roots | Designed: SSHSIG statements for self-update binaries, official per-target statements included, and for appliance images, with SPDX 2.3 JSON image SBOMs | Does not apply: owned there, in a trust domain separate from every GPG key in Signing Ownership |
+| Appliance image checksum | `internal/appliance/manifest.go` `writeImageChecksum`; `internal/appliance/cmd_iso.go` `readRequiredImageChecksum` | Writes the `.sha256` beside an appliance image, which the ISO build requires | Does not apply: appliance images and ISOs are excluded |
+| Release evidence | `plan/release/validation/spec-release-evidence-gate.md` (the historical record's `internal/le/evidence/evidence.go` was deleted) | The release evidence matrix | Extends: this spec adds the package categories and the recorder-bound check |
+| SSH default listener | `internal/component/ssh/ssh.go` `defaultListen` | Listens on loopback `127.0.0.1:2222` | Keeps: the automatic bootstrap writes loopback-only management config (AC-11) |
 
 ## Acceptance Criteria
 
@@ -103,6 +125,16 @@ Excluded:
 - A general-purpose package hosting application or always-running web service.
 
 The excluded binaries are host/developer, test/evidence, or target/appliance artifacts with different build and lifecycle contracts. They may get separate release specs only after their source-supported packaging and end-to-end tests exist.
+
+Owners of what the Excluded list names (2026-11-15). Appliance image signing,
+image SBOMs, device-side verification of pushed images, and the update
+statements Ze verifies, the official per-target statements of a release
+included, are owned by
+`plan/release/fixes/spec-selfupdate-manifest-authenticity.md`. They use
+SSHSIG, a trust domain separate from every GPG key in Signing Ownership below,
+and their SBOMs share this spec's format, SPDX 2.3 JSON. Installer kernels,
+initrds, ISOs and PXE install images are owned by
+`plan/post-release/features/spec-kernel-lockdown-hardening.md`.
 
 #### Scope amendment (owner, 2026-09-28)
 
@@ -365,6 +397,7 @@ For each stable or nightly candidate, the protected recorder parses repository f
 | Retention authorization | Dedicated offline primary plus short-lived online subkey in retention GPG home | Exact nightly prune plans after metadata activation | Root credential broker allowlist; not a client/package trust root |
 | GitHub Actions attestations | GitHub OIDC/keyless service | Per-binary provenance/SPDX and aggregate input provenance | `gh attestation verify` with repository/workflow policy |
 | GitHub immutable release | GitHub release attestation service | Immutable release and each final asset | `gh release verify` plus `gh release verify-asset`; versioned record and raw verifier transcripts archived |
+| Device update statements, owned by `plan/release/fixes/spec-selfupdate-manifest-authenticity.md` | Maintainer FIDO2 `sk-ssh-ed25519` key for official statements; the operator's key; one image key per appliance instance | Self-update binary statements, one per release target, and appliance image statements, as SSHSIG, never GPG | Release keys compiled into Ze or a configured `trusted-key`; the key file in the running image; no keyring of this table |
 
 Separate primary keys provide enforceable trust-domain separation that subkey naming alone cannot. Each online secret subkey is exported without its primary secret, stored under a dedicated locked OS account/GPG home, and delivered through a distinct systemd credential. Current and next public primaries ship before signer rotation; overlap tests prove old and new clients. Revocation freezes only the affected trust domain, publishes the revoked primary and replacement fingerprint through GitHub and `ze-software.net`, and rebuilds from archived attested inputs where required.
 
