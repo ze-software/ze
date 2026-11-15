@@ -720,7 +720,7 @@ func TestEvidenceNightlyScheduleActionsAndPrivileges(t *testing.T) {
 		delete(dockerLabs, job.name)
 		for _, required := range []string{
 			`./le test qemu docker-lab lab "` + lab + `"`,
-			"actions/cache/restore@v6", "actions/cache/save@v6",
+			"actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9", "actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9",
 			"./le build host-driver",
 			"./ze-host appliance kernel --target runtime --arch amd64",
 			"./le setup docker kernel check ze tmp/qemu/linux-amd64/ze",
@@ -948,7 +948,7 @@ func TestQEMUNightlyScheduleActionsCachesAndBudgets(t *testing.T) {
 		}
 	}
 	for _, job := range jobBlocks(t, name) {
-		if !strings.Contains(job.body, "actions/cache/restore@v6") || !strings.Contains(job.body, "actions/cache/save@v6") {
+		if !strings.Contains(job.body, "actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9") || !strings.Contains(job.body, "actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9") {
 			t.Errorf("%s job %q must restore and save the runtime kernel cache", name, job.name)
 		}
 		if strings.Contains(job.body, "./le test qemu run") {

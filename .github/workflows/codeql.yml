@@ -27,7 +27,7 @@ jobs:
             build-mode: none
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       # ze compiles only against Ze's patched crypto/tls, so every later go
       # command in this job runs under the patched GOROOT the generator answers
@@ -57,7 +57,7 @@ jobs:
 
       - name: Initialize CodeQL
         id: init
-        uses: github/codeql-action/init@v4.39.1
+        uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
@@ -97,7 +97,7 @@ jobs:
 
       - name: Perform CodeQL Analysis
         id: analyze
-        uses: github/codeql-action/analyze@v4.39.1
+        uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           category: "/language:${{ matrix.language }}"
 
@@ -112,7 +112,7 @@ jobs:
 
       - name: Retain Go extraction evidence
         if: always() && matrix.build-mode == 'manual'
-        uses: actions/upload-artifact@v7.0.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: codeql-go-extraction-proof
           retention-days: 14

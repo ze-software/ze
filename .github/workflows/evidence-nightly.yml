@@ -22,9 +22,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Set up Go
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
@@ -40,9 +40,9 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Set up Go
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
@@ -79,9 +79,9 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Set up Go
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
@@ -92,9 +92,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Set up Go
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
@@ -159,9 +159,9 @@ jobs:
     timeout-minutes: 210
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Set up Go
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
@@ -179,7 +179,7 @@ jobs:
           ls -l /dev/kvm
       - name: Restore the runtime kernel cache
         id: kernel-cache
-        uses: actions/cache/restore@v6
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/.cache/ze
           key: ze-runtime-kernel-amd64-${{ hashFiles('internal/appliance/kernel.version', 'gokrazy/kernel/**', 'tools/kernel-builder/**') }}
@@ -189,7 +189,7 @@ jobs:
           ./ze-host appliance kernel --target runtime --arch amd64
       - name: Save the runtime kernel cache
         if: steps.kernel-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v6
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/.cache/ze
           key: ze-runtime-kernel-amd64-${{ hashFiles('internal/appliance/kernel.version', 'gokrazy/kernel/**', 'tools/kernel-builder/**') }}
@@ -224,9 +224,9 @@ jobs:
     timeout-minutes: 180
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Set up Go
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
@@ -244,7 +244,7 @@ jobs:
           ls -l /dev/kvm
       - name: Restore the runtime kernel cache
         id: kernel-cache
-        uses: actions/cache/restore@v6
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/.cache/ze
           key: ze-runtime-kernel-amd64-${{ hashFiles('internal/appliance/kernel.version', 'gokrazy/kernel/**', 'tools/kernel-builder/**') }}
@@ -254,7 +254,7 @@ jobs:
           ./ze-host appliance kernel --target runtime --arch amd64
       - name: Save the runtime kernel cache
         if: steps.kernel-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v6
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/.cache/ze
           key: ze-runtime-kernel-amd64-${{ hashFiles('internal/appliance/kernel.version', 'gokrazy/kernel/**', 'tools/kernel-builder/**') }}
@@ -292,9 +292,9 @@ jobs:
     timeout-minutes: 180
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Set up Go
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
@@ -312,7 +312,7 @@ jobs:
           ls -l /dev/kvm
       - name: Restore the runtime kernel cache
         id: kernel-cache
-        uses: actions/cache/restore@v6
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/.cache/ze
           key: ze-runtime-kernel-amd64-${{ hashFiles('internal/appliance/kernel.version', 'gokrazy/kernel/**', 'tools/kernel-builder/**') }}
@@ -322,7 +322,7 @@ jobs:
           ./ze-host appliance kernel --target runtime --arch amd64
       - name: Save the runtime kernel cache
         if: steps.kernel-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v6
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/.cache/ze
           key: ze-runtime-kernel-amd64-${{ hashFiles('internal/appliance/kernel.version', 'gokrazy/kernel/**', 'tools/kernel-builder/**') }}
@@ -360,9 +360,9 @@ jobs:
     timeout-minutes: 180
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Set up Go
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
@@ -380,7 +380,7 @@ jobs:
           ls -l /dev/kvm
       - name: Restore the runtime kernel cache
         id: kernel-cache
-        uses: actions/cache/restore@v6
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/.cache/ze
           key: ze-runtime-kernel-amd64-${{ hashFiles('internal/appliance/kernel.version', 'gokrazy/kernel/**', 'tools/kernel-builder/**') }}
@@ -390,7 +390,7 @@ jobs:
           ./ze-host appliance kernel --target runtime --arch amd64
       - name: Save the runtime kernel cache
         if: steps.kernel-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v6
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/.cache/ze
           key: ze-runtime-kernel-amd64-${{ hashFiles('internal/appliance/kernel.version', 'gokrazy/kernel/**', 'tools/kernel-builder/**') }}
@@ -420,9 +420,9 @@ jobs:
     timeout-minutes: 180
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Set up Go
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
@@ -440,7 +440,7 @@ jobs:
           ls -l /dev/kvm
       - name: Restore the runtime kernel cache
         id: kernel-cache
-        uses: actions/cache/restore@v6
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/.cache/ze
           key: ze-runtime-kernel-amd64-${{ hashFiles('internal/appliance/kernel.version', 'gokrazy/kernel/**', 'tools/kernel-builder/**') }}
@@ -450,7 +450,7 @@ jobs:
           ./ze-host appliance kernel --target runtime --arch amd64
       - name: Save the runtime kernel cache
         if: steps.kernel-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v6
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/.cache/ze
           key: ze-runtime-kernel-amd64-${{ hashFiles('internal/appliance/kernel.version', 'gokrazy/kernel/**', 'tools/kernel-builder/**') }}

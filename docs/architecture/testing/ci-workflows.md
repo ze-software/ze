@@ -25,7 +25,7 @@ developer host.
 | `./le test qemu all`, inside a guest booting the runtime kernel | `qemu-nightly.yml`, job `needs-linux` | schedule `43 4 * * *` | advisory |
 | The LDP, IS-IS and VRRP protocol labs, each inside `./le test qemu run` | `qemu-nightly.yml`, job `protocol-labs` | schedule | advisory |
 | The L2TP appliance proof, the accel-ppp lab and the traffic-usage eBPF proof, plus the PPPoE suite and the plugin namespace subset (ASPA, RFC 2545 replay, route policy and system-RIB placement) inside `./le test qemu docker-lab harness` | `qemu-nightly.yml`, job `runtime-kernel-labs` | schedule | advisory |
-| `./le perf track --check` against `test/perf/history/ze.ndjson` | `perf-nightly.yml`, job `perf-regression-check` | schedule `42 3 * * *` | advisory | <!-- doc-links: ignore (the history file is written by the nightly job and is not committed; perf-nightly.yml:33 guards on its absence) -->
+| `./le perf track --check` against `test/perf/history/ze.ndjson` | `perf-nightly.yml`, job `perf-regression-check` | schedule `42 3 * * *` | advisory | <!-- doc-links: ignore (the history is recorded on the owner's Mac and committed when available; absent or empty history fails this job) -->
 | `./le verify deps vulnerability` | `govulncheck.yml` | schedule `37 5 * * *` | advisory |
 | CodeQL | `codeql.yml` | push, pull_request, schedule `21 16 * * 3` | as configured by the action |
 | Re-applying the vendor patches (`internal/le/vendorpatch/patches`) that a Dependabot Go update drops, then dispatching `verify.yml` on the patched commit | `dependabot-vendor-patches.yml`, job `apply` | push to `dependabot/go_modules/**` by Dependabot | yes: a patch that no longer applies fails it |
@@ -132,6 +132,40 @@ cache entry or copies the full database as a proof artifact.
 <!-- source: .github/workflows/codeql.yml -- Build Go shipped feature combinations -->
 <!-- source: .github/workflows/codeql.yml -- Prepare Go extraction evidence, Check Go extraction evidence, Retain Go extraction evidence -->
 
+## Which verify events run
+
+Every push, pull request and manual dispatch reaches event selection. A push to
+the default branch, a tag, or a manual dispatch always keeps its evidence. A
+different branch push is replaced by PR verification only when GitHub reports
+an open PR from this repository at that exact pushed SHA and an actual `verify`
+run for that PR, repository and SHA. Queued and running verification counts, as
+do completed runs with success, failure or timeout verdicts. Cancelled, skipped
+and approval-required runs never replace push evidence. The run lookup reads at
+most 100 results, filtered by PR event and head SHA. An unavailable or
+unreadable API answer keeps the push verification. The selection job holds only
+read permissions and does not check out contributed code.
+
+Superseded PR runs share a concurrency group and cancel their older PR run.
+Every other event has a group keyed by its run ID, so newer main pushes and
+manual dispatches cannot cancel or displace earlier evidence. The six shards
+still read the full native stage list and retain `fail-fast: false`.
+<!-- source: .github/workflows/verify.yml -- concurrency, Select the verification event -->
+
+External workflow actions use full commit SHAs, with the corresponding version
+tag in a comment for review. Dependabot's existing GitHub Actions updates remain
+enabled. `TestWorkflowActionsUseImmutableCommits` parses every workflow's actual
+steps and reusable jobs rather than accepting a pinned example in a comment.
+<!-- source: internal/le/workflowcheck/automation_test.go -- TestWorkflowActionsUseImmutableCommits -->
+
+The performance nightly reads committed history and never measures the hosted
+runner. `Bench.HistoryRecord` appends existing measurements, while
+`Bench.EvidenceRecord` measures Ze, records it and checks the history. Both write
+the per-DUT series under `test/perf/history/`. Missing or empty Ze history fails
+the nightly before comparison; it asks the owner to run
+`./le perf record evidence` on the Mac and commit the resulting history.
+<!-- source: internal/le/perf/bench.go -- Bench.HistoryRecord, Bench.EvidenceRecord, Bench.historyFile -->
+<!-- source: .github/workflows/perf-nightly.yml -- Perf regression check -->
+
 ## What every verify shard prepares
 
 Any stage can land on any shard, so each of the six `verify` jobs prepares the
@@ -182,11 +216,9 @@ deadline kills it. Before its first scenario, `Suite.Run` also prints one line
 for each labeled container, network or retained tag it removed or kept from an
 earlier lab run, so a job log names what a crashed run left behind.
 
-A nightly is advisory because no merge waits on it, not because its jobs hide a
-failure. The jobs of `evidence-nightly.yml` and `perf-nightly.yml` state their
-own verdict: a red suite marks the run failed. The three jobs of
-`qemu-nightly.yml` still carry `continue-on-error: true`, so a red suite there
-reports without marking the run failed. A `qemu-nightly.yml` guest may run under
+A nightly is advisory because no merge waits on it. The jobs of
+`evidence-nightly.yml`, `perf-nightly.yml` and `qemu-nightly.yml` state their own
+verdict: a red suite marks the run failed. A `qemu-nightly.yml` guest may run under
 TCG emulation, so it is slower than the merge gate. Run the QEMU target locally
 when you add a test, and say so.
 

@@ -1,0 +1,444 @@
+[
+  {
+    "name": "successful current PR",
+    "open_prs": [
+      42
+    ],
+    "want": "1",
+    "response": {
+      "workflow_runs": [
+        {
+          "event": "pull_request",
+          "status": "completed",
+          "conclusion": "success",
+          "head_sha": "abc123",
+          "head_repository": {
+            "full_name": "ze-software/ze"
+          },
+          "pull_requests": [
+            {
+              "number": 42
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "queued current PR",
+    "open_prs": [
+      42
+    ],
+    "want": "1",
+    "response": {
+      "workflow_runs": [
+        {
+          "event": "pull_request",
+          "status": "queued",
+          "conclusion": "success",
+          "head_sha": "abc123",
+          "head_repository": {
+            "full_name": "ze-software/ze"
+          },
+          "pull_requests": [
+            {
+              "number": 42
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "running current PR",
+    "open_prs": [
+      42
+    ],
+    "want": "1",
+    "response": {
+      "workflow_runs": [
+        {
+          "event": "pull_request",
+          "status": "in_progress",
+          "conclusion": "success",
+          "head_sha": "abc123",
+          "head_repository": {
+            "full_name": "ze-software/ze"
+          },
+          "pull_requests": [
+            {
+              "number": 42
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "failed current PR",
+    "open_prs": [
+      42
+    ],
+    "want": "1",
+    "response": {
+      "workflow_runs": [
+        {
+          "event": "pull_request",
+          "status": "completed",
+          "conclusion": "failure",
+          "head_sha": "abc123",
+          "head_repository": {
+            "full_name": "ze-software/ze"
+          },
+          "pull_requests": [
+            {
+              "number": 42
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "timed out current PR",
+    "open_prs": [
+      42
+    ],
+    "want": "1",
+    "response": {
+      "workflow_runs": [
+        {
+          "event": "pull_request",
+          "status": "completed",
+          "conclusion": "timed_out",
+          "head_sha": "abc123",
+          "head_repository": {
+            "full_name": "ze-software/ze"
+          },
+          "pull_requests": [
+            {
+              "number": 42
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "stopped current PR",
+    "open_prs": [
+      42
+    ],
+    "want": "0",
+    "response": {
+      "workflow_runs": [
+        {
+          "event": "pull_request",
+          "status": "completed",
+          "conclusion": "cancelled",
+          "head_sha": "abc123",
+          "head_repository": {
+            "full_name": "ze-software/ze"
+          },
+          "pull_requests": [
+            {
+              "number": 42
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "skipped current PR",
+    "open_prs": [
+      42
+    ],
+    "want": "0",
+    "response": {
+      "workflow_runs": [
+        {
+          "event": "pull_request",
+          "status": "completed",
+          "conclusion": "skipped",
+          "head_sha": "abc123",
+          "head_repository": {
+            "full_name": "ze-software/ze"
+          },
+          "pull_requests": [
+            {
+              "number": 42
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "approval required",
+    "open_prs": [
+      42
+    ],
+    "want": "0",
+    "response": {
+      "workflow_runs": [
+        {
+          "event": "pull_request",
+          "status": "completed",
+          "conclusion": "action_required",
+          "head_sha": "abc123",
+          "head_repository": {
+            "full_name": "ze-software/ze"
+          },
+          "pull_requests": [
+            {
+              "number": 42
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "neutral current PR",
+    "open_prs": [
+      42
+    ],
+    "want": "0",
+    "response": {
+      "workflow_runs": [
+        {
+          "event": "pull_request",
+          "status": "completed",
+          "conclusion": "neutral",
+          "head_sha": "abc123",
+          "head_repository": {
+            "full_name": "ze-software/ze"
+          },
+          "pull_requests": [
+            {
+              "number": 42
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "stale current PR",
+    "open_prs": [
+      42
+    ],
+    "want": "0",
+    "response": {
+      "workflow_runs": [
+        {
+          "event": "pull_request",
+          "status": "completed",
+          "conclusion": "stale",
+          "head_sha": "abc123",
+          "head_repository": {
+            "full_name": "ze-software/ze"
+          },
+          "pull_requests": [
+            {
+              "number": 42
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "waiting current PR",
+    "open_prs": [
+      42
+    ],
+    "want": "0",
+    "response": {
+      "workflow_runs": [
+        {
+          "event": "pull_request",
+          "status": "waiting",
+          "conclusion": "success",
+          "head_sha": "abc123",
+          "head_repository": {
+            "full_name": "ze-software/ze"
+          },
+          "pull_requests": [
+            {
+              "number": 42
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "push event",
+    "open_prs": [
+      42
+    ],
+    "want": "0",
+    "response": {
+      "workflow_runs": [
+        {
+          "event": "push",
+          "status": "completed",
+          "conclusion": "success",
+          "head_sha": "abc123",
+          "head_repository": {
+            "full_name": "ze-software/ze"
+          },
+          "pull_requests": [
+            {
+              "number": 42
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "different SHA",
+    "open_prs": [
+      42
+    ],
+    "want": "0",
+    "response": {
+      "workflow_runs": [
+        {
+          "event": "pull_request",
+          "status": "completed",
+          "conclusion": "success",
+          "head_sha": "older",
+          "head_repository": {
+            "full_name": "ze-software/ze"
+          },
+          "pull_requests": [
+            {
+              "number": 42
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "same SHA other repository",
+    "open_prs": [
+      42
+    ],
+    "want": "0",
+    "response": {
+      "workflow_runs": [
+        {
+          "event": "pull_request",
+          "status": "completed",
+          "conclusion": "success",
+          "head_sha": "abc123",
+          "head_repository": {
+            "full_name": "someone/ze"
+          },
+          "pull_requests": [
+            {
+              "number": 42
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "missing head repository",
+    "open_prs": [
+      42
+    ],
+    "want": "0",
+    "response": {
+      "workflow_runs": [
+        {
+          "event": "pull_request",
+          "status": "completed",
+          "conclusion": "success",
+          "head_sha": "abc123",
+          "head_repository": null,
+          "pull_requests": [
+            {
+              "number": 42
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "same SHA other PR",
+    "open_prs": [
+      42
+    ],
+    "want": "0",
+    "response": {
+      "workflow_runs": [
+        {
+          "event": "pull_request",
+          "status": "completed",
+          "conclusion": "success",
+          "head_sha": "abc123",
+          "head_repository": {
+            "full_name": "ze-software/ze"
+          },
+          "pull_requests": [
+            {
+              "number": 43
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "no associated PR",
+    "open_prs": [
+      42
+    ],
+    "want": "0",
+    "response": {
+      "workflow_runs": [
+        {
+          "event": "pull_request",
+          "status": "completed",
+          "conclusion": "success",
+          "head_sha": "abc123",
+          "head_repository": {
+            "full_name": "ze-software/ze"
+          },
+          "pull_requests": null
+        }
+      ]
+    }
+  },
+  {
+    "name": "no open PR",
+    "open_prs": [],
+    "want": "0",
+    "response": {
+      "workflow_runs": [
+        {
+          "event": "pull_request",
+          "status": "completed",
+          "conclusion": "success",
+          "head_sha": "abc123",
+          "head_repository": {
+            "full_name": "ze-software/ze"
+          },
+          "pull_requests": [
+            {
+              "number": 42
+            }
+          ]
+        }
+      ]
+    }
+  }
+]

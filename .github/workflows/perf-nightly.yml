@@ -16,20 +16,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Set up Go
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
 
-      # An empty history is not a regression. Once records exist, `le perf
-      # track` owns the comparison and its non-zero verdict fails this job.
-      # The launcher builds le on its first call.
+      # The history is recorded on the owner's Mac and committed. CI compares
+      # that evidence; it never measures the hosted runner as a substitute.
+      # Missing evidence is a failed check, not proof of no regression.
       - name: Perf regression check
         run: |
-          if [ -s test/perf/history/ze.ndjson ]; then
-            ./le perf track --check test/perf/history/ze.ndjson
-          else
-            echo "no perf history (test/perf/history/ze.ndjson); nothing to check"
+          if [ ! -s test/perf/history/ze.ndjson ]; then
+            echo "::error::test/perf/history/ze.ndjson is missing or empty, so no performance comparison ran. On the owner's Mac, measure and record the evidence, then commit the resulting history:"
+            echo "./le perf record evidence"
+            exit 1
           fi
+          ./le perf track --check test/perf/history/ze.ndjson

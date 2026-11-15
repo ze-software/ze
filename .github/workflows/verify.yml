@@ -15,8 +15,66 @@ on:
 permissions:
   contents: read
 
+# Only PR runs share a group. Pushes and manual evidence keep a unique group,
+# so a later main commit cannot cancel or replace an earlier evidence run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}', github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
+  select:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+      actions: read
+    outputs:
+      run: ${{ steps.select.outputs.run }}
+    steps:
+      # A branch push is replaced only by an actual verification run for its
+      # open PR, repository and SHA. API uncertainty keeps the push evidence.
+      - name: Select the verification event
+        id: select
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          REF_TYPE: ${{ github.ref_type }}
+          BRANCH: ${{ github.ref_name }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -uo pipefail
+          run=yes
+          if [ "$EVENT" = push ] && [ "$REF_TYPE" = branch ] && [ "$BRANCH" != "$DEFAULT_BRANCH" ]; then
+            if prs="$(gh api --method GET "repos/$GITHUB_REPOSITORY/pulls" \
+              -f state=open -f "head=$GITHUB_REPOSITORY_OWNER:$BRANCH" \
+              --paginate --slurp \
+              --jq '[.[][] | select(.head.repo.full_name == env.GITHUB_REPOSITORY and .head.sha == env.GITHUB_SHA) | .number]')"; then
+              if matches="$(PR_NUMBERS="$prs" gh api --method GET "repos/$GITHUB_REPOSITORY/actions/workflows/verify.yml/runs" \
+                -f event=pull_request -f "head_sha=$GITHUB_SHA" -f per_page=100 \
+                --jq '(env.PR_NUMBERS | fromjson) as $open | [.workflow_runs[] | select(.event == "pull_request" and .head_repository.full_name == env.GITHUB_REPOSITORY and .head_sha == env.GITHUB_SHA) | select(.status == "queued" or .status == "in_progress" or (.status == "completed" and (.conclusion == "success" or .conclusion == "failure" or .conclusion == "timed_out"))) | select(any(.pull_requests[]?; .number as $number | $open | index($number) != null))] | length')"; then
+                case "$matches" in
+                  ''|*[!0-9]*)
+                    echo "::warning::GitHub returned no valid verification count; this push keeps its verification. Inspect the Select the verification event step before changing this policy."
+                    ;;
+                  *)
+                    if [ "$matches" -gt 0 ]; then
+                      run=no
+                    fi
+                    ;;
+                esac
+              else
+                echo "::warning::GitHub could not identify this PR's verification run; this push keeps its verification. Inspect the GitHub API error above before retrying the lookup."
+              fi
+            else
+              echo "::warning::GitHub could not list this branch's PRs; this push keeps its verification. Inspect the GitHub API error above before retrying the lookup."
+            fi
+          fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+
   verify:
+    needs: select
+    if: ${{ needs.select.outputs.run == 'yes' }}
     name: verify (shard ${{ matrix.shard }})
     runs-on: ubuntu-latest
     # 120 minutes was the bound until le's build caches were kept between runs.
@@ -54,7 +112,7 @@ jobs:
       # Every shard is interchangeable. The full clone is required by repository
       # history checks, and any action can land on any shard.
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 
@@ -115,7 +173,7 @@ jobs:
 
       - name: Set up Go
         id: setup-go
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
@@ -175,7 +233,7 @@ jobs:
           sudo ip -6 addr add fe80::1/128 dev lo
 
       - name: Set up Node
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: "lts/*"
 
@@ -214,7 +272,7 @@ jobs:
 
       - name: Restore the Staticcheck matrix cache
         id: staticcheck-cache
-        uses: actions/cache/restore@v6
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/.cache/ze/staticcheck-matrix
           key: staticcheck-matrix-${{ runner.os }}-go${{ steps.setup-go.outputs.go-version }}-${{ steps.staticcheck-version.outputs.version }}-${{ hashFiles('go.sum') }}-piece${{ matrix.shard }}of${{ strategy.job-total }}-${{ github.sha }}
@@ -236,7 +294,7 @@ jobs:
       # what the run does not use is dropped before the save.
       - name: Restore le's Go build and lint caches
         id: go-cache
-        uses: actions/cache/restore@v6
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: |
             ~/.cache/ze/go-cache
@@ -309,7 +367,7 @@ jobs:
       # step of its own that runs whatever the verdict was.
       - name: Save the Staticcheck matrix cache
         if: ${{ !cancelled() && steps.staticcheck-cache.outputs.cache-hit != 'true' }}
-        uses: actions/cache/save@v6
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/.cache/ze/staticcheck-matrix
           key: ${{ steps.staticcheck-cache.outputs.cache-primary-key }}
@@ -387,7 +445,7 @@ jobs:
 
       - name: Save le's Go build and lint caches
         if: ${{ !cancelled() && github.event_name == 'push' && github.ref_name == github.event.repository.default_branch && steps.go-cache-size.outputs.fits == 'yes' && steps.go-cache.outputs.cache-hit != 'true' && steps.go-cache-prune.outcome == 'success' }}
-        uses: actions/cache/save@v6
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: |
             ~/.cache/ze/go-cache
