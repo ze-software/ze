@@ -299,7 +299,9 @@ Use the native builder to preserve `.git` and generated media.
 To see one page while you edit it, render only the producer that writes it:
 `./le --name session site build producer <name>`. It re-renders that
 producer's pages over the existing full artifact in seconds, from the working
-tree, and writes nothing else. `--name session` builds the session's le from
+tree. Beyond those pages it only trims source-only paths from the artifact,
+rewrites the artifact's ignore file, refreshes the checkout's derived
+artifacts and merges the build record under `tmp/site/`. `--name session` builds the session's le from
 the working tree, because a plain `./le` is built from committed HEAD and never
 sees an uncommitted edit to a producer's code. `./le help site build producer`
 lists the producer names from the registry. Edit, run it, look at the page, and
