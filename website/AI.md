@@ -372,6 +372,15 @@ claimed. It refuses `partial` and `refresh`, which are whole-site steps.
   its tone (`rfcCardsIn`), the mechanism sits outside the grid in
   `rfcMechanismHTML`, and `rfcCheckHTML` renders the gate's findings from
   `rfc.Finding`, the parts each check held before it formatted its line.
+- **RFC dependency map.** `/quality/rfc-map/` is linked from Evaluate's
+  Evidence menu and the quality, RFC and roadmap sidebars. Its `rfc-map`
+  producer in `rfcmap.go` reads recorded ledger and roadmap inputs through
+  `rfcmap_model.go`, with proposed groups from
+  `website/data/rfc-release-layers.json`. The page keeps declared scope separate
+  from citation context and preserves exact requirement keywords, unclassified
+  specifications and unknown evidence age. Its script reads proof figures from
+  the canonical per-RFC data files; the map never certifies a release. Render
+  only this page with `./le --name session site build producer rfc-map`.
 - **Verification commands.** `go test ./internal/le/site` exercises the
   build boundary, source digest, asset expansion and deck bundling.
   `go test ./internal/le/doc/yangcontract -run CommandSurface` exercises native command
