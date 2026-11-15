@@ -142,7 +142,7 @@ func TestConfirmWindowSaveFailureAppliesNothing(t *testing.T) {
 // every save from inside Apply on, so the pre-apply save lands and the
 // post-apply one fails, for a window the commit opens and for a forced nested
 // commit. The answer must name ErrDeadlineNotRecorded and the store's error,
-// the commit stays applied, the window is open, the record from before the
+// on one line with the advice first, the commit stays applied, the window is open, the record from before the
 // apply still holds the first rollback, and the owner's abort reverts it.
 func TestConfirmWindowDeadlineRecordFailureKeepsWindow(t *testing.T) {
 	for _, force := range []bool{false, true} {
@@ -166,6 +166,12 @@ func TestConfirmWindowDeadlineRecordFailureKeepsWindow(t *testing.T) {
 			err := w.Confirmed("alice", time.Minute, force, commit)
 			require.ErrorIs(t, err, ErrDeadlineNotRecorded)
 			require.ErrorIs(t, err, errInjectedSave)
+			// The editors print the answer as one warning on one status line, so
+			// the store's error follows the advice on the same line.
+			assert.NotContains(t, err.Error(), "\n", "the answer is one line")
+			assert.True(t, strings.HasPrefix(err.Error(), ErrDeadlineNotRecorded.Error()+": "),
+				"the advice comes first, then the store's error: %q", err.Error())
+			assert.Contains(t, err.Error(), errInjectedSave.Error())
 			assert.Equal(t, "v3", d.config(), "the commit applied")
 
 			status, open := w.Status()

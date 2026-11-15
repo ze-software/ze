@@ -10,6 +10,7 @@ package confirm
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 	"sync/atomic"
 	"time"
@@ -401,8 +402,8 @@ func (w *Window) open(user string, seconds time.Duration, commit Commit) error {
 // now, saves the record again with it, and arms p. A save that fails then
 // still arms p, because the commit has applied and must keep its revert: the
 // record saved before the apply holds the rollback, so a restart still
-// reverts, and the answer is ErrDeadlineNotRecorded joined with the save's
-// error, so the operator learns the store refused a write.
+// reverts, and the answer is ErrDeadlineNotRecorded followed, on the same
+// line, by the save's error, so the operator learns the store refused a write.
 //
 // An Apply that panics may have applied part of the commit, and p is on
 // disk, so p is armed on the way out as well, with the deadline recorded
@@ -434,7 +435,10 @@ func (w *Window) applyArmed(p Pending, seconds time.Duration, commit Commit, unr
 	unwinding = false
 	w.arm(p)
 	if recorded != nil {
-		return errors.Join(ErrDeadlineNotRecorded, recorded)
+		// Wrapped, never joined: errors.Join puts a newline between the two
+		// texts, and the SSH and web editors print this answer as one warning
+		// on their one status line. errors.Is still finds both.
+		return fmt.Errorf("%w: %w", ErrDeadlineNotRecorded, recorded)
 	}
 	return nil
 }

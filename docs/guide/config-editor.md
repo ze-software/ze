@@ -799,7 +799,8 @@ the commit stays applied and its window stays open and counting down, the
 record saved before the apply still makes a restart revert the commit, and
 the commit answers with the store's error and says to run `commit accept` or
 `commit abort`. The SSH session editor and the web editor report such a commit
-as committed, with its countdown, and show that answer as a warning after it.
+as committed, with its countdown, and show that answer after it as one warning
+on the same line: the advice first, then the store's error.
 A commit whose apply met a Ze defect keeps the deadline it was
 given before the apply began, so a part-applied commit reverts no later than
 the countdown you asked for.

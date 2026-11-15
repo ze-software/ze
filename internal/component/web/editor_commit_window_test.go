@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -154,8 +155,8 @@ func TestWebTerminalCommitThroughDaemonWindow(t *testing.T) {
 // TestWebCommitConfirmedDeadlineNotRecordedIsApplied proves a web `commit
 // confirmed` whose window could not record its post-apply deadline is
 // answered as the commit it is: applied, its countdown shown, with the
-// store's refusal as a warning that names `commit accept` and `commit abort`
-// (ErrDeadlineNotRecorded's text).
+// store's refusal as one warning that names `commit accept` and `commit abort`
+// (ErrDeadlineNotRecorded's text) and then the store's error, on one line.
 // METHOD: the recorder fails every save from the second on, so the record
 // saved before the apply lands and the one after it fails
 // (confirm.Window.applyArmed); the commit goes through runCommit, the path
@@ -172,8 +173,12 @@ func TestWebCommitConfirmedDeadlineNotRecordedIsApplied(t *testing.T) {
 	assert.True(t, answer.applied, "the answer is the applied one")
 	assert.Contains(t, answer.message, terminalOutputCommitSuccessful)
 	assert.Contains(t, answer.message, contract.ConfirmWithin(60))
-	assert.Contains(t, answer.message, "(warning: "+confirm.ErrDeadlineNotRecorded.Error())
-	assert.Contains(t, answer.message, errWindowRecordSave.Error())
+	// One warning: the advice, then the store's error, with no line break
+	// between them or after.
+	require.Contains(t, answer.message,
+		"(warning: "+confirm.ErrDeadlineNotRecorded.Error()+": "+errWindowRecordSave.Error()+")")
+	warning := answer.message[strings.Index(answer.message, "(warning: "):]
+	assert.NotContains(t, warning, "\n", "the warning is one line")
 	requireCommitted(t, mgr, "10.0.0.2", "")
 	status, open := window.Status()
 	require.True(t, open, "the window is open and counting down")

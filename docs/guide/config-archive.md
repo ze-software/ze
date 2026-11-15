@@ -98,6 +98,17 @@ replaced by `30s`.
 Time-based triggers (`daily`, `hourly`) always fire once on daemon boot regardless of `on-change`, establishing a baseline. Subsequent ticks respect the `on-change` flag.
 <!-- source: internal/component/config/archive/archive.go -- TriggerCommit, TriggerManual, TriggerDaily, TriggerHourly -->
 
+A scheduled archive has no command to answer, so its failure is reported in two
+places: a warning in the log, and an error event in `ze show errors` that the
+recent-events row of `ze show doctor` also lists. Both carry the code
+`doctor-archive-scheduled-failed`, the archive block (or `config` when the
+config file could not be read), the error, and the command that fixes it:
+`ze config validate <file>` for a config that could not be read or parsed, and
+`ze config archive <name>` for a copy that could not be written or old copies
+that could not be removed. The next scheduled run tries again.
+<!-- source: internal/component/config/archive/scheduler.go -- reportScheduled, readFailure, archiveFix -->
+<!-- source: internal/component/config/archive/register.go -- init -->
+
 ### Filename Tokens
 
 | Token | Value | Example |
@@ -205,7 +216,7 @@ system {
 | When | After each successful write by an archive block: an editor commit, `ze config archive <name>`, and each `daily` or `hourly` archive, the boot archive included |
 | What counts | The files in the block's `file://` directory whose whole name matches the block's filename format plus `.conf`: `{date}` as 8 digits, `{time}` as 6 digits, every other token as its value. Subdirectories and files of another name are not counted. A copy lands in a subdirectory, and is never counted, when the format or a token value holds `/` |
 | What goes | The files with the oldest modification time, until the count is down to the cap. Files with the same time go in name order |
-| Failure | A filename format, host, domain, block name or config file name that is not valid UTF-8, a directory that cannot be read, and a file that cannot be removed are each reported: as an error of the archive block for an editor commit and `ze config archive <name>`, and as a warning in the log for a scheduled archive. The copy just written stays |
+| Failure | A filename format, host, domain, block name or config file name that is not valid UTF-8, a directory that cannot be read, and a file that cannot be removed are each reported: as an error of the archive block for an editor commit and `ze config archive <name>`, and, for a scheduled archive, as a warning in the log and an event in `ze show errors`, both under `doctor-archive-scheduled-failed`. The copy just written stays |
 | HTTP | An `http://` or `https://` location is never pruned. The receiving server decides what to keep |
 <!-- source: internal/component/config/archive/archive.go -- NewNotifier, pruneAfterWrite, ArchiveMatcher, PruneFileArchives -->
 <!-- source: internal/component/config/archive/scheduler.go -- Scheduler boot archive and fireByTrigger -->

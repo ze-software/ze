@@ -1,4 +1,4 @@
-// Design: docs/guide/config-archive.md -- doctor check registration for the archive component
+// Design: docs/guide/config-archive.md -- doctor check and scheduled-failure event code registration for the archive component
 // Related: doctor.go -- checkArchiveDestinations, the check registered here
 //
 // The archive component is not a plugin, so it registers through the
@@ -20,5 +20,13 @@ func init() {
 	// stops the process rather than leaving `ze doctor` quietly short of a check.
 	if err := diagnostic.RegisterDoctorCheck(archiveDoctorCheck); err != nil {
 		panic("BUG: archive doctor check registration refused: " + err.Error())
+	}
+
+	// A scheduled archive that fails (scheduler.go, reportScheduled) is an
+	// event with no caller to answer, so it is raised on the report bus and
+	// reported by the recent-events check, which declares the code once it is
+	// registered here. codes.go describes it, which the registration requires.
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: diagnostic.CodeDoctorArchiveScheduledFailed}); err != nil {
+		panic("BUG: archive scheduled-failure event code registration refused: " + err.Error())
 	}
 }

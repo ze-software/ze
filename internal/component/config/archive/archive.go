@@ -1,4 +1,4 @@
-// Design: docs/architecture/config/yang-config-design.md — config archive
+// Design: docs/guide/config-archive.md -- config archive: locations, triggers, filenames, upload and pruning
 
 package archive
 

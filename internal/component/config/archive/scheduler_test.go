@@ -2,8 +2,11 @@ package archive_test
 
 import (
 	"context"
+	"errors"
+	"log/slog"
 	"os"
 	"path/filepath"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -13,6 +16,8 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/archive"
+	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/report"
 )
 
 func makeTestTree() *config.Tree {
@@ -167,6 +172,152 @@ func TestScheduler_EmptyConfigs(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("scheduler did not return with empty configs")
 	}
+}
+
+// warnCapture records every Warn and Error record logged through the default
+// logger, each as its message under "msg" and its attributes by key. Safe for
+// concurrent use.
+type warnCapture struct {
+	mu      sync.Mutex
+	records []map[string]string
+}
+
+func (c *warnCapture) Enabled(context.Context, slog.Level) bool { return true }
+
+func (c *warnCapture) Handle(_ context.Context, r slog.Record) error {
+	if r.Level < slog.LevelWarn {
+		return nil
+	}
+	attrs := map[string]string{"msg": r.Message}
+	r.Attrs(func(a slog.Attr) bool {
+		attrs[a.Key] = a.Value.String()
+		return true
+	})
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.records = append(c.records, attrs)
+	return nil
+}
+
+func (c *warnCapture) WithAttrs([]slog.Attr) slog.Handler { return c }
+
+func (c *warnCapture) WithGroup(string) slog.Handler { return c }
+
+func (c *warnCapture) logged() []map[string]string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return append([]map[string]string(nil), c.records...)
+}
+
+// captureWarns makes the default logger a warnCapture and clears the report
+// bus for the test, restoring both when it ends. The test MUST NOT run in
+// parallel: the default logger and the bus are process-wide.
+func captureWarns(t *testing.T) *warnCapture {
+	t.Helper()
+	capture := &warnCapture{}
+	previous := slog.Default()
+	slog.SetDefault(slog.New(capture))
+	report.ResetForTest()
+	t.Cleanup(func() {
+		slog.SetDefault(previous)
+		report.ResetForTest()
+	})
+	return capture
+}
+
+// runBootOnce runs a scheduler over configs until its boot archive is done:
+// the timeout is far below the hourly tick, so only the boot run fires.
+func runBootOnce(configs []archive.ArchiveConfig, readConfig func() ([]byte, *config.Tree, error)) {
+	s := archive.NewScheduler(configs, "test.conf", readConfig, nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+	s.Run(ctx)
+}
+
+// requireScheduledFailure checks that the run logged one Warn and raised one
+// error event, both naming the scheduled-failure doctor code, the subject and
+// the fix, the Warn with a why, and that both report the problem the failed
+// step owes.
+func requireScheduledFailure(t *testing.T, capture *warnCapture, problem, subject, fix string) {
+	t.Helper()
+	records := capture.logged()
+	require.Len(t, records, 1, "one failed step logs one Warn")
+	record := records[0]
+	assert.Equal(t, problem, record["msg"])
+	assert.Equal(t, diagnostic.CodeDoctorArchiveScheduledFailed, record["code"],
+		"the Warn names the doctor code ze show diagnostic describes")
+	assert.NotEmpty(t, record["why"], "the Warn says why the failure matters")
+	assert.Equal(t, fix, record["fix"], "the Warn names the command that fixes it")
+	assert.Equal(t, subject, record["subject"])
+	assert.NotEmpty(t, record["error"], "the Warn carries the error as evidence")
+
+	events := report.Errors(0)
+	require.Len(t, events, 1, "a scheduled failure is an event on the report bus too")
+	assert.Equal(t, "archive", events[0].Source)
+	assert.Equal(t, diagnostic.CodeDoctorArchiveScheduledFailed, events[0].Code)
+	assert.Equal(t, subject, events[0].Subject)
+	assert.Equal(t, fix, events[0].Fix)
+	assert.Contains(t, events[0].Message, problem)
+}
+
+// TestSchedulerFailuresNameTheirDoctorCode proves every step of a scheduled
+// archive that can fail is reported under a doctor code, with why it matters
+// and the command that fixes it, in the log and on the report bus.
+//
+// VALIDATES: ai/rules/user-facing-errors.md -- a Warn names a doctor code a
+// doctor check declares (the recent-events check, through the event code
+// register.go registers), and a transient problem is raised on the bus.
+// METHOD: a boot run of the scheduler over a config reader that fails, over a
+// location whose scheme no uploader takes, and over a filename the prune
+// matcher refuses (a host name that is not valid UTF-8, as
+// TestArchiveMatcher_InvalidUTF8 builds), with the default logger and the
+// report bus captured.
+// PREVENTS: a scheduled archive failing with a log line no doctor code
+// explains, which `ze show errors` and `show doctor` never list.
+func TestSchedulerFailuresNameTheirDoctorCode(t *testing.T) {
+	assert.Contains(t, diagnostic.EventCodes(), diagnostic.CodeDoctorArchiveScheduledFailed,
+		"register.go declares the code for the recent-events check")
+
+	t.Run("read", func(t *testing.T) {
+		capture := captureWarns(t)
+		configs := []archive.ArchiveConfig{{Name: "nightly", Location: "file://" + t.TempDir(), Timeout: 5 * time.Second, Trigger: archive.TriggerDaily}}
+		runBootOnce(configs, func() ([]byte, *config.Tree, error) {
+			return nil, nil, errors.New("injected read failure")
+		})
+		requireScheduledFailure(t, capture,
+			"archive scheduler: the config could not be read, so no scheduled archive was written",
+			"config", "ze config validate test.conf")
+	})
+
+	t.Run("write", func(t *testing.T) {
+		capture := captureWarns(t)
+		configs := []archive.ArchiveConfig{{Name: "offsite", Location: "ftp://archive.example/ze", Timeout: 5 * time.Second, Trigger: archive.TriggerHourly}}
+		runBootOnce(configs, makeReadConfig([]byte("config data")))
+		requireScheduledFailure(t, capture,
+			"archive scheduler: the boot archive could not be written",
+			"offsite", "ze config archive offsite")
+	})
+
+	t.Run("prune", func(t *testing.T) {
+		capture := captureWarns(t)
+		host := "r\xff1"
+		configs := []archive.ArchiveConfig{{Name: "local", Location: "file://" + t.TempDir(), Filename: "{host}", Timeout: 5 * time.Second, Trigger: archive.TriggerDaily}}
+		runBootOnce(configs, func() ([]byte, *config.Tree, error) {
+			tree := config.NewTree()
+			sys := tree.GetOrCreateContainer("system")
+			sys.Set("host", host)
+			sys.Set("commit-revisions", "1")
+			return []byte("config data"), tree, nil
+		})
+		// A filesystem that refuses a name that is not valid UTF-8 (APFS) fails
+		// the write before the prune runs, and the write's failure is then the
+		// one owed; a probe file decides which outcome the host owes.
+		problem := "archive scheduler: the boot archive was written, but older copies could not be removed"
+		if os.WriteFile(filepath.Join(t.TempDir(), host), nil, 0o600) != nil {
+			problem = "archive scheduler: the boot archive could not be written"
+		}
+		requireScheduledFailure(t, capture, problem, "local", "ze config archive local")
+	})
 }
 
 // TestReadConfigFromPath_FileNotFound verifies error on missing file.

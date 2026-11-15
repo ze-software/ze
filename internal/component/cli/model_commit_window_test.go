@@ -314,8 +314,9 @@ func TestSessionCommitConfirmedForceNests(t *testing.T) {
 // TestSessionCommitConfirmedDeadlineNotRecordedIsApplied proves a session
 // `commit confirmed` whose window could not record its post-apply deadline is
 // answered as the commit it is: applied, its countdown shown, the view
-// rebuilt and the window watched, with the store's refusal as a warning that
-// names `commit accept` and `commit abort` (ErrDeadlineNotRecorded's text).
+// rebuilt and the window watched, with the store's refusal as one warning, on
+// the status line, that names `commit accept` and `commit abort`
+// (ErrDeadlineNotRecorded's text) and then the store's error.
 // METHOD: the recorder fails every save from the second on, so the record
 // saved before the apply lands and the one after it fails
 // (confirm.Window.applyArmed), over a real window and store.
@@ -331,8 +332,12 @@ func TestSessionCommitConfirmedDeadlineNotRecordedIsApplied(t *testing.T) {
 	require.NoError(t, err, "a commit that applied is not answered as a failure")
 	assert.Contains(t, result.statusMessage, "Session committed: 1 change(s) applied")
 	assert.Contains(t, result.statusMessage, contract.ConfirmWithin(60))
-	assert.Contains(t, result.statusMessage, "(warning: "+confirm.ErrDeadlineNotRecorded.Error())
-	assert.Contains(t, result.statusMessage, errRecordSave.Error())
+	// One warning on the status line: the advice, then the store's error, with
+	// no line break between them or after.
+	require.Contains(t, result.statusMessage,
+		"(warning: "+confirm.ErrDeadlineNotRecorded.Error()+": "+errRecordSave.Error()+")")
+	warning := result.statusMessage[strings.Index(result.statusMessage, "(warning: "):]
+	assert.NotContains(t, warning, "\n", "the warning is one line")
 	assert.True(t, result.refreshConfig, "the view is rebuilt over the applied commit")
 	assert.NotNil(t, result.windowWatch, "the editor watches the window it opened")
 	assert.Contains(t, f.active(t), "9.9.9.9", "the commit applied")
