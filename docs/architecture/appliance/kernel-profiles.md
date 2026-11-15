@@ -123,8 +123,9 @@ reported as a failed step or as a kernel that failed to compile:
 
 A download has no limit of its own, only the build's 2 hours: a stalled mirror
 is reported when the build runs out of them, at the download step, with its URL.
-The i915 firmware blobs of the `hardware-kms` profile are fetched before the
-build starts, each within 10 minutes (`downloadTimeout`). A firmware download
+The i915 firmware blobs of the `hardware-kms` profile are fetched at their
+pinned commits (below) before the build starts, each within 10 minutes
+(`downloadTimeout`). A firmware download
 that fails or runs out of that time names its URL and gives the `curl` command
 that fetches the blob by hand to where the next run looks for it. Every limit a
 build names is worded by one formatter (`kernelbuilder.LimitWords`): "the
@@ -158,6 +159,30 @@ The patch series applies with `patch --fuzz=0`, so a bump the series no longer
 fits fails the build instead of placing a hunk by guesswork; a bump refreshes
 the series against the new release.
 <!-- source: internal/appliance/kernelbuilder/worker.go -- kernelSourceSHA256, verifyKernelSource, applyPatches -->
+
+The firmware the `hardware-kms` profile compiles in is pinned the same way.
+`hardwareKMSFirmware` in the worker names each blob with the linux-firmware
+commit it is fetched at and its SHA-256 at that commit, and the host fetches
+`linux-firmware.git/plain/<path>?id=<commit>`, never the head of the branch.
+`ensureFirmware` moves a download into the firmware cache
+(`~/.cache/ze/firmware/`) only when its digest matches; a refused download
+leaves nothing cached and names the URL, both digests and the
+`curl -fL <url> | sha256sum` that compares by hand. Before each build it checks
+a cached blob again and refuses one that differs, naming the file, both
+digests and the `rm` after which the next build fetches the pinned blob. The
+worker checks each blob once more before `CONFIG_EXTRA_FIRMWARE` names it, so a
+`--firmware-dir` given to `tools/kernel-builder` directly is held to the same
+pins, and the provenance record of a `hardware-kms` kernel carries one
+`firmware-url` and one `firmware-sha256` line per blob. The pins sit in a
+`BuildSources` file, so a re-pin moves the kernel cache key.
+`TestHardwareKMSFirmwareIsPinned` fails on a blob with no commit or no digest.
+A re-pin takes the last commit in the file's linux-firmware log and the digest
+of the file fetched at it.
+<!-- source: internal/appliance/kernelbuilder/worker.go -- hardwareKMSFirmware, FirmwareBlob, FileSHA256, embedFirmwareBlobs, verifyFirmwareBlob -->
+<!-- source: internal/appliance/kernelbuilder/recipe.go -- writeProvenance -->
+<!-- source: internal/appliance/cmd_kernel.go -- ensureFirmware, ensureFirmwareBlob, downloadFirmwareBlob -->
+<!-- test: internal/appliance/firmware_test.go TestHardwareKMSFirmwareIsPinned, TestFirmwareDownloadRefusesWrongBytes, TestCachedFirmwareIsVerifiedBeforeUse, TestEnsureFirmwareRefusesCorruptedCache -->
+<!-- test: internal/appliance/kernelbuilder/firmware_test.go TestEmbedFirmwareRefusesUnpinnedBlob, TestWriteProvenanceRecordsFirmware -->
 
 A bump also owes a pass over the
 [Linux limitations register](../linux-limitations.md): re-read each `kernel`
@@ -300,8 +325,9 @@ modules tree is `7.3.0-ze`. A pin with three components builds itself.
 - Cache variants fold in registry-derived hashes, so a profile, config,
   manifest, or builder change invalidates stale kernel artifacts.
 - `hardware-kms` is the one profile whose requirement is not a plain `=y`. Go
-  downloads and passes the i915 firmware, then enforces that
-  `CONFIG_EXTRA_FIRMWARE` is set in the emitted config.
+  downloads the i915 firmware at its pinned commit, verifies its SHA-256 and
+  passes it, then enforces that `CONFIG_EXTRA_FIRMWARE` is set in the emitted
+  config.
 
 ## Traps
 

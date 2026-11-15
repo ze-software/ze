@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ze-software/ze/internal/appliance/kernelbuilder"
 )
 
 // TestISOToolFailureNamesTheTool proves an ISO tool that runs out of
@@ -87,7 +89,7 @@ func TestFirmwareDownloadNamesTheFetch(t *testing.T) {
 	dest := filepath.Join(t.TempDir(), "i915", "blob.bin")
 	fetch := "curl -fL -o " + dest + ".part " + url + " && mv " + dest + ".part " + dest
 
-	err := downloadFirmwareBlob(url, dest)
+	err := downloadFirmwareBlob(url, dest, kernelbuilder.FirmwareBlob{Path: "i915/blob.bin", Commit: strings.Repeat("a", 40), SHA256: strings.Repeat("0", 64)})
 	if err == nil {
 		t.Fatal("a download from a closed server was reported as a download")
 	}

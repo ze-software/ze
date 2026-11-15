@@ -6,11 +6,14 @@ package appliance
 
 import (
 	"context"
+	"crypto/sha256"
 	_ "embed" // for go:embed kernel.version
+	"encoding/hex"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"os"
 	"os/signal"
@@ -54,16 +57,11 @@ const (
 	builderDocker            = "docker"
 	builderQEMU              = "qemu"
 	firmwareCacheDir         = "firmware"
-	firmwareBaseURL          = "https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain"
 	kernelTargetInstaller    = "installer"
 	kernelTargetRuntime      = "runtime"
 	defaultKernelTarget      = kernelTargetInstaller
 	runtimeKernelProfile     = "runtime"
 )
-
-var i915FirmwareBlobs = []string{
-	"i915/adlp_dmc.bin",
-}
 
 var _ = env.MustRegister(env.EnvEntry{
 	Key:         kernelURLKey,
@@ -733,27 +731,56 @@ func defaultKernelBuild(spec kernelBuildSpec) error {
 	})
 }
 
+// ensureFirmware fills the firmware cache with the blobs the hardware-kms
+// profile compiles into the kernel (kernelbuilder.HardwareKMSFirmware) and
+// answers its directory, or "" for a profile that compiles in none.
 func ensureFirmware(profile string) (string, error) {
 	if profile != hardwareKMSProfile {
 		return "", nil
 	}
 	fwDir := filepath.Join(resolveCacheDir(), firmwareCacheDir)
-	for _, blob := range i915FirmwareBlobs {
-		dest := filepath.Join(fwDir, blob)
-		if _, err := os.Stat(dest); err == nil {
-			continue
+	for _, blob := range kernelbuilder.HardwareKMSFirmware() {
+		if err := ensureFirmwareBlob(fwDir, blob); err != nil {
+			return "", err
 		}
-		var tb textbuf.Buffer
-		url := tb.Str(firmwareBaseURL).Byte('/').Str(blob).String()
-		if err := downloadFirmwareBlob(url, dest); err != nil {
-			return "", fmt.Errorf("download firmware %s: %w", blob, err)
-		}
-		fmt.Fprintf(os.Stdout, "  firmware: %s\n", blob) //nolint:errcheck // CLI output
 	}
 	return fwDir, nil
 }
 
-func downloadFirmwareBlob(rawURL, destPath string) error {
+// ensureFirmwareBlob uses the cached copy of blob once its SHA-256 matches the
+// pin, refuses a cached copy that differs, and fetches a missing one at its
+// pinned commit. A refused copy is left where it is: it is the evidence of
+// what changed it, and its rm is in the refusal.
+func ensureFirmwareBlob(fwDir string, blob kernelbuilder.FirmwareBlob) error {
+	dest := filepath.Join(fwDir, filepath.FromSlash(blob.Path))
+	got, err := kernelbuilder.FileSHA256(dest)
+	if errors.Is(err, fs.ErrNotExist) {
+		if err := downloadFirmwareBlob(blob.URL(), dest, blob); err != nil {
+			return fmt.Errorf("download firmware %s: %w", blob.Path, err)
+		}
+		var line textbuf.Buffer
+		line.Str("  firmware: ").Str(blob.Path).Str(" at linux-firmware ").Str(blob.Commit).Byte('\n').StdOut() //nolint:errcheck // CLI output
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("cannot read cached firmware %s (%w), so it cannot be checked against its pin; "+
+			"make it readable, or remove it and the next build fetches the pinned blob:\nrm -r %s",
+			dest, err, shellArg(dest))
+	}
+	if got != blob.SHA256 {
+		return fmt.Errorf("cached firmware %s has SHA-256 %s, not the %s Ze pins for %s at linux-firmware commit %s: "+
+			"it changed after it was cached, or was fetched from another commit, and the build would compile it into the kernel. "+
+			"Remove it, and the next build fetches the pinned blob:\nrm %s",
+			dest, got, blob.SHA256, blob.Path, blob.Commit, shellArg(dest))
+	}
+	return nil
+}
+
+// downloadFirmwareBlob fetches rawURL to destPath through a temporary file in
+// the same directory, and moves it into place only when its SHA-256 is blob's
+// pin, so a failed or refused download leaves nothing in the cache. rawURL is
+// blob.URL() in a build; a test points it at its own server.
+func downloadFirmwareBlob(rawURL, destPath string, blob kernelbuilder.FirmwareBlob) error {
 	if err := os.MkdirAll(filepath.Dir(destPath), cacheDirPerm); err != nil { //nolint:gosec // G301: public firmware blobs use 0755 directories; only the owner can write.
 		return fmt.Errorf("create firmware directory: %w", err)
 	}
@@ -779,20 +806,28 @@ func downloadFirmwareBlob(rawURL, destPath string) error {
 	defer func() {
 		os.Remove(tmpPath) //nolint:errcheck // cleanup
 	}()
-	if _, err := io.Copy(tmp, resp.Body); err != nil {
+	hash := sha256.New()
+	if _, err := io.Copy(io.MultiWriter(tmp, hash), resp.Body); err != nil {
 		tmp.Close() //nolint:errcheck // cleanup
 		return firmwareDownloadFailed(ctx, rawURL, destPath, err)
 	}
 	if err := tmp.Close(); err != nil {
 		return err
 	}
+	if got := hex.EncodeToString(hash.Sum(nil)); got != blob.SHA256 {
+		return fmt.Errorf("%s served %s with SHA-256 %s, not the %s Ze pins for it at linux-firmware commit %s, so it was not cached: "+
+			"the file at a fixed commit never changes, so something between this host and the server changed it. "+
+			"Fetch it by hand and compare the digest:\ncurl -fL %s | sha256sum",
+			rawURL, blob.Path, got, blob.SHA256, blob.Commit, shellArg(rawURL))
+	}
 	return os.Rename(tmpPath, destPath)
 }
 
 // firmwareDownloadFailed names a firmware download that failed or ran out of
 // downloadTimeout, with the fetch to run by hand: net/http's own error is a
-// URL and "context deadline exceeded" at best. ensureFirmware skips a blob
-// already at destPath, so one fetched there by hand is the next build's. The
+// URL and "context deadline exceeded" at best. ensureFirmware uses a blob
+// already at destPath once its SHA-256 matches the pin, so one fetched there
+// by hand is the next build's, and one from another commit is refused. The
 // fetch goes to a .part file first, so a curl cut short leaves no partial blob.
 func firmwareDownloadFailed(ctx context.Context, rawURL, destPath string, err error) error {
 	var fetch textbuf.Buffer

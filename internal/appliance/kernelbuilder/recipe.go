@@ -35,6 +35,10 @@ const (
 	ProvenanceKeyVersion      = "version"
 	ProvenanceKeySourceURL    = "source-url"
 	ProvenanceKeySourceSHA256 = "source-sha256"
+	// The keys for the firmware a hardware-kms kernel compiled in. Nothing
+	// reads them back yet, so they stay unexported.
+	provenanceKeyFirmwareURL    = "firmware-url"
+	provenanceKeyFirmwareSHA256 = "firmware-sha256"
 
 	archAMD64   = "amd64"
 	archX8664   = "x86_64"
@@ -312,9 +316,11 @@ func shellJoin(args []string) string {
 
 // writeProvenance records what was built, and the source it was built from: the
 // tarball URL downloadKernelSource fetches and the tracked SHA-256
-// verifyKernelSource checked. Both derive from req.Version through the same
-// declarations the worker uses, so the record cannot name a source the build
-// did not verify. A version with no tracked digest gets no record, because the
+// verifyKernelSource checked, and for the hardware-kms profile the URL and
+// SHA-256 of each firmware blob embedFirmware verified and compiled in. Each
+// derives from the same declaration the worker uses (kernelSourceSHA256,
+// hardwareKMSFirmware), so the record cannot name a source the build did not
+// verify. A version with no tracked digest gets no record, because the
 // worker refuses to build it and an empty digest would read as verified.
 func writeProvenance(outputDir string, req Request, backend string) error {
 	digest, tracked := SourceDigest(req.Version)
@@ -326,7 +332,7 @@ func writeProvenance(outputDir string, req Request, backend string) error {
 		return fmt.Errorf("create provenance directory: %w", err)
 	}
 	var tb textbuf.Buffer
-	data := tb.Str(ProvenanceKeyVersion).Byte('=').Str(req.Version).
+	tb.Str(ProvenanceKeyVersion).Byte('=').Str(req.Version).
 		Str("\ntarget=").Str(req.Target).
 		Str("\nprofile=").Str(req.Profile).
 		Str("\narch=").Str(req.Arch).
@@ -334,8 +340,19 @@ func writeProvenance(outputDir string, req Request, backend string) error {
 		Str("\nbuilder=").Str(backend).
 		Byte('\n').Str(ProvenanceKeySourceURL).Byte('=').Str(kernelTarballURL(req.Version)).
 		Byte('\n').Str(ProvenanceKeySourceSHA256).Byte('=').Str(digest).
-		Str("\n").Bytes()
-	if err := os.WriteFile(filepath.Join(path, ProvenanceName), data, 0o600); err != nil {
+		Byte('\n')
+	// The firmware the worker compiled in, one url and sha256 pair per blob in
+	// the order CONFIG_EXTRA_FIRMWARE lists them: embedFirmware refuses a blob
+	// that differs from its pin, and this record is written only after the
+	// build succeeded, so the pins are the bytes in the kernel.
+	if req.Profile == hardwareKMSProfile {
+		for _, blob := range hardwareKMSFirmware {
+			tb.Str(provenanceKeyFirmwareURL).Byte('=').Str(blob.URL()).
+				Byte('\n').Str(provenanceKeyFirmwareSHA256).Byte('=').Str(blob.SHA256).
+				Byte('\n')
+		}
+	}
+	if err := os.WriteFile(filepath.Join(path, ProvenanceName), tb.Bytes(), 0o600); err != nil {
 		return fmt.Errorf("write kernel provenance: %w", err)
 	}
 	return nil

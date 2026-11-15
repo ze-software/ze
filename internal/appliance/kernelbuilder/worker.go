@@ -13,17 +13,66 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 const (
 	defaultWorkDir      = "/build"
 	defaultBuildDir     = "/tmp/kbuild"
 	hardwareKMSProfile  = "hardware-kms"
-	i915Firmware        = "i915/adlp_dmc.bin"
 	kernelSourceBaseURL = "https://cdn.kernel.org/pub/linux/kernel"
+	// linuxFirmwareBaseURL is linux-firmware's cgit file view. A blob is
+	// fetched from it at its pinned commit (FirmwareBlob.URL), never from the
+	// head of the branch, which moves.
+	linuxFirmwareBaseURL = "https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain"
 )
+
+// FirmwareBlob is one linux-firmware file a profile compiles into the kernel
+// (CONFIG_EXTRA_FIRMWARE). Path is its path in linux-firmware, and under the
+// firmware directory the build reads; Commit is the linux-firmware commit it
+// is fetched at; SHA256 is the digest of the file at that commit, in
+// lower-case hex.
+type FirmwareBlob struct {
+	Path   string
+	Commit string
+	SHA256 string
+}
+
+// URL answers where linux-firmware serves the blob at its pinned commit.
+func (b FirmwareBlob) URL() string {
+	return linuxFirmwareBaseURL + "/" + b.Path + "?id=" + b.Commit
+}
+
+// hardwareKMSFirmware is the firmware the hardware-kms profile compiles into
+// the kernel, each blob pinned the way the kernel tarball is
+// (kernelSourceSHA256): the host fetches it at its commit and caches it only
+// when its digest matches, the host re-checks a cached blob before each build,
+// and the worker refuses to compile in one that differs. The firmware is part
+// of the kernel's bytes, so the pins live in a BuildSources file and a re-pin
+// moves the kernel cache key. TestHardwareKMSFirmwareIsPinned
+// (internal/appliance) fails on an entry with no commit or no SHA-256.
+//
+// i915/adlp_dmc.bin is pinned at 41e615cf ("i915: Update ADLP DMC to v2.20",
+// 2023-07-26), the last linux-firmware commit that touched the file; the head
+// of main served the same bytes when it was pinned (2026-11-15). A re-pin
+// takes the new commit from the file's log, at
+// https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/log/i915/adlp_dmc.bin,
+// and the digest of the file fetched at it.
+var hardwareKMSFirmware = []FirmwareBlob{
+	{
+		Path:   "i915/adlp_dmc.bin",
+		Commit: "41e615cf3479ea5d9daee1a7b7f0920c84acec10",
+		SHA256: "3516de2e134ddcf3b319c75d2e437779fecbd58cbb77234bd6f297c544e92ccb",
+	},
+}
+
+// HardwareKMSFirmware answers a copy of the pinned firmware of the
+// hardware-kms profile, for the host that fetches and caches it.
+func HardwareKMSFirmware() []FirmwareBlob { return slices.Clone(hardwareKMSFirmware) }
 
 // kernelSourceSHA256 is the SHA-256 of each kernel.org tarball Ze builds, keyed
 // by version, copied from https://cdn.kernel.org/pub/linux/kernel/v7.x/sha256sums.asc
@@ -305,21 +354,31 @@ func downloadKernelSource(ctx context.Context, req WorkerRequest) (string, error
 // verifyKernelSource refuses a tarball whose SHA-256 is not want, naming both
 // digests, before anything is extracted from it.
 func verifyKernelSource(path, want string) error {
-	file, err := os.Open(path) //nolint:gosec // G304: path is the tarball name downloadKernelSource built from WorkDir
+	got, err := FileSHA256(path)
 	if err != nil {
-		return fmt.Errorf("open kernel source: %w", err)
+		return fmt.Errorf("hash kernel source: %w", err)
 	}
-	hash := sha256.New()
-	_, copyErr := io.Copy(hash, file)
-	closeErr := file.Close()
-	if copyErr != nil || closeErr != nil {
-		return fmt.Errorf("hash kernel source: %w", errors.Join(copyErr, closeErr))
-	}
-	got := hex.EncodeToString(hash.Sum(nil))
 	if got != want {
 		return fmt.Errorf("kernel source %s has SHA-256 %s, want %s: refusing to build from it", filepath.Base(path), got, want)
 	}
 	return nil
+}
+
+// FileSHA256 answers the SHA-256 of the file at path in lower-case hex, the
+// form every pin in this package is written in. An error that wraps
+// fs.ErrNotExist means there is no file at path.
+func FileSHA256(path string) (string, error) {
+	file, err := os.Open(path) //nolint:gosec // G304: a build input its caller names: the kernel tarball, a firmware blob
+	if err != nil {
+		return "", err
+	}
+	hash := sha256.New()
+	_, copyErr := io.Copy(hash, file)
+	closeErr := file.Close()
+	if joined := errors.Join(copyErr, closeErr); joined != nil {
+		return "", joined
+	}
+	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
 func restoreOrExtractTree(ctx context.Context, req WorkerRequest, tarball string) (string, error) {
@@ -424,28 +483,75 @@ func applyPatches(ctx context.Context, req WorkerRequest, buildTree string) erro
 	return nil
 }
 
+// embedFirmware compiles the pinned firmware of the hardware-kms profile into
+// the kernel (hardwareKMSFirmware), and nothing for any other profile.
 func embedFirmware(req WorkerRequest, buildTree string) error {
 	if req.Profile != hardwareKMSProfile {
 		return nil
 	}
-	if req.FirmwareDir == "" {
-		return fmt.Errorf("profile %s requires --firmware-dir with %s", hardwareKMSProfile, i915Firmware)
+	return embedFirmwareBlobs(req, buildTree, hardwareKMSFirmware)
+}
+
+// embedFirmwareBlobs names blobs in CONFIG_EXTRA_FIRMWARE once each file in
+// req.FirmwareDir matches its pin. This is the check at the point of use: the
+// host verified the blobs before it handed the directory over, and this one
+// holds for every caller of the worker, tools/kernel-builder's --firmware-dir
+// included, so the provenance record's firmware pins are what was compiled in.
+func embedFirmwareBlobs(req WorkerRequest, buildTree string, blobs []FirmwareBlob) error {
+	// CONFIG_EXTRA_FIRMWARE lists its files separated by spaces.
+	var paths textbuf.Buffer
+	for index, blob := range blobs {
+		if index > 0 {
+			paths.Byte(' ')
+		}
+		paths.Str(blob.Path)
 	}
-	blob := filepath.Join(req.FirmwareDir, filepath.FromSlash(i915Firmware))
-	info, err := os.Stat(blob)
+	if req.FirmwareDir == "" {
+		return fmt.Errorf("profile %s requires --firmware-dir with %s", req.Profile, paths.String())
+	}
+	var progress textbuf.Buffer
+	progress.Str(">>> embedding firmware from ").Str(req.FirmwareDir).Byte('\n')
+	for _, blob := range blobs {
+		if err := verifyFirmwareBlob(req.FirmwareDir, blob, &progress); err != nil {
+			return err
+		}
+	}
+	req.Stdout.Write(progress.Bytes())                                                          //nolint:errcheck,gosec // progress output
+	config, err := os.OpenFile(filepath.Join(buildTree, ".config"), os.O_APPEND|os.O_WRONLY, 0) //nolint:gosec // G304: the kernel config in the tree this worker extracted
+	if err != nil {
+		return fmt.Errorf("open kernel config for firmware: %w", err)
+	}
+	var lines textbuf.Buffer
+	lines.Str("CONFIG_EXTRA_FIRMWARE=").Quoted(paths.String()).
+		Str("\nCONFIG_EXTRA_FIRMWARE_DIR=").Quoted(req.FirmwareDir).Byte('\n')
+	_, writeErr := config.Write(lines.Bytes())
+	return errors.Join(writeErr, config.Close())
+}
+
+// verifyFirmwareBlob refuses a blob under firmwareDir that is missing, is not
+// a regular file, or whose SHA-256 is not its pin, naming the fetch of the
+// pinned blob, and adds the verified blob's line to progress.
+func verifyFirmwareBlob(firmwareDir string, blob FirmwareBlob, progress *textbuf.Buffer) error {
+	path := filepath.Join(firmwareDir, filepath.FromSlash(blob.Path))
+	info, err := os.Stat(path)
 	if err != nil || !info.Mode().IsRegular() {
 		if err == nil {
 			err = errors.New("not a regular file")
 		}
-		return fmt.Errorf("missing firmware %s: %w", blob, err)
+		return fmt.Errorf("missing firmware %s: %w", path, err)
 	}
-	fmt.Fprintf(req.Stdout, ">>> embedding firmware from %s\n  %s: %d bytes\n", req.FirmwareDir, i915Firmware, info.Size()) //nolint:errcheck // progress output
-	config, err := os.OpenFile(filepath.Join(buildTree, ".config"), os.O_APPEND|os.O_WRONLY, 0)                             //nolint:gosec // G304: the kernel config in the tree this worker extracted
+	got, err := FileSHA256(path)
 	if err != nil {
-		return fmt.Errorf("open kernel config for firmware: %w", err)
+		return fmt.Errorf("hash firmware %s: %w", path, err)
 	}
-	_, writeErr := fmt.Fprintf(config, "CONFIG_EXTRA_FIRMWARE=%q\nCONFIG_EXTRA_FIRMWARE_DIR=%q\n", i915Firmware, req.FirmwareDir)
-	return errors.Join(writeErr, config.Close())
+	if got != blob.SHA256 {
+		return fmt.Errorf("firmware %s has SHA-256 %s, not the %s Ze pins for %s at linux-firmware commit %s, "+
+			"so it is not compiled into the kernel; replace it with the pinned blob:\ncurl -fL -o %s %s",
+			path, got, blob.SHA256, blob.Path, blob.Commit, shellQuote(path), shellQuote(blob.URL()))
+	}
+	progress.Str("  ").Str(blob.Path).Str(": linux-firmware ").Str(blob.Commit).
+		Str(", sha256 ").Str(got).Str(", ").Int(info.Size()).Str(" bytes\n")
+	return nil
 }
 
 func enforceRequiredSymbols(req WorkerRequest, buildTree string) error {

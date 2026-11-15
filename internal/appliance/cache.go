@@ -283,11 +283,15 @@ func kernelPatchSources(root, target string) (paths []string, ok bool) {
 // backends compile with different gcc releases, so a kernel one built is never
 // served for the other. The version is in the path.
 //
+// The hardware-kms firmware is covered through the builder hash: its pins
+// (kernelbuilder hardwareKMSFirmware) sit in worker.go, a BuildSources file,
+// and a blob that differs from its pin is never compiled in.
+//
 // What the key does not cover: the base images and packages each backend
 // installs (FROM golang and debian images, apt and apk packages, the Alpine
-// ISO), which float upstream under one Dockerfile or one Alpine release, and the
-// i915 firmware blobs (plan/journal/stale-artifact-reused.md). A key that
-// cannot be computed is an error, never a shorter key every input shares.
+// ISO), which float upstream under one Dockerfile or one Alpine release
+// (plan/journal/stale-artifact-reused.md). A key that cannot be computed is an
+// error, never a shorter key every input shares.
 func kernelCacheVariantFor(root, target, arch, builder string, profile kernelProfileResolution) (string, error) {
 	configInputs := append([]string{}, profile.Fragments...)
 	configInputs = append(configInputs, profile.Manifests...)
