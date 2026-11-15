@@ -168,15 +168,200 @@ solicitor, registered observer or readvertisement API is introduced. The
 existing owner retains the burst, unrelated-neighbor, moved-Link-Local,
 daemon-level watch and FRR/BIRD next-hop-resolution obligations.
 
+### Daemon and FRR condition-flip probe
+
+`bgp-rfc2545-neighbor-condition-flip-frr` adds the missing daemon-level
+carrier through the existing Docker interop runner. It reuses the three-peer
+topology of `bgp-rfc2545-third-party-linklocal-frr`, whose checker repeats its
+announcement while polling and therefore proves the form of a fresh send,
+not a late watch-triggered re-advertisement. That existing tagged checker
+remains unchanged.
+
+The new checker is
+`internal/le/interoplab/bgp/check_rfc2545_neighbor_flip.go`. Its new scenario
+starts bgp-rib with actual sent-update and state delivery. Before the decisive
+mutation, the native sent-RIB command must contain exactly one subject route
+for FRR, with its original global next hop. A failure of that prerequisite is
+reported separately and proves no missing callback-triggered replay.
+
+The third-party router first has one real Link-Local, then gains a second
+actual address on its eth0. Neighbor Discovery must establish the resulting
+ambiguous identity in Ze's kernel table before those verified mappings are
+pinned for a stable test phase. Distinct setup prefixes prove both the
+unique pair and the ambiguous global-only form. The subject is announced
+exactly once in that second state. Removing the extra address and its
+neighbor entry then changes the real kernel input back to a unique binding.
+Only FRR queries run during the subject's transition wait: there is no new
+subject send, reload, refresh request or direct callback invocation.
+
+The retention assertion follows the actual `show bgp rib sent` producer,
+not a separate checker-specific schema. `rib_pipeline.go` builds sent rows
+from `ribOut` through `newOutboundSource` and `reconstructRoute`, then
+`showRows` emits flat `peer`, `direction`, `family`, `prefix` and `next-hop`
+fields. `family.Family.MarshalText` supplies `ipv6/unicast`; the CLI's JSON
+record collapse first places those rows under `routes`. The command used
+here is `ze cli --format json`: `client/main.go` `commandWithFormat` appends
+`| json`, then `command/render_records.go` `renderDocument` applies that
+operator after collapse. `command/pipe.go` `applyJSON` calls
+`unwrapSingleKeyArray`, so the canonical final answer on this surface is a
+bare row array, not the RPC envelope. The earlier source audit stopped at
+RPC collapse and missed that last rendering step. The assertion now parses
+only the actual bare-array shape; it does not accept both shapes. It requires
+exactly one matching FRR destination, sent direction, family, subject and
+global next hop. It establishes inventory presence, not a successful replay.
+
+The source trace also checks the API route's local ownership: the attached
+`send [ update ]` grants origin permission; `initBatchOwner` marks its write
+originated; the final writer publishes a local sent ownership receipt; and
+`handleSentStructured` stores that receipt with the sent route. Local sent
+ownership passes `sentSourceState` without a received-source route. The RIB's
+startup subscriptions include sent updates before API-ready, so the first
+subject send is not intentionally outside its subscription window.
+
+No interface configuration block is required for this topology's watcher.
+The shipped composition includes `iface` and its Linux netlink backend;
+`iface/register.go` installs the neighbor reader and watcher, which both
+load the default backend when needed. Reactor startup starts the neighbor
+watch independently of the interface monitor. The netlink subscription
+includes existing entries and signals a known IPv6 entry's deletion, which
+is the secondary neighbor change this probe makes. Kernel controls retain
+the production binding-state classifier and device/MAC pairing rules, and
+real Neighbor Discovery establishes the mappings before they are pinned.
+
+A fresh control prefix runs after that wait even when the subject stays red.
+Its pair distinguishes a missing refeed from missing current watched facts.
+FRR's establishment count must remain unchanged, and a green subject must
+also be installed through the remaining real Link-Local. The checker remains
+untagged; the native run observed the intended subject-transition failure,
+while a passing repair and its peer-installation proof remain owed. Its helper
+tests separately refuse unresolved kernel inputs, wrong foreign routes,
+missing sent retention and an observation loop that sends the subject again.
+
+The five checker-helper tests passed in
+`tmp/session/2026-11-14-210034/scratch/job-unit-pkg-fadc6091.log`. The first
+daemon attempt,
+`tmp/session/2026-11-14-210034/scratch/job-rfc2545-neighbor-condition-flip-frr-ddb045d4.log`,
+did not reach the checker. Ze's own-system VM booted, dockerd answered and
+the kernel check passed. Lab discovery then reported that the scenario had
+no Go checker, with zero cases passed and zero failed; teardown reported no
+leftovers and stopped the VM. This is a launcher-provenance failure, not a
+protocol result.
+
+That attempt invoked the named binary directly with no inherited
+`ZE_LE_BUILD_NAME`. `dockerLabHostArgv` in
+`internal/le/test/qemu/dockerlab.go` starts the checkout's `le` launcher for
+the lab, and `dockerLabEnviron` preserves the caller's environment while
+adding its Docker socket. The launcher therefore selected a shared
+committed-code build, which lacked the new uncommitted registration. A
+separate earlier `./le --name ... help` call rebuilt the named binary but
+could not export its process environment into that later direct invocation.
+The registry itself has the normal feature-owned insertion in
+`register_rfc2545_neighbor_flip.go`; `checkers` merges that map when the
+runner calls `Discover`, and the catalog defers the same lookup until use.
+
+The corrected invocation must enter through `./le --name s-01a1db03` for
+the actual job, so the launcher exports `ZE_LE_BUILD_NAME=s-01a1db03` to
+the job, the Docker-lab driver and its nested launcher. The launcher is
+the producer of this private value; it is not set manually. The receiving
+guard is `cmd/ze/le_build_name.go` `refuseWrongBuildName`. No registration
+change or product fix follows from the failed attempt.
+
+The corrected named run in
+`tmp/session/2026-11-14-210034/scratch/job-rfc2545-neighbor-condition-flip-frr-named-ddb045d4.log`
+reached the checker and passed assertions 1–3: established session, actual
+third-party identity and the unique-neighbor paired control. Assertion 4
+stopped at the successful, silent address-add command because `Lab.Query`
+rejects empty stdout. The retained kernel diagnostic shows the secondary
+address was present on the actual router; the failure was the checker's
+execution contract, before ambiguous-neighbor state, subject retention or
+triggered re-advertisement was proven. Teardown reported no leftovers and
+stopped the VM.
+
+The checker now runs address and neighbor mutations through `Lab.Exec`,
+requiring command completion with exit zero and propagating execution
+failures. It then retains the same actual kernel-state assertions; no
+output is fabricated and no command error is ignored. The added helper
+test distinguishes silent success, a nonzero exit and an execution failure.
+
+The subsequent native run,
+`tmp/session/2026-11-14-210034/scratch/job-rfc2545-neighbor-flip-exec-fixed-ed3f0b43.log`,
+passed assertions 1–6, including actual ambiguous Neighbor Discovery input,
+both next-hop setup forms and the once-announced global-only subject at FRR.
+Assertion 7 then stopped on the checker's wrong JSON-root assumption above.
+Its now-superseded recording
+`tmp/session/2026-11-14-210034/scratch/interop-recordings/bgp/bgp-rfc2545-neighbor-condition-flip-frr-LJJL3KANI6ZWSR3I4ITLACDYDN.jsonl`
+contained 53 successful sent-RIB queries. Each was a three-row array containing
+the two controls and exactly one row matching the subject's peer, direction,
+family, prefix and global next hop. Thus this attempt is a checker-schema
+failure, not evidence that retention failed. Teardown reported no leftovers
+and stopped the VM. The unit regression now includes the exact native subject
+row and three-row census, and refuses null, malformed, missing, wrong and
+duplicate answers, including the unsupported RPC-envelope shape.
+
+The corrected parser passed its focused race-enabled regression in
+`tmp/session/2026-11-14-210034/scratch/job-rfc2545-retention-array-race-429624d0.log`,
+including the native three-row control and all eighteen invalid answers.
+Formatting and independent source review are complete. Another fresh named
+daemon/FRR attempt then reached the intended protocol failure in
+`tmp/session/2026-11-14-210034/scratch/job-rfc2545-neighbor-flip-array-fixed-ed3f0b43.log`.
+Assertions 1–8 passed, including exact sent retention and the real kernel's
+change from ambiguous to unique identity. Assertion 9 failed because the
+once-announced subject stayed global-only through the observation window.
+The later fresh-control and session checks passed before that error was
+returned: FRR decoded the fresh route with the actual global/Link-Local pair,
+and both neighbor reads showed Established with connectionsEstablished=1.
+
+The native recording
+`tmp/session/2026-11-14-210034/scratch/interop-recordings/bgp/bgp-rfc2545-neighbor-condition-flip-frr-EAJH6KKM6JYHKLODFPJUXQSQFF.jsonl`
+contains exactly one subject announcement. Its 31 subject observations end
+with a 16-byte global-only next hop; the unique setup and fresh post-change
+controls each have a 32-byte pair with the same actual Link-Local. The
+ambiguous setup control is global-only. This establishes missing unsolicited
+re-advertisement through the daemon and FRR for this API-originated subject,
+not a foreign decoder failure or a missing current neighbor fact. Assertion
+12, successful peer installation through the Link-Local, remains unreached.
+Teardown reported no leftover resources and stopped the VM.
+
+Subsequent lint fixes preserve every protocol condition and assertion:
+shared command constants carry the same strings, the retention helper now
+names its invariant subject directly, and the wait diagnostic preserves both
+error causes. Independent review confirmed those equivalences against the
+actual recording. All seven final helper tests passed under the race
+detector in
+`tmp/session/2026-11-14-210034/scratch/job-rfc2545-final-helpers-race-cover-2dbad3af.log`.
+Atomic counters measured both outcomes of `neighborFlipWaitFailure`; they
+are not a package-wide or RFC-wide coverage claim. No interoperability rerun
+is needed solely for these equivalent substitutions and error diagnostics.
+
+The native lab currently declares FRR 10.7.1 in
+`internal/le/interoplab/discover.go` as `FRRImage`. Source read for this probe:
+
+| FRR source | Deciding behavior |
+|------------|-------------------|
+| [bgp_attr.c at frr-10.7.1](https://github.com/FRRouting/frr/blob/frr-10.7.1/bgpd/bgp_attr.c), `bgp_mp_reach_parse` | Decodes both IPv6 next-hop forms and validates a second address as Link-Local |
+| The same file, `attrhash_cmp` | Compares next-hop length and Link-Local value, so adding the second address is an attribute change even when the global address is unchanged |
+| [bgp_route.c at frr-10.7.1](https://github.com/FRRouting/frr/blob/frr-10.7.1/bgpd/bgp_route.c), `route_vty_out_detail` | Emits the detailed route's Link-Local next-hop entry when its received field has the global-and-Link-Local length; this is the foreign parser boundary the probe reads |
+
 Temporary evidence stays in the existing campaign scratch location; no
 copies or separate report were created. These logs are diagnostic evidence
 for this open investigation, not conformance discrimination records.
+The three superseded startup/schema logs and the earlier CLI recording were
+removed after confirming they were untracked and not open. This recovered
+293,720 content bytes; the final native failure, its recording and the exact
+native row fixture preserve the evidence still needed.
 
-| Retained item | Purpose | Removal condition |
+| Evidence item | Purpose | Retention/status |
 |---------------|---------|-------------------|
 | `tmp/session/2026-11-14-210034/scratch/job-core-bgp-lifecycle-advertisement-bdcd2163.log` | Corrected known-neighbor positives and all eight missing-trigger socket reds; the file also carries other campaign findings | Remove when current tests plus the eventual repair's red/green evidence replace these diagnostics and the parent campaign no longer needs the shared log |
 | `tmp/session/2026-11-14-210034/scratch/job-rfc2545-neighbor-lifecycle-79449ba8.log` | Passing address-snapshot, explicit replay and queued-withdrawal controls; its earlier retention-prerequisite failures are superseded by the corrected run | Remove when those controls are covered by the repair's retained evidence and the parent campaign no longer needs the shared log |
 | `tmp/session/2026-11-14-210034/scratch/job-rfc-boundaries-final-race-cfc4586c.log` | Final race-enabled IPv6 controls and fourteen intended trigger reds after the construction-time fixture repair; the shared log also carries other campaign findings | Remove when the eventual repair's retained red/green and ordering evidence supersedes these diagnostics and the parent campaign no longer needs the shared log |
+| `tmp/session/2026-11-14-210034/scratch/job-unit-pkg-fadc6091.log` | Passing five checker-helper tests, distinct from a live daemon result | Remove when the checker changes and a replacement targeted run supersedes it, or the campaign no longer needs this diagnostic |
+| `tmp/session/2026-11-14-210034/scratch/job-rfc2545-neighbor-condition-flip-frr-ddb045d4.log` | Superseded launcher-provenance diagnosis above | Removed; the final run reaches the checker |
+| `tmp/session/2026-11-14-210034/scratch/job-rfc2545-neighbor-condition-flip-frr-named-ddb045d4.log` | Superseded silent-mutation diagnosis above | Removed; the final run passes the kernel mutation controls |
+| `tmp/session/2026-11-14-210034/scratch/job-rfc2545-neighbor-flip-exec-fixed-ed3f0b43.log` | Superseded retention-parser diagnosis above | Removed; the final run passes exact sent retention |
+| `tmp/session/2026-11-14-210034/scratch/interop-recordings/bgp/bgp-rfc2545-neighbor-condition-flip-frr-LJJL3KANI6ZWSR3I4ITLACDYDN.jsonl` | Earlier native sent-RIB shape and census | Removed; the exact native row remains in the unit fixture and the final recording supersedes it |
+| `tmp/session/2026-11-14-210034/scratch/job-rfc2545-neighbor-flip-array-fixed-ed3f0b43.log` and recording `EAJH6KKM6JYHKLODFPJUXQSQFF.jsonl` in the same recording directory | Intended assertion 9 failure with real kernel mutation, one subject send, fresh paired control, unchanged Established session and complete teardown | Retain until this repair's red/green observations supersede the unresolved protocol finding |
+| `tmp/session/2026-11-14-210034/scratch/job-rfc2545-final-helpers-race-cover-2dbad3af.log` | Final seven helper passes, including strict retention and both error-wrapper outcomes | Retain through the source/evidence commit and campaign audit; the committed tests and result then replace the temporary console output |
 
 An interface address event that flips RFC 2545 Section 3's shared-subnet
 condition must re-advertise the prefixes that condition governs. Today it does
@@ -394,7 +579,7 @@ in place on that path.
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| <to be filled> | `test/interop/scenarios/` | FRR or BIRD | the peer's next hop is resolvable after the flip | |
+| `bgp-rfc2545-neighbor-condition-flip-frr` | `test/interop/scenarios/` | FRR 10.7.1 | The daemon's actual neighbor watch must update the once-announced API-originated subject after its neighbor becomes unique | Observed assertion 9 failure with passing kernel, sent-retention, fresh-pair and same-session controls; successful installation at assertion 12 remains unreached |
 
 ## Files to Modify
 - `internal/component/bgp/reactor/reactor_iface.go` - <to be filled>
