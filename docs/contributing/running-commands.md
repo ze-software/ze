@@ -1067,8 +1067,12 @@ does not use the toolchain environment. Two consequences: `runtime.Caller`
 answers a module-path-prefixed name, so a test finds the repository from its
 working directory (`os.Getwd`, the package directory) and never from its own
 source file; and the first le run after the flag landed rebuilt every cache
-once.
-<!-- source: internal/le/go/toolchain/gotoolchain.go -- Environment, EnvironmentContext, TrimpathGoFlags, EffectiveGoFlags -->
+once. For test children, `EnvironmentContext` also prepends the launching native
+le's directory to `PATH` when its executable path is absolute and its basename
+is `le`. Compiled fixtures that invoke bare `le` then reach that same binary,
+before another installation or a checkout launcher. A test binary calling the
+toolchain keeps its own fixture `PATH`.
+<!-- source: internal/le/go/toolchain/gotoolchain.go -- Environment, EnvironmentContext, nativeTestEnvironment, TrimpathGoFlags, EffectiveGoFlags -->
 
 A reused test result is only as good as the environment it was recorded
 under, and Go's test cache sees little of it. It hashes only the variables a
@@ -1079,14 +1083,18 @@ reads through `env.Get` is therefore invisible to it: change one in your shell
 and the next run may still answer `(cached)`. Run with `-count=1` after you
 change one. `TestTheTestCacheSeesGetenvButNotEnviron` shows this.
 
-le makes sure the gate never changes such a value itself, so two
-`./le verify worktree` runs Thomas starts over one commit from the same shell hand every test
-the same environment:
+le normalizes the checkout-specific cache and scope settings. Two
+`./le verify worktree` runs Thomas starts over one commit from the same shell
+share those settings, while a native test run also carries its launching binary
+on `PATH`:
 
-- `GOCACHE`, `GOLANGCI_LINT_CACHE` and the patched `GOROOT` (with its `bin`
-  first on `PATH`) are named where the worktree's links land, never through
-  the worktree (`gen.Landing`, used by `Overrides` and `gen.CacheDir`). A
-  checkout with no links keeps its own spelling.
+- `GOCACHE`, `GOLANGCI_LINT_CACHE` and the patched `GOROOT` are named where
+  the worktree's links land, never through the worktree (`gen.Landing`, used
+  by `Overrides` and `gen.CacheDir`). A checkout with no links keeps its own
+  spelling.
+- Startup puts the patched `GOROOT`'s `bin` on `PATH`. A native le then
+  prepends its executable directory for test children. Different native build
+  directories therefore give different test `PATH` values.
 - A test child does not inherit `ze.repo.root`, `ze.le.build.name` or the
   gate's change scope (`ze.verify.scope.packages`, `ze.verify.scope.tags`),
   which name files under one run's worktree.
@@ -1095,11 +1103,12 @@ the same environment:
   that uses it misses the cache instead of reusing a stale answer.
 
 `TestTwoWorktreesGiveATestChildOneEnvironment` (`internal/le/go/toolchain`)
-proves it: two worktrees laid out as the gate lays them out give one test
-environment, and a package that scans `os.Environ` is answered `(cached)` in
-the second with the verdict a `-count=1` rerun gives. The one value that still
-differs between runs is `ze.run.job`, the job registry entry of the run that
-holds the slot: a nested admission reads it to run inside its parent. A test
+proves the cache and scope normalization with the same inherited `PATH`: two
+worktrees laid out as the gate lays them out give one test environment, and a
+package that scans `os.Environ` is answered `(cached)` in the second with the
+verdict a `-count=1` rerun gives. It does not compare different native le builds.
+The job registry entry `ze.run.job` also differs between runs. It names the run
+that holds the slot: a nested admission reads it to run inside its parent. A test
 child keeps it on purpose. Its bytes differ, but the only answer a test can
 draw from it is "inside a live parent", which holds in every gate run, so a
 cached verdict cannot differ from a rerun's because of it. Stripping it would

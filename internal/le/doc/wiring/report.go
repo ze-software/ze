@@ -75,8 +75,12 @@ var advice = map[string][]string{
 	checkDocDriftName: {
 		"  Update each page in THIS work, beside the code that made it wrong,",
 		"  and keep its <!-- source: --> anchor valid. When the change leaves",
-		"  the claim true, the page still owes the edit that says so.",
-		"  See ai/rules/documentation.md.",
+		"  the claim true, record its review in plan/doc-reviewed/<session>.md.",
+		"  Use the eight-hex id from ./le commit session. The table columns are",
+		"  Doc, Source, Symbol, Commit and Reason. Include a row for",
+		"  every unpushed commit that changed the symbol. Rows cover committed",
+		"  changes only. See docs/contributing/documentation-testing.md and",
+		"  ai/rules/documentation.md.",
 	},
 }
 
