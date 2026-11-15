@@ -151,6 +151,7 @@ var rendererWordedFindings = map[string]string{
 	"internal/le/config/unreadleaves.Finding":   "Report.Text",
 	"internal/le/spec/citation.AnchorFinding":   "AnchorReport.Text",
 	"internal/le/spec/citation.DanglingFinding": "Report.Text",
+	"internal/le/test/weakened.renamedFinding":  "renamedLines",
 }
 
 // span is the arguments, or literal elements, that carry the message: from

@@ -84,6 +84,7 @@ var fileAllowlist = map[string]string{
 	"internal/component/host/tuning_linux.go":                        "sysfs cpu governor + procfs IRQ affinity",
 	"internal/component/iface/offload_linux.go":                      "sysfs/ethtool offload knobs",
 	"internal/component/sysctl/backend_linux.go":                     "/proc/sys sysctl writes",
+	"internal/component/ike/dataplane/espform_tun_linux.go":          "ze-espform procfs disable_policy/rp_filter kernel controls; the conf/default write-access probe opens and closes without changing a value",
 	"internal/plugins/vrrp/dataplane_linux.go":                       "/proc/sys/net/ipv4/conf arp_ignore/arp_filter/rp_filter knobs for the virtual-MAC dataplane; procfs scalars, no runtime state",
 	"internal/plugins/iface/netlink/addr_primary.go":                 "/proc/sys/net/ipv4/conf promote_secondaries knob so deleting a primary IPv4 address does not flush its same-subnet secondaries; procfs scalar, no runtime state",
 	"internal/plugins/flowexport/conntrack_setup_appliance_linux.go": "procfs nf_conntrack_acct sysctl on the appliance (ze_appliance conntrack init)",
@@ -98,6 +99,7 @@ var fileAllowlist = map[string]string{
 	"cmd/ze/hub/main.go":        "test-readiness signal file (path from env)",
 	// --- artifacts produced for external consumers (not our state) ---
 	"internal/plugins/systemd/main.go":                        "systemd unit file consumed by systemd",
+	"internal/plugins/skills/agent_hook.go":                   "local agent-skill setup edits external Claude/Codex settings owned by the operator; the daemon route returns a placement plan without writing",
 	"internal/plugins/local/cmd_install.go":                   "installs the ze binary + config tree into a prefix",
 	"internal/plugins/provision/staging.go":                   "netboot kernel/initrd/iPXE artifacts for PXE clients",
 	"internal/component/pki/store.go":                         "PEM cert/key export for an external IKE daemon",
