@@ -10,7 +10,12 @@ read and approved the exact text.
 
 ## State on 2026-11-15
 
-The report is prepared and waits for Thomas's review. Nothing is posted.
+The report is posted, on Thomas's order after he read and edited it:
+[golang/go#83101](https://github.com/golang/go/issues/83101) is the issue and
+[golang/go#83102](https://github.com/golang/go/pull/83102) the pull request
+with the fix and its test, from the fork `thomas-mangin/go`, branch
+`runtime-tracebackhexdump-offstack`, one commit authored with his
+`mangin.com` address. The Google CLA check passed on the pull request.
 
 | Piece | State |
 |-------|-------|
@@ -19,8 +24,9 @@ The report is prepared and waits for Thomas's review. Nothing is posted.
 | Fix and test, as a CL would carry them | Diff against golang/go `840c8327` in `cl/`, applied in the clone `go-tip/` |
 | Evidence | `results/` and `analysis/`; `README.md` maps each number in the issue to its file |
 | Independent review | Two passes by a separate reviewer told to falsify the text; all findings corrected. Not reviewed again after the last corrections |
-| Thomas's review and approval | Owed |
-| Posting, and mailing the CL | Owed, on Thomas's order only |
+| Thomas's review and approval | Done: he read the issue text and changed its title, disclaimer and CLA sentence |
+| Posting | Done on 2026-11-15: issue #83101, pull request #83102 |
+| Following the review upstream | Owed: Go's bot mirrors the pull request into Gerrit, where reviewers answer. Thomas needs a Gerrit account to reply |
 
 That directory is outside the repository on purpose: the report must stand
 without Ze. It is not backed up by git.
@@ -98,9 +104,19 @@ spins for ever on darwin. The full account, with line references at
    a Gerrit CL under his account, with "Fixes #NNNNN". The commit message is
    `report/cl-commit-message.txt` and the change is the working tree of
    `go-tip/`.
-4. After posting, update the patch header's "Upstream status" line and its
-   "inferred, not traced" sentence, and the doc page, with the issue link,
-   through `./le commit create`. Then close this handover.
+4. Steps 1 to 3 are done. The doc page carries the issue and pull request
+   links. The patch header's "Upstream status" line and its "inferred, not
+   traced" sentence are still stale: the patch file's text is part of the key
+   that names the patched GOROOT, so editing it makes every session rebuild
+   against a new path. Correct both lines in the commit that restamps the
+   patch for the next toolchain (go1.27.4), which changes the key anyway.
+   The issue text was posted with one difference from what the two reviews
+   read: Go's form forbids patches in the issue, so the diff was replaced by
+   a description in words. The pull request body is the commit message in
+   `report/pr-commit-message.txt`; it does not mention AI help, which the
+   issue states.
+   Close this handover when the upstream change is merged or declined and
+   the header is corrected.
 5. Remove the scratch on the Linux host `claude`: `~/.cache/go-sigquit-asan`,
    `~/.cache/go-sigquit-repro`, `~/.cache/go-tip-sigquit`. Keep the Mac
    directory until the issue is resolved upstream.

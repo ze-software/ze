@@ -36,17 +36,24 @@ there traces the user goroutine from a PC inside C code. The unwinder prints
 clamps its range to the goroutine's stack. The SP is not on that stack, so the
 range is inverted and `hexdumpWords(lo, hi-lo, ...)` gets a wrapped length:
 `fatal error: unsafe.Slice: len out of range`, then `panic during panic`. The
-second traceback of the same goroutine then never returns on darwin/arm64, and
-the dump stops after its first goroutine. `TestSIGQUITDumpDrainsAfterInit` in
+second traceback starts the same goroutine from its saved state, whose SP the
+scheduler cleared when it resumed the goroutine, and faults: the process spins
+for ever on darwin and is killed by SIGSEGV on linux, and the dump stops after
+its first goroutine. `TestSIGQUITDumpDrainsAfterInit` in
 `internal/core/crashlog` met it under `-race`. The patch returns from
 `tracebackHexdump` when `hi <= lo`, which is what go1.25's end-address
-`hexdumpWords` did; the length form came with CL 681375 in go1.26.
+`hexdumpWords` did, apart from an empty line it printed; the length form came
+with CL 681375 in go1.26.
 
-golang/go master has the same code on 2026-10-25. The same output is in
-builder failures on golang/go#73470, which names no cause; the analysis is not
-yet reported upstream. When the pinned toolchain carries a fix, the patch is
-deleted. No Ze code references it, so it carries no marker file and no guard:
-a build without it differs only in a SIGQUIT dump under `-race`.
+golang/go master has the same code on 2026-11-15. It is reported upstream as
+[golang/go#83101](https://github.com/golang/go/issues/83101), with the same
+guard and a runtime test proposed in
+[golang/go#83102](https://github.com/golang/go/pull/83102). When the pinned
+toolchain carries a fix, the patch is deleted. The patch file's own header
+still reads "not yet reported": its text is part of the key that names the
+patched GOROOT, so it is corrected with the next toolchain bump, which changes
+that key anyway. No Ze code references the patch, so it carries no marker file
+and no guard: a build without it differs only in a SIGQUIT dump under `-race`.
 
 ## The idea, and where Ze departs from the article
 
