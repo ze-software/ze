@@ -13,9 +13,43 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
-// filterIRRListedMarker is the file filterIRRDecision07 writes once the filter
-// enforces AS-TEST; filter-irr.ci's peer sends nothing until it exists.
+// filterIRRListedMarker is the file releaseIRRListed writes once the filter
+// enforces AS-TEST; the source peer of filter-irr.ci and of
+// filter-irr-modify-mp.ci sends nothing until it exists.
 const filterIRRListedMarker = "irr-listed"
+
+// releaseIRRListed writes filterIRRListedMarker once the filter enforces
+// AS-TEST. A first start stores nothing, so the filter enforces AS-TEST only
+// once the irr plugin fetched and stored it and the filter read the stored
+// copy on the owner's notice; an UPDATE judged before that is rejected and
+// held by design (docs/architecture/bgp/filter-irr.md), and a peer that
+// negotiates no route-refresh is never asked for it again. The peer holds its
+// UPDATE until the marker exists (option=await-file).
+func releaseIRRListed(ctx context.Context, p *sdk.Plugin) error {
+	if err := awaitBGPIRRListed(ctx, p); err != nil {
+		return err
+	}
+	if err := os.WriteFile(filterIRRListedMarker, []byte("ok"), 0o600); err != nil {
+		return fmt.Errorf("write %s: %w", filterIRRListedMarker, err)
+	}
+	return nil
+}
+
+// awaitBGPIRRListed polls `show bgp irr` until bgp-filter-irr reports AS-TEST
+// enforced: status ok, which filter_irr showIRR answers only once apply
+// installed a stored copy holding prefixes, under the lock that also publishes
+// the evaluator's snapshot. Before that point the filter rejects every
+// announcement it judges.
+func awaitBGPIRRListed(ctx context.Context, p *sdk.Plugin) error {
+	listed := until07(ctx, p, "show bgp irr", 50, 200*time.Millisecond, func(r commandResult07) bool {
+		entry := irrBGPEntry(r)
+		return entry != nil && entry["status"] == "ok"
+	})
+	if entry := irrBGPEntry(listed); entry == nil || entry["status"] != "ok" {
+		return fmt.Errorf("show bgp irr never reported %s enforced: status=%s error=%w data=%s", irrTestASSet, listed.status, listed.err, text07(listed.data))
+	}
+	return nil
+}
 
 // filterIRRDecision07 observes test/plugin/filter-irr.ci. Its goal is to hold
 // the daemon up until the IRR import filter has decided the one UPDATE the
@@ -55,20 +89,8 @@ func filterIRRDecision07(ctx context.Context, _ []string) error {
 		return nil
 	}
 	scenario := func(ctx context.Context, p *sdk.Plugin) error {
-		// A first start stores nothing, so the filter enforces AS-TEST only
-		// once the irr plugin fetched and stored it; an UPDATE judged before
-		// that is rejected and held by design. The peer holds its UPDATE
-		// until filterIRRListedMarker exists (option=await-file), and this
-		// writes it only once show bgp irr reports AS-TEST enforced.
-		listed := until07(ctx, p, "show bgp irr", 50, 200*time.Millisecond, func(r commandResult07) bool {
-			entry := irrBGPEntry(r)
-			return entry != nil && entry["status"] == "ok"
-		})
-		if entry := irrBGPEntry(listed); entry == nil || entry["status"] != "ok" {
-			return fmt.Errorf("show bgp irr never reported %s enforced: status=%s error=%w data=%s", irrTestASSet, listed.status, listed.err, text07(listed.data))
-		}
-		if err := os.WriteFile(filterIRRListedMarker, []byte("ok"), 0o600); err != nil {
-			return fmt.Errorf("write %s: %w", filterIRRListedMarker, err)
+		if err := releaseIRRListed(ctx, p); err != nil {
+			return err
 		}
 		wait := WaitBudget(50, 10*time.Second)
 		var update string

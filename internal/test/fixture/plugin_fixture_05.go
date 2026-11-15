@@ -29,6 +29,8 @@ func init() {
 	Register("plugin/community-strip", p05CommunityStrip, StopsDaemon)
 	// The same relay observer: it waits until dest-peer was sent the route.
 	Register("plugin/prefix-filter-modify-mp", p05CommunityStrip, StopsDaemon)
+	// The same relay observer, released only once the IRR list is enforced.
+	Register("plugin/filter-irr-modify-mp", p05IRRModifyMP, StopsDaemon)
 	Register("plugin/community-tag", p05CommunityTag, StopsDaemon)
 	Register("plugin/concurrent-config-commit", p05ConcurrentConfigCommit, StopsDaemon)
 	Register("plugin/config-addpath-mode", p05ConfigAddpathMode, StopsDaemon)
@@ -336,7 +338,31 @@ func p05DestGotRoute(status string, value any) bool {
 }
 
 func p05CommunityStrip(ctx context.Context, args []string) error {
+	return p05RelayObserve(ctx, args, nil)
+}
+
+// p05IRRModifyMP observes test/plugin/filter-irr-modify-mp.ci. Its goal is the
+// relay proof of p05CommunityStrip for a route bgp-filter-irr modified.
+// Method: the source peer holds its UPDATE until releaseIRRListed reports
+// AS-TEST enforced, so the filter judges it against the list and answers
+// modify. A route judged before the list arrived is rejected whole and held,
+// and this test's peers negotiate no route-refresh to be asked for it again.
+func p05IRRModifyMP(ctx context.Context, args []string) error {
+	return p05RelayObserve(ctx, args, releaseIRRListed)
+}
+
+// p05RelayObserve waits until dest-peer was sent a route beyond its
+// End-of-RIB, then prints the adj-rib-in total the .ci asserts on. release,
+// when not nil, runs first: it is the step that lets the source peer send.
+// nil means the source peer sends on its own, as every test but
+// filter-irr-modify-mp.ci has it.
+func p05RelayObserve(ctx context.Context, args []string, release ObserverScenario) error {
 	return p05Observe(ctx, args, "test-strip", func(ctx context.Context, plugin *sdk.Plugin) error {
+		if release != nil {
+			if err := release(ctx, plugin); err != nil {
+				return err
+			}
+		}
 		if err := p12WaitPeersEOR(ctx, plugin, "source-peer"); err != nil {
 			return err
 		}

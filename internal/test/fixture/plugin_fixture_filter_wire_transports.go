@@ -91,8 +91,17 @@ func filterWireTransports(ctx context.Context, args []string) error {
 			if err := quiesce(ctx, p); err != nil {
 				return fmt.Errorf("settle IRR peer initial sync: %w", err)
 			}
-			if status, _, err := p.DispatchCommand(ctx, "update irr asn 65001"); err != nil || status != rpc.StatusDone {
+			// The source peer configures `irr { as-set AS-TEST; }`, so the
+			// filter enforces AS-TEST for ASN 65001 and never reads a
+			// PeeringDB binding for it: the set is fetched by name.
+			if status, _, err := p.DispatchCommand(ctx, "update irr as-set "+irrTestASSet); err != nil || status != rpc.StatusDone {
 				return fmt.Errorf("resolve IRR before input: status=%s: %w", status, err)
+			}
+			// The irr plugin answers once it stored the set; the filter reads
+			// the stored copy on the owner's notice, so wait until it enforces
+			// it before any input is judged.
+			if err := awaitBGPIRRListed(ctx, p); err != nil {
+				return fmt.Errorf("resolve IRR before input: %w", err)
 			}
 		}
 		if args[0] == "dryrun" {
