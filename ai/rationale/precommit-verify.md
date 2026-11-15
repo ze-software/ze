@@ -2,6 +2,16 @@
 
 Why: `ai/rules/precommit-verify.md`
 
+## The committed-tree compile is CI's (2026-11-15)
+
+The rule ordered `./le repo compiles check` after every commit that carried
+Go. `ai/META-DECISIONS.md` counts a repo-wide compile as full testing, never
+started on a session's own initiative, and holds a commit to the scoped
+evidence of what it reaches. The owner's rule wins, so the order was removed:
+a Go commit owes the scoped tests of the packages it reaches, and the
+committed-tree compile runs in the release check GitHub CI runs on a pushed
+commit. The sections below record the earlier design.
+
 ## Execution moved to the main thread (2026-11-04)
 
 Thomas ruled that all testing and code execution runs in the main thread,

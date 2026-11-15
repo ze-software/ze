@@ -1,6 +1,6 @@
 ---
 title: Pre-Commit Verification
-when: before running tests to judge a change, before any `./le verify` command, or after running a commit script that carried Go
+when: before running tests to judge a change, before any `./le verify` command, or before committing Go
 severity: blocking
 ---
 directives ## Directives

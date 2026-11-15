@@ -38,8 +38,8 @@ phase itself.
   them. When a phase agent returns:
   1. Read `./le job report` and decide when to start, by `/ze-verify` step 1.
   2. Run its `Owed commands` yourself, one CPU-intensive job at a time.
-  3. Green: commit that piece with `./le commit create`, then run
-     `./le repo compiles check` when the commit carried Go.
+  3. Green: commit that piece with `./le commit create`. Those scoped runs
+     are the commit's whole evidence; the committed-tree compile is CI's.
   4. Red: resume the same agent with the failure lines (`SendMessage`). When
      the agent waited more than five minutes its prompt cache is gone, so
      brief a fresh fix agent with the failure lines instead.
@@ -322,8 +322,8 @@ start").
          `remove` keyword for the spec: those two make it a closure commit, and
          a closure commit needs the Review Gate artifact this session MUST NOT
          produce. It runs the script path the command prints
-         (`ai/rules/git-safety.md`), then `./le repo compiles check` when the
-         commit carried Go.
+         (`ai/rules/git-safety.md`). The phases' scoped runs are its
+         evidence; the committed-tree compile is CI's.
       3. The main thread runs `./le spec release`.
       4. Report the commit SHA, and state that `/ze-close` is the next
          phase. It reviews that commit.

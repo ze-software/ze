@@ -836,7 +836,11 @@ tree, so it sees only what git holds.
 
 That is the population that breaks when a commit takes a consumer and leaves its
 producer uncommitted. The build is green on your disk and red for everybody who
-clones. Run it after the commit script when the commit carried Go:
+clones. It is a repo-wide compile, so it runs in the release check GitHub CI
+runs on a pushed commit, and a session never starts it on its own initiative:
+a commit that carried Go owes the scoped tests of the packages it reaches, and
+the committed-tree compile is CI's. Thomas, or a session he orders to, runs it
+by hand:
 
 ```sh
 ./le repo compiles check

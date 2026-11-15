@@ -45,7 +45,8 @@ main thread runs the list, one CPU-intensive job at a time, and decides when.
 On a red it resumes you with the failure lines, or briefs a fresh fix agent.
 
 **You do not land code.** The main thread commits it after your owed commands
-passed, and runs `./le repo compiles check` after a commit that carried Go.
+passed: they are the whole evidence the commit owes, and the committed-tree
+compile is CI's.
 You commit only a change that owes no execution: prose, spec bookkeeping, a
 blocked hand-back, through `./le commit create` and the script it prints. A
 red your own diff did not cause is not yours to investigate: name it in your

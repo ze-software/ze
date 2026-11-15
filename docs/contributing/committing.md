@@ -332,8 +332,8 @@ hunks because its manifest hashes working-tree files.
 After the commit lands, the script's shared-index repair
 (`renderSharedIndexRepair`) writes HEAD's entry for every named path, hunks
 paths included, into the shared index, so the other session's hunks show as
-unstaged changes against the new commit. `./le repo compiles check` after the
-script judges what the commit holds, as for any commit.
+unstaged changes against the new commit. What the commit holds is compiled by
+CI's verify run on the pushed commit, as for any commit.
 <!-- source: internal/le/commit/hunks/hunks.go -- Apply, Selection -->
 <!-- source: internal/le/commit/hunks_select.go -- selectHunks -->
 <!-- source: internal/le/commit/review.go -- hunksReviewRefusal -->
@@ -769,9 +769,11 @@ from, and the push authorisation apply in every tree.
 
 ## After the script runs
 
-For a commit carrying Go, module, or vendor paths, run
-`./le repo compiles check` immediately afterwards. It judges the
-commit you just made, which no run before that commit could see.
+A commit carrying Go, module, or vendor paths owes the scoped tests of the
+packages it reaches, run before the script, and nothing wider. The
+committed-tree compile, `./le repo compiles check`, is a repo-wide compile:
+GitHub CI runs it in the verify workflow on the pushed commit, and no session
+starts it on its own initiative after a commit.
 
 Report the commit SHA, the included files, the message file, the script path,
 the push status, and the verification evidence or the skip reason.

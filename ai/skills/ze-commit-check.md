@@ -15,8 +15,8 @@ See also: `/ze-commit` (commit without verification), `/ze-verify` (standalone v
 
 Step 3's verification runs in the main thread, and the main thread makes the
 commit of steps 6 and 7 whenever the change owes a run: it commits code after
-the owed commands passed, and runs `./le repo compiles check` after a commit
-that carried Go (`ai/rules/commands.md`). An agent running this skill does
+the owed commands passed, which are the commit's whole evidence: the
+committed-tree compile is CI's (`ai/rules/commands.md`). An agent running this skill does
 steps 1, 2, 4 and 5 and hands step 3's commands and the step 6 line back as
 owed commands. An agent runs steps 6 and 7 itself only for a change that owes
 no execution: prose, spec bookkeeping, a blocked hand-back.

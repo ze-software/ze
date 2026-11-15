@@ -200,9 +200,10 @@ tried first and both were inert:
 ## Detective, not preventive
 
 The gate judges what git already holds, so the commit that breaks HEAD is
-caught by the next run, not by itself. What makes that bite is
-`ai/rules/precommit-verify.md`, which requires the check right after a commit script that
-carried Go. Its red refuses no commit: a red prevents a release, never a commit
+caught by the next run, not by itself. That run is the release check GitHub
+CI runs on a pushed commit: the gate is a repo-wide compile, which no session
+starts on its own initiative, so a commit that carried Go owes only the scoped
+tests of the packages it reaches (`ai/rules/precommit-verify.md`). Its red refuses no commit: a red prevents a release, never a commit
 (`ai/META-DECISIONS.md`, "Ze is pre-release"), so the commit that lands the
 missing producer clears it, and the release check owes it green.
 
