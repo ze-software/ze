@@ -646,8 +646,9 @@ website edit.
 | The front page says Ze is self-contained: "Self-contained" is the fourth hero key point, placed first in the row beside "Extend with plugins", "Appliance option" and "ExaBGP compatible". Thomas chose the wording on 2026-11-14, after rejecting "Fully integrated" as not the right expression. It means the shipped `ze` binary needs no other routing daemon or runtime library; Linux or VPP still forwards the packets, so it claims nothing about the forwarding plane | Homepage hero | The `hero-start-points` row in `homeTemplate`, `internal/le/site/homebody.go` | `TestHeroSaysZeIsSelfContained` |
 | Each existing hero key point has the blue tick from index2. The wording and order remain Self-contained, Extend with plugins, Appliance option, ExaBGP compatible; each tick stays with its label when the row wraps | Homepage hero | `.site-home .hero-start-points span::before` and its span rule in `website/assets/css/30-components.css` | `TestHeroKeyPointsUseApprovedTicks` |
 | The current homepage adopts index2's Capabilities and current limitations presentation: maturity introduction, compact configuration/command/plugin reference cards, then the complete generated feature directory in flat category groups. Counts and destinations remain generated; the documentation explanation stays beneath the reference cards | Homepage capability section | `homeTemplate` in `internal/le/site/homebody.go`, `.home-section-panel-map` reference and capability rules in `website/assets/css/30-components.css`, responsive rules in `website/assets/css/60-responsive.css` | `TestHomepageCapabilitiesRetainGeneratedDestinations` |
+| The Why Ze reason cards below the management panel make four arguments, in this order: ExaBGP on steroids (a controller like ExaBGP, with a far richer native API), Peering without the side scripts (PeeringDB AS-SET lookup, IRR filters, RPKI, looking glass), Run it the way you want (Linux daemon, appliance, Docker, containerlab) and Ask your AI assistant what is wrong (diagnosis over MCP). Thomas approved them on 2026-11-15, replacing four cards that described the architecture instead of giving a reason to choose Ze. Card 1 must keep the controller reassurance before the native API, so a reader who only wants a route injector does not read Ze as unsuitable | Homepage Why Ze cards | The `usp-grid` row in `homeTemplate`, `internal/le/site/homebody.go` | `TestWhyZeCardsCarryApprovedArguments` |
 <!-- source: internal/le/site/owner_rulings_test.go -- TestHeroLinksAreNeverUnderlined, TestHeroSaysZeIsSelfContained -->
-<!-- source: internal/le/site/home_approved_presentation_test.go -- TestHeroKeyPointsUseApprovedTicks, TestHomepageCapabilitiesRetainGeneratedDestinations -->
+<!-- source: internal/le/site/home_approved_presentation_test.go -- TestHeroKeyPointsUseApprovedTicks, TestHomepageCapabilitiesRetainGeneratedDestinations, TestWhyZeCardsCarryApprovedArguments -->
 
 On 14 November 2026, Thomas changed the hero metric population:
 
@@ -790,7 +791,7 @@ scenarios and a bounded image list, not a passing-run total. The RFC card
 separately shows the tested share of tracked MUST requirements.
 The management panel's left column starts with Why Ze,
 then explains how to manage Ze directly through its own SSH service. It has no
-self-contained management badge. The architectural argument cards remain below
+self-contained management badge. The four Why Ze reason cards remain below
 the panel. Product screenshots
 are individually linked to their full-size files and captioned with their
 capture provenance; every panel remains available without JavaScript. The

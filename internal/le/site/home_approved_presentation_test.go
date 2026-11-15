@@ -80,3 +80,36 @@ func TestHomepageCapabilitiesRetainGeneratedDestinations(t *testing.T) {
 		t.Error("capability directory has no approved four-column desktop layout")
 	}
 }
+
+// The Why Ze reason cards carry the four arguments Thomas approved, in order,
+// each with its destination. Method: read the card row from the homepage
+// template and compare every card's label, title and link.
+func TestWhyZeCardsCarryApprovedArguments(t *testing.T) {
+	row := sliceBetween(t, homeTemplate, `<div class="cards usp-grid reveal"`, "</section>")
+	cards := regexp.MustCompile(`(?s)<span class="cat">([^<]*)</span>\s*<h3><a href="([^"]*)">([^<]*)</a></h3>`).FindAllStringSubmatch(row, -1)
+	want := [][3]string{
+		{"ExaBGP", "features/exabgp-compatibility/", "ExaBGP on steroids"},
+		{"Peering", "guides/irr-filtering/", "Peering without the side scripts"},
+		{"Deployment", "guides/ze-install/", "Run it the way you want"},
+		{"AI", "guides/ai-agent/", "Ask your AI assistant what is wrong"},
+	}
+	var got [][3]string
+	for _, card := range cards {
+		got = append(got, [3]string{card[1], card[2], card[3]})
+	}
+	if !slices.Equal(got, want) {
+		t.Fatalf("Why Ze cards = %v, want %v", got, want)
+	}
+	words := strings.Join(strings.Fields(row), " ")
+	for _, text := range []string{
+		"Used as a controller, Ze behaves like ExaBGP",
+		"Its native API offers much more",
+		"finds the AS-SET in PeeringDB",
+		"a Docker container, or a node in a containerlab topology",
+		"describe the symptom",
+	} {
+		if !strings.Contains(words, text) {
+			t.Errorf("Why Ze cards omit approved argument %q", text)
+		}
+	}
+}
