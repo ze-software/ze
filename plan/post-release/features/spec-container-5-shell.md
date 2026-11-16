@@ -7,7 +7,7 @@
 | Priority | P3 |
 | Release reason | A post-release feature. The owner ruled on 2026-11-16 (umbrella O-8) that a shell inside a running container is in scope now, as a child spec of the container work. No shipped behavior is wrong without it. |
 | RFC gaps | - |
-| Depends | spec-container-1-runtime, spec-container-4-operator-surface |
+| Depends | spec-container-1-runtime |
 | Phase | - |
 | Handoff | - |
 | Design tier | strongest tier |
@@ -40,7 +40,7 @@ Three rulings of the umbrella bound the work further:
 
 - Containers run on the appliance and under a daemon that runs as root, at first. The runtime child refuses a container config anywhere else, so a shell is never asked for there.
 - When Ze restarts, including for its own update, containers are stopped and started again. Every session ends then.
-- The list of containers in the config is named `instance`. A command selects one container with the `name` keyword, placed last, as `spec-container-4-operator-surface.md` orders every container command.
+- The list of containers in the config is named `instance`. A command selects one container with the `name` keyword, placed last, as `spec-container-4-operator-surface.md` orders every container command. The design of that child is settled before this child's wiring phase, and this child waits for none of its code, so the Depends row names the runtime child alone. This child owns its three commands, their leaves and their answers, and lands them. They are rows of that child's table C-1, and the three session limit leaves are rows of its schema tables.
 
 ### Open decisions (owner)
 
@@ -51,7 +51,7 @@ None. Every row below was decided on 2026-11-16.
 | # | Question | Decided: the recommendation | What the operator sees under the decided answer, and under the answer set aside |
 |---|----------|-----------------------------|---------------------------------------------------------------------------------|
 | O-1 | How a new process enters a running container with cgo off (Key Design Decisions, rows A1 to A4) | A1: extend the build-time diff. The daemon joins the namespaces that allow it on a throwaway thread, starts the init role once, and the library's own second-process sequence applies the confinement. The probes for A-1 to A-8 are the first task of this child, run in the appliance guest before any other implementation. If the probe for A-8 fails, A3 becomes the design ("The fallback entry design" under Data Flow) | The command and its output are the same under every answer. A1 and A2: the shell starts after one (A1) or three (A2) starts of the `ze` binary, and the program runs under exactly the container's confinement as the library computes it. A3: the same, and Ze owns the confinement sequence, so an upstream security fix reaches Ze only when someone reads it. A4: every container carries a resident Ze helper as its first process, so a process listing of the container shows a `ze` process as process 1, the image's entrypoint is no longer process 1, and each container costs the memory of one more Go program |
-| O-2 | The command words. The reference model uses a root word that is not a Ze verb, so the grammar refuses it | One command, `request container shell name <name>`, with the optional leaves `command`, `input` and `timeout`. The session listing is `show container session list` and the forced end is `request container session close id <id>`. The token order (action, then the typed selector) is the one `spec-container-4-operator-surface` uses for `request container restart name` | Recommended: `request container shell name web` opens `/bin/sh`; `request container shell name web command "ip addr"` runs one program. Alternative, two commands: `request container shell name web` for the terminal and `request container run name web command "ip addr"` for one program, which gives the one-shot surfaces a path of their own and costs a second registration for one mechanism |
+| O-2 | The command words. The reference model uses a root word that is not a Ze verb, so the grammar refuses it | One command, `request container shell name <name>`, with the optional leaves `command`, `input` and `timeout`. The session listing is `show container session list`. The forced end is `delete container session id <id>`: the operator surface child lists this child's three commands in its table C-1 and applies its verb rules, and an open session that stops existing is the `delete` test (main thread, 2026-11-16). The token order (action, then the typed selector) is the one `spec-container-4-operator-surface` uses for `request container restart name` | Recommended: `request container shell name web` opens `/bin/sh`; `request container shell name web command "ip addr"` runs one program. Alternative, two commands: `request container shell name web` for the terminal and `request container run name web command "ip addr"` for one program, which gives the one-shot surfaces a path of their own and costs a second registration for one mechanism |
 | O-3 | The program when the operator names none, and how `command` is read | The program is `/bin/sh`. `command` is split into words by Ze's quoted-value grammar and run directly, with no shell between | Recommended: `... shell command "ls /etc"` works in an image that has `ls` and no shell, and `... shell command "ls | wc"` passes `|` and `wc` to `ls` as words. Alternative, run `command` through `/bin/sh -c`: pipes and redirections work, and an image with no shell runs nothing |
 | O-4 | A live terminal in the browser. The web terminal sends one line and renders one answer; Ze carries no terminal emulator for the browser | Not now. The web console and the web terminal run the bounded form. A live browser terminal is a second spec, because it adds a third-party browser asset, which the owner approves | Recommended: in the web terminal, `request container shell name web command "ip addr"` prints the output and `exit-status 0`; `request container shell name web` alone is refused with the line that says to add `command` or to use SSH. Alternative: the web terminal opens a live shell with keys, colors and resize, as SSH does |
 | O-5 | A live session over REST. REST carries a request and an answer, and a server event stream | Not now. REST runs the bounded form. gRPC gets the live session, because it carries a stream in both directions natively | Recommended: `POST /api/v1/execute` with the command answers a record holding `exit-status`, `stdout` and `stderr`. Alternative: a session resource (open, an event stream for output, a post for input, close), which gives a REST client a live shell and adds four routes for one feature |
@@ -74,7 +74,7 @@ None. Every row below was decided on 2026-11-16.
   → Constraint: the series is one patch file per hunk, under a review stamp and a named guard test, and the filter is Ze code behind a registration seam (H-6). This child's hunks follow both
   → Constraint: a container is killed through its cgroup, never by process group, and the daemon stop reaches containers only in the stop-drain call, whose budget is declared at Stage 1
   → Decision: the early role leaf selects the init role from the library's environment key. The second process is one more role behind the same key
-  → Constraint: its functional tests sit in the plugin suite and run in the own-system guest. This child's tests sit beside them
+  → Constraint: its functional tests sit in the `container` suite, `test/container/`, which it registers, and run in the own-system guest. This child's container tests sit beside them
 - [ ] `ai/doors/system.md` - the design every subsystem shares
   → Constraint: every plugin also runs as a separate process, which talks only over TLS and RPC. A session mechanism that hands a plugin a Go reader and writer works only internal, and is the classic defect
   → Constraint: a command is declared once and reaches every interface. Adding a command to one interface by hand is the defect
@@ -209,7 +209,7 @@ N-A: Scope is plugin. The SSH terminal, resize and signal requests are served by
 9. The library's second-process init allocates the terminal inside the container and sends its descriptor back, sets no-new-privileges, reports ready, installs the system-call filter, drops capabilities, sets the user and the working directory, verifies the working directory, closes every descriptor it does not pass on, and executes the program.
 10. The plugin receives the terminal descriptor, verifies that it is a terminal master, and relays bytes between it and the session: output chunks toward the engine, input chunks from it, a resize as a terminal ioctl, a signal to the process.
 11. The engine relays between the owner and the surface, counts bytes, and enforces the idle limit, the absolute limit and, for a bounded run, the time bound and the size bound.
-12. The process exits, or a limit, a disconnect, a container stop or a daemon stop ends the session. The owner ends the process (hang-up through the terminal, then a kill by process descriptor after a grace), reports the exit status and the reason, and the route records the end, stops accounting and answers the surface. A daemon stop or restart reaches the plugin through the stop-drain call, where it ends every session and then stops every container.
+12. The process exits, or a limit, a disconnect, a container stop or a daemon stop ends the session. The owner ends the process (hang-up through the terminal, then a kill by process descriptor after a grace), reports the exit status and the reason, and the route records the end, stops accounting and answers the surface. A daemon stop or restart reaches the plugin through the stop-drain call, where it ends every session and then stops every container. Ending the sessions is this child's step of the drain: a hang-up through the terminal, then a kill by process descriptor after a grace of 2 seconds. The runtime child states the arithmetic of the one drain budget, which holds those 2 seconds before the containers' stop (its Key Design Decisions).
 
 ### This child's hunks (A1), against what the runtime child specifies
 
@@ -373,11 +373,11 @@ A3 becomes the design when the probe for A-8 fails, or when A-1, A-3 or A-5 brea
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| SSH exec with a terminal, `request container shell name web` | → | `execMiddleware` interactive branch, the session route, the container plugin's session handler, the library's second-process start | `test/plugin/container-shell-ssh-terminal.ci` |
-| SSH exec without a terminal, input piped | → | The same route with no terminal | `test/plugin/container-shell-ssh-piped.ci` |
-| A `ze cli` session, the same line typed at the prompt | → | The model's release and restore of the terminal | `test/plugin/container-shell-from-cli-session.ci` |
-| MCP `tools/call` for the command with `command` | → | `Dispatcher.Dispatch`, the derived bounded run | `test/plugin/container-shell-bounded-mcp.ci` |
-| REST `POST /api/v1/execute` | → | The same bounded run | `test/plugin/container-shell-bounded-rest.ci` |
+| SSH exec with a terminal, `request container shell name web` | → | `execMiddleware` interactive branch, the session route, the container plugin's session handler, the library's second-process start | `test/container/container-shell-ssh-terminal.ci` |
+| SSH exec without a terminal, input piped | → | The same route with no terminal | `test/container/container-shell-ssh-piped.ci` |
+| A `ze cli` session, the same line typed at the prompt | → | The model's release and restore of the terminal | `test/container/container-shell-from-cli-session.ci` |
+| MCP `tools/call` for the command with `command` | → | `Dispatcher.Dispatch`, the derived bounded run | `test/container/container-shell-bounded-mcp.ci` |
+| REST `POST /api/v1/execute` | → | The same bounded run | `test/container/container-shell-bounded-rest.ci` |
 | gRPC session method | → | `APIEngine` session method, the session route | `TestGRPCSessionCarriesInputAndExit` |
 | A plugin running as a separate process declares an interactive command | → | The seven session messages, the SDK callback | `test/plugin/interactive-command-external-plugin.ci` |
 | Every registered interactive command, every surface | → | `command.AnswerSurface` | `TestEveryCommandOnEverySurface` |
@@ -413,12 +413,12 @@ A3 becomes the design when the probe for A-8 fails, or when A-1, A-3 or A-5 brea
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Opens a shell in a container from an SSH client and works in it | SSH exec with a terminal, interactive registry, session route, container plugin, library second-process start, terminal relay | `test/plugin/container-shell-ssh-terminal.ci` |
-| 2 | Opens a shell from the `ze cli` prompt and returns to the prompt | The daemon's model releases and restores the terminal | `test/plugin/container-shell-from-cli-session.ci` |
-| 3 | Runs one program in a container from a script | SSH exec without a terminal, piped input, exit status | `test/plugin/container-shell-ssh-piped.ci` |
-| 4 | An AI agent debugs a container through MCP | `tools/call`, dispatcher, bounded run, record answer | `test/plugin/container-shell-bounded-mcp.ci` |
-| 5 | An automation system runs one program through REST or gRPC | `POST /api/v1/execute` or `Execute`, the same bounded run | `test/plugin/container-shell-bounded-rest.ci` |
-| 6 | An administrator lists who is inside which container and closes one session | `show container session list`, the close command, the plugin's session table | `test/plugin/container-shell-session-list-and-close.ci` |
+| 1 | Opens a shell in a container from an SSH client and works in it | SSH exec with a terminal, interactive registry, session route, container plugin, library second-process start, terminal relay | `test/container/container-shell-ssh-terminal.ci` |
+| 2 | Opens a shell from the `ze cli` prompt and returns to the prompt | The daemon's model releases and restores the terminal | `test/container/container-shell-from-cli-session.ci` |
+| 3 | Runs one program in a container from a script | SSH exec without a terminal, piped input, exit status | `test/container/container-shell-ssh-piped.ci` |
+| 4 | An AI agent debugs a container through MCP | `tools/call`, dispatcher, bounded run, record answer | `test/container/container-shell-bounded-mcp.ci` |
+| 5 | An automation system runs one program through REST or gRPC | `POST /api/v1/execute` or `Execute`, the same bounded run | `test/container/container-shell-bounded-rest.ci` |
+| 6 | An administrator lists who is inside which container and closes one session | `show container session list`, the close command, the plugin's session table | `test/container/container-shell-session-list-and-close.ci` |
 | 7 | A third-party plugin author offers a command that takes input | Stage 1 declaration, the seven messages, the SDK callback | `test/plugin/interactive-command-external-plugin.ci` |
 
 ## 🧪 TDD Test Plan
@@ -460,22 +460,22 @@ A3 becomes the design when the probe for A-8 fails, or when A-1, A-3 or A-5 brea
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `container-shell-ssh-terminal` | `test/plugin/container-shell-ssh-terminal.ci` | AC-1 and AC-8: a shell with a terminal, a resize, the confinement read from inside, the exit status. `option=needs-linux` | |
-| `container-shell-ssh-piped` | `test/plugin/container-shell-ssh-piped.ci` | AC-3 | |
-| `container-shell-from-cli-session` | `test/plugin/container-shell-from-cli-session.ci` | AC-2 | |
-| `container-shell-bounded-mcp` | `test/plugin/container-shell-bounded-mcp.ci` | AC-4 on MCP, and AC-5 | |
-| `container-shell-bounded-rest` | `test/plugin/container-shell-bounded-rest.ci` | AC-4 on REST and gRPC `Execute`, and AC-6 | |
-| `container-shell-bounded-web` | `test/plugin/container-shell-bounded-web.ci` | AC-4 on the web console, and the refusal of the bare command there (R-10) | |
-| `container-shell-denied` | `test/plugin/container-shell-denied.ci` | AC-9: the denial, the accounting record, the audit entries | |
-| `container-shell-idle-limit` | `test/plugin/container-shell-idle-limit.ci` | AC-10, with the limit set to its minimum | |
-| `container-shell-session-list-and-close` | `test/plugin/container-shell-session-list-and-close.ci` | AC-11 and AC-12 | |
-| `container-shell-container-restart` | `test/plugin/container-shell-container-restart.ci` | AC-13 | |
-| `container-shell-reload-and-stop` | `test/plugin/container-shell-reload-and-stop.ci` | AC-14 | |
-| `container-shell-no-shell-binary` | `test/plugin/container-shell-no-shell-binary.ci` | AC-15, with an image that holds one static program | |
-| `container-shell-not-running` | `test/plugin/container-shell-not-running.ci` | AC-16 | |
-| `container-shell-no-pts` | `test/plugin/container-shell-no-pts.ci` | AC-17 | |
-| `container-shell-hostile-container` | `test/plugin/container-shell-hostile-container.ci` | R-1: a container that replaced its pts handle with a link, and one whose program tries to reach a host descriptor, each fail closed | |
-| `container-shell-orphan-doctor` | `test/plugin/container-shell-orphan-doctor.ci` | AC-22 | |
+| `container-shell-ssh-terminal` | `test/container/container-shell-ssh-terminal.ci` | AC-1 and AC-8: a shell with a terminal, a resize, the confinement read from inside, the exit status. `option=needs-linux` | |
+| `container-shell-ssh-piped` | `test/container/container-shell-ssh-piped.ci` | AC-3 | |
+| `container-shell-from-cli-session` | `test/container/container-shell-from-cli-session.ci` | AC-2 | |
+| `container-shell-bounded-mcp` | `test/container/container-shell-bounded-mcp.ci` | AC-4 on MCP, and AC-5 | |
+| `container-shell-bounded-rest` | `test/container/container-shell-bounded-rest.ci` | AC-4 on REST and gRPC `Execute`, and AC-6 | |
+| `container-shell-bounded-web` | `test/container/container-shell-bounded-web.ci` | AC-4 on the web console, and the refusal of the bare command there (R-10) | |
+| `container-shell-denied` | `test/container/container-shell-denied.ci` | AC-9: the denial, the accounting record, the audit entries | |
+| `container-shell-idle-limit` | `test/container/container-shell-idle-limit.ci` | AC-10, with the limit set to its minimum | |
+| `container-shell-session-list-and-close` | `test/container/container-shell-session-list-and-close.ci` | AC-11 and AC-12 | |
+| `container-shell-container-restart` | `test/container/container-shell-container-restart.ci` | AC-13 | |
+| `container-shell-reload-and-stop` | `test/container/container-shell-reload-and-stop.ci` | AC-14 | |
+| `container-shell-no-shell-binary` | `test/container/container-shell-no-shell-binary.ci` | AC-15, with an image that holds one static program | |
+| `container-shell-not-running` | `test/container/container-shell-not-running.ci` | AC-16 | |
+| `container-shell-no-pts` | `test/container/container-shell-no-pts.ci` | AC-17 | |
+| `container-shell-hostile-container` | `test/container/container-shell-hostile-container.ci` | R-1: a container that replaced its pts handle with a link, and one whose program tries to reach a host descriptor, each fail closed | |
+| `container-shell-orphan-doctor` | `test/container/container-shell-orphan-doctor.ci` | AC-22 | |
 | `interactive-command-external-plugin` | `test/plugin/interactive-command-external-plugin.ci` | AC-18, through `./le mock plugin-external` | |
 | `interactive-command-plugin-dies` | `test/plugin/interactive-command-plugin-dies.ci` | A plugin's process ends while it holds a session: the operator reads that the plugin stopped, and the plugin's failure policy applies as the protocol page declares | |
 | `build-tag-container-absent-shell` | `cmd/ze/hub/build_tag_container_absent_test.go` (extended by `spec-container-1-runtime`'s pair) | AC-20 | |
@@ -508,7 +508,8 @@ N-A: Scope is plugin. No protocol Ze implements changes. The SSH requests are th
 - `internal/component/api/engine.go`, `internal/component/api/grpc/server.go`, `api/proto/ze.proto` - the session method
 - `internal/core/audit/audit.go` - two action constants
 - The runtime child's patch file for H-3 (the refusal of a second process, in the vendor patch directory `spec-container-1-runtime.md` names) - rewritten as S-1
-- The runtime child's named guard test for the patch series, and its bump gate - the two new hunks and the two shell tests
+- The runtime child's named guard test for the patch series, and its bump gate - the two new hunks and the two shell tests. The series is then seven patch files over the same five upstream files
+- The runtime child's `TestPatchedLibraryRefusesToEnterAContainer`, and the line of its Known Limitations about entering a container - under A1 the test is replaced by one that a second process starts, and the line is removed, because the refusal they describe is the hunk this child rewrites
 - The runtime child's early role registration and its drain handler in the plugin - the second-process role, and ending sessions before containers stop
 - The container plugin's `register.go` and command schema, created by `spec-container-1-runtime` and `spec-container-4-operator-surface` - the interactive registration and the three command nodes
 - `ai/allowed-system-commands.md` - the owner amends the row (R-9)
@@ -533,20 +534,20 @@ N-A: Scope is plugin. No protocol Ze implements changes. The SSH requests are th
 - `internal/le/vendorpatch/patches/runc-07-second-process-start.patch` - S-2, one more file of the runtime child's series
 - `internal/test/containerprobe/shellprobe/main.go` - the root probe programs for A-1 to A-8, run in the appliance guest
 - The unit test files named in the TDD plan
-- `test/plugin/container-shell-*.ci` and `test/plugin/interactive-command-*.ci` - the functional tests named in the TDD plan, in the plugin suite beside the runtime child's `container-*.ci`, run in the own-system guest
+- `test/container/container-shell-*.ci` and `test/plugin/interactive-command-*.ci` - the functional tests named in the TDD plan. The `container-shell-*` tests are in the `container` suite beside the runtime child's, and run in the own-system guest. The `interactive-command-*` tests drive the general session mechanism with a test plugin and no container, and are in the plugin suite
 - `internal/test/fixture` test plugin for an interactive echo command - the external-mode proof
 - `docs/guide/container-shell.md` - the operator's page, or a section of the container guide page `spec-container-4-operator-surface` creates
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | Yes | The three command nodes in the container plugin's command schema; the limit leaves in the container config root; the seven methods in the two plugin protocol modules |
+| YANG schema (new RPCs/config) | Yes | The three command nodes in the container plugin's command schema: `request container shell name`, `show container session list` and `delete container session id`. The three limit leaves in the container config root, `shell idle-timeout`, `shell absolute-timeout` and `shell session-limit`, which are rows of the operator surface child's tables and land with this child. The seven methods in the two plugin protocol modules |
 | YANG validation constraints | Yes | `timeout` range 1 to 600; the limit ranges of the boundary table; `command` and `input` with a length bound; the session id as a ranged integer |
 | YANG custom validators | Yes | The container name completes from the running containers, through the completer `spec-container-4-operator-surface` defines |
 | CLI commands/flags | Yes | Three commands, registered by the container plugin. No offline flag |
 | CLI grammar (keyword before value) | Yes | `name <container>`, `command <words>`, `input <text>`, `timeout <seconds>`, `id <session>`; `./le cli grammar` judges them |
 | Editor autocomplete | Yes | Automatic for the leaves; the container name through the completer above |
-| Functional test for new RPC/API | Yes | `test/plugin/container-shell-*.ci`, `test/plugin/interactive-command-*.ci` |
+| Functional test for new RPC/API | Yes | `test/container/container-shell-*.ci`, `test/plugin/interactive-command-*.ci` |
 | Pipe completeness | Yes | The bounded record and the session list go through `ApplyPipes`. A live session carries the program's bytes and takes no pipe; a chain on it is refused by name |
 | Env var registration | No | The limits are config leaves; no environment key is added |
 | Doctor check for runtime dependencies | Yes | The container's pts instance (checked at open, and by the container plugin's runtime check); the session process that outlived its session |
@@ -604,7 +605,7 @@ N-A: Scope is plugin. No protocol Ze implements changes. The SSH requests are th
    - Files: the two patch files, `internal/plugins/container/shell_join_linux.go`, `shell_terminal_linux.go`, the plugin's early role registration
    - Verify: a shell opens in a container in the appliance guest, and the confinement of AC-8 reads the same inside it as in the container's own process
 7. **Phase: the container plugin's commands** -- the handler, the refusals, the session table, the list and close commands, the doctor check, the limits
-   - Tests: the remaining unit tests of `internal/plugins/container`, and every remaining `test/plugin/container-shell-*.ci`
+   - Tests: the remaining unit tests of `internal/plugins/container`, and every remaining `test/container/container-shell-*.ci`
    - Files: `internal/plugins/container/shell.go`, `shell_sessions.go`, the command schema, the config leaves
    - Verify: every AC has its test green through the real entry point
 8. **Phase: pages** -- every page the Documentation checklist names, in the phase that made it wrong where the change is small, and the operator's page here
@@ -694,7 +695,7 @@ N-A: Scope is plugin. No protocol Ze implements changes. The SSH requests are th
 | `command` is passed as words, with no shell between (approved 2026-11-16, O-3) | Running it through the container's shell | It works in an image with no shell, and nothing the operator types is interpreted twice |
 
 ## Known Limitations
-- A container health check is not part of this spec. The owner ruled it a later child of the container work. It will run its command through the bounded run this spec provides (a program in a running container, with a time bound, a size bound and an exit status), and it is owed to a spec of its own, written under `spec-container-0-umbrella.md` as that later child. `spec-container-4-operator-surface.md` already fixes the config form it will take.
+- A container health check is not part of this spec. The owner ruled it a later child of the container work. It will run its command through the bounded run this spec provides (a program in a running container, with a time bound, a size bound and an exit status), and it is owed to `plan/post-release/features/spec-container-6-health-check.md`, a skeleton that depends on this spec. `spec-container-4-operator-surface.md` already fixes the config form it will take.
 - A shell exists only where a container does: on the appliance and under a daemon that runs as root, at first. The runtime child refuses a container config elsewhere.
 - A session does not survive a restart of Ze. Containers are stopped and started again then, and re-adopting a running container is not part of the container work.
 - A live terminal in the browser and a live session over REST are not built (owner decisions O-4, O-5). Both surfaces run the bounded form. Either one, if wanted later, is a spec of its own.

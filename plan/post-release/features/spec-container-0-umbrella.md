@@ -62,7 +62,7 @@ appliance has for its own system.
 | Where containers run | On the appliance and under a daemon that runs as root, at first. A host where Ze runs as an unprivileged account, or whose data directory cannot enforce a size cap, refuses a container config and says why. |
 | Persistent partition | The appliance grows its persistent partition to the disk at install. This is appliance work of its own and comes before the image store (`spec-appliance-perm-grows-at-install.md`). |
 | Daemon restart | When Ze restarts, including for its own update, containers are stopped and started again. Re-adopting running containers is not part of this work. |
-| Shell design | Approved on 2026-11-16: entry by extending the build-time diff, refused for a container granted process tracing; one general interactive-command registration any plugin can use, with seven new plugin-protocol messages; a live terminal on SSH and gRPC, a bounded run on REST, web and MCP. A probe decides whether the fallback entry design is needed. |
+| Shell design | Approved on 2026-11-16: entry by extending the build-time diff; one general interactive-command registration any plugin can use, with seven new plugin-protocol messages; a live terminal on SSH and gRPC, a bounded run on REST, web and MCP. A probe decides whether the fallback entry design is needed. Under the chosen entry design a shell is refused for a container granted process tracing. Under the fallback entry design that refusal does not exist, because no host process image is then visible inside the container (`spec-container-5-shell.md`, "The fallback entry design"). |
 | Container names over DNS | Not at first. A container gets the router's resolver list. |
 | Published ports and the firewall | A published port must also be allowed by the operator's firewall policy. Doctor reports a published port that policy blocks. |
 | Stricter than the reference model | No `privileged` node. Volumes are stored by Ze and size-capped, with no host path. |
@@ -90,7 +90,7 @@ The agents that drafted the children read the source further than this spec had,
 
 | This spec said | The source says | Held in |
 |----------------|-----------------|---------|
-| The build-time diff is about 20 to 30 lines in two functions | 60 to 90 lines, six hunks, five upstream files. The cgroup must exist first and init must be started inside it in one step; otherwise the container's cgroup namespace is rooted at the daemon's own cgroup and the container sees the host's cgroup tree | Runtime |
+| The build-time diff is about 20 to 30 lines in two functions | Six patch files from the runtime child, one per hunk and 60 to 90 changed lines in all, and a seventh patch file from the shell child, which also rewrites the runtime child's file that refuses a second process. All seven are over the same five upstream files. The cgroup must exist first and init must be started inside it in one step; otherwise the container's cgroup namespace is rooted at the daemon's own cgroup and the container sees the host's cgroup tree | Runtime, Shell |
 | The plugin supervisor's forking thread, pid-safe kill, stderr relay and stop grace are reused | None is reusable as code, and a group kill cannot reach a container in a session of its own. A container is killed through its cgroup | Runtime |
 | A container is killed after its stop timeout at daemon stop | A whole-daemon stop gives a plugin about three seconds. Containers are stopped in the stop-drain step, which caps a container's stop timeout at 30 seconds | Runtime |
 | Checkpoint support is excluded by its upstream build tag | No Ze build can carry a tag that is not a Ze gate. The diff removes it instead | Runtime |
@@ -104,18 +104,31 @@ The agents that drafted the children read the source further than this spec had,
 | A quota on each writable layer, as if available | The persistent partition is formatted with no quota feature and the kernel files do not pin quota support. The cap is a project quota, which needs a format change at build and a kernel pin | Image store |
 | Whether the persistent partition grows at install is unvalidated (A-6) | It does not grow | Appliance spec |
 
-### Child specs (proposed split, written after the design is approved)
+### Child specs
 
-| Child | Holds | Depends on |
-|-------|-------|------------|
-| Runtime | The upstream library as a dependency in a commit of its own, the build-time diff, the init role, the system-call filter, cgroup limits, supervision and restart, the kernel requirements, the feature gate and its absent test | - |
-| Image store | The registry client, the pull command, layer application into a folder per digest, the writable layer, retention, rollback, the disk quota and free-space checks | Runtime |
-| Network | Moving a link into a container's namespace through the interface backend, container networks, published ports | Runtime |
-| Operator surface | The config schema, the commands, the doctor checks, the guide page. Each child above adds its own nodes and commands; this child holds what spans them | The three above |
-| Shell | A command with an input stream on every surface, and entering a running container | Operator surface |
-| Persistent partition growth (`spec-appliance-perm-grows-at-install.md`) | The appliance grows its persistent partition to the disk at install, and formats it so a size cap can be enforced | - |
+Seven specs carry the work, all in `plan/post-release/features/`. Each holds its own acceptance criteria, tests, files and phases. This spec holds no code of its own.
 
-The files are `spec-container-1-runtime.md`, `spec-container-2-image-store.md`, `spec-container-3-network.md`, `spec-container-4-operator-surface.md` and `spec-container-5-shell.md`. The operator surface child holds the one table of config words and command words, so its design is settled before any sibling's wiring phase, and its own implementation phases come after theirs.
+| # | Spec | Holds | Depends on |
+|---|------|-------|------------|
+| 1 | `spec-appliance-perm-grows-at-install.md` | The appliance grows its persistent partition to the disk at install, formats it so the kernel enforces a size cap, pins the kernel's quota support, and provides the one shared core leaf for project quota | - |
+| 2 | `spec-container-1-runtime.md` | The upstream library as a dependency in a commit of its own, the six patch files of the build-time diff, the init role, the system-call filter, cgroup limits, supervision and restart, the kernel requirements, the feature gate with its build-tag tests, and the `container` functional suite, `test/container/`, where every child's container `.ci` tests live | - |
+| 3 | `spec-container-2-image-store.md` | The registry client, the fetch command, layer application into a folder per digest, the writable layer, volumes, retention, rollback, free-space checks, and the size caps, set through the appliance spec's quota leaf | Runtime, the appliance spec |
+| 4 | `spec-container-3-network.md` | Container networks as bridges Ze owns, a link whose peer end is created inside a container's namespace through the interface backend, published ports and outbound translation as firewall tables Ze owns, name resolution | Runtime |
+| 5 | `spec-container-5-shell.md` | A command with an input stream on every surface, entering a running container, and the seventh patch file of the build-time diff | Runtime |
+| 6 | `spec-container-4-operator-surface.md` | The one table of config words and command words, the verify rules with their messages, the state view, the listings, the doctor checks that span the children, metrics, the guide page, and the closing Redis test (AC-14) as its last phase | Runtime, image store, network |
+| 7 | `spec-container-6-health-check.md` | A container health check, run through the shell child's bounded run. Ruled a later child on 2026-11-16; a skeleton today | Shell |
+
+Dependency order:
+
+| Step | Work | Why here |
+|------|------|----------|
+| 0 | The design of the operator surface child is settled | It holds the one table of config words and command words, so no sibling starts its wiring phase before it. No sibling lists it in its own Depends row: a sibling reads its tables and waits for none of its code |
+| 1 | The appliance spec and the runtime child, independent of each other | Neither needs the other. The runtime child lands the plugin, the gate and the functional suite every sibling adds to |
+| 2 | The image store child and the network child | Each fills a seam the runtime child provides. The image store child's capped storage also needs the appliance spec |
+| 3 | The shell child | It needs a running container, and it rewrites one patch file of the runtime child's series |
+| 4 | The implementation phases of the operator surface child | They join the facts of its three siblings. The shell child does not gate them |
+| 5 | The closing Redis test, the last phase of the operator surface child | It is one path through every child (AC-14) |
+| Later | The health check child | It uses the shell child's bounded run |
 
 ### Proposed shape (not approved)
 
@@ -188,10 +201,11 @@ commands); the split is decided at design.
 - [ ] `ai/doors/appliance.md` - the device takes a new system image through one registered update backend with an A/B switch; an image in the field is a contract
 - [ ] `ai/doors/forwarding.md` - interfaces, firewall and traffic have pluggable backends; Ze owns only kernel state it marked; a config a backend cannot apply exactly is refused at verify
 - [ ] `ai/doors/core.md` - a raw file write under the config or state directory is refused; state goes through the store under a registered key
-- [ ] Source files of the other mechanisms this design extends: to be filled during research.
+- [ ] The source files of the other mechanisms this design extends were read by the child that extends each one, and are listed in that child's Current Behavior section.
 
 **Behavior to preserve:**
-- To be filled during research.
+- Every existing config root, command, doctor code, vendor patch, firewall owner's tables and config-declared interface behaves as today, and no file of the plugin supervisor is edited. Each child's Current Behavior section lists what it preserves.
+- A build without the container gate behaves as today. The always-on additions are the ones the children name: one early-role dispatch call (runtime), the data directory resolver and the exported stall reader (image store), the interface and firewall requests with the local-address firewall match (network), the interactive-command registry with its protocol messages (shell), and the three core leaves, the storage report and the grow command of the appliance spec.
 
 **Behavior to change:**
 - None. This is a new feature behind a compile-time gate.
@@ -202,20 +216,20 @@ commands); the split is decided at design.
 |-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
 | Feature-gate manifest and its generator | `feature-gates.txt`; `internal/le/repo/featuretags/daemontags.go` `DaemonTags`; `docs/architecture/plugin/feature-gates.md` | One line per gated package under a `ze_<feature>` tag. `DaemonTags` returns every declared gate unfiltered, so every gate is on in the distribution and appliance builds. `./le repo update` regenerates the derived tag lists | Extends: the container packages are new lines under one new tag. A gate that is declared and off by default does not exist; O-5 decides whether one is built |
 | Absent and present build-tag tests | `cmd/ze/hub/build_tag_vpp_absent_test.go` and its siblings; `./le arch tier check` | Prove a gated plugin is not registered, its config root is refused as unknown, and no always-on package imports it | Extends: one pair for the new tag |
-| External plugin process supervisor | `internal/component/plugin/sysproc_linux.go` `NewSysProcAttr`, `StartChild`; `internal/component/plugin/process` `startExternal`, `ProcessManager.Respawn` | Forks the operator's plugin in its own process group with a death signal bound to one long-lived forking thread, relays its stderr to the log, stops it with a grace then a group kill that cannot hit a recycled pid, and respawns up to 5 times per 60 s and 20 in total | Extends in part: the forking thread, the pid-safe kill, the stderr relay and the stop grace are what a container needs. The connect-back and the five startup stages do not apply: a container is not a plugin |
+| External plugin process supervisor | `internal/component/plugin/sysproc_linux.go` `NewSysProcAttr`, `StartChild`; `internal/component/plugin/process` `startExternal`, `ProcessManager.Respawn` | Forks the operator's plugin in its own process group with a death signal bound to one long-lived forking thread, relays its stderr to the log, stops it with a grace then a group kill that cannot hit a recycled pid, and respawns up to 5 times per 60 s and 20 in total | Does not apply as code (Corrections): the upstream library forks init itself with no death signal, and a group kill cannot reach a container in a session of its own, so a container is killed through its cgroup. The pipe-as-file shape of the stderr relay is the model for capturing a container's output. The connect-back and the five startup stages do not apply: a container is not a plugin (`spec-container-1-runtime.md`) |
 | VPP process supervisor | `internal/component/vpp/vpp.go` `VPPManager.Run`, `runOnce` | Runs VPP with a 1 to 30 s doubling restart backoff and publishes connected and disconnected events. It sets no process attributes and stops by kill | Model only, for the backoff loop and the lifecycle events. Not extended: it has no process group, death signal or graceful stop |
 | Self re-execution by role | `cmd/ze/dispatch.go` `dispatchMain`; `internal/core/seedinit/register.go` `Dispatch`; `internal/core/crashlog/exec_unix.go` `Exec` | `ze` selects a role from its first argument, or from an environment key before startup. Every execve in Ze goes through one wrapper, and a raw one is refused by a lint rule | Extends: the container init is one more early role, selected by an environment key before startup as the seed role is. The execve wrapper does not apply: the upstream library performs the final exec inside that role, where the crash-log pipe the wrapper protects was never created. No role today runs inside new namespaces |
-| Locked-thread namespace entry | `internal/component/kernelcap/namespace_linux.go` `InThrowawayNetworkNamespace` | Unshares a network namespace on a thread that is locked and never unlocked, for kernel probes | Extends: the same thread discipline configures the container's end of its link inside the container's network namespace |
-| Interface veth and bridge | `internal/component/iface/yang/ze-iface-conf.yang` `list veth`, `list bridge`; `internal/component/iface/backend.go` `CreateVeth`; `internal/plugins/iface/netlink/manage_linux.go` | Creates a veth pair in the host namespace with both ends up. The managed end takes addresses and units; the peer end takes none. Nothing moves a link into another namespace | Extends: the host end is already an ordinary Ze interface. The interface backend gains moving the peer end into a named namespace and addressing it there, reached through the interface component's boundary and never a direct call |
+| Locked-thread namespace entry | `internal/component/kernelcap/namespace_linux.go` `InThrowawayNetworkNamespace` | Unshares a network namespace on a thread that is locked and never unlocked, for kernel probes | Extends for the network child's kernel probes and for the shell child's namespace join. Does not apply to the container's link (Corrections): the netlink library creates the peer end directly inside the namespace and configures it through a socket bound there, so no Ze thread enters the container's namespace for it |
+| Interface veth and bridge | `internal/component/iface/yang/ze-iface-conf.yang` `list veth`, `list bridge`; `internal/component/iface/backend.go` `CreateVeth`; `internal/plugins/iface/netlink/manage_linux.go` | Creates a veth pair in the host namespace with both ends up. The managed end takes addresses and units; the peer end takes none. Nothing moves a link into another namespace | Extends (Corrections): a container network is a bridge Ze owns, and the host end of a container's link is an ordinary Ze interface that is a member of it. The interface backend gains creating an owned bridge, and creating a link whose peer end is made directly inside a named namespace and addressed there. Both are reached through the interface component's boundary and never a direct call (`spec-container-3-network.md`) |
 | Interface VRF leaf | `internal/component/iface/yang/ze-iface-conf.yang` `leaf vrf`, validator `unimplemented-vrf` | Refuses any config that sets it | Does not apply until VRF support ships (`plan/post-release/features/spec-vrf-0-umbrella.md`) |
-| Firewall match by interface | `internal/component/firewall/yang/ze-firewall-conf.yang` `input-interface`, `output-interface` | Matches a rule by interface name, with a prefix wildcard, in tables Ze owns by the `ze_` prefix | Extends by configuration only: the rules apply to the host end of the container's link with no code change |
+| Firewall match by interface | `internal/component/firewall/yang/ze-firewall-conf.yang` `input-interface`, `output-interface` | Matches a rule by interface name, with a prefix wildcard, in tables Ze owns by the `ze_` prefix | Extends (Corrections): with a bridge per network, routed traffic enters by the bridge, so a term matches the network's bridge, and one container by its address. Publishing a port adds one general match to the firewall model, "the destination is one of this router's addresses", so a published port does not capture transit traffic (`spec-container-3-network.md`) |
 | URL fetch and digest check | `internal/core/fetch/scheme.go` `schemes`; `ToFile`, `ToDisk`, `SameOrigin`, `CheckSHA256` | Fetches http, https and tftp to a file or a device, with an optional SHA-256, three retries from byte zero, and a refusal of any redirect that leaves the origin. No authentication header, no cancellation, no resume | Extends in part: the digest helpers and the stall timeout are reused. A registry pull needs a token exchange, content negotiation and a blob redirect to another host, which `SameOrigin` refuses by design, so the registry client is new code beside it |
 | System update backend | `internal/component/config/system/backend.go` `UpdateBackend`; `selfupdate.go` | One update backend per platform, a singleton. Self-update keeps one previous binary, rolls back by hand, and keeps its history in the state store. On the appliance the A/B switch and test boot belong to gokrazy and the build host | Model, not extended: its registry is a system singleton. The verbs (check, download, apply, rollback, history), the keep-one-previous step and history in the state store carry over. Automatic rollback after a failed start exists nowhere in Ze and is new |
 | Runtime state store and its gate | `internal/core/statestore`; `pkg/zefs/keys.go`; `internal/le/arch/fspersistence/fspersistence.go` `fileAllowlist` | Small runtime state under registered keys. A raw file write under the config or state directory is refused unless its file is allowlisted with a reason, as the self-update binary is | Extends for per-container metadata (current digest, previous digest, history). Does not apply to image bytes and volumes: they are artifacts, not state, and need allowlist entries and a data area of their own |
 | Free-space helpers and the storage doctor check | `internal/core/diskspace`; `internal/component/doctor/checks_storage.go` | Reads free space; self-update requires twice the binary size; doctor warns when the config partition is nearly full | Extends: the helpers are reused before a fetch. Per-consumer accounting does not exist and is new |
 | Doctor checks and diagnostic codes | `internal/core/diagnostic/doctor_registry.go` `RegisterDoctorCheck`; `docs/architecture/doctor-and-health-checks.md` | A check registers from the package that owns the dependency; live state is answered by the plugin itself | Extends: one check per dependency and problem class the feature adds |
 | Kernel requirement enrolment | `internal/component/kernelcap/kernelcap.go` `MustRegister`; `gokrazy/kernel/runtime.config`, `gokrazy/kernel/runtime.require`; `internal/appliance/kernelreq.go` `enforceKernelRequirements` | A feature declares a kernel option once. The kernel build refuses without it, and `ze` refuses at start, reload and validate when a config uses the feature on a kernel that lacks it, and reports it in doctor | Extends: the container feature enrols each option it needs, including the ones that are on today only by upstream default and so are not protected |
-| cgroup v2 mount and its locator | gokrazy init mounts it at boot; `internal/component/ike/dataplane/override_guard_linux.go` `cgroup2Root` | The appliance mounts cgroup v2 and places no process in a child group. The only Ze code that uses a cgroup finds the mount from the mount table, because a distribution host may mount it elsewhere | Extends: finding the mount is shared by moving the locator to a core leaf. Creating, limiting and removing a cgroup is new |
+| cgroup v2 mount and its locator | gokrazy init mounts it at boot; `internal/component/ike/dataplane/override_guard_linux.go` `cgroup2Root` | The appliance mounts cgroup v2 and places no process in a child group. The only Ze code that uses a cgroup finds the mount from the mount table, because a distribution host may mount it elsewhere | Does not apply (Corrections): the upstream library accepts one mount point only, so a host with cgroup v2 mounted elsewhere is refused with a doctor finding, and nothing moves to a core leaf. Creating, limiting and removing a cgroup is new |
 | Overlay over the read-only root | `internal/appliance/dockerhost/boot.go` `writableOverlays` | In the lab Docker host image, mounts an overlay with the read-only system image below and a memory filesystem above | Model: the same mount shape is the container root. Not extended as code, because it lives in another program |
 | Register of external programs Ze may run | `ai/allowed-system-commands.md`; `ai/rules/go-standards.md` | Lists every program outside Ze that shipped code may execute. The default is no, and only the owner adds a row | Extends, by the owner: starting a container entrypoint needs its own row before the code lands (O-4) |
 
@@ -231,7 +245,7 @@ commands); the split is decided at design.
 2. For a container to start, the plugin resolves its image reference to a digest in the store. An absent image is a state, not an error.
 3. The plugin prepares the root: an overlay of the image folder below the container's writable layer.
 4. The plugin fills the upstream library's container description and asks it to create the container. The library re-executes `ze` in the init role, clones it into new namespaces inside the container's cgroup, runs its init sequence, and blocks before the entrypoint.
-5. In that window the plugin asks the interface backend to move the container's link into the new network namespace and address it, and the firewall state for its published ports is put in place.
+5. In that window the plugin asks the interface component for the container's link: the host end is a member of the network's bridge, and the peer end is created directly inside the new network namespace and addressed there. The firewall state for published ports is not part of a start: it follows config changes (Corrections).
 6. The plugin releases the container. The init role installs the system-call filter and executes the entrypoint.
 7. The supervisor waits on the container, records its exit, and applies the restart policy.
 
@@ -312,15 +326,24 @@ commands); the split is decided at design.
 
 | Question | Answer |
 |----------|--------|
-| What breaks if this is wrong? | To be filled at design. |
-| How is it reverted? | To be filled at design. |
-| Who else touches this path? | To be filled at design. |
+| What breaks if this is wrong? | This spec holds no code. Each child states its own worst case: a container that escapes its confinement or starves the routing daemon (runtime), a registry that changes a host file as root or a container that fills the persistent partition (image store), a published port that captures traffic meant for the router (network), a wrong word that becomes a contract in the field (operator surface), a container escape through the entering process (shell), an install that does not boot (the appliance spec) |
+| How is it reverted? | Remove the gate's manifest lines and regenerate: the plugin leaves every build (the runtime child's Blast Radius). Each child names what its own revert leaves behind |
+| Who else touches this path? | The seven specs of "Child specs". Outside them: `plan/post-release/features/spec-vrf-0-umbrella.md` (a container network in a VRF), `plan/post-release/features/spec-streaming-answer-protocol.md` and `plan/release/fixes/spec-pipe-chain-honored-on-every-command-surface.md` (the surface adapters the shell child extends), `plan/release/fixes/spec-crash-capture.md` and `plan/post-release/features/spec-install-9-cloud-init.md` (the persistent partition) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
+This spec holds no code, so each entry point is wired by the child that owns it. The rows below name one wiring test of each child; its own Wiring Test table holds the rest.
+
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| To be filled at design | → | | |
+| A `container` root in a committed config | → | The plugin's config callbacks and one supervisor worker (runtime child) | `container-start` |
+| A build with and without `ze_container` | → | The gate (runtime child) | `TestBuildTag_Container_Present`, `TestBuildTag_Container_Absent` |
+| `create container image reference` | → | The fetch, the registry client, layer application, publication (image store child) | `container-image-fetch-lists-digest` |
+| A config with a network and an attached container | → | The plugin's verify and apply, the runtime seam, the link (network child) | `container-network-reach-gateway` |
+| `show container list` over SSH | → | The state view and the list handler (operator surface child) | `container-list-running` |
+| `request container shell name` over SSH with a terminal | → | The session route and the library's second-process start (shell child) | `container-shell-ssh-terminal` |
+| The installer booted with the HTTP source | → | The table growth and the filesystem resize (the appliance spec) | `TestRunHTTPGrowsPersistentPartition` |
+| The owner's closing test | → | Every child, through the operator's own entry points | `container-redis` |
 
 ## Acceptance Criteria
 
@@ -334,55 +357,114 @@ commands); the split is decided at design.
 | AC-6 | A container allocates memory past its limit, or forks past its process limit | The kernel kills or refuses inside the container, the container's state records why, and the restart policy applies | The routing daemon and the other containers keep running, which is the point of the limit |
 | AC-7 | A container runs with the default confinement | From inside, it sees only its own processes and mounts, holds only the default capability set, and a system call outside the default profile is refused with an error | A capability or host namespace the config grants explicitly is present, because the operator asked for it |
 | AC-8 | A container is attached to a container network | It reaches the network's gateway address. The network's bridge and the host end of the container's link are listed as Ze interfaces, and a firewall term that matches the bridge, or the container's address, applies to its traffic | Traffic the firewall config permits passes; nothing else creates packet-filter state: every table present is one Ze owns |
-| AC-9 | A container publishes a port | A connection to the published address and port reaches the container, and the translation is visible as state Ze owns and shows | A port no container publishes stays closed |
+| AC-9 | A container publishes a port, and the operator's firewall policy allows it | A connection to an address of the router on the published port reaches the container, and the translation is visible as state Ze owns and shows. Where the policy drops it, doctor reports `doctor-container-port-blocked` with the term to add | A port no container publishes stays closed, and a connection through the router to another host's same port is forwarded untranslated, because only traffic addressed to the router is published |
 | AC-10 | A container's entrypoint exits with a failure | The container is restarted under its restart policy with a growing delay, and the listing shows the restart count and the last exit status | A container whose policy is "no" stays stopped, as configured |
 | AC-11 | The daemon stops or reloads a config that removes a container | The container gets its stop signal, then is killed after its stop timeout, which is at most 30 seconds, and no process, cgroup, mount or link of it remains | Its image and its writable layer remain on disk, so the next start finds them |
 | AC-12 | A config uses a container on a kernel that lacks a required option | Validate, start and reload refuse, naming the option; doctor reports the same | A config with no container is accepted on that kernel, because nothing needs the option |
-| AC-14 | Owner's closing test: the operator fetches the published Redis image, configures a container for it with a published port, and commits | The Redis server runs in the container, and a client outside the container, connecting to the published address and port, gets the server's reply to a ping and reads back a value it stored. The value is still there after the container is restarted, because Redis wrote it to the container's persistent filesystem | A connection to a port the container does not publish is refused, because only the published port is opened |
+| AC-14 | Owner's closing test: the operator fetches the published Redis image, configures a container for it on a container network with a published port, allows that port in the firewall policy, and commits. The config declares no volume | The Redis server runs in the container, and a client outside the container, connecting to the published address and port, gets the server's reply to a ping and reads back a value it stored. The value is still there after the container is restarted, because Redis wrote it to the container's persistent filesystem: the client asked for an explicit save, and the image's declared data path, with no configured volume there, is a directory of the writable layer. The test is the last phase of the operator surface child (its AC-15 and section X-1), which names the criterion of each child it rests on | A connection to a port the container does not publish is refused, because only the published port is opened |
 | AC-13 | `ze` is built without the container gate | A config with a container root is refused as unknown, the container commands do not exist, and the binary links no symbol of the feature or of the upstream runtime | Every other feature behaves as in a build with the gate |
 
 ## End-to-End User Stories
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | To be filled at design | | |
+| 1 | Runs a Redis server on the router, uses it from another host, restarts it and finds the data (AC-14) | fetch -> store -> config -> verifier -> runtime start -> link and translation -> firewall policy -> client -> restart -> writable layer | `container-redis` (operator surface child, story 7) |
+| 2 | Commits a config with one container | config delivery -> description -> store resolve -> root overlay -> library create -> created call -> release | `container-start` (runtime child, story 1) |
+| 3 | Fetches an image and sees it listed | command -> fetch worker -> registry client -> layer application -> publication -> listing | `container-image-fetch-lists-digest` (image store child, story 1) |
+| 4 | Declares a network, attaches a container and publishes a port | config -> plugin verify -> interface request -> bridge and link; table builder -> firewall request | `container-network-reach-gateway`, `container-port-published` (network child, stories 1 and 2) |
+| 5 | Opens a shell in a running container | SSH exec with a terminal -> session route -> container plugin -> second-process start | `container-shell-ssh-terminal` (shell child, story 1) |
+| 6 | Installs an appliance on a large disk and finds the space | installer -> table rewrite -> resize -> `show host storage` | `./le test qemu installer` (the appliance spec, story 1) |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
+This spec holds no code, so every unit test is in the TDD Test Plan of the child that owns the code. The rows below are the tests this spec's own criteria name.
+
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| To be filled at design | | | |
+| `TestBuildTag_Container_Present`, `TestBuildTag_Container_Absent` | `cmd/ze/hub/build_tag_container_present_test.go`, `cmd/ze/hub/build_tag_container_absent_test.go` (runtime child) | AC-13: the gate, present and absent | |
+| `TestContainerRootRefusedWithoutTheGate` | The same absent test file (operator surface child) | AC-13: the refusal text of a `container` root, and the unknown command | |
 
 ### Boundary Tests (numeric inputs)
+Every numeric input is a node of the operator surface child's tables S-1 to S-3, and its Boundary Tests table holds each range. The two rows below are the bounds this spec's corrections and defaults set.
+
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| To be filled at design | | | | |
+| `stop-timeout`, seconds | 1-30 | 30 | 0 | 31 |
+| `memory`, mebibytes. The default is 512, and the floor waits for the runtime child's measurement | 64-1048576 | 1048576 | 63 | 1048577 |
 
 ### Functional Tests
+Every container `.ci` test lives in the `container` suite, `test/container/`, which the runtime child registers. A test that boots an appliance image is in the appliance suite. Each child's Functional Tests table holds its own.
+
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| To be filled at design | | | |
+| `container-start` | `test/container/container-start.ci` (runtime child) | AC-1: a committed container runs | |
+| `container-redis` | `test/appliance/container-redis.ci` (operator surface child) | AC-14: the closing Redis test | |
 
 ## Files to Modify
-- To be filled at design.
+- None by this spec. Each child lists its own. The existing files more than one child edits follow
+- `feature-gates.txt` - the runtime child declares the gate `ze_container` and its own packages. Each sibling adds the line of each package it creates
+- `pkg/zefs/keys.go` - the state keys of the runtime, image store and network children
+- `gokrazy/kernel/runtime.config`, `gokrazy/kernel/runtime.require` - the options of the runtime and network children, and the quota options of the appliance spec
 
 ## Files to Create
-- To be filled at design.
+- None by this spec. Each child lists its own. The new files more than one child edits, and who creates them, follow
+- `internal/plugins/container/register.go`, `internal/plugins/container/config.go`, `internal/plugins/container/yang/ze-container-conf.yang`, `internal/plugins/container/yang/ze-container-cmd.yang` - created by the runtime child, extended by every sibling with the operator surface child's words
+- `cmd/ze/hub/build_tag_container_present_test.go`, `cmd/ze/hub/build_tag_container_absent_test.go` - created by the runtime child. The absent test is extended by the operator surface and shell children
+- The seven patch files of the build-time diff - six from the runtime child, a seventh from the shell child
+- `test/container/container-start.ci` (runtime child), `test/appliance/container-redis.ci` and `docs/guide/containers.md` (operator surface child) - the files this spec's tables cite
+- `plan/post-release/features/spec-container-6-health-check.md` - the later child, a skeleton
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| To be answered at design | | |
+| YANG schema (new RPCs/config) | Yes | The plugin's `yang` folder. The words are the operator surface child's tables S-1 to S-3 and C-1, and each child lands its rows |
+| YANG validation constraints | Yes | The operator surface child's tables |
+| YANG custom validators | No | A gated root cannot use `ze:validate`. The cross-leaf rules are the operator surface child's table V-1, judged by the plugin's one function |
+| CLI commands/flags | Yes | The operator surface child's table C-1. The grow command is the appliance spec's |
+| CLI grammar (keyword before value) | Yes | The operator surface child's table C-1, which lists the shell child's three commands too |
+| Editor autocomplete | Yes | Each child's own row |
+| Functional test for new RPC/API | Yes | The `container` suite, `test/container/` |
+| Pipe completeness | Yes | The operator surface child, "Pipes" |
+| Env var registration | Yes | `ze.data.dir` (image store child) |
+| Doctor check for runtime dependencies | Yes | Each child's own table: runtime "Problem classes and their doctor codes", image store "Doctor checks and codes", network "Problem classes", operator surface D-1, the shell child's Integration Checklist, the appliance spec's storage check |
+| Doctor code per problem class | Yes | The same tables. Every container code starts with `doctor-container-` |
+| Prometheus counters/metrics | Yes | The operator surface child's table M-1, the runtime child's out-of-memory counter, the shell child's session metrics |
+| BGP family surface (new SAFI / capability / attribute) | N-A | No BGP surface |
 
 ### Documentation Update Checklist (BLOCKING)
+This spec changes no page of its own. Each row names the child whose checklist holds the page.
+
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| To be answered at design | | | |
+| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | Yes | The container feature declaration: the runtime child creates it and each sibling extends it |
+| 2 | Config syntax changed? | Yes | The operator surface child: the `container` root. The network child: the local-address firewall match |
+| 3 | CLI command added/changed? | Yes | The operator surface child, and the appliance spec for the grow command |
+| 4 | API/RPC added/changed? | Yes | The network child (the interface and firewall requests) and the shell child (a command that holds a session) |
+| 5 | Plugin added/changed? | Yes | The runtime child |
+| 6 | Has a user guide page? | Yes | The operator surface child: `docs/guide/containers.md` |
+| 7 | Wire format changed? | No | No protocol wire format changes |
+| 8 | Plugin SDK/protocol changed? | Yes | The network child and the shell child |
+| 9 | RFC behavior implemented, changed, or newly proven? | N-A | No RFC |
+| 10 | Test infrastructure changed? | Yes | The runtime child: the `container` suite. The image store child: the registry fixture and the Redis seed |
+| 11 | Affects daemon comparison? | Yes | The operator surface child |
+| 12 | Internal architecture changed? | Yes | Each child's own design page for the container work, and the appliance pages of the appliance spec |
+| 13 | Route metadata keys added/changed? | N-A | No route metadata |
+| 14 | Prometheus counters added/changed? | Yes | The operator surface, runtime and shell children |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | Each child's own row |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | `docs/architecture/zefs-format.md`, declared by `pkg/zefs/keys.go`: the runtime, image store and network children each add their keys to its key registry. The rest is derived by each child with `./le spec citation anchors` on its own spec |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | The operator surface child (`docs/guide/docker.md`) and the network child (`docs/guide/firewall.md`) |
 
 ## Implementation Steps
 
-1. **Phase: Wiring (MANDATORY FIRST)** -- to be filled at design.
+This spec has no phase of its own. The work runs in the dependency order of "Child specs", and each step below is the phases of the specs it names.
+
+1. **Phase: Wiring (MANDATORY FIRST)** -- the runtime child's phase 1, after the design of the operator surface child is settled: the gate, the plugin skeleton, the seams and the `container` suite
+   - Tests: the runtime child's Wiring Test table
+2. **Phase: the appliance spec and the runtime child** -- independent of each other
+3. **Phase: the image store child and the network child**
+4. **Phase: the shell child**
+5. **Phase: the operator surface child** -- its last phase is the closing Redis test, `container-redis` (AC-14)
 
 ## Design Insights
 
@@ -404,7 +486,13 @@ commands); the split is decided at design.
 | Images are pulled only by an explicit command, and a missing image is a reported state (from the reference model) | Pulling at commit | A commit must not depend on a registry being reachable. Ze adds what the reference lacks: the container's state names the missing image, and doctor gives the command |
 
 ## Known Limitations
-- To be filled at design.
+Each child lists its own. The ones that bound the whole work:
+- Containers run on the appliance and under a daemon that runs as root, at first. Elsewhere a container config is refused with the reason (owner ruling).
+- When Ze restarts, including for its own update, containers are stopped and started again (owner ruling).
+- A container network cannot be placed in a VRF until VRF support ships. `plan/post-release/features/spec-vrf-0-umbrella.md` adds the node then.
+- A container health check is not built by the six specs above it in "Child specs". It is owed to `plan/post-release/features/spec-container-6-health-check.md`.
+- Ze answers no container names over DNS at first, has no I/O throttle, builds and signs no image, and shares no layer between images (owner rulings, and the image store child).
+- A live terminal in the browser and a live session over REST are not built: both surfaces run the bounded form (the shell child, O-4 and O-5).
 
 ## Checklist
 

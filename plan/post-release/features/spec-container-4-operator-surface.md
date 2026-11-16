@@ -214,7 +214,7 @@ The key of `instance` is `name`: a string of 1 to 63 characters, lowercase lette
 | `restart` | enumeration: `never`, `on-failure`, `always` | `on-failure` | When Ze starts the container again after it exits. | Three values, the first a bare negative word. Ze names it `never` | runtime |
 | `stop-timeout` | uint16, 1 to 30, units seconds | 10 | Time between the stop signal and the kill. | Same node. The upper bound is 30, because a daemon stop gives containers 30 seconds (umbrella corrections) | runtime |
 | `stop-signal` | enumeration: `term`, `int`, `quit`, `hup`, `usr1`, `usr2` | the image's, else `term` | Signal that asks the container to stop. | No node. Added because the runtime child's finding for a container that ignored its stop signal needs a statement to change | runtime |
-| `memory` | uint32, 4 to 1048576, units mebibytes | 512 | Memory limit; the kernel kills inside the container past it. | An integer where zero means no limit. Zero is outside the range | runtime |
+| `memory` | uint32, 64 to 1048576, units mebibytes | 512 | Memory limit; the kernel kills inside the container past it. | An integer where zero means no limit. Zero is outside the range. The floor is 64, pending the measurement of the init role's memory, which the runtime child owns (its A-8). This table carries the range, and that child the measurement | runtime |
 | `shared-memory` | uint32, 1 to 1048576, units mebibytes | 64 | Size of the shared-memory mount, counted in the memory limit. | An integer where zero means no limit. Zero is outside the range | runtime |
 | `cpu` | uint32, 1 to 102400, units percent | 100 | CPU limit in percent of one core; 150 is one and a half cores. | A decimal string of cores, checked by a regular expression, where zero means no limit. Ze's form is an integer with a unit. The kernel side is the runtime child's (A-4) | runtime |
 | `process-limit` | uint32, 1 to 32768 | 256 | Most processes and threads the container holds at once. | No node. Added because the umbrella limits processes (AC-6) | runtime |
@@ -252,7 +252,7 @@ The key is `name`: the registry host, with its port when it has one, exactly as 
 | Node | Type and constraints | Default | Help | Reference, and the resolution | Lands with |
 |------|----------------------|---------|------|-------------------------------|-----------|
 | `authentication` | presence container. `username`: string, 1 to 255, mandatory. `password`: string, 1 to 4096, mandatory, `ze:sensitive` | none | Credentials Ze presents to the registry. | Two leaves with a both-or-neither rule. The presence container with two mandatory leaves states the rule in the schema | image store |
-| `transport` | enumeration: `https`, `http` | `https` | Protocol Ze speaks to the registry. | One negative flag that means either plain HTTP or unverified TLS. Ze names the protocol. Unverified TLS does not exist: a private authority is named by `trust-anchor` | image store |
+| `transport` | enumeration: `https`, `http` | `https` | Protocol Ze speaks to the registry and to its mirror. | One negative flag that means either plain HTTP or unverified TLS. Ze names the protocol. Unverified TLS does not exist: a private authority is named by `trust-anchor`. The protocol applies to the registry's mirror too, and a mirror's `address` may be a loopback address: the image store child's test registry depends on both | image store |
 | `trust-anchor` | `leafref` to the name of a `pki ca` entry | the system roots | Authority that signs the registry's certificate. | No node. Added because a registry signed by a private authority cannot be reached otherwise. A registry that names an anchor is trusted through that anchor only | image store |
 | `mirror` | presence container. `address`: an IP address or a host name, mandatory. `port`: `zt:port`. `path`: string that starts with a slash | `port` 443, `path` a single slash | Server Ze asks first; the registry is asked when it fails. | An address leaf and a host-name leaf that exclude each other, a port and a path. One `address` leaf takes either form, as Ze's endpoint rule states. One mirror for each registry, asked first and with no credentials | image store |
 | `description` | string, 1 to 255 | none | Free text shown with the registry. | Not in the reference. Added for parity with the other two lists | operator surface |
@@ -264,6 +264,14 @@ The root also holds one container, `store`, for the settings of the image store 
 | Node | Type and constraints | Default | Help | Reference, and the resolution | Lands with |
 |------|----------------------|---------|------|-------------------------------|-----------|
 | `store largest-image` | uint32, 1 to 65536, units mebibytes | 1024 | Largest image the store accepts, measured unpacked. | No node. Added because the cap on one image's unpacked size has to be raisable by the operator | image store |
+
+The root holds one more container, `shell`, for the session limits of the shell child. The limits are that child's design (its O-8). The leaves are rows of this table, and the shell child lands them:
+
+| Node | Type and constraints | Default | Help | Reference, and the resolution | Lands with |
+|------|----------------------|---------|------|-------------------------------|-----------|
+| `shell idle-timeout` | uint32, 30 to 86400, units seconds | 900 | Time a session with no input and no output stays open. | No node. Added because a shell left alone must end | shell |
+| `shell absolute-timeout` | uint32, 60 to 86400, units seconds | 28800 | Longest time one session stays open. | No node. Added for the same reason | shell |
+| `shell session-limit` | uint8, 1 to 16 | 4 | Most sessions open in one container at once. | No node. The cap for the whole daemon is 16 and has no leaf | shell |
 
 ### S-4. Reference nodes left out
 
@@ -298,8 +306,17 @@ Every row is judged by the one function. A row marked "host" reads the host it r
 | V-8 | `cpu` exceeds 100 times the processors of the host (host) | runtime |
 | V-9 | A published port is one a configured Ze listener binds on an overlapping address. The network child owns the mechanism, this child the message | network |
 | V-10 | One capability is in both `capability` and `capability-drop` | runtime |
-| V-11 | The config holds a container and the daemon does not run as root (host). The appliance and a root daemon are where containers run at first | runtime |
+| V-11 | The config holds a container and the daemon does not run as root (host). The appliance and a root daemon are where containers run at first. The runtime child judges this rule where the daemon runs, at boot, reload and commit, and by doctor, and not by `ze config validate`, which runs as the operator. The two specs differ on that one point, and it waits for a ruling | runtime |
 | V-12 | The config holds a container and the data directory's filesystem cannot enforce a size cap (host) | image store |
+| V-13 | A network `prefix` has a length outside 1 to 30 for IPv4, or outside 1 to 126 for IPv6 | network |
+| V-14 | A network with an IPv6 prefix has an `mtu` below 1280 | network |
+| V-15 | A network has more attachments than free addresses in a prefix | network |
+| V-16 | The bridge device of a network, `zcn-` plus its name, is declared as an interface in the `interface` config, or a network prefix contains an address the `interface` config sets | network |
+| V-17 | Two attachments of one network set or derive the same hardware address | network |
+| V-18 | An instance has a `port` entry and no `network` entry | network |
+| V-19 | The config needs a container link and the interface backend cannot create one, or needs a translation and the firewall backend cannot carry the tables | network |
+
+This table lists every rule, and table E-1 its message. The child that lands a rule owns its code and its tests, in its own package.
 
 Not judged at verify, by the umbrella's design: whether an image is in the store, whether a registry answers, and whether a `device` host path exists. Each is a state the listing and doctor report.
 
@@ -338,9 +355,9 @@ Every command is a YANG command node in the plugin's command module, bound to a 
 | `request container restart name` | `value` | The system changes, and no narrower verb describes it | document: `name`, `state`, `process-id` | runtime |
 | `request container shell name` | `value`; `command`, `input`, `timeout` (the shell child's leaves) | A process starts inside the container | The shell child's: a live session, or the bounded run's document | shell |
 | `show container session list` | none | Reports only | rows, one per open session: the shell child's fields | shell |
-| The command that closes a session by its id | the session id | An open session stops existing, which is the `delete` test | The shell child's | shell |
+| `delete container session id` | `value`: the session id, the shell child's leaf, an integer from 1 to 4294967295 | An open session stops existing, which is the `delete` test | The shell child's | shell |
 
-The three shell rows are owned by `spec-container-5-shell` and are listed here so the table is whole. The first two fit this grammar as they are: a verb, the subject, the action, then the typed selector with the optional leaves after it, and `list` for the enumeration. The close command's words are that child's to state; by the verb test of this table it is `delete container session id`, with the id as a string.
+The three shell rows are owned by `spec-container-5-shell`: the commands, their leaves and their answers are that child's, and it lands them. They are listed here so the table is whole, and this table's verb rules apply to them. The first two fit this grammar as they are: a verb, the subject, the action, then the typed selector with the optional leaves after it, and `list` for the enumeration. The session close is `delete container session id`, by the verb test of this table.
 
 What each action does, where the words alone do not say it:
 
@@ -348,8 +365,8 @@ What each action does, where the words alone do not say it:
 |---------|----------|
 | `create container image reference` | Fetches and verifies the image. It runs under the request's context and answers once, at the end. A caller that goes away stops it, and verified data stays for the next attempt. While it runs, the image listing shows the row as `fetching` with `received`. Every container waiting for that reference then starts, with no further command |
 | `update container image name` | Fetches the reference the container's config names. When the digest differs, the container moves to it with an empty writable layer and restarts, and the previous digest stays for rollback. When it is the same, nothing changes and `changed` is false |
-| `delete container image digest`, `all` | An image a configured container holds as its current or previous digest is kept, and the answer says which container holds it |
-| `delete container volume name` | Refused while a running container holds that volume, as the image store child states. The refusal names the statement that stops the container |
+| `delete container image digest`, `all` | The image store child states the one delete rule, and this row cites it: an image that any configured container holds as its current or its previous generation is kept, and deleting it is refused. `digest` naming such an image is refused, and the refusal names the container and the generation. `all` skips it and lists it under `kept` |
+| `delete container volume name` | Refused while the config still declares that volume, as the image store child states. The refusal names the config statement to remove |
 | `update container image rollback name` | The only way back to the previous digest. Ze never rolls back on its own |
 | `clear container layer name` | Empties the writable layer. A running container is stopped first and started again on the empty layer. It also accepts the name of a container no longer configured, and then removes the stored layer |
 | `request container restart name` | Stops a running container and starts it. Starts a container in the `stopped` or `failed` state. Refused for a `disabled` container, with the config statement that enables it, and for one in `waiting-image`, with the fetch command |
@@ -382,12 +399,12 @@ One record per configured container, built from the config and the three sibling
 |-------|---------|------------------------------|--------|
 | `running` | The entrypoint runs | `digest`, `process-id`, `since`, `restart-count` | none |
 | `waiting-image` | The image the config names is not in the store | `reason` names the image reference | D-1 row 1 |
-| `restarting` | The entrypoint exited and Ze waits to start it again | `restart-count`, `last-exit-status`, `reason` gives the time of the next start | D-1 row 2 |
-| `stopped` | The entrypoint exited and the restart policy keeps it stopped | `last-exit-status`, `reason` names the policy | D-1 row 3, for a non-zero exit only |
+| `restarting` | The entrypoint ended, the policy restarts it, and the delay is running. Also a failed start that will be tried again | `restart-count`, `last-exit-status`, `reason` gives the time of the next start | D-1 row 2 |
+| `stopped` | The entrypoint ended and the restart policy keeps it stopped | `last-exit-status`, `reason` names the policy | D-1 row 3, for a non-zero exit only |
 | `disabled` | `enabled` is false | none | none |
-| `failed` | Ze cannot start the container, or stopped trying | `reason` in plain words: the restart bound reached, an entrypoint that does not exist, a device that is absent, a limit the kernel refused | D-1 row 4 |
+| `failed` | A start step failed five times in a row, and Ze stopped trying. An entrypoint that keeps exiting never gives this state: it is restarted under its policy with a growing delay and no bound, and the delay returns to one second after a run of one minute | `reason` names the step in plain words: an entrypoint that does not exist, a device that is absent, a limit the kernel refused | D-1 row 4 |
 
-`reason` is one sentence in the operator's terms. `last-exit-status` is the exit code, or the name of the signal that ended the process. The runtime child adds a state only by adding a row here: its internal steps (a start or a stop in progress, an exit not yet judged) are reported as the state the container settles in.
+`reason` is one sentence in the operator's terms. `last-exit-status` is the exit code, or the name of the signal that ended the process. These six states are the only names an operator sees. The runtime child defines when each is set (its section "Container state"), and this table states them in the same words. Its internal steps (a start or a stop in progress, an exit not yet judged) each map onto one of the six, and it adds a state only by adding a row here.
 
 When Ze restarts, for its own update included, every container is stopped and started again. The record then shows the new start time, and the last exit status recorded before the restart.
 
@@ -406,7 +423,7 @@ Each is a `runtime` check, declared at Stage 1 and answered in the plugin's proc
 | 5 | `doctor-container-store-orphan` | warning | The store holds a writable layer or a volume of a container or volume the config no longer declares | the image store holds SIZE for NAME, which the configuration no longer declares | `ze clear container layer name NAME`, or `ze delete container volume name VOLUME instance NAME` |
 | 6 | `doctor-container-port-blocked` | warning | A container publishes a port and the operator's firewall policy drops the traffic to it | container NAME publishes PROTOCOL port N, and the firewall policy drops connections to it: a published port must also be allowed by the policy | The `set` line of a firewall term that accepts PROTOCOL to the container's port on the network's bridge |
 
-Row 6 is judged by the network child, which reads the firewall policy. The message is this child's. A code a sibling already declares for the same condition is used in place of the name here (`doctor-container-image-absent`, `doctor-container-restarting` and `doctor-container-store-orphan` are in the sibling drafts under these names).
+Row 6 is judged by the network child, which reads the firewall policy as its section "Published ports and outbound translation" defines. The code and the message are this child's. The six codes of this table are declared here and nowhere else: a sibling that supplies the facts cites the row. Every container doctor code, in every child, starts with `doctor-container-`.
 
 Checks owned by one sibling stay with it: the kernel capabilities, the cgroup mount and the unprivileged daemon (runtime), free space, the size-cap capability and registry reachability (image store), the link and the translation state (network).
 
@@ -425,12 +442,23 @@ Every refusal is an operator error: the problem, why it matters, the fix alone o
 | V-10 | container NAME: capability C is both added and dropped | the two statements cannot both hold | the `delete` line for one of the two |
 | V-11 | this configuration has a container, and Ze does not run as root here | Ze creates a container's namespaces and limits as root. Containers run on the appliance and under a root daemon | the command that starts Ze as root on this host, or the `delete container` line |
 | V-12 | this configuration has a container, and the filesystem of DIRECTORY cannot cap the size of a folder | every container's storage and every volume has a size cap, and Ze refuses to run one it cannot enforce | the statement or command the image store child names for a data directory on a filesystem that can |
+| V-2 | container NAME: kernel setting S is not a setting of the container's own namespaces | a setting outside them would change the router itself | the `delete` line for the setting |
+| V-5 | network NET: prefix P overlaps network OTHER, or gateway G is outside its prefixes | two networks with one range cannot both be routed | the `set` line with a prefix or a gateway that fits |
+| V-7 | container NAME: path P is named by two of its volumes, memory-backed mounts and devices | two mounts on one path hide each other | the `delete` line for one of the two |
+| V-8 | container NAME: cpu C is more than the N processors of this host give | a limit above the host's capacity limits nothing | `set container instance NAME cpu` with a value the host has |
+| V-13 | network NET: prefix P has a length a container network cannot use | the network needs room for a gateway and at least one container | the `set` line with a length inside the range |
+| V-14 | network NET: mtu M is below 1280 and the network has an IPv6 prefix | IPv6 needs a link that carries 1280 bytes | `set container network NET mtu 1280` |
+| V-15 | network NET: N containers attach and prefix P has M free addresses | each attachment needs an address | the `set` line with a larger prefix, or the `delete` line for an attachment |
+| V-16 | network NET: its bridge device DEVICE, or an address of its prefix, is already declared under `interface` | two owners cannot hold one device name or one address | the `delete` line for the interface statement, or the `set` line with another network name or prefix |
+| V-17 | containers NAME and OTHER have the same hardware address on network NET | two links with one hardware address both lose traffic | `set container instance NAME network NET mac-address` with another address |
+| V-18 | container NAME publishes a port and has no network | a published port needs an address to reach | `set container instance NAME network NET`, or the `delete` line for the port |
+| V-19 | container network NET needs a backend this configuration does not select | the active interface or firewall backend cannot create the link or carry the translation | the `set` line for the backend leaf the message names |
 | A value that means no limit | Built by the schema: the value is outside the accepted range, with the range and the `set` line | The schema's own why line | The schema's own fix line |
 | `show container log name` with `log none` | container NAME keeps no output: its `log` setting is `none` | nothing was kept to show | `set container instance NAME log buffer` |
 | `request container restart name` on a disabled container | container NAME is disabled in the configuration | a restart would start what the configuration says to keep stopped | `set container instance NAME enabled true` |
 | An unknown container name in a command | no container named NAME is configured, with the closest name | the command acts on configured containers only | `ze show container list` |
 
-An image that `delete container image` keeps is not an error: the `kept` row of the answer names the container that holds the digest.
+An image that `delete container image all` keeps is not an error: the `kept` row of the answer names the container that holds the digest. `delete container image digest` naming such an image is refused by the image store child's delete rule, and the refusal names the container, the generation, and the config statement that removes the container.
 
 ### M-1. Metrics
 
@@ -461,13 +489,13 @@ One test, in the appliance guest, through the operator's own entry points. It is
 
 | Step | What the operator does, in the words of this spec | What the test asserts | Rests on |
 |------|---------------------------------------------------|-----------------------|----------|
-| 1 | Fetches the image: `create container image reference redis`. On a router with Internet access the short name resolves to the published Redis image on Docker Hub. In the test the reference is whole and names the image store child's test registry, which serves the real published Redis image, and the config holds `container registry` for that host with the transport or trust anchor that child states | The answer holds the whole reference and a digest, and `show container image list` shows the row `present` | Image store AC-1 |
+| 1 | Fetches the image: `create container image reference redis`. On a router with Internet access the short name resolves to the published Redis image on Docker Hub. In the test the operator types the same short name. The config holds a `container registry` entry for the default registry's host, with `transport http` and a `mirror` on a loopback address: the image store child's test registry, which serves the real published Redis image. The transport applies to the mirror, and the mirror is asked first | The answer holds the whole reference and a digest, and `show container image list` shows the row `present` | Image store AC-1, AC-25 and AC-26 |
 | 2 | Declares a network: `set container network lan prefix` with an IPv4 prefix | Accepted | Network AC-1 |
 | 3 | Declares the container: `set container instance redis image` with the same reference, `set container instance redis network lan`, `set container instance redis port redis listen-port 6379`, and `set container instance redis port redis container-port 6379`. The protocol is the default, `tcp` | Accepted | This spec, tables S-1 and V-1 |
 | 4 | Allows the published port in the firewall policy. In a table of the `inet` family, a `forward` chain of type `filter` with `policy drop` holds two terms. One accepts `connection-state established,related`. The other, for the published port, has `from protocol tcp`, `from destination-port 6379`, `from output-interface` naming the bridge of network `lan`, and `then accept`. The table has no input chain | Accepted. `show doctor` holds no `doctor-container-port-blocked` finding | The network child's policy rule and its local-address match |
 | 5 | Commits | `show container list` shows `redis` as `running` with the digest of step 1 | Runtime AC-1, network AC-2, this spec AC-1 |
 | 6 | A client outside the container connects to an address of the router on port 6379 and speaks the Redis protocol | The reply to a ping is the pong reply. A value is stored and read back. A `SAVE` is answered with success | Network AC-6 (umbrella AC-9) |
-| 7 | Restarts the container: `request container restart name redis` | The listing shows `running` again with `restart-count` unchanged or raised by the runtime child's rule. The same client, on a new connection, reads the stored value back | Runtime AC-9 and AC-11, image store AC-10 (umbrella AC-4) |
+| 7 | Restarts the container: `request container restart name redis` | The listing shows `running` again with `restart-count` unchanged or raised by the runtime child's rule. The same client, on a new connection, reads the stored value back | Runtime AC-22 (the restart command), AC-9 and its declared-volume rule: the config declares no volume, so the image's data path stays in the writable layer. Image store AC-10 and AC-26 (umbrella AC-4) |
 | 8 | The client connects to the same address on port 6380, which no container publishes | The connection is refused | Network AC-6, its permitted survivor |
 
 The client is test code of this repository: a small Redis protocol client in Go, used by the test's compiled observer. No client program is run, because Ze's shipped code and test code run no external program.
@@ -504,7 +532,7 @@ Step 8 asserts a refusal, not a timeout. The firewall policy of step 4 has no in
 | R-5 | A state read races a transition, so a test sees the state before the one it waits for | A flaky functional test | Tests wait on the state with the runner's wait step, never on time |
 | R-6 | The `cpu` default refuses every config on a kernel without the option (A-4) | The first functional test fails at commit | The runtime child pins the option before this child's Phase 1 |
 | R-9 | A short image name resolves to an image the operator did not expect, or `latest` moves under a running container | The digest in the listing differs from the one the operator tested | The whole reference and the digest are shown in every listing and in the fetch answer. A container stays on its recorded digest until `update container image name` |
-| R-10 | The closing test depends on a public registry at test time | The test fails with no network | The image store child's test registry serves the real Redis image, and the test names that registry with a whole reference |
+| R-10 | The closing test depends on a public registry at test time | The test fails with no network | The image store child's test registry serves the real Redis image as a mirror on a loopback address, so the test types the short name an operator would |
 | R-7 | A long fetch on REST or the web outlives the client's timeout and is stopped half way | A fetch that never ends on a slow link | Verified data stays for the next attempt, the image listing shows progress, and MCP uses a task |
 | R-8 | The log buffer grows without bound | Memory use rises with a chatty container | The buffer is bounded by the runtime child. `lines` is capped at 10000 |
 
@@ -605,7 +633,7 @@ Every unit test file below is new, under the plugin folder of A-1, and is listed
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| `memory` | 4-1048576 | 1048576 | 3 | 1048577 |
+| `memory` | 64-1048576 | 1048576 | 63 | 1048577 |
 | `shared-memory` | 1-1048576 | 1048576 | 0 | 1048577 |
 | `cpu` | 1-102400 | 102400 | 0 | 102401 |
 | `process-limit` | 1-32768 | 32768 | 0 | 32769 |
@@ -668,7 +696,7 @@ No existing feature file is modified: every feature file of this child is new wi
 - `cmd/ze/hub/build_tag_container_absent_test.go` - the absent-gate test. Created by the runtime child when it lands first, and this child then adds its test
 - `test/parse/container-schema-accepts.ci`, `test/parse/container-refuses-unlimited.ci`, `test/parse/container-refuses-cross-leaf.ci` - the parse tests
 - `test/container/container-validate-agrees-with-boot.ci`, `test/container/container-list-running.ci`, `test/container/container-waiting-image.ci`, `test/container/container-restart-state.ci`, `test/container/container-failed-disabled.ci`, `test/container/container-log.ci`, `test/container/container-secrets.ci`, `test/container/container-metrics.ci` - the daemon tests
-- `test/container/container-host-refused.ci`, `test/container/container-port-blocked.ci`, `test/container/container-image-names.ci`, `test/container/container-capability-drop.ci` - the tests of AC-16 to AC-19
+- `test/container/container-host-refused.ci`, `test/container/container-image-names.ci`, `test/container/container-capability-drop.ci` - the tests of AC-16, AC-18 and AC-19. The test of AC-17, `container-port-blocked`, is the network child's file, because that child owns the judgment. This child's part is the message, proven by `TestPortBlockedFindingNamesTheTerm`
 - `test/appliance/container-redis.ci` - the closing test of section X-1
 - `internal/test/respclient/respclient.go`, `internal/test/respclient/respclient_test.go` - the Redis protocol client the closing test uses, test code only
 - `test/ui/container-commands.ci` - completion and refusals
@@ -833,7 +861,7 @@ No existing feature file is modified: every feature file of this child is new wi
 ## Known Limitations
 - A volume belongs to one instance. Two containers cannot share one.
 - The log is a bounded buffer in memory. It does not survive a daemon restart.
-- The health check and container labels are not part of this work now, by owner ruling. The health check is work owed to a spec of its own, a later child of the container work (`spec-container-6-health-check`, to be written in `plan/post-release/features/`, not part of the shell child). Table S-4 holds the Ze form that spec takes.
+- The health check and container labels are not part of this work now, by owner ruling. The health check is work owed to a spec of its own, a later child of the container work (`plan/post-release/features/spec-container-6-health-check.md`, a skeleton, which depends on the shell child and runs its command through that child's bounded run). Table S-4 holds the Ze form that spec takes.
 - Ze answers no container name over DNS at first. A container gets the router's resolver list.
 - Containers run on the appliance and under a root daemon at first. Elsewhere a container config is refused with the reason.
 - A container network has no VRF node until VRF support ships.

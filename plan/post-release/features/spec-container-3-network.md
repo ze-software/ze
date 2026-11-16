@@ -71,35 +71,39 @@ This child lands two commands of that child's table C-1, with its words:
 gives the operator-surface child one read function for the attachments and
 published ports of an instance, which the container detail shows.
 
-Verifier rules: V-1, V-4, V-5, V-6 and V-9 of that child's table V-1 land with
-this child, inside the plugin's one judging function. This child adds rules
-that table does not list yet: the prefix length bounds, the MTU floor with an
-IPv6 prefix, a prefix with fewer free addresses than attachments, a bridge name
-the `interface` config already declares, two attachments that derive one
-hardware address, and the two backend gates. V-9 is one rule with two owners:
-this child owns the mechanism (the listener conflict contribution), that child
-owns the message.
+Verifier rules: V-1, V-4, V-5, V-6, V-9 and V-13 to V-19 of that child's table
+V-1 land with this child, inside the plugin's one judging function. That table
+lists each rule and its table E-1 the message. The code and the tests of each
+are this child's, in its `network` package. V-13 to V-19 are the rules this
+child's design added: the prefix length bounds (V-13), the MTU floor with an
+IPv6 prefix (V-14), a prefix with fewer free addresses than attachments (V-15),
+a bridge name the `interface` config already declares (V-16), a hardware
+address used twice in one network (V-17), a `port` on an instance with no
+`network` entry (V-18), and the two backend gates (V-19). V-9 is one rule with
+two owners: this child owns the mechanism (the listener conflict contribution),
+that child owns the message. The same split holds for the doctor code
+`doctor-container-port-blocked`: this child owns the judgment, and the code and
+its message are row 6 of that child's table D-1.
 
 ### The seam with the runtime child
 
 `spec-container-1-runtime.md` owns the process. Its "Seams with the other
-children" table gives this child two registrations, and this child's package
-registers one participant for both.
+children" table gives this child's participant the rows below, in the same
+words here, and this child's package registers one participant for all of them.
 
-| # | What the runtime child states | This child does with it |
-|---|-------------------------------|-------------------------|
-| 1 | Created window: each participant is called between create and release with the container name, the init pid and the network namespace path, under a deadline. An error aborts the start, and the container is cleaned up | Creates each link with its container end inside that namespace and configures it. The whole request finishes inside the deadline. For an instance that shares the host network, or has no `network` entry, the participant returns at once |
-| 2 | Description contribution: before create, a participant may add read-only file mounts and environment entries | Contributes one read-only file mount: the resolver file |
-| 3 | A daemon or plugin that died leaves containers running, and the next start removes every one before it starts anything | The links of those containers go with their namespaces, so no running container outlives its links |
+| # | What the runtime child provides | This child does with it |
+|---|---------------------------------|-------------------------|
+| 1 | The created call: each registered participant is called once, after create and before the entrypoint runs, under a deadline, with the container name, the init process id and the network namespace path. An error destroys the container and puts the participant's name and reason in the container's state | Creates each link with its container end inside that namespace and configures it. The whole request finishes inside the deadline. For an instance with no `network` entry the participant returns at once |
+| 2 | The network mode: `host-namespace` holding `network` builds no network namespace, and the created call is not made for that container. Its description contribution and its ended call are made as for any container | Makes no link and no translation for it, and still contributes its resolver file |
+| 3 | The ended call: made once for every container the runtime child created, after its processes are gone, and for each leftover the sweep removes | Removes the instance's resolver file. The link needs nothing: the kernel removes a link pair with its namespace, and the interface component forgets a link record whose device is gone |
+| 4 | The description contribution: before create, each participant may contribute read-only file mounts, and nothing else | Contributes one read-only file mount, the resolver file. This child keeps the file in a directory of its own and hands the runtime child the host path and the path inside the container. The runtime child mounts it read-only and removes nothing it did not create |
+| - | The loopback device is up before the created call: the description names it, and the library's init brings it up at the start of its sequence, before it blocks | Never touches the loopback device |
 
-No exit call is needed. The kernel removes a link pair with its namespace, the
-interface component forgets a link record whose device is gone, and before each
-start this child asks for the removal of any link still recorded for that
-instance.
-
-Two points the runtime child does not state yet, each an assumption below: that
-the loopback device is up before the created window (A-3), and where a
-participant keeps the host file it mounts (A-13).
+A daemon or plugin that died leaves containers running, and the runtime child
+removes every one at the next start, before it starts anything. The links of
+those containers go with their namespaces, so no running container outlives its
+links. Before each start this child also asks for the removal of any link still
+recorded for that instance.
 
 ### Addressing
 
@@ -141,7 +145,7 @@ through a chain that drops. Doctor reports a published port that policy blocks.
 | The router itself | Each base chain at the output hook, and at the input hook for the replies | The same destination on the output hook, and established connections on the input hook |
 | No firewall chain at those hooks, or policy accept | None | Nothing: the port is reachable once it is published |
 
-The doctor check `doctor-container-port-blocked-by-policy` reads the applied
+The doctor check `doctor-container-port-blocked` reads the applied
 ruleset listing. It reports a `port` entry when a base chain at the forward
 hook has policy drop and holds no accepting term whose matches name the
 network's bridge as output interface or the instance's address as destination.
@@ -178,10 +182,11 @@ By owner ruling Ze does not answer container names over DNS at first. An
 operator who wants one stable resolver address runs the LAN resolver on the
 network's gateway address and sets it as the instance's `name-server`.
 
-The resolver file is written per instance under the plugin's run-time state
-directory before create, and contributed as a read-only mount at the
-container's resolver path. An instance that shares the host network gets one
-too.
+The resolver file is written per instance before create, in a directory of
+this child's own under the run-time tree, and contributed as a read-only mount
+at the container's resolver path. This child creates that directory, removes
+the instance's file at the ended call, and removes what a previous run left
+when the plugin starts. An instance that shares the host network gets one too.
 
 ### Problem classes
 
@@ -200,7 +205,7 @@ own package. A refusal row is also a config-phase check.
 | `doctor-container-port-conflict` | config, verify (V-6, V-9) | Two publishers, or a publisher and a Ze listener, on one protocol, address and port | The node to change |
 | `doctor-container-translation-not-applied` | runtime | The firewall refused or did not apply the plugin's tables | The firewall error, and the commit that re-applies |
 | `doctor-container-forwarding-disabled` | runtime | IP forwarding is off for a family a network uses | The sysctl node |
-| `doctor-container-port-blocked-by-policy` | runtime | A published port is blocked by the operator's firewall policy, as defined under "Published ports" | The accepting term to add, as a `set firewall` line |
+| `doctor-container-port-blocked` | runtime | A published port is blocked by the operator's firewall policy, as defined under "Published ports" | The accepting term to add, as a `set firewall` line |
 | `doctor-container-resolver-empty` | runtime | A container has no resolver address | `set container instance NAME name-server` |
 | `doctor-container-host-network-settings` | config, verify (V-1) | An instance that shares the host network has a `network` entry, a `port` entry or a network `sysctl` | The `delete` line for the statement that conflicts |
 
@@ -388,8 +393,8 @@ own package. A refusal row is also a config-phase check.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The vendored netlink library creates a veth whose peer end is in another namespace, in one request | `vendor/github.com/vishvananda/netlink/link.go` `Veth.PeerNamespace`, and its use in `link_linux.go` | The peer is created in the host namespace and moved, which needs a temporary name | `TestOwnedLinkIsCreatedInsideNamespace` | unvalidated |
 | A-2 | A netlink socket bound to the container's namespace renames, addresses, routes and raises the peer end from the daemon | `vendor/github.com/vishvananda/netlink/handle_linux.go` `NewHandleAt`; `internal/core/routewatch/routewatch_linux.go` uses the same library | A worker thread enters the namespace under the `kernelcap` thread rule | `TestOwnedLinkIsCreatedInsideNamespace` | unvalidated |
-| A-3 | The loopback device is up before the created window. The rest of the seam is stated by `spec-container-1-runtime.md`: the created-window call with the init pid and namespace path, abort on error, the description contribution | That spec's "Seams" table states the calls. It does not state the loopback device: it says only that the library's network-device list stays empty | This child's participant raises the loopback device itself, through the same namespace-bound socket | The runtime child's spec gaining the sentence, and `container-none-network.ci` | unvalidated |
-| A-13 | A participant may keep a host file under the plugin's run-time state directory, per instance, and the runtime removes that directory at cleanup | `spec-container-1-runtime.md` AC-11 says the state directory is gone after a stop. It does not say a participant may write there | This child owns a directory of its own under the run-time tree and removes it, with its own entry in the raw-write allowlist | The runtime child's spec text | unvalidated |
+| A-3 | The loopback device is up before the created call | `spec-container-1-runtime.md`, "Seams with the other children": the description names the loopback device, and the library's init brings it up at the start of its sequence, before it blocks. Its AC-1 asserts it | This child's participant raises the loopback device itself, through the same namespace-bound socket | `container-none-network.ci`, and the runtime child's `container-start` | confirmed by the sibling's design |
+| A-13 | This child keeps the resolver file in a directory of its own under the run-time tree, with its own entry in the raw-write allowlist. The runtime child mounts it read-only and removes nothing it did not create | `spec-container-1-runtime.md`, "Seams with the other children", the description contribution | The file needs another home, decided with that child | `container-resolver-list.ci`, and `./le arch fs-persistence check` | confirmed by the sibling's design |
 | A-4 | A configure-safe engine operation can be called from the plugin's configure stage, and a plugin with `Dependencies` on `interface` and `firewall` configures after both | `register_engine_op.go` `EngineOperationConfigureSafe`; `ai/doors/plugin-infra.md` traps | The first declaration moves to the all-plugins-ready callback, and containers start after it | `container-network-wiring-external.ci` | unvalidated |
 | A-5 | The kernel deletes the host end when the namespace holding the peer end is destroyed | Kernel behaviour, not read | The plugin's "forget the links" request must delete the host end, which it does anyway | `TestHostEndVanishesWithNamespace` | unvalidated |
 | A-6 | The generation cleanup runs for an internal plugin and a forked one, after its requests drain | `register_engine_op.go` `ProcessGenerationCleanup` comment | A backstop is missing in one mode, and the next reconcile's orphan scan is the only cleanup | `container-network-plugin-ends.ci` in both modes | unvalidated |
@@ -398,7 +403,7 @@ own package. A refusal row is also a config-phase check.
 | A-9 | Two enrolments may name different subsystems for kernel options no one enrolled before, and the enrolled-symbol test accepts a line added to `runtime.require` | `kernelcap.go` `Capability`; `TestEnrolledKernelSymbolsAreInRuntimeRequire` (named in the kernel research, not read) | The options are enrolled by the interface and nft backends instead, with a registered in-use predicate | Reading `MustRegister` and running that test | unvalidated |
 | A-10 | The runtime child has a test route that starts a container with no registry | `spec-container-1-runtime.md`: a build with the `zetest` tag adds a store that resolves an image name to a folder, and `internal/test/containerprobe` is the fixture program | The functional tests that need a container wait for the image store child | That spec's text, read 2026-11-16 | confirmed by the sibling's design |
 | A-11 | The operator-surface child's design, which holds the one table of config and command words, is settled before this child's wiring phase | The umbrella: "its design is settled before any sibling's wiring phase". This spec keeps `Depends: spec-container-1-runtime`, because that child's implementation comes after this one's | Phase 1 waits | That spec reaching `ready` | unvalidated |
-| A-14 | The operator-surface child changes its `network` name bound to 1 to 11 characters and its `masquerade` default to true | The owner's rulings of 2026-11-16. That draft still says 1 to 63 and false | A name of 12 characters or more passes the schema and is refused by this child's verifier instead, with the same message | That spec's tables S-2 | unvalidated |
+| A-14 | The operator-surface child's `network` name bound is 1 to 11 characters and its `masquerade` default is true | That spec's table S-2 states both, by the owner's rulings of 2026-11-16 | A name of 12 characters or more passes the schema and is refused by this child's verifier instead, with the same message | That spec's `TestNetworkNameBound` | confirmed by the sibling's design |
 | A-12 | The interface engine's stop path can delete owned devices before it closes its backend | `internal/component/iface/register.go`: the stop path runs after `p.Run` returns and ends in `CloseBackend` | The deletion needs another ordered actor | `container-network-daemon-stop.ci`, and a VRRP stop test | unvalidated |
 
 ### Risks
@@ -412,7 +417,7 @@ own package. A refusal row is also a config-phase check.
 | R-6 | A third-party plugin uses the requests to make devices or tables | A device with an unknown owner | A request is accepted only from a caller whose package made a grant or a reservation at `init()`. A plugin outside the binary has none |
 | R-7 | Every reconcile re-applies all owners' tables, and a container start would pay it | Slow container start under a large ruleset | Tables follow the config, so the firewall is touched at config changes only |
 | R-8 | An entrypoint binds its IPv6 address while duplicate address detection holds it tentative | A bind error in the first second | The address is installed with detection off |
-| R-9 | The operator's forward chain drops the published traffic and the port looks broken | A translation term whose counter rises while no connection completes | The doctor check `doctor-container-port-blocked-by-policy`, the policy table under "Published ports", and the guide. The reserved tables name `show container network list` as the command that shows what decides their rules |
+| R-9 | The operator's forward chain drops the published traffic and the port looks broken | A translation term whose counter rises while no connection completes | The doctor check `doctor-container-port-blocked`, the policy table under "Published ports", and the guide. The reserved tables name `show container network list` as the command that shows what decides their rules |
 | R-10 | After a daemon crash, the first reconcile deletes the links of containers that are still running | Running containers lose their network at restart | By owner ruling containers are not re-adopted: the runtime child removes every leftover container at the next start, before it starts anything, so no running container keeps a link this child deleted |
 | R-15 | The created-window deadline ends while the interface request is in flight | A start fails with a deadline error under load | The request is bounded below the deadline, and a link made after the abort is removed by the pre-start removal of the next attempt and by the orphan scan |
 | R-11 | A reload rollback leaves the new bridge or tables in place | State of a refused commit in the kernel | Each declaration is a journal step whose undo is the previous complete set |
@@ -432,14 +437,14 @@ own package. A refusal row is also a config-phase check.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| A forked plugin declares an owned bridge | → | The interface engine operation, the owned registry, the netlink backend | `test/plugin/container-network-wiring-external.ci` |
-| An internal plugin declares an owned bridge | → | The same handler through the direct path | `test/plugin/container-network-wiring-internal.ci` |
-| A forked plugin asks for a link into a namespace it holds | → | The link handler and the netlink link creator | `test/plugin/container-link-wiring-external.ci` |
-| A forked plugin contributes a reserved table | → | The firewall engine operation, `RegisterTables`, `ApplyAll` | `test/plugin/container-table-wiring-external.ci` |
-| A config with a network and an attached container is committed | → | The plugin's verify and apply, the runtime seam, the link | `test/plugin/container-network-reach-gateway.ci` |
-| A config publishes a port | → | The plugin's table builder and the firewall contribution | `test/plugin/container-port-published.ci` |
-| `ze config validate` on a config with a host container and a port | → | The plugin's in-process verifier | `test/plugin/container-host-network-refused.ci` |
-| `show container network list` and `show container interface list` | → | This child's two listing handlers, in the plugin's process | `test/plugin/container-network-listings.ci` |
+| A forked plugin declares an owned bridge | → | The interface engine operation, the owned registry, the netlink backend | `test/container/container-network-wiring-external.ci` |
+| An internal plugin declares an owned bridge | → | The same handler through the direct path | `test/container/container-network-wiring-internal.ci` |
+| A forked plugin asks for a link into a namespace it holds | → | The link handler and the netlink link creator | `test/container/container-link-wiring-external.ci` |
+| A forked plugin contributes a reserved table | → | The firewall engine operation, `RegisterTables`, `ApplyAll` | `test/container/container-table-wiring-external.ci` |
+| A config with a network and an attached container is committed | → | The plugin's verify and apply, the runtime seam, the link | `test/container/container-network-reach-gateway.ci` |
+| A config publishes a port | → | The plugin's table builder and the firewall contribution | `test/container/container-port-published.ci` |
+| `ze config validate` on a config with a host container and a port | → | The plugin's in-process verifier | `test/container/container-host-network-refused.ci` |
+| `show container network list` and `show container interface list` | → | This child's two listing handlers, in the plugin's process | `test/container/container-network-listings.ci` |
 | The runtime's participant registration | → | This child's participant: the resolver mount and the link | `TestNetworkParticipantIsRegistered` |
 
 ## Acceptance Criteria
@@ -543,38 +548,39 @@ creates it; this child's package is `network` under it.
 
 ### Functional Tests
 Every row carries `option=needs-linux` unless marked "parse only". Each is
-drafted under `test/draft/plugin/` and promoted.
+drafted under `test/draft/container/` and promoted. The suite is the `container`
+suite the runtime child registers.
 
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `container-network-wiring-external` | `test/plugin/container-network-wiring-external.ci` | A forked test plugin's bridge appears in the kernel with the owner mark | |
-| `container-network-wiring-internal` | `test/plugin/container-network-wiring-internal.ci` | The same, internal | |
-| `container-link-wiring-external` | `test/plugin/container-link-wiring-external.ci` | A forked test plugin's link has its peer end configured in a namespace | |
-| `container-table-wiring-external` | `test/plugin/container-table-wiring-external.ci` | A forked test plugin's table is in the ruleset listing | |
-| `container-network-reach-gateway` | `test/plugin/container-network-reach-gateway.ci` | AC-1, AC-2: an entrypoint that connects to the gateway at once succeeds | |
-| `container-network-forked` | `test/plugin/container-network-forked.ci` | AC-16: the same with the plugin forked | |
-| `container-network-address-stable` | `test/plugin/container-network-address-stable.ci` | AC-3 | |
-| `container-network-ipv6` | `test/plugin/container-network-ipv6.ci` | AC-4 | |
-| `container-network-firewall-term` | `test/plugin/container-network-firewall-term.ci` | AC-5, with the term's counter as the positive control | |
-| `container-network-same-network-filter` | `test/plugin/container-network-same-network-filter.ci` | A-8: whether a forward term sees traffic between two containers of one network | |
-| `container-port-published` | `test/plugin/container-port-published.ci` | AC-6: a connection reaches the container and the listing shows the term | |
-| `container-port-transit-untouched` | `test/plugin/container-port-transit-untouched.ci` | AC-6 survivor: transit to the same port is not translated | |
-| `container-network-outbound` | `test/plugin/container-network-outbound.ci` | AC-7 | |
-| `container-network-reload-removes` | `test/plugin/container-network-reload-removes.ci` | AC-8, with a foreign bridge and table that must survive | |
-| `container-network-daemon-stop` | `test/plugin/container-network-daemon-stop.ci` | AC-9, AC-22 | |
-| `container-network-crash-leftovers` | `test/plugin/container-network-crash-leftovers.ci` | AC-10 | |
-| `container-host-network` | `test/plugin/container-host-network.ci` | AC-11 | |
-| `container-host-network-refused` | `test/plugin/container-host-network-refused.ci` | AC-12, parse only | |
-| `container-none-network` | `test/plugin/container-none-network.ci` | AC-13 | |
-| `container-network-listings` | `test/plugin/container-network-listings.ci` | AC-14: the two listings, internal and forked | |
-| `container-port-blocked-by-policy` | `test/plugin/container-port-blocked-by-policy.ci` | A forward chain with policy drop blocks a published port and doctor reports it; adding the accepting term lets the connection through and clears the finding | |
-| `container-network-vpp-refused` | `test/plugin/container-network-vpp-refused.ci` | AC-15, parse only | |
-| `container-resolver-list` | `test/plugin/container-resolver-list.ci` | AC-17 | |
-| `container-resolver-on-gateway` | `test/plugin/container-resolver-on-gateway.ci` | The LAN resolver listening on a gateway address answers a container | |
-| `container-port-listener-conflict` | `test/plugin/container-port-listener-conflict.ci` | AC-18, parse only | |
-| `container-address-refused` | `test/plugin/container-address-refused.ci` | AC-19, parse only | |
-| `doctor-container-network` | `test/plugin/doctor-container-network.ci` | AC-21: one provoked class per step of the sequence, each with its code | |
-| `container-network-plugin-ends` | `test/plugin/container-network-plugin-ends.ci` | The plugin process ends: its devices and tables are withdrawn; both modes | |
+| `container-network-wiring-external` | `test/container/container-network-wiring-external.ci` | A forked test plugin's bridge appears in the kernel with the owner mark | |
+| `container-network-wiring-internal` | `test/container/container-network-wiring-internal.ci` | The same, internal | |
+| `container-link-wiring-external` | `test/container/container-link-wiring-external.ci` | A forked test plugin's link has its peer end configured in a namespace | |
+| `container-table-wiring-external` | `test/container/container-table-wiring-external.ci` | A forked test plugin's table is in the ruleset listing | |
+| `container-network-reach-gateway` | `test/container/container-network-reach-gateway.ci` | AC-1, AC-2: an entrypoint that connects to the gateway at once succeeds | |
+| `container-network-forked` | `test/container/container-network-forked.ci` | AC-16: the same with the plugin forked | |
+| `container-network-address-stable` | `test/container/container-network-address-stable.ci` | AC-3 | |
+| `container-network-ipv6` | `test/container/container-network-ipv6.ci` | AC-4 | |
+| `container-network-firewall-term` | `test/container/container-network-firewall-term.ci` | AC-5, with the term's counter as the positive control | |
+| `container-network-same-network-filter` | `test/container/container-network-same-network-filter.ci` | A-8: whether a forward term sees traffic between two containers of one network | |
+| `container-port-published` | `test/container/container-port-published.ci` | AC-6: a connection reaches the container and the listing shows the term | |
+| `container-port-transit-untouched` | `test/container/container-port-transit-untouched.ci` | AC-6 survivor: transit to the same port is not translated | |
+| `container-network-outbound` | `test/container/container-network-outbound.ci` | AC-7 | |
+| `container-network-reload-removes` | `test/container/container-network-reload-removes.ci` | AC-8, with a foreign bridge and table that must survive | |
+| `container-network-daemon-stop` | `test/container/container-network-daemon-stop.ci` | AC-9, AC-22 | |
+| `container-network-crash-leftovers` | `test/container/container-network-crash-leftovers.ci` | AC-10 | |
+| `container-host-network` | `test/container/container-host-network.ci` | AC-11 | |
+| `container-host-network-refused` | `test/container/container-host-network-refused.ci` | AC-12, parse only | |
+| `container-none-network` | `test/container/container-none-network.ci` | AC-13 | |
+| `container-network-listings` | `test/container/container-network-listings.ci` | AC-14: the two listings, internal and forked | |
+| `container-port-blocked` | `test/container/container-port-blocked.ci` | A forward chain with policy drop blocks a published port and doctor reports it; adding the accepting term lets the connection through and clears the finding | |
+| `container-network-vpp-refused` | `test/container/container-network-vpp-refused.ci` | AC-15, parse only | |
+| `container-resolver-list` | `test/container/container-resolver-list.ci` | AC-17 | |
+| `container-resolver-on-gateway` | `test/container/container-resolver-on-gateway.ci` | The LAN resolver listening on a gateway address answers a container | |
+| `container-port-listener-conflict` | `test/container/container-port-listener-conflict.ci` | AC-18, parse only | |
+| `container-address-refused` | `test/container/container-address-refused.ci` | AC-19, parse only | |
+| `doctor-container-network` | `test/container/doctor-container-network.ci` | AC-21: one provoked class per step of the sequence, each with its code | |
+| `container-network-plugin-ends` | `test/container/container-network-plugin-ends.ci` | The plugin process ends: its devices and tables are withdrawn; both modes | |
 
 ### Lifecycle Scenarios (`ai/rules/testing.md`)
 | Scenario | Reached? | Proof or reason |
@@ -605,6 +611,7 @@ drafted under `test/draft/plugin/` and promoted.
 - `gokrazy/kernel/runtime.config`, `gokrazy/kernel/runtime.require` - the options this child enrols that are not pinned
 - `feature-gates.txt` - the `network` package under the runtime child's `ze_container` tag
 - `pkg/zefs/keys.go` - the key template `meta/container/address/{network}`
+- `internal/le/arch/fspersistence/fspersistence.go` - the `fileAllowlist` entry for the file that writes the resolver file, with its reason
 - `docs/architecture/zefs-format.md` - the new key in the key registry section
 - `docs/features/interfaces.md` - owned bridges and links, the stop path
 - `docs/architecture/firewall/table-ownership-and-shutdown-flush.md` - the producer row, and the forked producer route
@@ -710,7 +717,7 @@ drafted under `test/draft/plugin/` and promoted.
 | Deliverable | Verification method |
 |-------------|---------------------|
 | The interface and firewall requests are registered | `./le doc yang-contract command-contract`, and the four wiring `.ci` files |
-| A forked plugin gets the same result as an internal one | `./le test functional plugin` rows `container-network-forked`, `container-network-wiring-external` |
+| A forked plugin gets the same result as an internal one | `./le test container` rows `container-network-forked`, `container-network-wiring-external` |
 | No engine or config code names the feature | A search for the plugin name under `internal/component/iface`, `internal/component/firewall`, `internal/component/config` finds nothing |
 | Foreign state survives | `container-network-reload-removes.ci` |
 | The kernel options are pinned and enrolled | `TestEnrolledKernelSymbolsAreInRuntimeRequire` |

@@ -50,7 +50,7 @@ Goal: a container that an operator configured runs its entrypoint inside its own
 
 ### The diff against the upstream release (runc v1.5.3)
 
-One patch series, one module, stamped `Ze-Reviewed-Against: github.com/opencontainers/runc v1.5.3`. Each hunk is a patch file of its own, so the shell child adds files to the series for the entry path and replaces H-3.
+One patch series, one module, stamped `Ze-Reviewed-Against: github.com/opencontainers/runc v1.5.3`. Each hunk is a patch file of its own: six files from this child. The shell child rewrites the file of H-3 and adds a seventh file, over the same five upstream files.
 
 | Hunk | Upstream function or file | Change | Why |
 |------|---------------------------|--------|-----|
@@ -65,13 +65,41 @@ One patch series, one module, stamped `Ze-Reviewed-Against: github.com/openconta
 
 Every sibling is a package of the one `container` plugin and runs in its process, so each seam is a Go boundary inside the plugin tree.
 
-Image store (its section "The seam to the runtime child"):
+Image store (its section "The seam to the runtime child"). The seam has one record, and both specs state it field for field.
+
+The request, "resolve this container":
+
+| Field | Type | Description |
+|-------|------|-------------|
+| instance name | text | The container's name |
+| reference | text | The image reference the config names, as written |
+| storage size | number | The `storage` value: the cap of the writable layer |
+| volumes | list of name, destination and size | One entry for each `volume` the config holds |
+
+The answer "ready":
+
+| Field | Type | Description |
+|-------|------|-------------|
+| digest | text | The image digest the container runs |
+| image folder | absolute path | The unpacked image, the read-only lower layer of the root |
+| writable layer folder | absolute path | One directory for this container and this digest, holding the upper and work directories of the overlay |
+| volume folders | list of name, destination and absolute path | One folder for each volume of the request, created and capped |
+| entrypoint | list of text | The image's entrypoint, as fetched |
+| command | list of text | The image's default command, as fetched. A list of its own, never joined to the entrypoint |
+| environment | list of text | The variables the image declares |
+| working directory | text | The directory the entrypoint starts in |
+| user | text | The image's user as written: a name, a number, either with a group, or empty. The store resolves nothing |
+| stop signal | text | The signal the image declares for a stop, empty when none |
+| exposed ports | list of text | The ports the image declares, for display only |
+| declared volumes | list of text | The paths the image declares as volumes. No folder is made for them |
+
+The answer "absent" carries the completed reference and the reason: never fetched, fetch running, or the last fetch failed and why. It is never an empty value. Absent is the `waiting-image` state.
 
 | Direction | Question or notice | Answer, and what this child does |
 |-----------|--------------------|----------------------------------|
-| Runtime to store | Resolve this container: its name, the image reference, the storage size and the volumes its config holds | Ready: the digest, the image root folder, the image's configuration, the writable layer's upper and work folders, one folder per declared volume. Or absent, with the reference and the reason. Absent is the `waiting-image` state |
-| Runtime to store | Hold this resolution; later, release it | Held from the start of a container to the end of its cleanup |
-| Store to runtime | This reference is now present | Starts each container that waited for it and answers their names |
+| Runtime to store | Resolve this container | Ready or absent, as above |
+| Runtime to store | Hold this resolution; later, release it | Held from the start of a container to the end of its cleanup, then released. The store refuses to remove what is held |
+| Store to runtime | The image for this reference is now present | Starts each container that waited for it and answers their names |
 | Store to runtime | Restart this container on its new generation | Stops it, resolves again, starts it, and answers when it runs or why it does not |
 | Store to runtime | Stop this container, then start it again | The same, for the clear command |
 
@@ -83,21 +111,22 @@ What this child does with the image's configuration, which the store hands as fe
 | Environment | The image's variables, then the config's `environment` entries, which win on the same name |
 | Working directory | The image's. It is created in the root when absent |
 | User | The config's `user` and `group` when set. Otherwise the image's, as written: a number is used as it is, and a name is resolved in the image's own account files, opened under a descriptor for the root. A name those files do not hold fails the start |
-| Stop signal | The image's, or the termination signal when the image names none |
-| Declared volumes | A path the image declares and the config's `volume` list does not is not mounted: it stays a directory of the writable layer, which persists until the image is updated |
-| Exposed ports, labels | Not used |
+| Stop signal | The config's `stop-signal` when set. Otherwise the image's, or the termination signal when the image names none |
+| Declared volumes | A path the image declares and the config's `volume` list does not is not mounted: it stays a directory of the writable layer, which persists until the image is updated. The image-store child states the same rule, and the owner's closing test relies on it |
+| Exposed ports | Carried in the record for display. This child does not use them |
+| Labels | Not in the record |
 
 Network (its section "The seam with the runtime child", and its assumption A-3):
 
 | # | The network child needs | This child provides |
 |---|-------------------------|---------------------|
 | 1 | A call after the container is created and before its entrypoint runs, with the container name and the init process id. The start continues only on success; a failure destroys the container and records the reason | The created call: each registered participant is called once, under a deadline, with the name, the init process id and the network namespace path. An error destroys the container and puts the participant's name and reason in the container's state |
-| 2 | The network mode as an input when the container is built | `host-namespace` holding `network` builds no network namespace, and a participant registered for the network namespace is not called for that container |
-| 3 | A call when a container has exited or is destroyed | The ended call: made once for every container that got a created call, after its processes are gone, and for each leftover the sweep removes |
-| 4 | A place in the root for a resolver file, written before the entrypoint runs | Before create, a participant may contribute read-only file mounts. The resolver file is one: its content is written under the plugin's state directory and mounted at the resolver path |
+| 2 | The network mode as an input when the container is built | `host-namespace` holding `network` builds no network namespace. The created call is not made for that container, because it has no network namespace of its own to attach. Its description contribution and its ended call are made as for any container |
+| 3 | A call when a container has exited or is destroyed | The ended call: made once for every container this child created, after its processes are gone, and for each leftover the sweep removes |
+| 4 | A place in the root for a resolver file, written before the entrypoint runs | The description contribution: before create, each participant may contribute read-only file mounts, and nothing else. The resolver file is one. The network child keeps it in a directory of its own and hands this child the host path and the path inside the container. This child mounts it read-only and removes nothing it did not create: the file and its directory are the network child's to remove |
 | - | The loopback device up before call 1 | The description names the loopback device, and the library's init brings it up at the start of its sequence, before it blocks |
 
-Shell (its assumption A-12): the supervisor keeps the library's container object for every container that is not ended, and gives it to a caller inside the plugin by container name. The patch series takes more files.
+Shell (its assumption A-12): the supervisor keeps the library's container object for every container that is not ended, and gives it to a caller inside the plugin by container name. The drain handler ends the shell child's sessions first, then stops the containers, inside the one drain budget whose arithmetic is in Key Design Decisions. When the shell child lands, it rewrites the patch file of H-3, adds a seventh file to the series, extends the named guard test, replaces `TestPatchedLibraryRefusesToEnterAContainer`, and removes this spec's limitation about entering a container.
 
 Operator surface: the words below, and one read function that answers this child's facts for the state view (state, reason, digest, process id, restart count, last exit status, since, the limits in force, resource use), plus the output rows.
 
@@ -118,6 +147,8 @@ Config nodes this child realizes, under `container instance NAME` (its table S-1
 | `cpu` | The hard CPU limit in percent of one core. Default 100 |
 | `process-limit` | The most processes and threads at once. Default 256 |
 | `capability` | Capabilities added to the default fourteen |
+| `capability-drop` | Capabilities removed from the default fourteen. `all` removes the whole set, and `capability` then adds back what is named |
+| `stop-signal` | The signal a stop sends, in place of the image's |
 | `host-namespace` | `network`, `pid`, `cgroup`: the container shares that namespace of the host and gets none of its own |
 | `user`, `group` | Numeric identity of the entrypoint, in place of the image's |
 | `log` | `buffer`: the bounded output buffer. `system`: the buffer and Ze's log. `none`: the output is read and dropped |
@@ -126,7 +157,7 @@ Config nodes this child realizes, under `container instance NAME` (its table S-1
 | `tmpfs` | A memory-backed mount of a mandatory size, counted in `memory` |
 | `volume` (the mount only) | The folder the store answers for the volume is mounted at `destination`, read-only when `read-only` is true |
 
-Verify rules of its table V-1 that land here: V-2 (a `sysctl` outside the per-namespace settings), V-3 (memory-backed sizes above `memory`), V-7 (one path named twice), V-8 (`cpu` above 100 times the host's processors).
+Verify rules of its table V-1 that land here: V-2 (a `sysctl` outside the per-namespace settings), V-3 (memory-backed sizes above `memory`), V-7 (one path named twice), V-8 (`cpu` above 100 times the host's processors), V-10 (one capability both added and dropped) and V-11 (a container config under a daemon that does not run as root). The message of each rule is that child's table E-1. Its code and its tests are this child's, in the plugin's package. V-11 is judged where the daemon runs, at boot, reload and commit, and by doctor (AC-15, and the Key Design Decisions row on host privilege). That child's table lists V-11 among the rules `ze config validate` judges with no daemon. The two specs differ on that one point, and it waits for a ruling.
 
 Commands: this child lands `request container restart name`. It stops and starts a running container, starts one in `stopped` or `failed`, and is refused for `disabled` and `waiting-image` with the fix that table names. There is no start command and no stop command: `enabled` states whether a container runs. The listing, the detail, the log and its stream are the operator-surface child's; they read this child's facts.
 
@@ -143,7 +174,7 @@ The states an operator sees are the six of the operator-surface child's table T-
 | `disabled` | `enabled` is false | `running`, by config |
 | `failed` | A start step failed five times in a row, and Ze stopped trying. `reason` names the step in plain words | `running`, by the restart command or a config change |
 
-A start in progress shows the state it left, and a failed start that will be tried again shows `restarting`.
+A start in progress shows the state it left, and a failed start that will be tried again shows `restarting`. Only five failed starts in a row give `failed`. An entrypoint that keeps exiting is restarted under its policy with a growing delay and no bound, and the delay returns to one second after a run of one minute. These internal steps map onto the six states and add none: the operator-surface child's table T-1 states the six in the same words.
 
 ### Problem classes and their doctor codes
 
@@ -408,7 +439,7 @@ The operator-surface child owns that test: the published Redis image runs as a c
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
 | AC-1 | A config names an enabled container whose image the store resolves, and is committed | The entrypoint runs. This child's facts show `running` with the digest the store gave. Its process is alone in its pid, mount, network, ipc, uts and cgroup namespaces and in a cgroup of its own, and its loopback device is up | A container whose image is absent shows `waiting-image`; one with `enabled false` shows `disabled`, because the operator asked for that |
-| AC-2 | A participant is registered and a container starts | The participant gets the created call once, after create and before the entrypoint runs, with the container name, the init process id and a network namespace path that names a namespace other than the daemon's. It gets the ended call once after the container's processes are gone | A participant that returns an error makes the start fail with its name and reason in the state, and the container is destroyed, because a container without its network must not run |
+| AC-2 | A participant is registered and a container starts | The participant gets the created call once, after create and before the entrypoint runs, with the container name, the init process id and a network namespace path that names a namespace other than the daemon's. It gets the ended call once after the container's processes are gone. A container that shares the host's network namespace is the exception: the created call is not made for it, and it still gets the ended call | A participant that returns an error makes the start fail with its name and reason in the state, and the container is destroyed, because a container without its network must not run |
 | AC-3 | A container allocates memory past `memory` | The kernel kills inside the container. The state records an out-of-memory exit, doctor reports `doctor-container-out-of-memory` with the `set` line that raises the limit, and the restart policy applies | The daemon and every other container keep running, which is the purpose of the limit |
 | AC-4 | A container forks past `process-limit` | The fork fails inside the container with the kernel's resource error, the container keeps running, and doctor reports `doctor-container-process-limit` | Processes below the limit keep running, because only the excess is refused |
 | AC-5 | A container with `cpu 50` runs a busy loop on every processor | The cgroup's CPU statistics show throttled periods above zero, and its CPU time over ten seconds is at most five seconds plus one period | A container with a larger `cpu` uses more, up to its own value, because the limit is per container |
@@ -457,7 +488,9 @@ Test files are listed with their paths under Files to Create. The File column na
 | `TestImageUserNameIsResolvedInsideTheRoot` | plugin, describe test | A name, a number, an unknown name, and an account file that is a link out of the root | |
 | `TestDeclaredVolumeWithoutConfigIsNotMounted` | plugin, describe test | An image-declared path absent from `volume` adds no mount | |
 | `TestConfigRulesRefuseALimitBelowItsFloor` | plugin, config test | Each limit below its floor is refused with the offending value | |
-| `TestConfigRulesOfTheVerifyTable` | plugin, config test | V-2, V-3, V-7 and V-8, each with its message | |
+| `TestConfigRulesOfTheVerifyTable` | plugin, config test | V-2, V-3, V-7, V-8 and V-10, each with its message. V-11 is proven by `container-not-privileged-refused` | |
+| `TestDescriptionDropsNamedCapabilities` | plugin, describe test | `capability-drop` removes each named capability, `all` removes the default set, and `capability` adds back what is named | |
+| `TestStopSignalComesFromTheConfigThenTheImage` | plugin, describe test | The config's `stop-signal`, else the image's, else the termination signal | |
 | `TestOneRuleSetServesValidateVerifyAndConfigure` | plugin, config test | The in-process verifier, the live verify and configure give one verdict for one config | |
 | `TestRemovedRootStopsEveryContainer` | plugin, config test | An empty body yields "stop all", never "no change" | |
 | `TestApplyReturnsBeforeContainersStart` | plugin, supervise test | Apply records the desired set and returns while a start is blocked | |
@@ -556,7 +589,7 @@ Not applicable: Scope is plugin and no wire protocol changes.
 ## Files to Modify
 - `go.mod`, `go.sum`, `vendor/` - the runtime module and what it requires, in the dependency commit and nothing else
 - `cmd/ze/dispatch.go` - one early-role call at the top of `dispatchMain`
-- `feature-gates.txt` - the plugin's lines under `ze_container`
+- `feature-gates.txt` - the gate `ze_container`, declared here, and the lines of the packages this child creates: the plugin, its `seccomp` package and its `yang` package. Each sibling adds the line of each package it creates, under the same tag
 - `pkg/zefs/keys.go` - the per-container state key template
 - `gokrazy/kernel/runtime.config`, `gokrazy/kernel/runtime.require` - add `CONFIG_CFS_BANDWIDTH`; pin `CONFIG_FAIR_GROUP_SCHED`, `CONFIG_TMPFS` and `CONFIG_MEMFD_CREATE`, which are on today only by default
 - `ai/allowed-system-commands.md` - the entrypoint row, citing the ruling of 2026-11-16
@@ -752,7 +785,7 @@ Not applicable: Scope is plugin and no wire protocol changes.
 | The syscall tables are data checked against the vendored number files | A generator command; tables from kernel headers | The vendored module holds every architecture's numbers. A test compares, so no new tool is added. A call newer than the tables gets "not implemented", which is the upstream behavior for a call newer than the profile |
 | The filter covers the native architecture only | Tables for the 32-bit ABIs | A profile that lists one architecture kills calls under any other, as upstream does. Two tables are what the two shipped architectures need |
 | Containers are stopped in the stop drain | Stopping them when the connection closes | A daemon stop gives a plugin 3 seconds in the daemon and 1 second forked, with no `bye`. The drain is the one call that waits, up to 60 seconds, on both transports |
-| The drain budget is 35 seconds and `stop-timeout` at most 30 | A budget from config | The budget is declared at Stage 1, before config arrives. Five seconds remain for the kill and the cleanup |
+| The drain budget is 37 seconds and `stop-timeout` at most 30 | A budget from config | The budget is declared at Stage 1, before config arrives. The drain handler spends it in order: up to 2 seconds to end shell sessions (a hang-up, then a kill after that grace, which is the shell child's step), up to 30 seconds for the containers to obey their stop signals, and 5 seconds for the cgroup kill and the cleanup |
 | A dead daemon's containers are removed at the next start (owner ruling) | Adopting them; a parent death signal set inside init | The owner ruled that containers restart with Ze and are never re-adopted, and the diff refuses a death signal |
 | Containers are killed through their cgroup | The plugin supervisor's process-group kill | A container takes a new session and may create groups of its own. The cgroup holds every process whatever it does |
 | A new always-on leaf holds early roles by key | A hook variable for containers in `cmd/ze`; a second role inside the seed-init leaf | Always-on code must not name a feature. The seed role's checks do not fit a role with no arguments |

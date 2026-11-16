@@ -34,7 +34,9 @@ Ze is pre-release and no device is in the field. The new format is the format: n
 | Growth at install | "The appliance grows its persistent partition to the disk at install. This is appliance work of its own and comes before the image store." (2026-11-16) |
 | The size cap | A size cap the kernel enforces. A host whose data directory cannot enforce one refuses a container config (umbrella spec, "Where containers run") |
 
-### Open decisions (owner)
+### Decisions taken (main thread, 2026-11-16)
+
+Each of the three takes its recommendation, unless the owner objects at the final review, and the design below is written under them. A device not grown at install grows only on a command, and doctor reports it until then (D-1). The command is `request system storage grow` (D-2). A growth failure at install finishes the install and is reported by doctor on the booted device (D-3).
 
 | # | Question | Recommendation | What the operator sees under each answer |
 |---|----------|----------------|-------------------------------------------|
@@ -333,7 +335,7 @@ Doctor, on a device whose storage is smaller than its disk:
 - `internal/appliance/cache.go` `initrdSourceDirs` - the leaf packages the installer imports.
 - `internal/component/host/storage_linux.go` `DetectStorage` and `internal/plugins/host-cmd/cmd/register.go` - the report and the command.
 - `internal/core/diagnostic/codes.go` and the doctor registry - one code.
-- `spec-container-2-image-store.md` - reads the facility through the quota leaf and makes no filesystem.
+- `spec-container-2-image-store.md` - calls the `projquota` leaf for every quota operation (probe the state, give a folder a project id, set a limit, read usage), has no quota code of its own, never turns enforcement on, and makes no filesystem. It reads the leaf's four states as its own capability: `enforced` is present, `not-enforced` and `no-feature` are absent, `unknown` is cannot-determine. This spec owns the partition's format, the kernel quota pins and that one shared leaf.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
