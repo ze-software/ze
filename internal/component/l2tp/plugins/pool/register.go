@@ -542,6 +542,7 @@ type sessionAlloc struct {
 
 func lookupSessionUsername(subscriberID string) string {
 	sess, ok := subscriber.DefaultRegistry.Get(subscriberID)
+	// refuse-by-default: guards poolPlugin.showPool -- username is optional display data
 	if !ok {
 		return ""
 	}

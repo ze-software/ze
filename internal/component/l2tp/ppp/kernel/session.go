@@ -355,6 +355,7 @@ func (s *session) RemoveAddress(local netip.Prefix) error {
 		return errors.New("ppp: invalid local session address")
 	}
 	owned, ok := s.addresses[local]
+	// refuse-by-default: guards ppp.IPv6Service.Stop -- no owned receipt needs no native withdrawal
 	if !ok {
 		// Cleanup may follow an add refused before an ownership receipt.
 		// No native mutation is owed by this owner; never delete another
@@ -457,6 +458,7 @@ func (s *session) RemoveRoute(destination netip.Prefix, gateway netip.Addr, metr
 	if err != nil {
 		return err
 	}
+	// refuse-by-default: guards ppp.IPv6Service.Stop -- no owned receipt needs no native withdrawal
 	if _, owned := s.routes[route]; !owned {
 		// No attempted mutation belongs to this owner. Never turn another
 		// producer's matching route into this session's cleanup obligation.

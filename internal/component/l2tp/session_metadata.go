@@ -77,6 +77,7 @@ func StoreSessionMetadata(subscriberID string, meta *AuthMetadata) {
 // in the store so multiple consumers (pool, reactor, shaper, acct)
 // can each read it. Call ClearSessionMetadata on session teardown.
 func LoadSessionMetadata(subscriberID string) *AuthMetadata {
+	// refuse-by-default: guards l2tpReactor.startSessionTimeouts -- nil denies a profile for an invalid ID
 	if err := subscriber.RequireID(slogutil.Logger(SubsystemName), subscriberID); err != nil {
 		return nil
 	}
