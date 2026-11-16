@@ -23,6 +23,7 @@ func noLLGRSweepRIB(t *testing.T, withNoLLGR bool) (*RIBManager, *testEventBus) 
 	t.Helper()
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"))
 	peerAddr := netip.MustParseAddr("192.0.2.1")
 	r.peerMeta[peerAddr] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
 
